@@ -568,37 +568,65 @@ const wikibinator203 = (()=>{
 	};
 
 	//FIXME must have 4 ints of salt and 3 bits of kinds of clean, on stack, for funcall cache.
-	vm.dedupKeyOfFuncallCache = function(func,param){
+	vm.dedupKeyOfFuncallCache = function(func,param,func,param,optionalStackStuff){
 		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
 		//But until then, dedupKeyOfFuncallCache will prepay to include gasMem, instead of just gasTime.
 		this.prepay(1,4); //FIXME?
-		return "cache_"+func().slowLocalId()+"_"+param().slowLocalId();
+		return "cache_"+func().slowLocalId()+"_"+param().slowLocalId()+"_"+(optionalStackStuff || vm.defaultStackStuff);
 	};
 
 
 	//increases every time any FuncallCache is used, so can garbcol old funcallcaches.
 	vm.touchCounter = 0;
+	
+	vm.StackStuff = function(fourIscleanvsdirtyBits, saltA, saltB, saltC, saltD){
+		this.fourIscleanvsdirtyBits = fourIscleanvsdirtyBits;
+		this.saltA = saltA;
+		this.saltB = saltB;
+		this.saltC = saltC;
+		this.saltD = saltD;
+	};
+	
+	//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
+	//Use this as immutable.
+	//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
+	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to gasTime and gasMem can only decrease (or stay same) but not increase,
+	//until the first call returns, then can start with any StackStuff you and gasTime gasMem etc you want.
+	vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0);
 
 	//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
 	//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
-	vm.FuncallCache = function(vm,func,param){
+	vm.FuncallCache = function(func,param,optionalStackStuff){
 		this.func = func;
 		this.param = param;
+		this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
 		this.ret = null; //func, param, and ret, are all what lambdize returns.
-		this.touch = ++vm.touchCounter; //for garbcol of old funcallcaches
+		this.touch = ++this.touchCounter; //for garbcol of old funcallcaches
 	};
+	
+	
 
 	//returns a vm.FuncallCache, not its ret, so you can read or write its ret. Sets its FuncallCache.touch to newest of any FuncallCache.
-	vm.funcallCache = function(func,param){
+	//salt isnt needed in pure clean mode, but if you want gasTime gasMem etc, to repeat the same call without getting the same return value from earlier cache, use salt.
+	//salt is any 4 ints. Normally the first lambda call uses a random salt, and unitary transforms it by 2 different transforms as it takes different paths on stack,
+	//but only changes salt when it wants to fork a different run of the same lambda call.
+	//Whena all 4 iscleanvsdirty bits are 0, the same run of the same lambda call always returns the same lambda, but its useful to limit compute cycles and memory
+	//and for some lambda calls to take different paths depending on if other lambda calls run out of compute resources or not, recursively.
+	//Since there are many possible optimizations and that may vary across wikibinator203 VMs, the amounts of compute resources are nondeterministic,
+	//and so are what digital signatures mutableWrapperLambda may find or not find, or find a newer one if theres multiple.
+	//The 4 bits are to allow or not allow various kinds of nondeterminism, recursively on stack can tighten but not loosen.
+	vm.funcallCache = function(func, param, optionalStackStuff){
+		
+		
 		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
 		//But until then, dedupKeyOfFuncallCache will prepay to include gasMem, instead of just gasTime.
-		let key = this.dedupKeyOfFuncallCache(func,param);
+		let key = this.dedupKeyOfFuncallCache(func, param, optionalStackStuff);
 		let cache = this.funcallCacheMap[key];
 		if(cache){
 			this.prepay(1,0);
 		}else{
 			this.prepay(1,4);
-			cache = this.funcallCacheMap[key] = new this.FuncallCache(this,func,param)
+			cache = this.funcallCacheMap[key] = new this.FuncallCache(this,func,param,optionalStackStuff)
 		}
 		cache.touch = ++this.touchCounter;
 		return cache;
