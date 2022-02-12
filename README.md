@@ -35,6 +35,8 @@ In theory, wikibinator203 is, among other things, an antivirus so advanced it ne
 
 A hash collision of ids would, in theory, only break things inside sandbox, and anyone who wrongly trusted it to compute the universal lambda in some VM that actually does not, but hopefully the VMs will be so simple and bug-free that wont happen. If you need high security, 512 bit ids (instead of the default of 256, with 192 bits of hash) are recommended. Multiple id types can be generated at runtime since an id maker is a lambda that when called on a lambda returns a lambda that is the bits of its id. Every id maker can generate the id of itself, for example, as its very self referencing.
 
+It is invited to attempt to use the rules of the univeral lambda to prove true equals false or whatever contradiction, and to use such "hacking" to the hacker's benefit, therefore motivating normal nontechnical users and math experts, to prove that is not possible in whatever set of axioms they believe. For example, you may make up random 256 bit "fake ids" and claim they are real ids.
+
 Anything stored as bitstrings (instead of a .exe file waiting for someone to accidentally click it) is, in lambda form, a complete binary tree of 0s and 1s, where 0 and 1 are 2 specific lambdas, and the last 1 bit marks the end of the bitstring. It is sandboxed since all bitstrings/integers are part of math.
 
 ]]]
