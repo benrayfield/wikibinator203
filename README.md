@@ -1,6 +1,8 @@
 # wikibinator203
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
+First app running on this will maybe be musical instruments similar to https://en.wikipedia.org/wiki/Pure_Data that can be shared in realtime to build more musical instruments with and so on, and this "proof of concept" will be able to scale to millions of simultaneous instruments being played and generated and evolved.
+
 Doesnt work yet, see wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
 Here's an incomplete (havent committed to it) license I'm working on writing (TODO move the ["TODO write my own opensource license" in wikibinator203.js] out of that file and merge any relevant parts into this, get rid of the rest, and keep it as small and simple as possible)...
