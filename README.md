@@ -11,6 +11,22 @@ Here's an incomplete (havent committed to it) license I'm working on writing (TO
 [[[
 Copyleft license starts here.
 
+TODO rewrite this mess smaller.
+
+The Evil Bit may save us from censoring
+
+"The evil bit is a fictional IPv4 packet header field proposed in RFC 3514, a humorous April Fools' Day RFC from 2003 authored by Steve Bellovin. The RFC recommended that the last remaining unused bit, the "Reserved Bit"[1] in the IPv4 packet header, be used to indicate whether a packet had been sent with malicious intent, thus making computer security engineering an easy problem – simply ignore any messages with the evil bit set and trust the rest." -- https://en.wikipedia.org/wiki/Evil_bit
+
+I'm going to use it in https://github.com/benrayfield/wikibinator203 where any 256 bit id that starts with 11110100 is good, if starts with 11110000 it may be good or evil or any combo, and if it starts with anything else (the other 254 byte values) its a literal 256 bits and is neutral.
+
+Everything thats good has an evil twin. Everything thats evil has a good twin. A thing is not good or evil by itself but only depending how you interpret it, so every thing has 2 ids, one that means you're using it for good, and one that means not necessarily good ("evil").
+
+The evil_bit so far has just been a joke, but I plan to use it for an important purpose: to reduce or stop censoring in the "antivirus quarantine" areas of wikibinator203, where censoring (or forced removing of any kind) should be avoided, but in the good areas (outside antivirus quarantine) only "good" uses are allowed, so the normal "cancel culture" aka "cancel mob" can play/work with their "good" lambda functions, and those who dont want to be censored/etc an play/work with the more flexible evil_bit lambdas. Which do exactly the same thing as their good/evil twin (just flip a bit to get the id of the twin, unless its neutral then theres only 1 id).
+
+Legally speaking, if you give execute permission to something in an "antivirus sandbox" (aka has the evil_bit on) that is your fault/negligence for getting the virus, and similar if you obey or believe it. We told you its evil. It was clearly marked. You knew what you were getting into.
+
+If you dont want evil on your computer, then just check for the evil_bit and say no thank you. Of course, as usual, someone could claim things are good when they're not, but thats an issue I leave to the cancel mob.
+
 FIXME TODO... Maybe there should be a bit for https://en.wikipedia.org/wiki/Evil_bit in the ids (256 or 512 bits), or call it a isCertainlyGoodBit (vs may be good, neutral, or accidentally evil as anyone can offer lambdas and those who receive and build with them might not know its "evil" until its hard to remove without breaking stuff). There would be a certain bit, somewhere in the first 32 bits of an id, that for call pair ids (any bitstring small enough to fit in an id is automatically good), and if you flip that bit, you have the id of its evil/good twin. So if you have all good ids, or all evil ids, you dont have to store both and can just flip that bit to get the other ids recursively. This way, you can choose to work outside "antivirus quarantine" (good) or inside it (may also contain evil). There is hopefully no censoring (or any kind of forced removing) inside quarantine, but theres not much we can do about it outside. I'm guessing that the good/outside will have technical problems with merkle garbage collection, and inside wont, but I dont need to make that choice for people as they can try both. The 2 kinds of ids cant see eachother, nor can a lambda know if its evil bit is on or off since both id makers are valid lambdas that both isCertainlyGoodBit and NOT_isCertainlyGoodBit can compute. To make room for a few more bits in id, max curriesLeft is reduced to 255 to fit in a byte, or maybe get the space somewhsere else....
 ..
 
