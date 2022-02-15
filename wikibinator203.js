@@ -1,3 +1,7 @@
+TODO use these...
+vm.callPairPrefixByte_evilBitOn
+vm.callPairPrefixByte_evilBitOff
+
 opcodes:
 stackIsAllowGastimeGasmem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
 stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
@@ -179,7 +183,14 @@ const wikibinator203 = (()=>{
 		if(this.lastIdA) this.lastIdB++;
 	};
 	
-	vm.callPairPrefixByte = 0b11111000;
+	//https://en.wikipedia.org/wiki/Evil_bit
+	//For wikibinator203, evilBit off means "the normal internet", and on means "antivirus quarantine, spread across many computers which apps may run inside".
+	//Anyone who gives execute permission to, or obeys or believes, something in an antivirus quarantine is at fault/negligence if something goes wrong,
+	//since they were told its evil and chose to do that anyways.
+	//To avoid breaking the merkle garbage collector, "evil" content that has incoming pointers will not be removed,
+	//and the same should be true for "good" content but things might get removed anyways cuz people demand things of eachother, and things might break in the "good" area.
+	vm.callPairPrefixByte_evilBitOn =  0b11110100;
+	vm.callPairPrefixByte_evilBitOff = 0b11110000;
 	
 	//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
 	//If it does not start with 111110 then it is literal 256 bits that is its own id.
