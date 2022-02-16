@@ -5,6 +5,26 @@ First app running on this will maybe be musical instruments similar to https://e
 
 Doesnt work yet, see wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
+TODO start storing lambdas ONLY as concat of 3 ids: parent left right, in base58, something like this:
+λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj (a made up id)
+where λe is evil/notNecessarilyGood lambda and λg is good lambda,
+AND make lambdize/Node toString return
+ 'λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj' etc.
+ That way, anyone who has all the toString outputs of the relevant lambdas has all those lambdas without having to try all pairs of them to
+ know which is the left/right child of which other, and it needs no database etc, can exist entirely in sentences written online. You can
+ still write λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj by itself which implies whatever its left and right childs are, that hash
+ (512 bits to 256 bits) to that.
+TODO choose 3*(16+8) int32s as extra constants for doing 3 sha256_without_padding of 512 bits, to add the ints to the input and add the
+ ints to the output,
+and get 3 such (preprocessed and postprocessed) sha256 outputs of the same pair of id256, and minorityBit ~(a&b)^(b&c)^(c&a) them
+ together to get a more secure hash, then take the last 192 bits of it, and prefix that with header64 as the id256 of any 2 id256s
+ as its left and right childs.
+TODO make musical instruments stored only like a bunch of
+λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
+but as λg... the good form since if I make the instruments myself out of only things I've made (nobody having given me lambdas to use)
+then I know theres no evil in it (evilbit) but just change λg to λe later if combining it with things you cant easily verify are good.
+And start playing the instruments something like http://dinahmoelabs.com/plink/ andOr puredata.
+
 This is something that years ago started as I was looking for how to make an https://en.wikipedia.org/wiki/Artificial_general_intelligence algorithm as some kind of binary-forest (tree with 2 childs each and shared branches). It seems a nearer goal to make musical instruments and lambdas in a peer to peer network, and wherever that leads, gradually add smarter code (in the form of calling a universal lambda on itself in various combos, formal-verified, me not above or below anyone else in the peer to peer network, and anyone who might do that could cause the same, and I am telling all my most advanced knowledge about it so all players are in fair play), leading to AGI hopefully, or think of it as testing the basics of a math system and how people react to it and use it together before doing that kind of thing in more advanced ways. The math works, for sure (see wikibinator106 log output example file https://raw.githubusercontent.com/benrayfield/wikibinator106/main/data/wikibinator106/testOutputs/marklar106TestOutput.txt for example). This is just a variant of it to scale and tune for practical uses. Its a question of what variety of it to pursue.
 
 Here's an incomplete (havent committed to it) license I'm working on writing (TODO move the ["TODO write my own opensource license" in wikibinator203.js] out of that file and merge any relevant parts into this, get rid of the rest, and keep it as small and simple as possible)...
