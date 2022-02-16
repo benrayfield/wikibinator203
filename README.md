@@ -41,6 +41,16 @@ with(x) console.log(λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5
 
 5
 
+But you'd be more likely to use it like this
+
+freakyDrum = λimport('λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj');
+
+someOtherFunc = λimport('λ...stuff...');
+
+freakierDrum = someOtherFunc(freakyDrum);
+
+...code to play freakierDrum on speakers using webAudioAPI...
+
 This is something that years ago started as I was looking for how to make an https://en.wikipedia.org/wiki/Artificial_general_intelligence algorithm as some kind of binary-forest (tree with 2 childs each and shared branches). It seems a nearer goal to make musical instruments and lambdas in a peer to peer network, and wherever that leads, gradually add smarter code (in the form of calling a universal lambda on itself in various combos, formal-verified, me not above or below anyone else in the peer to peer network, and anyone who might do that could cause the same, and I am telling all my most advanced knowledge about it so all players are in fair play), leading to AGI hopefully, or think of it as testing the basics of a math system and how people react to it and use it together before doing that kind of thing in more advanced ways. The math works, for sure (see wikibinator106 log output example file https://raw.githubusercontent.com/benrayfield/wikibinator106/main/data/wikibinator106/testOutputs/marklar106TestOutput.txt for example). This is just a variant of it to scale and tune for practical uses. Its a question of what variety of it to pursue.
 
 Here's an incomplete (havent committed to it) license I'm working on writing (TODO move the ["TODO write my own opensource license" in wikibinator203.js] out of that file and merge any relevant parts into this, get rid of the rest, and keep it as small and simple as possible)...
