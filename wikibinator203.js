@@ -1,3 +1,24 @@
+TODO start storing lambdas ONLY as concat of 3 ids: parent left right, in base58, something like this:
+λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj (a made up id)
+where λe is evil/notNecessarilyGood lambda and λg is good lambda,
+AND make lambdize/Node toString return
+ 'λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj' etc.
+ That way, anyone who has all the toString outputs of the relevant lambdas has all those lambdas without having to try all pairs of them to
+ know which is the left/right child of which other, and it needs no database etc, can exist entirely in sentences written online. You can
+ still write λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj by itself which implies whatever its left and right childs are, that hash
+ (512 bits to 256 bits) to that.
+TODO choose 3*(16+8) int32s as extra constants for doing 3 sha256_without_padding of 512 bits, to add the ints to the input and add the
+ ints to the output,
+and get 3 such (preprocessed and postprocessed) sha256 outputs of the same pair of id256, and minorityBit ~(a&b)^(b&c)^(c&a) them
+ together to get a more secure hash, then take the last 192 bits of it, and prefix that with header64 as the id256 of any 2 id256s
+ as its left and right childs.
+TODO make musical instruments stored only like a bunch of
+λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
+but as λg... the good form since if I make the instruments myself out of only things I've made (nobody having given me lambdas to use)
+then I know theres no evil in it (evilbit) but just change λg to λe later if combining it with things you cant easily verify are good.
+And start playing the instruments something like http://dinahmoelabs.com/plink/ andOr puredata.
+ 
+
 TODO use these...
 vm.callPairPrefixByte_evilBitOn
 vm.callPairPrefixByte_evilBitOff
