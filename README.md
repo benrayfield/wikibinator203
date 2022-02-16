@@ -27,6 +27,8 @@ And start playing the instruments something like http://dinahmoelabs.com/plink/ 
 
 Also, these are valid javascript var names (though they shouldnt have a value other than a javascript lambda)...
 
+x = {}
+
 x.λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj = 5
 
 5
