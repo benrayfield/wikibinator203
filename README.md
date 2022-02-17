@@ -23,7 +23,7 @@ TODO make musical instruments stored only like a bunch of
 λeDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλeaaaavwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHjλebbbbvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
 but as λg... the good form since if I make the instruments myself out of only things I've made (nobody having given me lambdas to use)
 then I know theres no evil in it (evilbit) but just change λg to λe later if combining it with things you cant easily verify are good.
-And start playing the instruments something like http://dinahmoelabs.com/plink/ andOr puredata.
+And start playing the instruments something like http://dinahmoelabs.com/plink/ andOr puredata. (FIXME if the evil_bit is in the 256 bits it would have to be changed there too, unless the g or e overlapped that somehow)
 
 Also, these are valid javascript var names (though they shouldnt have a value other than a javascript lambda)...
 
