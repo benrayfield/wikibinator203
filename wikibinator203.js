@@ -26,18 +26,22 @@ vm.callPairPrefixByte_evilBitOn
 vm.callPairPrefixByte_evilBitOff
 
 opcodes:
+bit0
+bit1
+l
+r
+t
+f
+λimport //(λimport anIdMaker id) -> x where (anIdMaker x)->id, and id may be a cbt256 or concat of 3 of those, and may be some text form such as base64 but if so then idMaker returns such a string as id, and idMaker contains the binary idMaker as one of its params to transform to string. This is similar to solveRecog (and solveFloat64) except its easier to optimize and is expected to look wherever lambdas may be stored such as in browser cache, harddrive, a website, or wherever vm.λimport is hooked in to look. Or, it might load a lazyEval of the lambda like a stub that looks for it if you look deeper into it.
 stackIsAllowGastimeGasmem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
 stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
 stackIsAllowMutableWrapperLambda
 stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
+varargAxCall //(varargAxCall constraint ...params...) ... (varargAxCall constraint a) is halted if (constraint a)->u, and evals to v if (constraint a)->(u v), so varargAxCall chooses at each next param that it has enough params or not (vararg) and if not then what the return val is. These ax (axiom-like) constraints are a turing-complete-type-system that could for example make a list that can only contain prime numbers, or a tree that can only have a certain type of nodes in it. It takes finite time to compute, just normal forward computing, but cuz of haltingProblem, it takes on average infinity time and memory to verify, so theres a containsAxConstraint bit in header int and a stackIsAllowAx bit on stack thats also in that header int for nonhalted calls/nodes. varargAxCall tightens cleanvsdirty (higher on stack) to be deterministic (ax is deterministic, but so is not allowing ax), so you cant for example have an ax constraint about nondeterministic roundoff or about mutableWrapperLambda.
 lambda //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
 getnamedparam //ddee? would be a syntax for '(getnamedparam "ddee")', and appears like 'ddee?' .
 opOneMoreParam //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
 s
-t
-f
-l
-r
 isleaf
 pair
 typeval
@@ -311,7 +315,8 @@ const wikibinator203 = (()=>{
 	//Dont change vm.maxCurriesLeft unless you can fit it in header int, and its already packed tight using every bit, or unless you want to give up hash id bits,
 	//and 192 bits of hash is already not much.
 	//
-	vm.maxCurriesLeft = 0xfff;
+	//vm.maxCurriesLeft = 0xfff;
+	vm.maxCurriesLeft = 0xff;
 	
 	//DONE: rename to vm.maxCurriesLeft? or is it maxCurries in total? See "(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params" comment.
 	
@@ -351,7 +356,7 @@ const wikibinator203 = (()=>{
 		this.r = r;
 		
 		let isLeaf = r==null;
-		let lNode = l();
+		let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
 		let rNode = r();
 		let leftOp = lNode.o8();
 		let rightOp = rNode.o8();
@@ -360,7 +365,7 @@ const wikibinator203 = (()=>{
 		let leftOpLessThan128 = leftOp < 128;
 		let chooseOpNowOrEval = lcur==1;
 		let isNowGettingIts7thParam = leftOpLessThan128 && chooseOpNowOrEval;
-		let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
+		/*let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
 		let isEvaling;
 		let leftIsCbt = (leftOp == vm.o8OfBit0 || leftOp == vm.opOfBit1);
 		if(leftIsCbt){
@@ -371,7 +376,8 @@ const wikibinator203 = (()=>{
 			isEvaling = !rightIsCbt || (lcur!=rcur) || lcur==4094; //curriesLeftRaw of 4095 means infinite curriesLeft, and cbt never reaches that (todo put in infcur instead?)
 		}else{
 			isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
-		}
+		}*/
+		let isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
 		
 		//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
 		//evalers take 3 params: vm func param, instead of making a node of func and param together.
@@ -447,11 +453,29 @@ const wikibinator203 = (()=>{
 		}
 		//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
 		
+		
+		TODO order the params of headerOfNonliteralCallPair the same order they occur in the header int,
+			and include the 4 bits of cleanvsdirty, and these: containsBit1 containsBit0, containsAxConstraint, containsNonBitOtherThanLessThan7Params,
+			and I might want another cleanvsdirty bit for IEEE754 float32 and float64 ops but only if they can be defined deterministicly,
+			so that even if Math.sin Math.tanh etc are nondeterministic roundoff, that there would be some
+			welldefined correct answer of 128 bits to 64 bits (double,double)->double, vs the only welldefined way (at max cleanness) being whatever double
+			value is closest to if it had been done with infinite precision. Some (double,double)->double seem to always match between
+			javascript and java and across multiple computers (and should be tested in more systems),
+			such as double*double and double+double, but double/double seems less reliable.
+			In any case, an unlimited number of new "opcodes" can be added to the system,
+			and optimized by making a node.evaler for a group of them or for each (and such evaler may be made of the opmut (uses vm.Mut datastruct)
+			so could in theory be compiled at runtime to javascript instead of needing to modify the VM).
+			If need another bit, there is a bit left in bize int since only low 31 bits of bize are stored, but maybe that bit should say that theres more bits or not,
+			but thats unnecessary since curriesLeft is stored, and since max bitstring size is (approx, todo verify) 2^247-1 bits (vm.maxCurriesLeft is 255),
+			the bit of is there more bits of bize is already knowable from [curriesLeft and o8].
+			Or that high bit in bize int is used for lazyEval of bize, so dont put anything there.
+			
 		//int. 6 bits are 111110 for is literal self or not. then 2 bits (00 is callpair, else is literal 256 bits).
 		//then o8. then curriesLeftOr255ToMeanMoreThan254. then up to 8 mask bits (containsBit1, etc).
-		this.header = vm.headerOfNonliteralCallPair(o8, curLeftOr, upTo8BitsOfMasks); //FIXME check if it is a literal (globalId256 does not start with 11111000).
+		this.header = vm.headerOfNonliteralCallPair(evilBit, o8, curLeftOr, upTo8BitsOfMasks); //FIXME check if it is a literal (globalId256 does not start with 11111000).
 		//this.header = 0; //FIXME need to compute header as int
 		
+		FIXME instead of -1 meaning the following comments about bize, use containsBit1 containsBit0, containsNonBitOtherThanLessThan7Params.
 		//int. bize is max 31 bits. past that it will make linkedlist or something (todo) of cbts.
 		this.bize = -2; //-2 means dont know bize yet (lazyEval). -1 means its all 0s or is not a cbt. nonnegative means its the low 31 bits of the index of the last 1 bit. FIXME TODO write code to deal with that in blob and normal callpairs
 		//FIXME set bize
@@ -468,7 +492,7 @@ const wikibinator203 = (()=>{
 		
 		//this.idString;
 		
-		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+		this.evaler = l ? lNode.evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
 		
 
 	};
@@ -520,12 +544,18 @@ const wikibinator203 = (()=>{
 	
 	//vm.base58Digits = 
 	
-	//of first int
-	vm.evilBitMask = TODO;
-	
 	//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
+	//literal 256 bits that fits in a 256 bit id (or similar for 512 bit ids) have evilBit==false. Theres just not room in them for even 1 bit of metadata. They have no header,
+	//but they're small enough they they probably cant cause much of a problem. Combining 2 or more of them requires a node capable of having evilBit (true or false)
+	//so its really a statement about a max of 256 or depending on id size 512 bits. Literals that do have a value, such as 1 2 4 8 16 32 64 or 128 bits, do have header,
+	//so can have evilBit, even though its probably not very useful in such small literals.
+	//If that becomes a problem, a new kind of id can be derived that always has header so can always have evilBit, by storing at most 128 bits of literal in a 256 bit id.
 	vm.evilBitOf = function(headerInt){
-		return (this.evilBitMask&headerInt)?true:false;
+		return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
+		/*vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
+		vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
+		return (this.evilBitMaskOfHeaderInt&headerInt)?true:false;
+		*/
 	};
 	
 	//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
@@ -590,6 +620,17 @@ const wikibinator203 = (()=>{
 		return this.isCbtOf(this.header);
 	};
 	
+	
+	vm.Node.prototype.curriesLeft = function(){
+		return this.curriesLeftOf(this.header);
+	};
+	
+	vm.Node.prototype.curriesLeftOf = function(headerInt){
+		return headerInt&0xff;
+	};
+	
+	
+	/*
 	vm.Node.prototype.curriesLeft = function(){
 		return this.curriesLeftOf(this.header);
 	};
@@ -599,10 +640,11 @@ const wikibinator203 = (()=>{
 		return this.rawCurriesLeftOf(headerInt); //rawCurriesLeft is number of curries left.
 	};
 	
+	
 	//raw means just get the 12 bits without checking if its cbt or not.
 	//1 to 4094 if finite number of curries left, or 4095 for infinity curries left (never eval). or in some implementations 0 means evaling now.
 	vm.Node.prototype.rawCurriesLeftOf = function(headerInt){
-		return this.header&0xfff;
+		return this.header&0xff;
 	};
 
 	//raw means just get the 12 bits without checking if its cbt or not.
@@ -614,7 +656,7 @@ const wikibinator203 = (()=>{
 	//
 	vm.Node.prototype.rawCurriesLeft = function(){
 		return this.curriesLeftOf(this.header);
-	};
+	};*/
 
 	vm.Node.prototype.toString = function(){
 		return this.vm.nodeToString(this);
