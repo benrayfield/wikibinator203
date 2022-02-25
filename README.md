@@ -2,12 +2,13 @@
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
 Planned features
+* no central control. In theory there will be a variety of realtime interoperable wikibinator203 VMs that all run the same universal lambda math and may sometimes choose to turing-complete-challenge-response eachother for lambda called on lambda returns what lambda. Accusations against specific lambdas (for just existing, since they dont do anything except find/create lambdas and are a kind of number) can in theory be responded to by "did put it in antivirus quarantine", since there is a whole area of the system that runs in an antivirus quarantine so thats a no-op, but the other "normal" area, which works by the same math, is the part such accusations may be directed at.
 * Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
 * exactly repeatable calculations in strictest mode.
 * can run evil code (virus, ransomware, some AI generated code, etc) safely in a sandbox. All code is sandboxed. You are warned not to give execute permission, believe, or obey anything in the evil_bit=true area.
+* does not need execute permission.
 * Sandbox can be private or shared across many computers.
 * every lambda call or gives up after recursive limits of time and memory.
-* does not need execute permission.
 * zero-knowledge-proof allows global sync from everywhere to everywhere near lightspeed.
 * turing-complete load-balancing, and turing-complete-challenge-response of lambda called on lambda finds/creates what lambda.
 * unique 256 bit number (or 512 bit for extra security) for each lambda, other than if there was a secureHash-collision.
