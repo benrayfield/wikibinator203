@@ -2,6 +2,9 @@
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
 Planned features
+* use lambdas instead of bits, as the tiny pieces the internet is made of. Using any 2 lambdas together (call one on the other) finds or creates a lambda. Lambdas can be anything such as a word, picture, sound, game, tool, or something that draws a mustache on any picture you drag it to. Anything.
+* median forking latency of 1 microsecond.
+* some parts GPU optimizable. Memory mapping.
 * no central control. In theory there will be a variety of realtime interoperable wikibinator203 VMs that all run the same universal lambda math and may sometimes choose to turing-complete-challenge-response eachother for lambda called on lambda returns what lambda. Accusations against specific lambdas (for just existing, since they dont do anything except find/create lambdas and are a kind of number) can in theory be responded to by "did put it in antivirus quarantine", since there is a whole area of the system that runs in an antivirus quarantine so thats a no-op, but the other "normal" area, which works by the same math, is the part such accusations may be directed at.
 * Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
 * exactly repeatable calculations in strictest mode.
@@ -12,7 +15,6 @@ Planned features
 * zero-knowledge-proof allows global sync from everywhere to everywhere near lightspeed.
 * turing-complete load-balancing, and turing-complete-challenge-response of lambda called on lambda finds/creates what lambda.
 * unique 256 bit number (or 512 bit for extra security) for each lambda, other than if there was a secureHash-collision.
-* some parts GPU optimizable
 * optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.
 
 First app running on this will maybe be musical instruments similar to https://en.wikipedia.org/wiki/Pure_Data that can be shared in realtime to build more musical instruments with and so on, and this "proof of concept" will be able to scale to millions of simultaneous instruments being played and generated and evolved, and every bit, every tiny part of a sound vibration, is a lambda.
