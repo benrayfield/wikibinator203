@@ -1,3 +1,205 @@
+SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
+which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
+vm.Mut = function(n){
+	
+	//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
+	//in js, int or float or byte are a subset of doubles.
+	this.n = n&0x7fffffff;
+	
+	//view as thisMut<indexOfDouble>
+	this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
+	
+	//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
+	//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
+	//or for some uses maybe much longer or as fast as a microsecond.
+	this.m = {};
+	
+	//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
+	
+	//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
+	//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
+	//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
+	//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
+	,=//which may be undefined or have a value of string or double or lambda or Mut, and so on.
+	//
+	//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
+	Object.setPrototypeOf(this.d,null);
+	//block access to this.m.__lookupGetter__ etc in generated js code.
+	Object.setPrototypeOf(this.m,null);
+};
+
+/*
+
+FIXME, sandbox problem:
+x = {}
+{}
+x.__lookupGetter__
+ƒ __lookupGetter__() { [native code] }
+..
+Object.getPrototypeOf({})
+{constructor: ƒ, __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}constructor: ƒ Object()hasOwnProperty: ƒ hasOwnProperty()isPrototypeOf: ƒ isPrototypeOf()propertyIsEnumerable: ƒ propertyIsEnumerable()toLocaleString: ƒ toLocaleString()toString: ƒ toString()valueOf: ƒ valueOf()__defineGetter__: ƒ __defineGetter__()__defineSetter__: ƒ __defineSetter__()__lookupGetter__: ƒ __lookupGetter__()__lookupSetter__: ƒ __lookupSetter__()__proto__: (...)get __proto__: ƒ __proto__()set __proto__: ƒ __proto__()
+x = {}
+{}
+...
+how to fix:
+x = {}
+{}
+Object.setPrototypeOf(x,null);
+{}
+x.__lookupGetter__
+undefined
+..
+..
+FIXME sandbox problem:
+x = 66;
+x++;
+x.toString
+ƒ toString() { [native code] }
+cant replace prototype of a Number.
+..
+maybe the Mut.m and Mut.d fields are the only safe and efficient way, since Number, String, Fn/Lambda, dont have those fields. ???
+
+NO, just stick with Mut.d and Mut.m...
+/*
+TODO verify this works on various browers OS etc...
+newMut = n=>{ let m = new Float64Array(n); Object.setPrototypeOf(m,null); return m; };
+BUT... can use it with string??? is that safe? 'abc'.concat('def')
+[[[
+x = new function(){}
+{}
+x
+{}[[Prototype]]: Object
+x.isPrototypeOf
+ƒ isPrototypeOf() { [native code] }
+x.prototype
+undefined
+for(let i in x) console.log(i)
+undefined
+x = Float32Array.of(3,4,5)
+Float32Array(3) [3, 4, 5, buffer: ArrayBuffer(12), byteLength: 12, byteOffset: 0, length: 3, Symbol(Symbol.toStringTag): 'Float32Array']
+y = {}
+{}
+for(let i in x) console.log(i)
+VM439:1 0
+VM439:1 1
+VM439:1 2
+undefined
+x.buffer
+ArrayBuffer(12)byteLength: 12[[Prototype]]: ArrayBuffer[[Int8Array]]: Int8Array(12)[[Uint8Array]]: Uint8Array(12)[[Int16Array]]: Int16Array(6)[[Int32Array]]: Int32Array(3)[[ArrayBufferByteLength]]: 12[[ArrayBufferData]]: 127
+Object.setPrototypeOf(x, Object.getPrototypeOf({}))
+Float32Array(3) [3, 4, 5]
+x
+Float32Array(3) [3, 4, 5]
+x.buffer
+undefined
+x.abc = 'def';
+'def'
+x
+Float32Array(3) [3, 4, 5, abc: 'def']
+x.buffer
+undefined
+x.length
+undefined
+x
+Float32Array(3) [3, 4, 5, abc: 'def']0: 31: 42: 5abc: "def"[[Prototype]]: Objectconstructor: ƒ Object()hasOwnProperty: ƒ hasOwnProperty()isPrototypeOf: ƒ isPrototypeOf()propertyIsEnumerable: ƒ propertyIsEnumerable()toLocaleString: ƒ toLocaleString()toString: ƒ toString()valueOf: ƒ valueOf()__defineGetter__: ƒ __defineGetter__()__defineSetter__: ƒ __defineSetter__()__lookupGetter__: ƒ __lookupGetter__()__lookupSetter__: ƒ __lookupSetter__()__proto__: (...)get __proto__: ƒ __proto__()set __proto__: ƒ __proto__()
+x.valueOf('abc')
+Float32Array(3) [3, 4, 5, abc: 'def']
+x.valueOf
+ƒ valueOf() { [native code] }
+Object.setPrototypeOf(x, undefined)
+VM1210:1 Uncaught TypeError: Object prototype may only be an Object or null: undefined
+    at Function.setPrototypeOf (<anonymous>)
+    at <anonymous>:1:8
+(anonymous) @ VM1210:1
+Object.setPrototypeOf(x, null)
+Float32Array(3) [3, 4, 5, abc: 'def']
+x.valueOf
+undefined
+x.valueOf = 'abc'
+'abc'
+x
+Float32Array(3) [3, 4, 5, abc: 'def', valueOf: 'abc']
+x[2]
+5
+typeof([2])
+'object'
+typeof(x[2])
+'number'
+typeof(x.valueOf)
+'string'
+''+x
+VM1417:1 Uncaught TypeError: Cannot convert object to primitive value
+    at <anonymous>:1:3
+(anonymous) @ VM1417:1
+newMut = n=>{ let m = new Float64Array(n); Object.setPrototypeOf(m,null); return m; };
+n=>{ let m = new Float64Array(n); Object.setPrototypeOf(m,null); return m; }
+z = newMut(33);
+Float64Array(33) [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+z.hello = 'world';
+'world'
+z.me = z;
+Float64Array(33) [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, hello: 'world', me: Float64Array(33)]0: 01: 02: 03: 04: 05: 06: 07: 08: 09: 010: 011: 012: 013: 014: 015: 016: 017: 018: 019: 020: 021: 022: 023: 024: 025: 026: 027: 028: 029: 030: 031: 032: 0hello: "world"me: Float64Array(33) [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, hello: 'world', me: Float64Array(33), test: 'atest']test: "atest"
+z
+Float64Array(33) [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, hello: 'world', me: Float64Array(33)]
+z.me.me.me.test = 'atest';
+'atest'
+z
+Float64Array(33) [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, hello: 'world', me: Float64Array(33), test: 'atest']
+z.length
+undefined
+typeof(z)
+'object'
+typeof(z[22])
+'number'
+typeof(z.me.me[22])
+'number'
+typeof(z.me.me)
+'object'
+Object.getPrototypeOf(z)
+null
+for(let i in z) console.log(i);
+VM2154:1 0
+VM2154:1 1
+VM2154:1 2
+VM2154:1 3
+VM2154:1 4
+VM2154:1 5
+VM2154:1 6
+VM2154:1 7
+VM2154:1 8
+VM2154:1 9
+VM2154:1 10
+VM2154:1 11
+VM2154:1 12
+VM2154:1 13
+VM2154:1 14
+VM2154:1 15
+VM2154:1 16
+VM2154:1 17
+VM2154:1 18
+VM2154:1 19
+VM2154:1 20
+VM2154:1 21
+VM2154:1 22
+VM2154:1 23
+VM2154:1 24
+VM2154:1 25
+VM2154:1 26
+VM2154:1 27
+VM2154:1 28
+VM2154:1 29
+VM2154:1 30
+VM2154:1 31
+VM2154:1 32
+VM2154:1 hello
+VM2154:1 me
+VM2154:1 test
+undefined
+]]]
+*/
+
+
+
 
 /*
 TODO start storing lambdas ONLY as concat of 3 ids: parent left right, in base58 or base64, something like this:
@@ -81,6 +283,8 @@ spendTimeMemFuncParam maxGasTime maxGasMem func param
 ||
 &&
 *
+float64+
+javascriptlike+ //can do string+float64 or float64+float64 or string+string etc... careful not to get tostring of lambda unless its something that doesnt depend on id.
 -
 /
 %
@@ -129,6 +333,12 @@ isNaN
 isSubnormalNumber
 isFiniteNumber
 isNormedDoubleBits
+...
+matrixMultiplyFloat32 //(matrixMultiplyFloat32 ab bc a b c)->ac where ab and bc are bitstrings viewed as float32s, and a b and c are int sizes.
+matrixMultiplyFloat64
+matrixMultiplyInt32
+//until more flexible opcodes are working, maybe just use gpujs for matrix multiply of float32, and do the rest in opmut.
+...
 asyncStartGpuFloat32CompileEarly //where to hook in GPU.js or https://github.com/benrayfield/lazycl or any GPU api that uses float32. int doesnt fit in float32 but can still be in loop counters.
 asyncStartGpuFloat64AndOrIntsCompileEarly //where to hook in GPU.js or https://github.com/benrayfield/lazycl or any GPU api that uses float64 arrays andOr int arrays.
 isGpuFloat32CompiledFor
