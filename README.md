@@ -1,6 +1,18 @@
 # wikibinator203
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
+Planned features
+* Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
+* exactly repeatable calculations in strictest mode.
+* can run evil code (virus, ransomware, some AI generated code, etc) safely in a sandbox. All code is sandboxed. You are warned not to give execute permission, believe, or obey anything in the evil_bit=true area.
+* Sandbox can be private or shared across many computers.
+* every lambda call or gives up after recursive limits of time and memory.
+* does not need execute permission.
+* zero-knowledge-proof allows global sync from everywhere to everywhere near lightspeed.
+* turing-complete load-balancing, and turing-complete-challenge-response of lambda called on lambda finds/creates what lambda.
+* unique 256 bit number (or 512 bit for extra security) for each lambda, other than if there was a secureHash-collision.
+* some parts GPU optimizable
+
 First app running on this will maybe be musical instruments similar to https://en.wikipedia.org/wiki/Pure_Data that can be shared in realtime to build more musical instruments with and so on, and this "proof of concept" will be able to scale to millions of simultaneous instruments being played and generated and evolved, and every bit, every tiny part of a sound vibration, is a lambda.
 
 Custom opensource copyleft license to be written, basically similar to the MIT license except that nobody owns the generated lambdas and that the evil_bit being on or off in each 256 bit id means 1 of 2 namespaces, one where things work as normal and the other where "anything goes" as its an "antivirus quarantine" and uncensored area, but be warned that in the "normal" area people might tend to remove lambdas while incoming pointers exist which could break things in the normal area while the evil_bit=true area will not remove anything while incoming pointers exist (and even then might still not), because of merkle garbage collection as a technical reason, and because of free speech. There is no central control of this, as its just a data format and way people might share lambdas with eachother in realtime, so I'm just another user, like you, of lambdas. Even though where "anything goes" there will be viruses and worse, if someone sneaks that in, since its easy to enter the "antivirus quarantine" but not to leave, one way safe border, where people choose not to [copy outside and execute, obey, or believe] whats inside it which would be their own fault since they were told its an antivirus quarantine so have no reasonable expectation to believe thats safe, but it is safe inside the wikibinator203 VM used thru canvas webAudioAPI textareas checkboxes gamepads etc, since all lambdas only generate more lambdas and dont need execute permission. Both namespaces exist across many computers at once.
