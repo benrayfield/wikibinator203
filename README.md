@@ -8,11 +8,12 @@ Planned features
 * can run evil code (virus, ransomware, some AI generated code, etc) safely in a sandbox. All code is sandboxed. You are warned not to give execute permission, believe, or obey anything in the evil_bit=true area.
 * does not need execute permission.
 * Sandbox can be private or shared across many computers.
-* every lambda call or gives up after recursive limits of time and memory.
+* every lambda call returns a lambda or gives up after recursive limits of time and memory.
 * zero-knowledge-proof allows global sync from everywhere to everywhere near lightspeed.
 * turing-complete load-balancing, and turing-complete-challenge-response of lambda called on lambda finds/creates what lambda.
 * unique 256 bit number (or 512 bit for extra security) for each lambda, other than if there was a secureHash-collision.
 * some parts GPU optimizable
+* optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.
 
 First app running on this will maybe be musical instruments similar to https://en.wikipedia.org/wiki/Pure_Data that can be shared in realtime to build more musical instruments with and so on, and this "proof of concept" will be able to scale to millions of simultaneous instruments being played and generated and evolved, and every bit, every tiny part of a sound vibration, is a lambda.
 
