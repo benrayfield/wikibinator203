@@ -63,5 +63,7 @@ else it might eval to something else whose left child called on its right child 
 Everything can work by drag-and-drop or typing code. Everything is a lambda and can be shared in realtime or choose not to copy things into public,
 but once something gets into public, as nobody owns the generated lambdas, it may be copied freely by many, so dont go looking to take it back.
 
+This does not normally do proof-of-work, and instead uses hashing only for making unique ids of lambdas. This is not a blockchain even though it has the merkle forest data structure in common with them, and only lazyevals that.
+
 
 The rest of this readme got too long and disorganized, will rewrite soon.
