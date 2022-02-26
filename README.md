@@ -3,10 +3,11 @@ If you want the universal lambda that works, go to <a href=https://github.com/be
 
 Planned features
 * use lambdas instead of bits, as the tiny pieces the internet is made of. Using any 2 lambdas together (call one on the other) finds or creates a lambda. Lambdas can be anything such as a word, picture, sound, game, tool, or something that draws a mustache on any picture you drag it to. Anything.
+* Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
+* AI (artificial intelligence) writes code for new AIs, using lambdas for both code and data, sometimes from scratch and sometimes using given parts of AIs such as existing learning algorithms.
 * median forking latency of 1 microsecond.
 * some parts GPU optimizable. Memory mapping.
 * no central control. In theory there will be a variety of realtime interoperable wikibinator203 VMs that all run the same universal lambda math and may sometimes choose to turing-complete-challenge-response eachother for lambda called on lambda returns what lambda. Accusations against specific lambdas (for just existing, since they dont do anything except find/create lambdas and are a kind of number) can in theory be responded to by "did put it in antivirus quarantine", since there is a whole area of the system that runs in an antivirus quarantine so thats a no-op, but the other "normal" area, which works by the same math, is the part such accusations may be directed at.
-* Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
 * exactly repeatable calculations in strictest mode.
 * can run evil code (virus, ransomware, some AI generated code, etc) safely in a sandbox. All code is sandboxed. You are warned not to give execute permission, believe, or obey anything in the evil_bit=true area unless you can verify it on your own such as by a trusted network of digital signatures or math proofs or other evidence etc.
 * does not need execute permission.
