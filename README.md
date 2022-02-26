@@ -2,6 +2,7 @@
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
 Planned features
+* everything can work by drag-and-drop of lambda onto lambda to find/create lambda or writing code, and all that can be shared online instantly at gaming-low-lag or local only.
 * use lambdas instead of bits, as the tiny pieces the internet is made of. Using any 2 lambdas together (call one on the other) finds or creates a lambda. Lambdas can be anything such as a word, picture, sound, game, tool, or something that draws a mustache on any picture you drag it to. Anything.
 * Its not dumbed down. In theory, can build real science tools that change the world, or games, musical instruments, or anything, by drag-and-drop of lambdas you can send and receive in realtime. They're a kind of number, so nothing anyone does with a lambda changes that lambda, just finds or builds more lambdas with it.
 * AI (artificial intelligence), that is made of lambdas, writes code for new AIs, using lambdas for both code and data, sometimes from scratch and sometimes using given parts of AIs such as learning algorithms that other AIs or parts of them (or recursive use of itsself) may combine, making use of the recursive time and memory limits to avoid infinite loops etc.
