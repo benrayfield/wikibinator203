@@ -8,6 +8,14 @@ that knowing if bits are safe to give execute permission to or not (and this sof
 but opensource forks of it including possible plugins might, so be careful to avoid those possible VMs if you dont know its safe)...
 knowing if its safe to give execute permission requires a halting oracle or infinite time and memory or for it to be less than turing complete,
 none of which are practical, so this software just doesnt execute. But since many people insist on executing things without checking if they're safe...
+Inside the sandbox (which may exist across many computers) it is safe, nomatter what evil things the lambdas may simulate,
+and maybe the best that can be done is for different VMs to have a different vm.import function if they want to while NOT allowing evil
+higher on the stack (!vm.mask_stackIsAllowImportEvilIds), but while allowing evil it must be deterministic.
+It can be a security hole for malicious messages to be able to stop a calculation, like hiding an evil message in a good message by steganography
+that is later discovered. While evil is allowed (so maybe there should be 2 bits, to lock in allowing evil while higher on stack, and one to lock it out, higher on the stack)
+... while evil is allowed, there is no such way to "throw a wrench into the machine" since such wrenches all already have a unique id, as every lambda does,
+	even the unexpected ones... that means that viruses etc that dont even exist yet already have a certain id. All lambdas do. At least,
+		if you count the internal 2-way forest nodes as part of the lambda instead of just its param/return mapping.
 
 /*SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
 which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
