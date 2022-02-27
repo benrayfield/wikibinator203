@@ -475,13 +475,17 @@ const wikibinator203 = (()=>{
 	//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
 	vm.mask_containsAxConstraint = 1<<4;
 	
+	//evilBit is a bit in ids, not a property of the lambdas themselves. Each lambda has 2 ids (at least, can make more kinds): evilBit being on or off.
+	//If this is true, can import either. If false, only allow importing from the good namespace.
+	//EvilBit is easy to parse since its evil if the first byte is vm.callPairPrefixByte_evilBitOn else (the other 255 values) are good or neutral.
+	//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
+	vm.mask_stackIsAllowImportEvilIds = 1<<6;
+	
 	//Only includes things whose o8>127 aka has at least 7 params so op is known.
 	//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
 	//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
 	//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
-	vm.mask_isCbt = 1<<5;
-	
-	vm.mask_reservedForFutureExpansion6 = 1<<6;
+	vm.mask_isCbt = 1<<6;
 	
 	vm.mask_reservedForFutureExpansion7 = 1<<7;
 	
@@ -496,8 +500,8 @@ const wikibinator203 = (()=>{
 	
 	
 	vm.headerOfLiteral256BitsThatIsItOwnId = function(firstInt){
-		let first6Bits = (firstInt>>26)&0b111111;
-		if(first6Bits == 0b111110) throw 'Is not its own id cuz starts with 0b111110';
+		let first5Bits = (firstInt>>27)&0b11111;
+		if(first5Bits == 0b11110) throw 'Is not its own id cuz starts with 0b11110. vm.callPairPrefixByte_evilBitOn is that then 100 and _evilBitOff is that then 000. If those last 2 bits are not 00 then its still a literal 256 bits that fits in a 256 bit id but is not its own id as the first byte differs (counts down) so you can have id of id of id of id fits in 256 bits, but id of id of id of id of id does not so you need a callpair of 2 of 128 bits. Also TODO option for 512 bit ids for extra security.';
 		
 		/*let firstBitIs1 = firstInt<0;
 		let o8 = firstBitIs1 ? vm.o8OfBit1 : vm.o8OfBit0;
@@ -575,7 +579,7 @@ const wikibinator203 = (()=>{
 	
 	vm.opInfo = []; //size 256
 	
-	vm.import = function(globalIdString){
+	vm.import = function(globalIdStringOrBits){
 		throw 'TODO instantly return a Node that it tries to load async, especially if Node.L() or Node.R() etc are called on it? So can run this in a loop for efficient batch loading of nodes/lambdas?';
 	};
 	
@@ -586,6 +590,7 @@ const wikibinator203 = (()=>{
 	//how they are to interact with eachother.
 	//To avoid accidentally defining something as "certainly good", I'm just making all the evilBits be true for now or when they are generated,
 	//and users andOr whatever tools they want, can flip the evilBit to good/false in lambdas they choose when sharing them online, if they want to.
+	//UPDATE: I'm adding another bit on the stack to limit the use of the import op to "any lambda" vs "only good lambdas": vm.mask_stackIsAllowImportEvilIds.
 	vm.evilBit = true;
 	
 	
@@ -721,9 +726,9 @@ const wikibinator203 = (()=>{
 		vm.mask_stackIsAllowNondetRoundoff
 		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
 		vm.mask_stackIsAllowAx
+		vm.mask_stackIsAllowImportEvilIds
 		vm.mask_containsAxConstraint
 		vm.mask_isCbt
-		vm.mask_reservedForFutureExpansion6
 		vm.mask_reservedForFutureExpansion7
 		*/
 		let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
@@ -1336,6 +1341,14 @@ const wikibinator203 = (()=>{
 					ret = vm.bit(vm.stackIsAllowMutableWrapperLambdaAndSolve);
 				break;case o.stackIsAllowAx:
 					ret = vm.bit(vm.stackIsAllowAx);
+				break;case o.stackIsAllowImportEvilIds:
+					//A lambda cant check if a lambda is good or evil (evilBit) cuz its always both, just an interpretation of an observer, only affects ids,
+					//and each lambda has (at least, can make more kinds) 2 ids, one where evilBit is on and one where its off.
+					//What makes the good namespace good (or so people might define what is good) is to call it good while sharing it is to certify that you are copying it out of the "antivirus quarantine"/uncensoredArea and that you take responsibility for doing so,
+					//such as if you made all the parts of it yourself and know its safe for other uses, or if you somehow know
+					//its parts and the combo of them are safe.
+					//When in doubt, just say its evil (evilBit=true).
+					ret = vm.bit(vm.stackIsAllowImportEvilIds); FIXME get these 5 "vm.stackIsAllow" bits from StackStuff.
 				break;case o.opmutOuter:
 					let mut = new Mut(0);
 					mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
