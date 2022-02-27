@@ -1,4 +1,4 @@
-SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
+/*SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
 which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
 vm.Mut = function(n){
 	
@@ -437,6 +437,7 @@ const wikibinator203 = (()=>{
 	vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
 	vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
 	
+	/*
 	//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
 	//If it does not start with 111110 then it is literal 256 bits that is its own id.
 	//Starting with 11111000 means its either a callpair including 192 bits of hash or is a literal 128 bits, or 64 or 32 or 16 or 8 or 4 or 2 or 1.
@@ -450,6 +451,48 @@ const wikibinator203 = (()=>{
 	//FIXME UPDATE: 6+2+8+12+4+1+31 cuz: FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
 	//FIXME its 6+2+8+16+1+31 bits. the only mask bit is in the bize int, not the header int.
 	//not "teralCallPair = function(o8, curLeftOr, upTo8BitsOf". fix those params.
+	*/
+	
+	
+	//evilBit is true or false.
+	//curriesLeft is 0 to 255. 0 means evaling. 255 means infinite number of curries/params left so never eval.
+ 	//o8 is 0 to 255. 0 means evaling. 1-127 means 0-6 params of u/theUniversalFunc. opcodes 128 to 255 are known at param 7 and from then on are copied from left child.
+	//upTo8BitsOfMasks are from vm.mask_* such as vm.mask_isCbt and vm.mask_stackIsAllowNondetRoundoff.
+	vm.headerOfNonliteralCallPair = function(evilBit, o8, curriesLeft, upTo8BitsOfMasks){
+		return ((evilBit ? this.callPairPrefixByte_evilBitOn : this.callPairPrefixByte_evilBitOff)<<24)|(o8<<16)|(curriesLeft<<8)|upTo8BitsOfMasks;
+	};
+	
+	vm.mask_stackIsAllowGastimeGasmem = 1;
+	
+	vm.mask_stackIsAllowNondetRoundoff = 1<<1;
+	
+	vm.mask_stackIsAllowMutableWrapperLambdaAndSolve = 1<<2;
+	
+	//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
+	vm.mask_stackIsAllowAx = 1<<3;
+	
+	//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
+	//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
+	vm.mask_containsAxConstraint = 1<<4;
+	
+	//Only includes things whose o8>127 aka has at least 7 params so op is known.
+	//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
+	//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
+	//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
+	vm.mask_isCbt = 1<<5;
+	
+	vm.mask_reservedForFutureExpansion6 = 1<<6;
+	
+	vm.mask_reservedForFutureExpansion7 = 1<<7;
+	
+	//only includes things whose o8>127 aka has at least 7 params so op is known
+	//vm.mask_containsBit0 = 1<<4;
+	
+	//only includes things whose o8>127 aka has at least 7 params so op is known
+	//vm.mask_containsBit1 = 1<<5;
+	
+	//FIXME are there other masks? what about ieee754 float ops vs the nearest value?
+	//What about lazyevaling bize and containsBit1 and containsBit0?
 	
 	
 	vm.headerOfLiteral256BitsThatIsItOwnId = function(firstInt){
@@ -532,11 +575,18 @@ const wikibinator203 = (()=>{
 	
 	vm.opInfo = []; //size 256
 	
-	vm.λimport = function(globalIdString){
+	vm.import = function(globalIdString){
 		throw 'TODO instantly return a Node that it tries to load async, especially if Node.L() or Node.R() etc are called on it? So can run this in a loop for efficient batch loading of nodes/lambdas?';
 	};
 	
-	
+	//evilBit only affects ids. Any VM can import both good and evil lambdas. Its 2 namespaces, 2 ids for the same lambda
+	//(or if its 256 literal bits that fit in a 256 bit id, its in a third "neutral" namespace cuz has no header therefore no evilBit being true or false).
+	//Lambdas cant know if they are good or evil since that's just an interpretation of an observer.
+	//evilBit is more of a word, something you can say about a lambda. Its also part of the opensource license
+	//how they are to interact with eachother.
+	//To avoid accidentally defining something as "certainly good", I'm just making all the evilBits be true for now or when they are generated,
+	//and users andOr whatever tools they want, can flip the evilBit to good/false in lambdas they choose when sharing them online, if they want to.
+	vm.evilBit = true;
 	
 	
 	
@@ -566,28 +616,7 @@ const wikibinator203 = (()=>{
 		this.r = r;
 		
 		let isLeaf = r==null;
-		let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
-		let rNode = r();
-		let leftOp = lNode.o8();
-		let rightOp = rNode.o8();
-		let lcur = lNode.curriesLeft;
-		let isLessThan7Params = leftOp < 64; //including (l r)
-		let leftOpLessThan128 = leftOp < 128;
-		let chooseOpNowOrEval = lcur==1;
-		let isNowGettingIts7thParam = leftOpLessThan128 && chooseOpNowOrEval;
-		/*let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
-		let isEvaling;
-		let leftIsCbt = (leftOp == vm.o8OfBit0 || leftOp == vm.opOfBit1);
-		if(leftIsCbt){
-			let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
-			let rcur = rNode.curriesLeft;
-			//If its 2 cbts of same size that together dont exceed max cbt size, thats halted, just make the callpair.
-			//If it would exceed max cbt size or they are different sizes of cbt or if r is not a cbt, thats evaling (TODO choose a design to infloop or replace r with l so (r r), and maybe if cbt size gets too big just put it in an infcur).
-			isEvaling = !rightIsCbt || (lcur!=rcur) || lcur==4094; //curriesLeftRaw of 4095 means infinite curriesLeft, and cbt never reaches that (todo put in infcur instead?)
-		}else{
-			isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
-		}*/
-		let isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
+		
 		
 		//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
 		//evalers take 3 params: vm func param, instead of making a node of func and param together.
@@ -603,6 +632,30 @@ const wikibinator203 = (()=>{
 			op = 1; //u/leaf, the universal lambda
 			curriesLeft = 7; //eval again at 7 just to store what op it is in header. Nothing actually evals at 7 params.
 		}else{
+			
+			let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
+			let rNode = r();
+			let leftOp = lNode.o8();
+			let rightOp = rNode.o8();
+			let lcur = lNode.curriesLeft;
+			let isLessThan7Params = leftOp < 64; //including (l r)
+			let leftOpLessThan128 = leftOp < 128;
+			let chooseOpNowOrEval = lcur==1;
+			let isNowGettingIts7thParam = leftOpLessThan128 && chooseOpNowOrEval;
+			/*let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
+			let isEvaling;
+			let leftIsCbt = (leftOp == vm.o8OfBit0 || leftOp == vm.opOfBit1);
+			if(leftIsCbt){
+				let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
+				let rcur = rNode.curriesLeft;
+				//If its 2 cbts of same size that together dont exceed max cbt size, thats halted, just make the callpair.
+				//If it would exceed max cbt size or they are different sizes of cbt or if r is not a cbt, thats evaling (TODO choose a design to infloop or replace r with l so (r r), and maybe if cbt size gets too big just put it in an infcur).
+				isEvaling = !rightIsCbt || (lcur!=rcur) || lcur==4094; //curriesLeftRaw of 4095 means infinite curriesLeft, and cbt never reaches that (todo put in infcur instead?)
+			}else{
+				isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
+			}*/
+			let isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
+			
 			if(isEvaling){
 				op = 0;
 			}else if(leftOpLessThan128){
@@ -663,8 +716,21 @@ const wikibinator203 = (()=>{
 		}
 		//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
 		
+		/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
+		vm.mask_stackIsAllowGastimeGasmem
+		vm.mask_stackIsAllowNondetRoundoff
+		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
+		vm.mask_stackIsAllowAx
+		vm.mask_containsAxConstraint
+		vm.mask_isCbt
+		vm.mask_reservedForFutureExpansion6
+		vm.mask_reservedForFutureExpansion7
+		*/
+		let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
 		
-		TODO order the params of headerOfNonliteralCallPair the same order they occur in the header int,
+		this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, curriesLeft, upTo8BitsOfMasks);
+		
+		/*TODO order the params of headerOfNonliteralCallPair the same order they occur in the header int,
 			and include the 4 bits of cleanvsdirty, and these: containsBit1 containsBit0, containsAxConstraint, containsNonBitOtherThanLessThan7Params,
 			and I might want another cleanvsdirty bit for IEEE754 float32 and float64 ops but only if they can be defined deterministicly,
 			so that even if Math.sin Math.tanh etc are nondeterministic roundoff, that there would be some
@@ -679,13 +745,14 @@ const wikibinator203 = (()=>{
 			but thats unnecessary since curriesLeft is stored, and since max bitstring size is (approx, todo verify) 2^247-1 bits (vm.maxCurriesLeft is 255),
 			the bit of is there more bits of bize is already knowable from [curriesLeft and o8].
 			Or that high bit in bize int is used for lazyEval of bize, so dont put anything there.
+		*/
 			
 		//int. 6 bits are 111110 for is literal self or not. then 2 bits (00 is callpair, else is literal 256 bits).
 		//then o8. then curriesLeftOr255ToMeanMoreThan254. then up to 8 mask bits (containsBit1, etc).
-		this.header = vm.headerOfNonliteralCallPair(evilBit, o8, curLeftOr, upTo8BitsOfMasks); //FIXME check if it is a literal (globalId256 does not start with 11111000).
+		//this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, upTo8BitsOfMasks, curriesLeft); //FIXME check if it is a literal (globalId256 does not start with 11111000).
 		//this.header = 0; //FIXME need to compute header as int
 		
-		FIXME instead of -1 meaning the following comments about bize, use containsBit1 containsBit0, containsNonBitOtherThanLessThan7Params.
+		//FIXME instead of -1 meaning the following comments about bize, use containsBit1 containsBit0, containsNonBitOtherThanLessThan7Params.
 		//int. bize is max 31 bits. past that it will make linkedlist or something (todo) of cbts.
 		this.bize = -2; //-2 means dont know bize yet (lazyEval). -1 means its all 0s or is not a cbt. nonnegative means its the low 31 bits of the index of the last 1 bit. FIXME TODO write code to deal with that in blob and normal callpairs
 		//FIXME set bize
@@ -702,7 +769,7 @@ const wikibinator203 = (()=>{
 		
 		//this.idString;
 		
-		this.evaler = l ? lNode.evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
 		
 
 	};
@@ -874,10 +941,41 @@ const wikibinator203 = (()=>{
 		//TODO 1 char prefix concat base58 form of 256 bit default kind of id, recursively.
 	};
 
-	vm.Mut = function(n){
+	/*vm.Mut = function(n){
 		this.m = {};
 		this.d = new Float64Array(n);
-	};
+	};*/
+	
+	//SOLUTION to 1 of the sandbox problems,
+	//though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
+	//which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
+	vm.Mut = function(n){
+	
+	//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
+	//in js, int or float or byte are a subset of doubles.
+	this.n = n&0x7fffffff;
+	
+	//view as thisMut<indexOfDouble>
+	this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
+	
+	//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
+	//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
+	//or for some uses maybe much longer or as fast as a microsecond.
+	this.m = {};
+	
+	//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
+	
+	//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
+	//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
+	//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
+	//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
+	//which may be undefined or have a value of string or double or lambda or Mut, and so on.
+	//
+	//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
+	Object.setPrototypeOf(this.d,null);
+	//block access to this.m.__lookupGetter__ etc in generated js code.
+	Object.setPrototypeOf(this.m,null);
+};
 	
 	
 	
@@ -1035,8 +1133,8 @@ const wikibinator203 = (()=>{
 		vm.opInfo.push({name:name, curriesLeft:curriesLeft, description:description});
 		return o8;
 	};
-	vm.addOp('evaling',0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.'});
-	for(let o8=1; o8<128; o8++}{
+	vm.addOp('evaling',0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
+	for(let o8=1; o8<128; o8++){
 		//TODO 'op' + 2 hex digits?
 		let numLeadingZeros = Math.clz32(o8);
 		let curriesSoFar = 31-numLeadingZeros;
@@ -1044,8 +1142,8 @@ const wikibinator203 = (()=>{
 		let name = 'op'+o8.toString(2);
 		vm.addOp(name, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
 	}
-	vm.o8OfBit0 = vm.addOp('bit0',4088,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 4088 or 4077 or what?
-	vm.o8OfBit1 = vm.addOp('bit1',4088,'see bit0');
+	vm.o8OfBit0 = vm.addOp('bit0',248,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
+	vm.o8OfBit1 = vm.addOp('bit1',248,'see bit0');
 	vm.o8OfL = vm.addOp('l',1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 	vm.o8OfR = vm.addOp('r',1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 	vm.addOp('t',2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
@@ -1056,9 +1154,11 @@ const wikibinator203 = (()=>{
 	vm.addOp('getNamedParam',2,'ddee? would be a syntax for (getnamedparam "ddee").');
 	vm.addOp('opOneMoreParam',0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 	vm.addOp('s',3,'For control-flow. the s lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-	vm.addOp('isleaf'1,'returns t or f of is its param u aka the universal lambda');
+	vm.addOp('isleaf',1,'returns t or f of is its param u aka the universal lambda');
 	vm.addOp('pair',3,'the church-pair lambda aka λx.λy.λz.zxy');
 	vm.addOp('infcur',vm.maxCurriesLeft,'like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
+	vm.addOp('opmutOuter',2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
+	vm.addOp('opmutInner',2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
 	
 	
 	
@@ -1182,7 +1282,7 @@ const wikibinator203 = (()=>{
 	make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
 	*/
 	
-	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.';
+	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
 	
 	vm.bit = function(bit){ return bit ? this.t : this.f };
 	
@@ -1190,8 +1290,15 @@ const wikibinator203 = (()=>{
 	//so actually just throws.
 	vm.infloop = ()=>{ throw this.gasErr; }
 	
-	vm.pair = TODO; //similar to vm.t and vm.f and few other ops
+	//throw 'vm.pair = TODO; //similar to vm.t and vm.f and few other ops';
 	
+	//takes a mut where mut.m.func is (... opmut treeOfJavascriptlikeCode) so can call itself recursively,
+	//and mut.m.param is its lambda param. Using that, it can do things like loop over pixels in an array, use js {} maps, etc.
+	//It must return a lambda, but in the middle steps it has mutable optimizations that can be compiled to javascript for example,
+	//but since the universal lambda doesnt depend on anything outside itself, it could be compiled to any turingComplete system.
+	vm.opmut = mut=>{
+		throw 'TODO compile, making sure to limit gastime gasmem etc.';
+	};
 	
 	/* very slow interpreted mode. add optimizations as recursive evalers whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
 	u.evaler is this rootEvaler. All other evalers are hooked in by aLambda.pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda.evaler before setting aLambda.evaler to the new one,
@@ -1229,8 +1336,17 @@ const wikibinator203 = (()=>{
 					ret = vm.bit(vm.stackIsAllowMutableWrapperLambdaAndSolve);
 				break;case o.stackIsAllowAx:
 					ret = vm.bit(vm.stackIsAllowAx);
+				break;case o.opmutOuter:
+					let mut = new Mut(0);
+					mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
+					mut.m.param = r; //param as in (... opmut treeOfJavascriptlikeCode param)
+					ret = vm.opmut(m);
+				break;case o.opmutInner:
+					vm.infloop();
+					//throw 'TODO this is not normally called outside opmutOuter. What should it do? just act like an opmutOuter? Or infloop?';
+				break;
 				
-				FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
+				//UPDATE its down to 255 as in 1<<vm.maxCurriesLeft. FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
 				
 				/*
 				FIXME its 4x2: stackIsAllowGastimeGasmem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambda, stackIsAllowMutableWrapperLambda.
@@ -1257,6 +1373,8 @@ const wikibinator203 = (()=>{
 					ret = z(y)(x);
 				break;case o.varargAx:
 					if(vm.stackIsAllowAx){
+						throw 'TODO ax';
+						/*
 						let funcBodyAndVarargChooser = TODO get eighth param;
 						FIXME varargAx should always have curriesLeft of 1 even after it gets its next curry, and next after that...
 						It can have unlimited curries since funcBodyAndVarargChooser chooses to be halted or to eval, at each next curry.
@@ -1285,6 +1403,7 @@ const wikibinator203 = (()=>{
 							ret = axEval().r; //L(axEval). TODO optimize by L and R and isLeaf ops dont cache, just return instantly by getting those fields
 						}
 						FIXME, if any lambda contains a call of varargAx with more than 8 params, since that means a constraint has been verified, then stackIsAllowAx bit must be 1 when halted.
+						*/
 					}else{
 						vm.infloop();
 					}
@@ -1293,10 +1412,10 @@ const wikibinator203 = (()=>{
 				break;case o.sqrt: //of a cbt64 viewed as float64
 					if(vm.stackIsAllowNondetRoundoff){
 						let float64 = TODO;
-						ret = TODO wrap Math.sqrt(float64) in cbt64;
+						throw 'ret = TODO wrap Math.sqrt(float64) in cbt64;';
 						throw 'TODO';
 					}else{
-						TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)
+						throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
 					}
 				break;default:
 					throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
