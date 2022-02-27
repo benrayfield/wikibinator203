@@ -1,3 +1,14 @@
+UPDATED comment, maybe need to include in license, about mask_stackIsAllowImportEvilIds (and the opcode for that)...
+Maybe it should just be an op to measure if an id has evilBit on or not (its in the first byte of a cbt if used as an id),
+since otherwise I'd have to define that any id of a lambda which can import an evil id of a lambda is itself evil,
+since it could just flip the bit itself (forkEdit the id bits) then call that,
+but it is possible, though may be expensive, to formalVerify a lambda call to not do that, though it couldnt be as flexible of turingComplete if so.
+This gets into the problem that evilBit is at least a partial solution to,
+that knowing if bits are safe to give execute permission to or not (and this software NEVER gives execute permission to anything,
+but opensource forks of it including possible plugins might, so be careful to avoid those possible VMs if you dont know its safe)...
+knowing if its safe to give execute permission requires a halting oracle or infinite time and memory or for it to be less than turing complete,
+none of which are practical, so this software just doesnt execute. But since many people insist on executing things without checking if they're safe...
+
 /*SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
 which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
 vm.Mut = function(n){
