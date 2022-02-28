@@ -1,4 +1,6 @@
-UPDATED comment, maybe need to include in license, about mask_stackIsAllowImportEvilIds (and the opcode for that)...
+
+TODO remove the mask_stackIsAllowImportEvilIds and just check for a certain prefix to know if its evil (call pair), good (call pair), or neutral (254 of them for 256 bit literals) namespace. Have vm.evilBit be true or false, and just use them as separate namespaces for generating ids, but allow import of any of them that vm.import func says to. User can replace vm.import function if they want. By default its not able to find anything, but future versions of this VM might hook into a peer to peer network if user checks a checkbox saying it can, andOr you can run a server with 50 people playing a game and sharing lambdas together in realtime, however you want to organize the sending and receiving of lambdas. There should be a kind of gas vm.gasUpload gasDownload or gasNetwork something like that. There should be a kind of gas* counted for each compute resource used, not a cryptocurrency just a local count of it to divide compute resources among lambdas. Or maybe the 50 remote players using such an experimental server together can have gas* on that server that lasts only as long as the game is running, like an hour. Players can copy/paste lambdas between different such servers andOr eachother.
+/*UPDATED comment, maybe need to include in license, about mask_stackIsAllowImportEvilIds (and the opcode for that)...
 Maybe it should just be an op to measure if an id has evilBit on or not (its in the first byte of a cbt if used as an id),
 since otherwise I'd have to define that any id of a lambda which can import an evil id of a lambda is itself evil,
 since it could just flip the bit itself (forkEdit the id bits) then call that,
@@ -16,6 +18,7 @@ that is later discovered. While evil is allowed (so maybe there should be 2 bits
 ... while evil is allowed, there is no such way to "throw a wrench into the machine" since such wrenches all already have a unique id, as every lambda does,
 	even the unexpected ones... that means that viruses etc that dont even exist yet already have a certain id. All lambdas do. At least,
 		if you count the internal 2-way forest nodes as part of the lambda instead of just its param/return mapping.
+
 
 /*SOLUTION to sandbox problem, though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
 which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
