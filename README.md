@@ -3,7 +3,7 @@
 Some basic parts work, or use earlier wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
 This just worked in browser console:
-
+<code>
 ''+u(u)
 wikibinator203.js:1404 Evaling l=u r=u
 'op10'
@@ -40,6 +40,7 @@ wikibinator203.js:1404 Evaling l=pair(s)(l) r=f
 wikibinator203.js:1404 Evaling l=f r=l
 wikibinator203.js:1404 Evaling l=f(l) r=s
 's'
+</code>
 
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
