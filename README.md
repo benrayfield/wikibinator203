@@ -76,7 +76,7 @@ wikibinator203.js:1404 Evaling l=f(l) r=s
 
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
-This system is neutral about everything except that all interactions through it are voluntary between individuals without needing permission of any third party. It is net-neutral to the extreme, does not care what bits mean.
+This system is neutral about everything except that all interactions through it are voluntary between individuals without needing permission of any third party. It is net-neutral to the extreme, does not care what bits mean, except if someone is searching for a thing that thing is preferred.
 
 Planned features
 * everything can work by drag-and-drop of lambda onto lambda to find/create lambda or writing code, and all that can be shared online instantly at gaming-low-lag or local only.
