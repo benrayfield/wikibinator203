@@ -1,5 +1,6 @@
 
-TODO remove the mask_stackIsAllowImportEvilIds and just check for a certain prefix to know if its evil (call pair), good (call pair), or neutral (254 of them for 256 bit literals) namespace. Have vm.evilBit be true or false, and just use them as separate namespaces for generating ids, but allow import of any of them that vm.import func says to. User can replace vm.import function if they want. By default its not able to find anything, but future versions of this VM might hook into a peer to peer network if user checks a checkbox saying it can, andOr you can run a server with 50 people playing a game and sharing lambdas together in realtime, however you want to organize the sending and receiving of lambdas. There should be a kind of gas vm.gasUpload gasDownload or gasNetwork something like that. There should be a kind of gas* counted for each compute resource used, not a cryptocurrency just a local count of it to divide compute resources among lambdas. Or maybe the 50 remote players using such an experimental server together can have gas* on that server that lasts only as long as the game is running, like an hour. Players can copy/paste lambdas between different such servers andOr eachother.
+
+
 /*UPDATED comment, maybe need to include in license, about mask_stackIsAllowImportEvilIds (and the opcode for that)...
 Maybe it should just be an op to measure if an id has evilBit on or not (its in the first byte of a cbt if used as an id),
 since otherwise I'd have to define that any id of a lambda which can import an evil id of a lambda is itself evil,
@@ -476,6 +477,7 @@ const wikibinator203 = (()=>{
 	*/
 	
 	
+	//makes a header int like this: namespaceByte o8Byte curriesLeftByte maskByte.
 	//evilBit is true or false.
 	//curriesLeft is 0 to 255. 0 means evaling. 255 means infinite number of curries/params left so never eval.
  	//o8 is 0 to 255. 0 means evaling. 1-127 means 0-6 params of u/theUniversalFunc. opcodes 128 to 255 are known at param 7 and from then on are copied from left child.
@@ -493,15 +495,18 @@ const wikibinator203 = (()=>{
 	//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
 	vm.mask_stackIsAllowAx = 1<<3;
 	
-	//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
-	//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
-	vm.mask_containsAxConstraint = 1<<4;
-	
+	//THIS SHOULD INSTEAD JUST BE IN the evilBit in first byte (evil good or 256(or512IfIdsAre512Bit)BitLiteralNeutral) and vm.import func,
+	//and only vm.import can choose where and how to load a lambda by id, and TODO vm.import should take an idMaker param where (idMaker x) -> id of x.
+	//
 	//evilBit is a bit in ids, not a property of the lambdas themselves. Each lambda has 2 ids (at least, can make more kinds): evilBit being on or off.
 	//If this is true, can import either. If false, only allow importing from the good namespace.
 	//EvilBit is easy to parse since its evil if the first byte is vm.callPairPrefixByte_evilBitOn else (the other 255 values) are good or neutral.
 	//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
-	vm.mask_stackIsAllowImportEvilIds = 1<<6;
+	//vm.mask_stackIsAllowImportEvilIds = 1<<6;
+	
+	vm.mask_reservedForFutureExpansion4 = 1<<4;
+	
+	vm.mask_reservedForFutureExpansion5 = 1<<5;
 	
 	//Only includes things whose o8>127 aka has at least 7 params so op is known.
 	//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
@@ -509,7 +514,9 @@ const wikibinator203 = (()=>{
 	//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
 	vm.mask_isCbt = 1<<6;
 	
-	vm.mask_reservedForFutureExpansion7 = 1<<7;
+	//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
+	//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
+	vm.mask_containsAxConstraint = 1<<7;
 	
 	//only includes things whose o8>127 aka has at least 7 params so op is known
 	//vm.mask_containsBit0 = 1<<4;
@@ -601,7 +608,13 @@ const wikibinator203 = (()=>{
 	
 	vm.opInfo = []; //size 256
 	
-	vm.import = function(globalIdStringOrBits){
+	//vm.defaultIdMaker256 = 
+	//vm.defaultIdMaker512 = 
+	
+	//Similar to the solve op, (import idMaker id)-> any x where (idMaker x)->id. Use (import idMaker) as the import func for that kind of id.
+	//Any lambda can be an idMaker if when called on any lambda it always halts and returns the same size of bits such as always 256 bits or always 512 bits,
+	//and the first byte should mean the same thing among all possible kinds of ids to make it easy to parse evilBit and literals.
+	vm.import = function(idMaker, globalIdStringOrBits){
 		throw 'TODO instantly return a Node that it tries to load async, especially if Node.L() or Node.R() etc are called on it? So can run this in a loop for efficient batch loading of nodes/lambdas?';
 	};
 	
@@ -664,7 +677,7 @@ const wikibinator203 = (()=>{
 			let rNode = r();
 			let leftOp = lNode.o8();
 			let rightOp = rNode.o8();
-			let lcur = lNode.curriesLeft;
+			let lcur = lNode.curriesLeft();
 			let isLessThan7Params = leftOp < 64; //including (l r)
 			let leftOpLessThan128 = leftOp < 128;
 			let chooseOpNowOrEval = lcur==1;
@@ -748,10 +761,10 @@ const wikibinator203 = (()=>{
 		vm.mask_stackIsAllowNondetRoundoff
 		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
 		vm.mask_stackIsAllowAx
-		vm.mask_stackIsAllowImportEvilIds
-		vm.mask_containsAxConstraint
+		vm.mask_reservedForFutureExpansion4
+		vm.mask_reservedForFutureExpansion5
 		vm.mask_isCbt
-		vm.mask_reservedForFutureExpansion7
+		vm.mask_containsAxConstraint
 		*/
 		let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
 		
@@ -836,6 +849,7 @@ const wikibinator203 = (()=>{
 		if(vm.nodeToStringIsGlobalId){
 			throw 'TODO globalId and toString of it';
 		}else{
+			//TODO? return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
 			return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
 		}
 	};
@@ -867,18 +881,45 @@ const wikibinator203 = (()=>{
 		return vm.evilBitOf(this.header);
 	};
 	
+	/*
+	TODO remove the mask_stackIsAllowImportEvilIds and just check for a certain prefix to know if its evil (call pair), good (call pair), or neutral (254 of them for 256 bit literals) namespace. Have vm.evilBit be true or false, and just use them as separate namespaces for generating ids, but allow import of any of them that vm.import func says to. User can replace vm.import function if they want. By default its not able to find anything, but future versions of this VM might hook into a peer to peer network if user checks a checkbox saying it can, andOr you can run a server with 50 people playing a game and sharing lambdas together in realtime, however you want to organize the sending and receiving of lambdas. There should be a kind of gas vm.gasUpload gasDownload or gasNetwork something like that. There should be a kind of gas* counted for each compute resource used, not a cryptocurrency just a local count of it to divide compute resources among lambdas. Or maybe the 50 remote players using such an experimental server together can have gas* on that server that lasts only as long as the game is running, like an hour. Players can copy/paste lambdas between different such servers andOr eachother.
+	//stateful short-term way to upload and download stateless lambdas, such as between 50 players in a game together for an hour.
+	vm.Server = function(){
+		TODO
+		
+		TODO use mutableWrapperLambda?
+		
+		TODO gasUpload gasDownload gasTime gasMem, per user (by ed25519 or just secret url suffix?)? TODO recursiveExpireTime? zapeconacyc?
+		
+		join game by https://someaddress/passwordWfghsdf/roomXYZ ? way to move gas* from one place to another (by mutableWrapperLambda or by url?)
+		no, make the url something shareable so https://someaddress/roomXYZ ?
+		https://someaddress/lambda/id234wer324wr5sadrefasddfid234345id2343245324 ?
+		
+		
+	};*/
+	
 	vm.gasTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
 	vm.gasMem = 1000000;
 
 	vm.gasErr = 'gasErr';
 
 	vm.prepay = function(time,mem){
-		let newTime = this.gasTime-time;
-		let newMem = this.gasMem-mem;
+		let newTime = this.stackTime-time;
+		let newMem = this.stackMem-mem;
 		if(newTime <= 0 || newMem <= 0) throw this.gasErr;
-		this.gasTime = newTime;
-		this.gasMem = newMem;
+		this.stackTime = newTime;
+		this.stackMem = newMem;
 		return undefined; //so you can || it with things for shorter lines of code
+	};
+	
+	//true or false
+	vm.Node.prototype.isCbt = function(){
+		return !!(this.header&vm.mask_isCbt);
+	};
+	
+	//true or false
+	vm.Node.prototype.containsAxConstraint = function(){
+		return !!(this.header&vm.mask_containsAxConstraint);
 	};
 	
 	vm.Node.prototype.getEvaler = function(){
@@ -886,6 +927,10 @@ const wikibinator203 = (()=>{
 		if(!evaler) throw 'No evaler in thisNode='+this; //TODO optimize by removing this line since all Nodes will have evalers
 		while(!evaler.on) evaler = evaler.prev;
 		return evaler;
+	};
+	
+	vm.Node.prototype.isLeaf = function(){
+		return this.o8()==1;
 	};
 
 	
@@ -899,7 +944,7 @@ const wikibinator203 = (()=>{
 	vm.Node.prototype.o8Of = headerInt=>{
 		return (headerInt>>16)&0xff;
 	};
-
+	
 	//8 bit opcode, a bitstring of 0-7 bits then a high 1 bit. its 1 for u, and is 2*o8 or 2*o8+1 or o8 for next curry.
 	//If o8 < 128 then full opcode isnt known yet, so its 2*o8 if r is u, and its 2*o8+1 if r is not u. Else o8 is just copied from l child.
 	vm.Node.prototype.o8 = function(){
@@ -917,7 +962,8 @@ const wikibinator203 = (()=>{
 	vm.Node.prototype.isCbtOf = function(headerInt){
 		//let o8 = this.o8();
 		//return o8 == vm.o8OfBit0 || o8 == vm.o8OfBit1;
-		return (headerInt&0x00fe0000)==vm.o8OfBit0;
+		//return (headerInt&0x00fe0000)==vm.o8OfBit0;
+		return !!(headerInt&vm.mask_isCbt);
 	};
 	
 	vm.Node.prototype.isCbt = function(){
@@ -925,12 +971,14 @@ const wikibinator203 = (()=>{
 	};
 	
 	
+	//header int is like: namespaceByte o8Byte curriesLeftByte maskByte
+	
 	vm.Node.prototype.curriesLeft = function(){
 		return this.curriesLeftOf(this.header);
 	};
 	
 	vm.Node.prototype.curriesLeftOf = function(headerInt){
-		return headerInt&0xff;
+		return (headerInt>>8)&0xff;
 	};
 	
 	
@@ -1027,7 +1075,7 @@ const wikibinator203 = (()=>{
 	};
 
 	//FIXME must have 4 ints of salt and 3 bits of kinds of clean, on stack, for funcall cache.
-	vm.dedupKeyOfFuncallCache = function(func,param,func,param,optionalStackStuff){
+	vm.dedupKeyOfFuncallCache = function(func,param,optionalStackStuff){
 		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
 		//But until then, dedupKeyOfFuncallCache will prepay to include gasMem, instead of just gasTime.
 		this.prepay(1,4); //FIXME?
@@ -1037,21 +1085,6 @@ const wikibinator203 = (()=>{
 
 	//increases every time any FuncallCache is used, so can garbcol old funcallcaches.
 	vm.touchCounter = 0;
-	
-	vm.StackStuff = function(fourIscleanvsdirtyBits, saltA, saltB, saltC, saltD){
-		this.fourIscleanvsdirtyBits = fourIscleanvsdirtyBits;
-		this.saltA = saltA;
-		this.saltB = saltB;
-		this.saltC = saltC;
-		this.saltD = saltD;
-	};
-	
-	//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
-	//Use this as immutable.
-	//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
-	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to gasTime and gasMem can only decrease (or stay same) but not increase,
-	//until the first call returns, then can start with any StackStuff you and gasTime gasMem etc you want.
-	vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0);
 
 	//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
 	//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
@@ -1120,7 +1153,10 @@ const wikibinator203 = (()=>{
 
 	//the this is a Node, not vm
 	vm.lambdaToString = function(){
-		return this().slowLocalId(); //FIXME return a 45 char 256 bit globalId similar to (this one is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
+		if(this.localName) return this.localName; //starts as the op names, and can name other lambdas (which are all constants), but it doesnt affect ids since its contentAddressable.
+		if(this().isLeaf()) return 'u';
+		else return this().l+'('+this().r+')';
+		//TODO? return this().slowLocalId(); //FIXME return a 45 char 256 bit globalId similar to (this one is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
 	};
 
 	vm.lambdize = function(node){
@@ -1149,7 +1185,8 @@ const wikibinator203 = (()=>{
 	//vm.nextOpO8 = 128; //128..255
 	//vm.o8ToLambda = []; //o8 of 0 is either evaling or doesnt exist. o8 of 1 to 255 exists. Past that, they copy o8 from l child.
 	//vm.o8ToLambda[0] = (x=>{throw 'o8 of 0 does nothing or is evaling';});
-	vm.opInfo = [];
+	vm.opInfo = []; //o8 to info
+	vm.opNameToO8 = {}; //a cache of vm.opInfo, used in a switch statement in vm.rootEvaler. TODO optimize further by making a separate evaler for each op and a few other common lambdas.
 	vm.addOp = (name,curriesLeft,description)=>{
 		let o8 = vm.opInfo.length;
 		if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc.';
@@ -1158,10 +1195,13 @@ const wikibinator203 = (()=>{
 		//vm.opcodesDescription[name] = (description || 'TODO write description of opcode '+name);
 		//vm.nextOpO8++;
 		vm.opInfo.push({name:name, curriesLeft:curriesLeft, description:description});
+		vm.opNameToO8[name] = o8;
+		console.log('Add op '+name+' o8='+o8);
 		return o8;
 	};
 	vm.addOp('evaling',0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
-	for(let o8=1; o8<128; o8++){
+	vm.addOp('u',7,'the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.');
+	for(let o8=2; o8<128; o8++){
 		//TODO 'op' + 2 hex digits?
 		let numLeadingZeros = Math.clz32(o8);
 		let curriesSoFar = 31-numLeadingZeros;
@@ -1186,9 +1226,12 @@ const wikibinator203 = (()=>{
 	vm.addOp('infcur',vm.maxCurriesLeft,'like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
 	vm.addOp('opmutOuter',2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
 	vm.addOp('opmutInner',2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
-	
-	
-	
+	vm.addOp('stackIsAllowGastimeGasmem',1,'reads a certain bit (stackIsAllowGastimeGasmem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+	vm.addOp('stackIsAllowNondetRoundoff',1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+	vm.addOp('stackIsAllowMutableWrapperLambdaAndSolve',1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+	vm.addOp('stackIsAllowAx',1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+	vm.addOp('isCbt',1,'returns t or f, is the param a cbt aka complete binary tree of bit0 and bit1');
+	vm.addOp('containsAxConstraint',1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
 	
 	
 	
@@ -1327,11 +1370,38 @@ const wikibinator203 = (()=>{
 		throw 'TODO compile, making sure to limit gastime gasmem etc.';
 	};
 	
+	
+	//immutable. but gasTime gasMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
+	//mask is the low 4 bits of header int, the cleanvsdirty etc stuff, such as does it allow nondeterministic roundoff.
+	vm.StackStuff = function(mask, saltA, saltB, saltC, saltD){
+		this.mask = mask;
+		this.saltA = saltA;
+		this.saltB = saltB;
+		this.saltC = saltC;
+		this.saltD = saltD;
+	};
+	
+	//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
+	//Use this as immutable.
+	//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
+	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to gasTime and gasMem can only decrease (or stay same) but not increase,
+	//until the first call returns, then can start with any StackStuff you and gasTime gasMem etc you want.
+	vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
+	
+	
+	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
+	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+	vm.stackMem = 1000000;
+	vm.stackStuff = vm.defaultStackStuff;
+	
+	
 	/* very slow interpreted mode. add optimizations as recursive evalers whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
 	u.evaler is this rootEvaler. All other evalers are hooked in by aLambda.pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda.evaler before setting aLambda.evaler to the new one,
 	and if the evaler doesnt have an evaler.on field, creates it as true.
 	*/
 	vm.rootEvaler = (vm,l,r)=>{
+		
+		console.log('Evaling l='+l+' r='+r);
 		//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
 		//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
 		//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
@@ -1339,31 +1409,45 @@ const wikibinator203 = (()=>{
 		//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
 		//similar to vm.gasTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
 		"use strict";
-		console.log('opcodeToO8='+JSON.stringify(vm.opcodeToO8));
+		//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 		vm.prepay(1,0);
 		let cache = vm.funcallCache(l,r);
 		if(cache.ret) return cache.ret;
-		if(l().curriesLeft > 1){
+		
+		let stackMask = vm.stackStuff.mask;
+		if(l().curriesLeft() > 1){
 			//(l.o8() < 64) implies (l.curriesLeft) but it could also be cuz theres more params such as s takes 3 params so the first 2 curries are halted, and 1 op (lambda) has vararg.
 			return vm.cp(l,r);
 		}else{
+			if(l().o8() < 128){
+				throw 'shouldnt be here cuz should have just done cp';
+			}
 			//last 3 params
 			let x = l().l().r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
 			let y = l().r;
 			let z = r;
 			let ret = null;
-			let o = vm.opcodeToO8;
+			let o = vm.opNameToO8;
 			let o8 = l().o8();
 			switch(o8){
 				case o.stackIsAllowGastimeGasmem: //!isClean. allow gasMem and gasTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
-					ret = vm.bit(vm.stackIsAllowGastimeGasmem);
+					ret = vm.bit(stackMask & vm.mask_stackIsAllowGastimeGasmem);
 				break;case o.stackIsAllowNondetRoundoff:
-					ret = vm.bit(vm.stackIsAllowNondetRoundoff);
+					ret = vm.bit(stackMask & vm.stackIsAllowNondetRoundoff);
 				break;case o.stackIsAllowMutableWrapperLambdaAndSolve:
-					ret = vm.bit(vm.stackIsAllowMutableWrapperLambdaAndSolve);
+					ret = vm.bit(stackMask & vm.stackIsAllowMutableWrapperLambdaAndSolve);
 				break;case o.stackIsAllowAx:
-					ret = vm.bit(vm.stackIsAllowAx);
-				break;case o.stackIsAllowImportEvilIds:
+					ret = vm.bit(stackMask & vm.stackIsAllowAx);
+				//ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
+				break;case o.isCbt:
+					ret = vm.bit(z().isCbt());
+				break;case o.containsAxConstraint:
+					ret = vm.bit(z().containsAxConstraint());
+				break;
+				
+				/*break;case o.stackIsAllowImportEvilIds:
+					THIS WAS REMOVED CUZ IT SHOULD BE DONE ONLY IN vm.import(idMaker,id) func, which makes formalVerifying it easier.
+					
 					//A lambda cant check if a lambda is good or evil (evilBit) cuz its always both, just an interpretation of an observer, only affects ids,
 					//and each lambda has (at least, can make more kinds) 2 ids, one where evilBit is on and one where its off.
 					//What makes the good namespace good (or so people might define what is good) is to call it good while sharing it is to certify that you are copying it out of the "antivirus quarantine"/uncensoredArea and that you take responsibility for doing so,
@@ -1371,12 +1455,16 @@ const wikibinator203 = (()=>{
 					//its parts and the combo of them are safe.
 					//When in doubt, just say its evil (evilBit=true).
 					ret = vm.bit(vm.stackIsAllowImportEvilIds); FIXME get these 5 "vm.stackIsAllow" bits from StackStuff.
+				*/
+				
 				break;case o.opmutOuter:
+					//TODO merge opmutOuter and opmutInner?
 					let mut = new Mut(0);
 					mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
 					mut.m.param = r; //param as in (... opmut treeOfJavascriptlikeCode param)
 					ret = vm.opmut(m);
 				break;case o.opmutInner:
+					//TODO merge opmutOuter and opmutInner?
 					vm.infloop();
 					//throw 'TODO this is not normally called outside opmutOuter. What should it do? just act like an opmutOuter? Or infloop?';
 				break;
@@ -1500,28 +1588,39 @@ const wikibinator203 = (()=>{
 	
 	vm.Node.prototype.vm = vm; //can get this like u().vm or u(u)(u(u))(u).vm for example.
 	
-	
+	/*
+	opcodeToO8 doesnt exist anymore
 	//map of op name (such as 's' or 'pair' to lambda
 	vm.ops = {};
 	for(let opName in vm.opcodeToO8){
 		let o8 = vm.opcodeToO8[opName];
 		let lambda = vm.o8ToLambda(o8);
+		lambda.localName = opName;
 		vm.ops[opName] = lambda;
-	}
+	}*/
 	
-	for(let o8=1; o8<256; o8++){
-		vm.o8ToLambda[o8] = vm.o8ToLambda(o8);
+	vm.ops = {}; //map of opName to lambda
+	for(let o8=1; o8<256; o8++){ //excluses o8 of 0 aka evaling.
+		let lambda = vm.o8ToLambda(o8);
+		lambda.localName = vm.opInfo[o8].name;
+		vm.ops[lambda.localName] = lambda;
 	}
 	
 	//cuz vm.bit func needs these. todo opcode order.
 	//vm.t = TODO;
 	//vm.f = TODO;
 	
-	vm.gasTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-	vm.gasMem = 1000000;
+	
+
+	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
+	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+	vm.stackMem = 1000000;
+	vm.stackStuff = vm.defaultStackStuff;
+	
+	
 	vm.prepay(1,2);
-	if(vm.gasTime != 999999) throw 'gasTime is broken';
-	if(vm.gasMem != 999998) throw 'gasMem is broken';
+	if(vm.stackTime != 999999) throw 'stackTime is broken';
+	if(vm.stackMem != 999998) throw 'stackMem is broken';
 	
 	return u; //the universal function
 })();
