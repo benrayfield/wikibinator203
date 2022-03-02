@@ -3,44 +3,76 @@
 Some basic parts work, or use earlier wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
 This just worked in browser console:
-<code>
+
 ''+u(u)
+
 wikibinator203.js:1404 Evaling l=u r=u
+
 'op10'
+
 t(u)
+
 wikibinator203.js:1404 Evaling l=t r=u
+
 ƒ (param){
 			
 			//TODO test the code NODE.evaler(NODE.lam,param) which should do this.
 			//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which i…
+			
 ''+t(u)
+
 wikibinator203.js:1404 Evaling l=t r=u
+
 't(u)'
+
 ''+pair
+
 'pair'
+
 ''+pair(s)(t)
+
 wikibinator203.js:1404 Evaling l=pair r=s
+
 wikibinator203.js:1404 Evaling l=pair(s) r=t
+
 'pair(s)(t)'
+
 ''+pair(s)(l)
+
 wikibinator203.js:1404 Evaling l=pair r=s
+
 wikibinator203.js:1404 Evaling l=pair(s) r=l
+
 'pair(s)(l)'
+
 ''+pair(s)(l)(t)
+
 wikibinator203.js:1404 Evaling l=pair r=s
+
 wikibinator203.js:1404 Evaling l=pair(s) r=l
+
 wikibinator203.js:1404 Evaling l=pair(s)(l) r=t
+
 wikibinator203.js:1404 Evaling l=t r=l
+
 wikibinator203.js:1404 Evaling l=t(l) r=s
+
 'l'
+
 ''+pair(s)(l)(f)
+
 wikibinator203.js:1404 Evaling l=pair r=s
+
 wikibinator203.js:1404 Evaling l=pair(s) r=l
+
 wikibinator203.js:1404 Evaling l=pair(s)(l) r=f
+
 wikibinator203.js:1404 Evaling l=f r=l
+
 wikibinator203.js:1404 Evaling l=f(l) r=s
+
 's'
-</code>
+
 
 If you want the universal lambda that works, go to <a href=https://github.com/benrayfield/wikibinator106>wikibinator106</a>, for now. This different universal lambda function will hopefully be working soon with some simple games and demos people can play together, as actual javascript lambdas that implement the universal lambda math.
 
