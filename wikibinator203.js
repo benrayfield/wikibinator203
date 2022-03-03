@@ -1,5 +1,8 @@
 
 
+//TODO replace HashtableNode with the lambda, and just put a next pointer in the lambda itself.
+//and call vm.prepay less often. and make the hashtable double in size automatically instead of allocating a 1<<24 size one at first.
+
 
 /*UPDATED comment, maybe need to include in license, about mask_stackIsAllowImportEvilIds (and the opcode for that)...
 Maybe it should just be an op to measure if an id has evilBit on or not (its in the first byte of a cbt if used as an id),
@@ -810,8 +813,6 @@ const wikibinator203 = (()=>{
 		//this.idString;
 		
 		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
-		
-		this.hashInt = vm.hash2Nodes(l,r);
 
 	};
 	
@@ -1080,15 +1081,15 @@ const wikibinator203 = (()=>{
 	vm.dedupMap = {};
 	//FIXME put u in dedupMap
 	
-	vm.HashtableNode = function(val,next){
+	/*vm.HashtableNode = function(val,next){
 		this.val = val;
 		this.next = next;
-	};
+	};*/
 	
 	//TODO this replaces vm.dedupMap, doesnt create strings, and uses Node.idA .idB .blobFrom and .blobTo from 2 Nodes (8 ints) as key and parent Node as value.
 	//Its a linked hashtable, containing vm.HashtableNode's whose .val is Node. Similar will be done for funcallCacheMap somewhere else. Or nulls?
 	vm.dedupHashtable = [];
-	for(let i=0; i<(1<<26); i++) vm.dedupHashtable.push(null); //TODO expand as needed, doubling size each time?
+	for(let i=0; i<(1<<24); i++) vm.dedupHashtable.push(null); //TODO expand as needed, doubling size each time?
 	vm.dedupHashtableMask = vm.dedupHashtable.length-1; //only works if its a powOf2.
 	
 	//vm.dedupHashtableBucket = (nodeA,nodeB)=>(vm.hash2Nodes(nodeA,nodeB)&vm.dedupHashtableMask);
@@ -1097,12 +1098,14 @@ const wikibinator203 = (()=>{
 	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
 	vm.funcallCacheMap = {};
 
+	/*
 	//TODO remove this
 	vm.dedupKeyOfNode = function(isLeaf,func,param){
 		//TODO see comment "dont concat strings to create key" in similar code.
 		this.prepay(1,2); //FIXME?
 		return isLeaf+"_"+func().slowLocalId()+"_"+param().slowLocalId();
 	};
+	*/
 	
 	//TODO use faster hashtable specialized in things having 4 ints.
 	vm.Node.prototype.slowLocalId = function(){
@@ -1231,6 +1234,26 @@ const wikibinator203 = (()=>{
 					//TODO optimize: If its 2 cbts sharing the same Node.blob that are adjacent then store parent pointer in them. just check parent pointer.
 					
 					
+					let funcNode = func(), paramNode = param();
+					let bucket = vm.hash2Nodes(funcNode,paramNode)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
+					let lambda = vm.dedupHashtable[bucket]; //null if bucket is empty, else lambda.htNext is next lambda in linkedlist of bucket
+					while(lambda){
+						vm.prepay1Time();
+						if(lambda().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
+							return lambda; //found it, reuse that instead of creating another node of same forest shape
+						}
+						lambda = lambda.htNext;
+					}
+					//didnt find that forest shape. create one.
+					this.prepay1Mem();
+					//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
+					lambda = vm.lambdize(new this.Node(this,func,param));
+					lambda.htNext = vm.dedupHashtable[bucket];
+					vm.dedupHashtable[bucket] = lambda;
+					return lambda;
+					
+					
+					/*
 					let bucket = vm.hash2Nodes(func,param)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
 					let htNode = vm.dedupHashtable[bucket];
 					let funcNode = func(), paramNode = param();
@@ -1247,6 +1270,9 @@ const wikibinator203 = (()=>{
 					//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
 					let lambda = vm.lambdize(new this.Node(this,func,param));
 					vm.dedupHashtable[bucket] = new vm.HashtableNode(lambda, vm.dedupHashtable[bucket]);
+					*/
+					
+					
 					return lambda;
 				}
 			break;
@@ -1280,6 +1306,7 @@ const wikibinator203 = (()=>{
 			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf gasTime or gasMem aka prepay(number,number)
 		};
 		//lambda = lambda.bind(this);
+		lambda.hashInt = vm.hash2Nodes(node.l,node.r);
 		lambda.toString = vm.lambdaToString;
 		return (node.lam = lambda);
 	};
@@ -1593,9 +1620,9 @@ const wikibinator203 = (()=>{
 				break;case o.f:
 					ret = z;
 				break;case o.l:
-					z.l;
+					ret = z().l;
 				break;case o.r:
-					z.r;
+					ret = z().r;
 				break;case o.isLeaf:
 					ret = Bit(z.o8==1);
 				break;case o.pair:case o.typeval:
