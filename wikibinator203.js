@@ -811,10 +811,22 @@ const wikibinator203 = (()=>{
 		
 		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
 		
+		this.hashInt = vm.hash2Nodes(l,r);
 
 	};
 	
+	//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
+	//For perfect dedup, use 256 bit or 512 bit global ids which are lazyEvaled and most nodes never need one.
+	vm.Node.prototype.equalsByLazyDedup = function(otherNode){
+		return this.hashInt==otherNode.hashInt && this.idB==otherNode.idB && this.idA==otherNode.idA && this.blobFrom==otherNode.blobFrom && this.blobTo==otherNode.blobTo;
+	};
 	
+	//The node form of lambda x is x(), such as x().curriesLeft() or x().o8().
+	vm.Node.prototype.equalsByLazyDedupOf2ChildNodes = function(otherLNode,otherRNode){
+		//FIXME if lazy load .l and .r, then need to call .L() and .R() to lazy load them first. but that wont happen until a much later version of this VM.
+		//TODO optimize by using Node instead of the lambdize wrapper of it so can use this.l. instead of this.l(). etc? Or put those funcs in the lambdized form?
+		return this.l().equalsByLazyDedup(otherLNode) && this.r().equalsByLazyDedup(otherRNode);
+	};
 	
 	
 	
@@ -910,6 +922,16 @@ const wikibinator203 = (()=>{
 		this.stackTime = newTime;
 		this.stackMem = newMem;
 		return undefined; //so you can || it with things for shorter lines of code
+	};
+	
+	vm.prepay1Time = function(){
+		if(!this.stackTime) throw this.gasErr;
+		this.stackTime--;
+	};
+	
+	vm.prepay1Mem = function(){
+		if(!this.stackMem) throw this.gasErr;
+		this.stackMem--;
 	};
 	
 	//true or false
@@ -1057,10 +1079,25 @@ const wikibinator203 = (()=>{
 	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in Nodes.
 	vm.dedupMap = {};
 	//FIXME put u in dedupMap
+	
+	vm.HashtableNode = function(val,next){
+		this.val = val;
+		this.next = next;
+	};
+	
+	//TODO this replaces vm.dedupMap, doesnt create strings, and uses Node.idA .idB .blobFrom and .blobTo from 2 Nodes (8 ints) as key and parent Node as value.
+	//Its a linked hashtable, containing vm.HashtableNode's whose .val is Node. Similar will be done for funcallCacheMap somewhere else. Or nulls?
+	vm.dedupHashtable = [];
+	for(let i=0; i<(1<<26); i++) vm.dedupHashtable.push(null); //TODO expand as needed, doubling size each time?
+	vm.dedupHashtableMask = vm.dedupHashtable.length-1; //only works if its a powOf2.
+	
+	//vm.dedupHashtableBucket = (nodeA,nodeB)=>(vm.hash2Nodes(nodeA,nodeB)&vm.dedupHashtableMask);
+	
 
 	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
 	vm.funcallCacheMap = {};
 
+	//TODO remove this
 	vm.dedupKeyOfNode = function(isLeaf,func,param){
 		//TODO see comment "dont concat strings to create key" in similar code.
 		this.prepay(1,2); //FIXME?
@@ -1085,6 +1122,44 @@ const wikibinator203 = (()=>{
 
 	//increases every time any FuncallCache is used, so can garbcol old funcallcaches.
 	vm.touchCounter = 0;
+	
+	const twoPow32 = Math.pow(2,32);
+	const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0);
+	const hashIntSalts = new Int32Array(11);
+	const hashingInts = new Int32Array(9); //put 8 ints in here (5 from each of 2 Nodes) starting at index 0 to hash, and get the hash from index 8.
+	for(let i=0; i<hashIntSalts.length; i++) hashIntSalts[i] = randInt();
+	
+	vm.hash3Ints = (a,b,c)=>((Math.imul(a,hashIntSalts[8]) +  Math.imul(b,hashIntSalts[9]) + Math.imul(c,hashIntSalts[10]))|0);
+	
+	vm.hash2Nodes = (a,b)=>{
+		if(!a) return 0; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
+		hashingInts[0] = a.idA;
+		hashingInts[1] = a.idB;
+		hashingInts[2] = a.blobFrom;
+		hashingInts[3] = a.blobTo;
+		hashingInts[4] = b.idA;
+		hashingInts[5] = b.idB;
+		hashingInts[6] = b.blobFrom;
+		hashingInts[7] = b.blobTo;
+		hashingInts[8] = 0;
+		for(let i=0; i<8; i++) hashingInts[8] += Math.imul(hashingInts[i],hashIntSalts[i]); //dotProd with onceRandomAtJsBoot salts
+		return hashingInts[8];
+	};
+	
+	/*
+	vm.hash10Ints = (d,e,f,g,h,i,j,k,l,m)=>(
+		d*hashIntSalts[0]
+		+ e*hashIntSalts[1]
+		+ f*hashIntSalts[1]
+		+ g*hashIntSalts[1]
+		+ h*hashIntSalts[1]
+		+ i*hashIntSalts[1]
+		+ j*hashIntSalts[1]
+		+ k*hashIntSalts[1]
+		+ l*hashIntSalts[1]
+		+ m*hashIntSalts[1];
+		a*vm.hashIntSaltA + b*vm.hashIntSaltB + c*vm.hashIntSaltC
+	);*/
 
 	//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
 	//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
@@ -1094,6 +1169,7 @@ const wikibinator203 = (()=>{
 		this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
 		this.ret = null; //func, param, and ret, are all what lambdize returns.
 		this.touch = ++this.touchCounter; //for garbcol of old funcallcaches
+		this.hashInt = vm.hash3Ints(func.hashInt,param.hashInt,this.stackStuff.hashInt);
 	};
 	
 	
@@ -1129,6 +1205,7 @@ const wikibinator203 = (()=>{
 	//(func,param) or more params to curry...
 	//FIXME vararg might be slow. use separate func for vararg cp
 	vm.cp = function(){
+		//TODO divide cp into 2 funcs, one with 2 params and 1 with variable number of params, for efficiency.
 		switch(arguments.length){
 			case 0: return this.identityFunc;
 			case 1: return arguments[0];
@@ -1136,12 +1213,41 @@ const wikibinator203 = (()=>{
 				let func = arguments[0];
 				let param = arguments[1];
 				if(param().o8()==1 && func().o8() == this.o8OfIdentityFunc){
-					this.prepay(1,0);
+					vm.prepay1Time();
 					return this.u; //the only node whose o8 is 1, but I'm making a point by implementing it without using == on nodes, just on bytes.
 				}else{
+					
+					/*
 					//TODO use faster kind of localIds and dedup than string. but for now i just want to get it working asap. GPU optimize, js code eval optimize, webasm optimize, etc later.
 					let key = this.dedupKeyOfNode(false,func,param);
 					return this.dedupMap[key] || (this.prepay(0,1) || (this.dedupMap[key] = vm.lambdize(new this.Node(this,func,param))));
+					*/
+					
+					//Look in hashtable for node with those 2 childs, else create it.
+					
+					//TODO optimize: this code looks too big and slow, but will be be fast enough since most calculations will be done in blobs, GPU, evalers, etc
+					//and only use this code when no compiled optimizations exist for the relevant lambda call. But still, it could probably be faster...
+					
+					//TODO optimize: If its 2 cbts sharing the same Node.blob that are adjacent then store parent pointer in them. just check parent pointer.
+					
+					
+					let bucket = vm.hash2Nodes(func,param)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
+					let htNode = vm.dedupHashtable[bucket];
+					let funcNode = func(), paramNode = param();
+					while(htNode){
+						vm.prepay1Time();
+						//TODO optimize by HashtableNode storing Node instead of the lambdize wrapper of it, so can use htNode.val instead of htNode.val()?
+						if(htNode.val().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
+							return htNode.val; //found it, reuse that instead of creating another node of same forest shape
+						}
+						htNode = htNode.next;
+					}
+					//didnt find that forest shape. create one.
+					this.prepay1Mem();
+					//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
+					let lambda = vm.lambdize(new this.Node(this,func,param));
+					vm.dedupHashtable[bucket] = new vm.HashtableNode(lambda, vm.dedupHashtable[bucket]);
+					return lambda;
 				}
 			break;
 			default:
@@ -1493,7 +1599,7 @@ const wikibinator203 = (()=>{
 				break;case o.isLeaf:
 					ret = Bit(z.o8==1);
 				break;case o.pair:case o.typeval:
-					ret = z(y)(x);
+					ret = z(x)(y);
 				break;case o.varargAx:
 					if(vm.stackIsAllowAx){
 						throw 'TODO ax';
