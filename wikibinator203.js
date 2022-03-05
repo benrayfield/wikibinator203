@@ -652,7 +652,7 @@ const wikibinator203 = (()=>{
 	//the datastruct of forest of lambdas, each with 2 childs (Node.l and Node.r, which are the lambdize wrappers of Node) where all paths lead to the universal lambda.
 	//lambdize means to wrap a Node in a lambda. Node is the internal workings of a lambda.
 	//
-	vm.Node = function(vm,l,r){
+	vm.Node = function(vm,l,r){ //TODO rename these params to myL and myR cuz l and r are opcode names. its ok to keep this.l and this.r.
 		
 		//TODO "header64: 6+2+8+16+1+31", see comment about it.
 		
@@ -1142,7 +1142,7 @@ const wikibinator203 = (()=>{
 	hashIntSalts[8] = (hashIntSalts[8]&0x7fffffff)|(1<<30);
 	hashIntSalts[12] = (hashIntSalts[12]&0x7fffffff)|(1<<30);
 	
-	vm.hash3Ints = (a,b,c)=>(((Math.imul(a,hashIntSalts[9]) +  Math.imul(b,hashIntSalts[9]) + Math.imul(c,hashIntSalts[11]))%hashIntSalts[12])|0);
+	vm.hash3Ints = (a,b,c)=>(((Math.imul(a,hashIntSalts[9]) +  Math.imul(b,hashIntSalts[10]) + Math.imul(c,hashIntSalts[11]))%hashIntSalts[12])|0);
 	
 	vm.hash2Nodes = (a,b)=>{
 		//TODO find some way to not check this IF just for u. its slowing down all the hashing.
@@ -1313,7 +1313,11 @@ const wikibinator203 = (()=>{
 			//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which in the chain is used.
 			//use the first aNode.evaler where aNode.evaler.on such as aNode.evaler.prev.prev.on.
 			
-			if(param === undefined) return NODE; //aLambda() returns the node it wraps. Example: aLambda().func or aLambda().param or aLambda().Node or aLambda().FuncallCache
+			//aLambda() returns the node it wraps. Example: aLambda().l or aLambda().r or aLambda().vm.Node
+			//or aLambda().vm.FuncallCache or aLambda().header or aLambdas().bize or aLambda().idA or aLambda().blob.
+			//TODO optimize: maybe it should be aLambda.n to get the Node?
+			//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
+			if(param === undefined) return NODE;
 			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf gasTime or gasMem aka prepay(number,number)
 		};
 		//lambda = lambda.bind(this);
@@ -1496,7 +1500,7 @@ const wikibinator203 = (()=>{
 	make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
 	*/
 	
-	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
+	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowGastimeGasmem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
 	
 	vm.bit = function(bit){ return bit ? this.t : this.f };
 	
@@ -1761,9 +1765,11 @@ const wikibinator203 = (()=>{
 	let s = vm.ops.s;
 	let t = vm.ops.t;
 	let f = vm.ops.f;
+	let pair = vm.ops.pair;
+	let ident = f(u);
 	
 	vm.test = (testName, a, b)=>{
-		if(a == b) console.log('Test pass: '+testName+', both equal '+a);
+		if(a === b) console.log('Test pass: '+testName+', both equal '+a);
 		else throw ('Test '+testName+' failed cuz '+a+' != '+b);
 	};
 	
@@ -1790,8 +1796,12 @@ const wikibinator203 = (()=>{
 	vm.test('check dedup of u(u)', u(u), u(u));
 	let uu = u(u);
 	vm.test('o8/opcode of u(uu)', u(uu)().o8(), 3);
-	vm.test('o8/opcode ofu(uu)(uu)(uu)(uu)(u)(uu)().o8()', u(uu)(uu)(uu)(uu)(u)(uu)().o8(), 125);
+	vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(u)(uu)().o8()', u(uu)(uu)(uu)(uu)(u)(uu)().o8(), 125);
 	vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu)', u(uu)(uu)(uu)(uu)(uu)(uu)().o8(), 127);
+	vm.test('(l x (r x)) equals x forall x, deeper', l(l)(r(l))(s)(l(r)(r(r))(s)), s);
+	vm.test('(l x (r x)) equals x forall x, deeper 2', l(l)(r(l))(pair(s)(l))(l(r)(r(r))(pair(s)(l))), pair(s)(l));
+	vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
+	vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
 	
 	/*
 	if(vm.identityFunc != l(u)) throw 'Failed to tie the quine knot. identityFunc != l(u)';
@@ -1805,6 +1815,12 @@ const wikibinator203 = (()=>{
 	if(vm.identityFunc != f(u)) throw 'vm.identityFunc != f(u)';
 	*/
 	
+	
+	//This optimization makes it fast enough to use l(lambda) and r(lambda) instead of lambda().l and lambda().r.
+	//dont FuncallCache things that instantly return and cant make an infinite loop.
+	l().pushEvaler((vm,func,param)=>(param().l));
+	r().pushEvaler((vm,func,param)=>(param().r));
+	//TODO pushEvaler for isleaf etc
 	
 
 	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
