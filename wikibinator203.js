@@ -471,8 +471,8 @@ const wikibinator203 = (()=>{
 	//hopefully in the form of lambdas usually, but whatever that is, prefix it by vm.prefixByteOfOther_evilBitOn andOr vm.prefixByteOfOther_evilBitOff.
 	//When in doubt which you should use of evilBit being on or off, choose on since off means that by giving someone a copy of it
 	//you're claiming its good and safe for other uses. Evil means "dont know if its good or evil or where between" or "not necessarily good".
-	vm.prefixByteOfOther_evilBitOn =          0b11110100; //FIXME?
-	vm.prefixByteOfOther_evilBitOff =         0b11110100; //FIXME?
+	vm.prefixByteOfOther_evilBitOn =           0b11110100; //FIXME?
+	vm.prefixByteOfOther_evilBitOff =          0b11110000; //FIXME?
 	
 	//https://en.wikipedia.org/wiki/Evil_bit
 	//For wikibinator203, evilBit off means "the normal internet", and on means "antivirus quarantine, spread across many computers which apps may run inside".
@@ -484,19 +484,27 @@ const wikibinator203 = (()=>{
 	//vm.prefixByteOfOther is 0b11110[0or1]00 and callpairs start at 0b11110[0or1]01 and 0b11110[0or1]10 is "id of id"
 	//and 0b11110[0or1]11 is "id of id of id" and past that you need 2 nodes of 128 literal bits each to be 256 bits.
 	//such 256 bits doesnt imply it is or is not an id. Its just bits.
-	vm.callPairPrefixByte_evilBitOn =         0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
-	vm.callPairPrefixByte_evilBitOff =        0b11110001; //FIXME?
+	vm.callPairPrefixByte_evilBitOn =          0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
+	vm.callPairPrefixByte_evilBitOff =         0b11110001; //FIXME?
 	
 	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
 	//(in this case its not its own id, but most literal 256 bits are their own id).
-	vm.prefixByteOfIdOfIdOrOfAny256Bits =     0b11110110; //FIXME?
+	vm.prefixByteOfIdOfIdOrOfAny256BitsA =     0b11110010; //FIXME?
+	vm.prefixByteOfIdOfIdOrOfAny256BitsB =     0b11110110; //FIXME?
 	
 	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
 	//(in this case its not its own id, but most literal 256 bits are their own id).
-	vm.prefixByteOfIdOfIdOfIdOrOfAny256Bits = 0b11110111; //FIXME?
+	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA = 0b11110011; //FIXME?
+	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
 	
+	FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
+	
+	TODO have a sDepth in it? so you can just give {a b} and {{a b} c} instead of (s a b) and (s (s a b) c) which is the actual lambda shape???
+	s is the most common lambda, so common theres a syntax for it. and maybe also prefix by t?
+	
+	FIXME these numbers need updating cuz theres 8 bytes above (some have an A and B, the literals that dont have an evilbit and use that bit as part of the literal).
 	//Other than the 6 bytes above,
-	//the 248 firstByte prefixes are 256 (or 512, depending on which idMaker) literal bits that are their own id.
+	//the 250 firstByte prefixes are 256 (or 512, depending on which idMaker) literal bits that are their own id.
 	//On average, 250/256 (125/128) random 256 (or 512, depending on which idMaker) bits fit in an id the same size,
 	//and 252/256 (63/64) of them fit in an id the same size even if they are not their own id.
 	//2/256 (1/128) of them fit in an id the same size as them but are not their own id.
