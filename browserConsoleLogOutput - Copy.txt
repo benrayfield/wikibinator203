@@ -1,0 +1,608 @@
+wikibinator203.js:1343 Add op evaling o8=0 curriesLeft=0 description: This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.
+wikibinator203.js:1343 Add op u o8=1 curriesLeft=7 description: the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.
+wikibinator203.js:1343 Add op op10 o8=2 curriesLeft=6 description: op10 has 1 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11 o8=3 curriesLeft=6 description: op11 has 1 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100 o8=4 curriesLeft=5 description: op100 has 2 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101 o8=5 curriesLeft=5 description: op101 has 2 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110 o8=6 curriesLeft=5 description: op110 has 2 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111 o8=7 curriesLeft=5 description: op111 has 2 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000 o8=8 curriesLeft=4 description: op1000 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001 o8=9 curriesLeft=4 description: op1001 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010 o8=10 curriesLeft=4 description: op1010 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011 o8=11 curriesLeft=4 description: op1011 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100 o8=12 curriesLeft=4 description: op1100 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101 o8=13 curriesLeft=4 description: op1101 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110 o8=14 curriesLeft=4 description: op1110 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111 o8=15 curriesLeft=4 description: op1111 has 3 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10000 o8=16 curriesLeft=3 description: op10000 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10001 o8=17 curriesLeft=3 description: op10001 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10010 o8=18 curriesLeft=3 description: op10010 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10011 o8=19 curriesLeft=3 description: op10011 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10100 o8=20 curriesLeft=3 description: op10100 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10101 o8=21 curriesLeft=3 description: op10101 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10110 o8=22 curriesLeft=3 description: op10110 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op10111 o8=23 curriesLeft=3 description: op10111 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11000 o8=24 curriesLeft=3 description: op11000 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11001 o8=25 curriesLeft=3 description: op11001 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11010 o8=26 curriesLeft=3 description: op11010 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11011 o8=27 curriesLeft=3 description: op11011 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11100 o8=28 curriesLeft=3 description: op11100 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11101 o8=29 curriesLeft=3 description: op11101 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11110 o8=30 curriesLeft=3 description: op11110 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op11111 o8=31 curriesLeft=3 description: op11111 has 4 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100000 o8=32 curriesLeft=2 description: op100000 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100001 o8=33 curriesLeft=2 description: op100001 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100010 o8=34 curriesLeft=2 description: op100010 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100011 o8=35 curriesLeft=2 description: op100011 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100100 o8=36 curriesLeft=2 description: op100100 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100101 o8=37 curriesLeft=2 description: op100101 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100110 o8=38 curriesLeft=2 description: op100110 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op100111 o8=39 curriesLeft=2 description: op100111 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101000 o8=40 curriesLeft=2 description: op101000 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101001 o8=41 curriesLeft=2 description: op101001 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101010 o8=42 curriesLeft=2 description: op101010 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101011 o8=43 curriesLeft=2 description: op101011 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101100 o8=44 curriesLeft=2 description: op101100 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101101 o8=45 curriesLeft=2 description: op101101 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101110 o8=46 curriesLeft=2 description: op101110 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op101111 o8=47 curriesLeft=2 description: op101111 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110000 o8=48 curriesLeft=2 description: op110000 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110001 o8=49 curriesLeft=2 description: op110001 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110010 o8=50 curriesLeft=2 description: op110010 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110011 o8=51 curriesLeft=2 description: op110011 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110100 o8=52 curriesLeft=2 description: op110100 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110101 o8=53 curriesLeft=2 description: op110101 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110110 o8=54 curriesLeft=2 description: op110110 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op110111 o8=55 curriesLeft=2 description: op110111 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111000 o8=56 curriesLeft=2 description: op111000 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111001 o8=57 curriesLeft=2 description: op111001 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111010 o8=58 curriesLeft=2 description: op111010 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111011 o8=59 curriesLeft=2 description: op111011 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111100 o8=60 curriesLeft=2 description: op111100 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111101 o8=61 curriesLeft=2 description: op111101 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111110 o8=62 curriesLeft=2 description: op111110 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op111111 o8=63 curriesLeft=2 description: op111111 has 5 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000000 o8=64 curriesLeft=1 description: op1000000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000001 o8=65 curriesLeft=1 description: op1000001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000010 o8=66 curriesLeft=1 description: op1000010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000011 o8=67 curriesLeft=1 description: op1000011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000100 o8=68 curriesLeft=1 description: op1000100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000101 o8=69 curriesLeft=1 description: op1000101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000110 o8=70 curriesLeft=1 description: op1000110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1000111 o8=71 curriesLeft=1 description: op1000111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001000 o8=72 curriesLeft=1 description: op1001000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001001 o8=73 curriesLeft=1 description: op1001001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001010 o8=74 curriesLeft=1 description: op1001010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001011 o8=75 curriesLeft=1 description: op1001011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001100 o8=76 curriesLeft=1 description: op1001100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001101 o8=77 curriesLeft=1 description: op1001101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001110 o8=78 curriesLeft=1 description: op1001110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1001111 o8=79 curriesLeft=1 description: op1001111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010000 o8=80 curriesLeft=1 description: op1010000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010001 o8=81 curriesLeft=1 description: op1010001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010010 o8=82 curriesLeft=1 description: op1010010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010011 o8=83 curriesLeft=1 description: op1010011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010100 o8=84 curriesLeft=1 description: op1010100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010101 o8=85 curriesLeft=1 description: op1010101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010110 o8=86 curriesLeft=1 description: op1010110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1010111 o8=87 curriesLeft=1 description: op1010111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011000 o8=88 curriesLeft=1 description: op1011000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011001 o8=89 curriesLeft=1 description: op1011001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011010 o8=90 curriesLeft=1 description: op1011010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011011 o8=91 curriesLeft=1 description: op1011011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011100 o8=92 curriesLeft=1 description: op1011100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011101 o8=93 curriesLeft=1 description: op1011101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011110 o8=94 curriesLeft=1 description: op1011110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1011111 o8=95 curriesLeft=1 description: op1011111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100000 o8=96 curriesLeft=1 description: op1100000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100001 o8=97 curriesLeft=1 description: op1100001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100010 o8=98 curriesLeft=1 description: op1100010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100011 o8=99 curriesLeft=1 description: op1100011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100100 o8=100 curriesLeft=1 description: op1100100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100101 o8=101 curriesLeft=1 description: op1100101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100110 o8=102 curriesLeft=1 description: op1100110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1100111 o8=103 curriesLeft=1 description: op1100111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101000 o8=104 curriesLeft=1 description: op1101000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101001 o8=105 curriesLeft=1 description: op1101001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101010 o8=106 curriesLeft=1 description: op1101010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101011 o8=107 curriesLeft=1 description: op1101011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101100 o8=108 curriesLeft=1 description: op1101100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101101 o8=109 curriesLeft=1 description: op1101101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101110 o8=110 curriesLeft=1 description: op1101110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1101111 o8=111 curriesLeft=1 description: op1101111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110000 o8=112 curriesLeft=1 description: op1110000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110001 o8=113 curriesLeft=1 description: op1110001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110010 o8=114 curriesLeft=1 description: op1110010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110011 o8=115 curriesLeft=1 description: op1110011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110100 o8=116 curriesLeft=1 description: op1110100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110101 o8=117 curriesLeft=1 description: op1110101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110110 o8=118 curriesLeft=1 description: op1110110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1110111 o8=119 curriesLeft=1 description: op1110111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111000 o8=120 curriesLeft=1 description: op1111000 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111001 o8=121 curriesLeft=1 description: op1111001 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111010 o8=122 curriesLeft=1 description: op1111010 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111011 o8=123 curriesLeft=1 description: op1111011 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111100 o8=124 curriesLeft=1 description: op1111100 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111101 o8=125 curriesLeft=1 description: op1111101 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111110 o8=126 curriesLeft=1 description: op1111110 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op op1111111 o8=127 curriesLeft=1 description: op1111111 has 6 params. Op is known at 7 params, and is copied from left child after that.
+wikibinator203.js:1343 Add op f o8=128 curriesLeft=2 description: the church-false lambda aka Î»y.Î»z.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.
+wikibinator203.js:1343 Add op t o8=129 curriesLeft=2 description: the church-true lambda and the k lambda of SKI-Calculus, aka Î»y.Î»z.y
+wikibinator203.js:1343 Add op bit0 o8=130 curriesLeft=248 description: complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size
+wikibinator203.js:1343 Add op bit1 o8=131 curriesLeft=248 description: see bit0
+wikibinator203.js:1343 Add op l o8=132 curriesLeft=1 description: get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.
+wikibinator203.js:1343 Add op r o8=133 curriesLeft=1 description: get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.
+wikibinator203.js:1343 Add op isleaf o8=134 curriesLeft=1 description: returns t or f of is its param u aka the universal lambda
+wikibinator203.js:1343 Add op isClean o8=135 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
+wikibinator203.js:1343 Add op sAllowSinTanhSqrtRoundoffEtc o8=136 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
+wikibinator203.js:1343 Add op lambda o8=137 curriesLeft=2 description: Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to undefined params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))
+wikibinator203.js:1343 Add op getNamedParam o8=138 curriesLeft=2 description: ddee? would be a syntax for (getnamedparam "ddee").
+wikibinator203.js:1343 Add op opOneMoreParam o8=139 curriesLeft=0 description: Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))
+wikibinator203.js:1343 Add op s o8=140 curriesLeft=3 description: For control-flow. the s lambda of SKI-Calculus, aka Î»x.Î»y.Î»z.xz(yz)
+wikibinator203.js:1343 Add op pair o8=141 curriesLeft=3 description: the church-pair lambda aka Î»x.Î»y.Î»z.zxy
+wikibinator203.js:1343 Add op infcur o8=142 curriesLeft=255 description: like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.
+wikibinator203.js:1343 Add op opmutOuter o8=143 curriesLeft=2 description: (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.
+wikibinator203.js:1343 Add op opmutInner o8=144 curriesLeft=2 description: See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.
+wikibinator203.js:1343 Add op stackIsAllowGastimeGasmem o8=145 curriesLeft=1 description: reads a certain bit (stackIsAllowGastimeGasmem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+wikibinator203.js:1343 Add op stackIsAllowNondetRoundoff o8=146 curriesLeft=1 description: reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+wikibinator203.js:1343 Add op stackIsAllowMutableWrapperLambdaAndSolve o8=147 curriesLeft=1 description: reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+wikibinator203.js:1343 Add op stackIsAllowAx o8=148 curriesLeft=1 description: reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+wikibinator203.js:1343 Add op isCbt o8=149 curriesLeft=1 description: returns t or f, is the param a cbt aka complete binary tree of bit0 and bit1
+wikibinator203.js:1343 Add op containsAxConstraint o8=150 curriesLeft=1 description: returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify
+wikibinator203.js:1343 Add op op151ReservedForFutureExpansionAndInfloopsForNow o8=151 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op152ReservedForFutureExpansionAndInfloopsForNow o8=152 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op153ReservedForFutureExpansionAndInfloopsForNow o8=153 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op154ReservedForFutureExpansionAndInfloopsForNow o8=154 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op155ReservedForFutureExpansionAndInfloopsForNow o8=155 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op156ReservedForFutureExpansionAndInfloopsForNow o8=156 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op157ReservedForFutureExpansionAndInfloopsForNow o8=157 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op158ReservedForFutureExpansionAndInfloopsForNow o8=158 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op159ReservedForFutureExpansionAndInfloopsForNow o8=159 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op160ReservedForFutureExpansionAndInfloopsForNow o8=160 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op161ReservedForFutureExpansionAndInfloopsForNow o8=161 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op162ReservedForFutureExpansionAndInfloopsForNow o8=162 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op163ReservedForFutureExpansionAndInfloopsForNow o8=163 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op164ReservedForFutureExpansionAndInfloopsForNow o8=164 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op165ReservedForFutureExpansionAndInfloopsForNow o8=165 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op166ReservedForFutureExpansionAndInfloopsForNow o8=166 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op167ReservedForFutureExpansionAndInfloopsForNow o8=167 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op168ReservedForFutureExpansionAndInfloopsForNow o8=168 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op169ReservedForFutureExpansionAndInfloopsForNow o8=169 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op170ReservedForFutureExpansionAndInfloopsForNow o8=170 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op171ReservedForFutureExpansionAndInfloopsForNow o8=171 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op172ReservedForFutureExpansionAndInfloopsForNow o8=172 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op173ReservedForFutureExpansionAndInfloopsForNow o8=173 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op174ReservedForFutureExpansionAndInfloopsForNow o8=174 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op175ReservedForFutureExpansionAndInfloopsForNow o8=175 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op176ReservedForFutureExpansionAndInfloopsForNow o8=176 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op177ReservedForFutureExpansionAndInfloopsForNow o8=177 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op178ReservedForFutureExpansionAndInfloopsForNow o8=178 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op179ReservedForFutureExpansionAndInfloopsForNow o8=179 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op180ReservedForFutureExpansionAndInfloopsForNow o8=180 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op181ReservedForFutureExpansionAndInfloopsForNow o8=181 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op182ReservedForFutureExpansionAndInfloopsForNow o8=182 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op183ReservedForFutureExpansionAndInfloopsForNow o8=183 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op184ReservedForFutureExpansionAndInfloopsForNow o8=184 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op185ReservedForFutureExpansionAndInfloopsForNow o8=185 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op186ReservedForFutureExpansionAndInfloopsForNow o8=186 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op187ReservedForFutureExpansionAndInfloopsForNow o8=187 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op188ReservedForFutureExpansionAndInfloopsForNow o8=188 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op189ReservedForFutureExpansionAndInfloopsForNow o8=189 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op190ReservedForFutureExpansionAndInfloopsForNow o8=190 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op191ReservedForFutureExpansionAndInfloopsForNow o8=191 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op192ReservedForFutureExpansionAndInfloopsForNow o8=192 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op193ReservedForFutureExpansionAndInfloopsForNow o8=193 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op194ReservedForFutureExpansionAndInfloopsForNow o8=194 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op195ReservedForFutureExpansionAndInfloopsForNow o8=195 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op196ReservedForFutureExpansionAndInfloopsForNow o8=196 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op197ReservedForFutureExpansionAndInfloopsForNow o8=197 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op198ReservedForFutureExpansionAndInfloopsForNow o8=198 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op199ReservedForFutureExpansionAndInfloopsForNow o8=199 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op200ReservedForFutureExpansionAndInfloopsForNow o8=200 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op201ReservedForFutureExpansionAndInfloopsForNow o8=201 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op202ReservedForFutureExpansionAndInfloopsForNow o8=202 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op203ReservedForFutureExpansionAndInfloopsForNow o8=203 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op204ReservedForFutureExpansionAndInfloopsForNow o8=204 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op205ReservedForFutureExpansionAndInfloopsForNow o8=205 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op206ReservedForFutureExpansionAndInfloopsForNow o8=206 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op207ReservedForFutureExpansionAndInfloopsForNow o8=207 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op208ReservedForFutureExpansionAndInfloopsForNow o8=208 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op209ReservedForFutureExpansionAndInfloopsForNow o8=209 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op210ReservedForFutureExpansionAndInfloopsForNow o8=210 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op211ReservedForFutureExpansionAndInfloopsForNow o8=211 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op212ReservedForFutureExpansionAndInfloopsForNow o8=212 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op213ReservedForFutureExpansionAndInfloopsForNow o8=213 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op214ReservedForFutureExpansionAndInfloopsForNow o8=214 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op215ReservedForFutureExpansionAndInfloopsForNow o8=215 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op216ReservedForFutureExpansionAndInfloopsForNow o8=216 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op217ReservedForFutureExpansionAndInfloopsForNow o8=217 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op218ReservedForFutureExpansionAndInfloopsForNow o8=218 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op219ReservedForFutureExpansionAndInfloopsForNow o8=219 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op220ReservedForFutureExpansionAndInfloopsForNow o8=220 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op221ReservedForFutureExpansionAndInfloopsForNow o8=221 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op222ReservedForFutureExpansionAndInfloopsForNow o8=222 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op223ReservedForFutureExpansionAndInfloopsForNow o8=223 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op224ReservedForFutureExpansionAndInfloopsForNow o8=224 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op225ReservedForFutureExpansionAndInfloopsForNow o8=225 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op226ReservedForFutureExpansionAndInfloopsForNow o8=226 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op227ReservedForFutureExpansionAndInfloopsForNow o8=227 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op228ReservedForFutureExpansionAndInfloopsForNow o8=228 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op229ReservedForFutureExpansionAndInfloopsForNow o8=229 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op230ReservedForFutureExpansionAndInfloopsForNow o8=230 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op231ReservedForFutureExpansionAndInfloopsForNow o8=231 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op232ReservedForFutureExpansionAndInfloopsForNow o8=232 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op233ReservedForFutureExpansionAndInfloopsForNow o8=233 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op234ReservedForFutureExpansionAndInfloopsForNow o8=234 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op235ReservedForFutureExpansionAndInfloopsForNow o8=235 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op236ReservedForFutureExpansionAndInfloopsForNow o8=236 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op237ReservedForFutureExpansionAndInfloopsForNow o8=237 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op238ReservedForFutureExpansionAndInfloopsForNow o8=238 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op239ReservedForFutureExpansionAndInfloopsForNow o8=239 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op240ReservedForFutureExpansionAndInfloopsForNow o8=240 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op241ReservedForFutureExpansionAndInfloopsForNow o8=241 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op242ReservedForFutureExpansionAndInfloopsForNow o8=242 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op243ReservedForFutureExpansionAndInfloopsForNow o8=243 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op244ReservedForFutureExpansionAndInfloopsForNow o8=244 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op245ReservedForFutureExpansionAndInfloopsForNow o8=245 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op246ReservedForFutureExpansionAndInfloopsForNow o8=246 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op247ReservedForFutureExpansionAndInfloopsForNow o8=247 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op248ReservedForFutureExpansionAndInfloopsForNow o8=248 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op249ReservedForFutureExpansionAndInfloopsForNow o8=249 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op250ReservedForFutureExpansionAndInfloopsForNow o8=250 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op251ReservedForFutureExpansionAndInfloopsForNow o8=251 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op252ReservedForFutureExpansionAndInfloopsForNow o8=252 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op253ReservedForFutureExpansionAndInfloopsForNow o8=253 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op254ReservedForFutureExpansionAndInfloopsForNow o8=254 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1343 Add op op255ReservedForFutureExpansionAndInfloopsForNow o8=255 curriesLeft=1 description: Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 3 kinds of clean/dirty (roundoff, mutableWrapperLambda, allowGas) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1548 Evaling l=l r=u
+wikibinator203.js:1766 Test pass: tie the quine knot, both equal f(u)
+wikibinator203.js:1548 Evaling l=f r=u
+wikibinator203.js:1766 Test pass: tie the quine knot 2, both equal f(u)
+wikibinator203.js:1548 Evaling l=l r=u
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1548 Evaling l=op10 r=u
+wikibinator203.js:1548 Evaling l=op100 r=u
+wikibinator203.js:1548 Evaling l=op1000 r=u
+wikibinator203.js:1548 Evaling l=op10000 r=u
+wikibinator203.js:1548 Evaling l=op100000 r=u
+wikibinator203.js:1548 Evaling l=op1000000 r=u
+wikibinator203.js:1548 Evaling l=f r=u
+wikibinator203.js:1766 Test pass: tie the quine knot 3, both equal f(u)
+wikibinator203.js:1548 Evaling l=r r=u
+wikibinator203.js:1766 Test pass: tie the quine knot 4, both equal u
+wikibinator203.js:1548 Evaling l=l r=u
+wikibinator203.js:1548 Evaling l=r r=u
+wikibinator203.js:1548 Evaling l=f(u) r=u
+wikibinator203.js:1766 Test pass: tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u), both equal u
+wikibinator203.js:1766 Test pass: tie the quine knot 6, both equal 0
+wikibinator203.js:1766 Test pass: tie the quine knot 7, both equal 0
+wikibinator203.js:1766 Test pass: tie the quine knot 8, both equal 0
+wikibinator203.js:1766 Test pass: tie the quine knot 9, both equal 0
+wikibinator203.js:1766 Test pass: tie the quine knot 10, both equal 1
+wikibinator203.js:1548 Evaling l=l r=u
+wikibinator203.js:1548 Evaling l=r r=u
+wikibinator203.js:1766 Test pass: tie the quine knot 11, both equal 1
+wikibinator203.js:1548 Evaling l=l r=s
+wikibinator203.js:1548 Evaling l=r r=s
+wikibinator203.js:1548 Evaling l=op1000110 r=u
+wikibinator203.js:1766 Test pass: l(x)(r(x)) equals x, for any x (in this case x is s), both equal s
+wikibinator203.js:1548 Evaling l=l r=l
+wikibinator203.js:1548 Evaling l=r r=l
+wikibinator203.js:1548 Evaling l=op1000010 r=u
+wikibinator203.js:1766 Test pass: l(x)(r(x)) equals x, for any x (in this case x is l), both equal l
+wikibinator203.js:1548 Evaling l=l r=r
+wikibinator203.js:1548 Evaling l=r r=r
+wikibinator203.js:1548 Evaling l=op1000010 r=op10
+wikibinator203.js:1766 Test pass: l(x)(r(x)) equals x, for any x (in this case x is r), both equal r
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1548 Evaling l=s(t)(t) r=l
+wikibinator203.js:1548 Evaling l=t r=l
+wikibinator203.js:1548 Evaling l=t r=l
+wikibinator203.js:1548 Evaling l=t(l) r=t(l)
+wikibinator203.js:1766 Test pass: s(t)(t)(l) which should be an identityFunc, both equal l
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1766 Test pass: check dedup of s(t)(t), both equal s(t)(t)
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1548 Evaling l=s(t)(t) r=s(t)(t)
+wikibinator203.js:1548 Evaling l=t r=s(t)(t)
+wikibinator203.js:1548 Evaling l=t r=s(t)(t)
+wikibinator203.js:1548 Evaling l=t(s(t)(t)) r=t(s(t)(t))
+wikibinator203.js:1548 Evaling l=s r=t
+wikibinator203.js:1548 Evaling l=s(t) r=t
+wikibinator203.js:1766 Test pass: s(t)(t) called on itself returns itself since its an identityFunc, both equal s(t)(t)
+wikibinator203.js:1766 Test pass: o8/opcode of u, both equal 1
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1766 Test pass: o8/opcode of u(u), both equal 2
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1766 Test pass: check dedup of u(u), both equal op10
+wikibinator203.js:1548 Evaling l=u r=u
+wikibinator203.js:1548 Evaling l=u r=op10
+wikibinator203.js:1766 Test pass: o8/opcode of u(uu), both equal 3
+wikibinator203.js:1548 Evaling l=u r=op10
+wikibinator203.js:1548 Evaling l=op11 r=op10
+wikibinator203.js:1548 Evaling l=op111 r=op10
+wikibinator203.js:1548 Evaling l=op1111 r=op10
+wikibinator203.js:1548 Evaling l=op11111 r=u
+wikibinator203.js:1548 Evaling l=op111110 r=op10
+wikibinator203.js:1766 Test pass: o8/opcode ofu(uu)(uu)(uu)(uu)(u)(uu)().o8(), both equal 125
+wikibinator203.js:1548 Evaling l=u r=op10
+wikibinator203.js:1548 Evaling l=op11 r=op10
+wikibinator203.js:1548 Evaling l=op111 r=op10
+wikibinator203.js:1548 Evaling l=op1111 r=op10
+wikibinator203.js:1548 Evaling l=op11111 r=op10
+wikibinator203.js:1548 Evaling l=op111111 r=op10
+wikibinator203.js:1766 Test pass: o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu), both equal 127
+wikibinator203.js:1822 Script ended. wikibinator203 = u which is the universal combinator/lambda you can build anything with.
+testWikibinator203.html:13 Script (near) ending. wikibinator203 = u
+8testWikibinator203.html:14 
+testWikibinator203.html:22 wikibinator203...
+testWikibinator203.html:24 wikibinator203 = u
+wikibinator203.js:1548 Evaling l=u r=u
+testWikibinator203.html:28 uu = op10
+testWikibinator203.html:32 Creating var: u
+testWikibinator203.html:32 Creating var: op10
+testWikibinator203.html:32 Creating var: op11
+testWikibinator203.html:32 Creating var: op100
+testWikibinator203.html:32 Creating var: op101
+testWikibinator203.html:32 Creating var: op110
+testWikibinator203.html:32 Creating var: op111
+testWikibinator203.html:32 Creating var: op1000
+testWikibinator203.html:32 Creating var: op1001
+testWikibinator203.html:32 Creating var: op1010
+testWikibinator203.html:32 Creating var: op1011
+testWikibinator203.html:32 Creating var: op1100
+testWikibinator203.html:32 Creating var: op1101
+testWikibinator203.html:32 Creating var: op1110
+testWikibinator203.html:32 Creating var: op1111
+testWikibinator203.html:32 Creating var: op10000
+testWikibinator203.html:32 Creating var: op10001
+testWikibinator203.html:32 Creating var: op10010
+testWikibinator203.html:32 Creating var: op10011
+testWikibinator203.html:32 Creating var: op10100
+testWikibinator203.html:32 Creating var: op10101
+testWikibinator203.html:32 Creating var: op10110
+testWikibinator203.html:32 Creating var: op10111
+testWikibinator203.html:32 Creating var: op11000
+testWikibinator203.html:32 Creating var: op11001
+testWikibinator203.html:32 Creating var: op11010
+testWikibinator203.html:32 Creating var: op11011
+testWikibinator203.html:32 Creating var: op11100
+testWikibinator203.html:32 Creating var: op11101
+testWikibinator203.html:32 Creating var: op11110
+testWikibinator203.html:32 Creating var: op11111
+testWikibinator203.html:32 Creating var: op100000
+testWikibinator203.html:32 Creating var: op100001
+testWikibinator203.html:32 Creating var: op100010
+testWikibinator203.html:32 Creating var: op100011
+testWikibinator203.html:32 Creating var: op100100
+testWikibinator203.html:32 Creating var: op100101
+testWikibinator203.html:32 Creating var: op100110
+testWikibinator203.html:32 Creating var: op100111
+testWikibinator203.html:32 Creating var: op101000
+testWikibinator203.html:32 Creating var: op101001
+testWikibinator203.html:32 Creating var: op101010
+testWikibinator203.html:32 Creating var: op101011
+testWikibinator203.html:32 Creating var: op101100
+testWikibinator203.html:32 Creating var: op101101
+testWikibinator203.html:32 Creating var: op101110
+testWikibinator203.html:32 Creating var: op101111
+testWikibinator203.html:32 Creating var: op110000
+testWikibinator203.html:32 Creating var: op110001
+testWikibinator203.html:32 Creating var: op110010
+testWikibinator203.html:32 Creating var: op110011
+testWikibinator203.html:32 Creating var: op110100
+testWikibinator203.html:32 Creating var: op110101
+testWikibinator203.html:32 Creating var: op110110
+testWikibinator203.html:32 Creating var: op110111
+testWikibinator203.html:32 Creating var: op111000
+testWikibinator203.html:32 Creating var: op111001
+testWikibinator203.html:32 Creating var: op111010
+testWikibinator203.html:32 Creating var: op111011
+testWikibinator203.html:32 Creating var: op111100
+testWikibinator203.html:32 Creating var: op111101
+testWikibinator203.html:32 Creating var: op111110
+testWikibinator203.html:32 Creating var: op111111
+testWikibinator203.html:32 Creating var: op1000000
+testWikibinator203.html:32 Creating var: op1000001
+testWikibinator203.html:32 Creating var: op1000010
+testWikibinator203.html:32 Creating var: op1000011
+testWikibinator203.html:32 Creating var: op1000100
+testWikibinator203.html:32 Creating var: op1000101
+testWikibinator203.html:32 Creating var: op1000110
+testWikibinator203.html:32 Creating var: op1000111
+testWikibinator203.html:32 Creating var: op1001000
+testWikibinator203.html:32 Creating var: op1001001
+testWikibinator203.html:32 Creating var: op1001010
+testWikibinator203.html:32 Creating var: op1001011
+testWikibinator203.html:32 Creating var: op1001100
+testWikibinator203.html:32 Creating var: op1001101
+testWikibinator203.html:32 Creating var: op1001110
+testWikibinator203.html:32 Creating var: op1001111
+testWikibinator203.html:32 Creating var: op1010000
+testWikibinator203.html:32 Creating var: op1010001
+testWikibinator203.html:32 Creating var: op1010010
+testWikibinator203.html:32 Creating var: op1010011
+testWikibinator203.html:32 Creating var: op1010100
+testWikibinator203.html:32 Creating var: op1010101
+testWikibinator203.html:32 Creating var: op1010110
+testWikibinator203.html:32 Creating var: op1010111
+testWikibinator203.html:32 Creating var: op1011000
+testWikibinator203.html:32 Creating var: op1011001
+testWikibinator203.html:32 Creating var: op1011010
+testWikibinator203.html:32 Creating var: op1011011
+testWikibinator203.html:32 Creating var: op1011100
+testWikibinator203.html:32 Creating var: op1011101
+testWikibinator203.html:32 Creating var: op1011110
+testWikibinator203.html:32 Creating var: op1011111
+testWikibinator203.html:32 Creating var: op1100000
+testWikibinator203.html:32 Creating var: op1100001
+testWikibinator203.html:32 Creating var: op1100010
+testWikibinator203.html:32 Creating var: op1100011
+testWikibinator203.html:32 Creating var: op1100100
+testWikibinator203.html:32 Creating var: op1100101
+testWikibinator203.html:32 Creating var: op1100110
+testWikibinator203.html:32 Creating var: op1100111
+testWikibinator203.html:32 Creating var: op1101000
+testWikibinator203.html:32 Creating var: op1101001
+testWikibinator203.html:32 Creating var: op1101010
+testWikibinator203.html:32 Creating var: op1101011
+testWikibinator203.html:32 Creating var: op1101100
+testWikibinator203.html:32 Creating var: op1101101
+testWikibinator203.html:32 Creating var: op1101110
+testWikibinator203.html:32 Creating var: op1101111
+testWikibinator203.html:32 Creating var: op1110000
+testWikibinator203.html:32 Creating var: op1110001
+testWikibinator203.html:32 Creating var: op1110010
+testWikibinator203.html:32 Creating var: op1110011
+testWikibinator203.html:32 Creating var: op1110100
+testWikibinator203.html:32 Creating var: op1110101
+testWikibinator203.html:32 Creating var: op1110110
+testWikibinator203.html:32 Creating var: op1110111
+testWikibinator203.html:32 Creating var: op1111000
+testWikibinator203.html:32 Creating var: op1111001
+testWikibinator203.html:32 Creating var: op1111010
+testWikibinator203.html:32 Creating var: op1111011
+testWikibinator203.html:32 Creating var: op1111100
+testWikibinator203.html:32 Creating var: op1111101
+testWikibinator203.html:32 Creating var: op1111110
+testWikibinator203.html:32 Creating var: op1111111
+testWikibinator203.html:32 Creating var: f
+testWikibinator203.html:32 Creating var: t
+testWikibinator203.html:32 Creating var: bit0
+testWikibinator203.html:32 Creating var: bit1
+testWikibinator203.html:32 Creating var: l
+testWikibinator203.html:32 Creating var: r
+testWikibinator203.html:32 Creating var: isleaf
+testWikibinator203.html:32 Creating var: isClean
+testWikibinator203.html:32 Creating var: sAllowSinTanhSqrtRoundoffEtc
+testWikibinator203.html:32 Creating var: lambda
+testWikibinator203.html:32 Creating var: getNamedParam
+testWikibinator203.html:32 Creating var: opOneMoreParam
+testWikibinator203.html:32 Creating var: s
+testWikibinator203.html:32 Creating var: pair
+testWikibinator203.html:32 Creating var: infcur
+testWikibinator203.html:32 Creating var: opmutOuter
+testWikibinator203.html:32 Creating var: opmutInner
+testWikibinator203.html:32 Creating var: stackIsAllowGastimeGasmem
+testWikibinator203.html:32 Creating var: stackIsAllowNondetRoundoff
+testWikibinator203.html:32 Creating var: stackIsAllowMutableWrapperLambdaAndSolve
+testWikibinator203.html:32 Creating var: stackIsAllowAx
+testWikibinator203.html:32 Creating var: isCbt
+testWikibinator203.html:32 Creating var: containsAxConstraint
+testWikibinator203.html:32 Creating var: op151ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op152ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op153ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op154ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op155ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op156ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op157ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op158ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op159ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op160ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op161ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op162ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op163ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op164ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op165ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op166ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op167ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op168ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op169ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op170ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op171ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op172ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op173ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op174ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op175ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op176ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op177ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op178ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op179ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op180ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op181ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op182ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op183ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op184ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op185ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op186ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op187ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op188ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op189ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op190ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op191ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op192ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op193ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op194ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op195ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op196ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op197ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op198ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op199ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op200ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op201ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op202ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op203ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op204ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op205ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op206ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op207ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op208ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op209ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op210ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op211ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op212ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op213ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op214ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op215ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op216ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op217ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op218ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op219ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op220ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op221ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op222ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op223ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op224ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op225ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op226ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op227ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op228ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op229ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op230ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op231ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op232ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op233ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op234ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op235ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op236ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op237ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op238ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op239ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op240ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op241ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op242ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op243ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op244ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op245ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op246ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op247ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op248ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op249ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op250ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op251ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op252ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op253ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op254ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:32 Creating var: op255ReservedForFutureExpansionAndInfloopsForNow
+testWikibinator203.html:34 t().o8() == 129
+wikibinator203.js:1548 Evaling l=t r=op10
+wikibinator203.js:1548 Evaling l=t(op10) r=u

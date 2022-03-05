@@ -447,11 +447,12 @@ const wikibinator203 = (()=>{
 	
 	let vm = new function(){};
 	
-	vm.lastIdA = 0;
-	vm.lastIdB = 0;
+	vm.lastIdA = -1; //high 32 bits
+	vm.lastIdB = -1; //low 32 bits
+	//first lambda is u/theUniversalFunc and has idA and idB of 0.
 	vm.incIdAB = function(){
-		this.lastIdA = (this.lastIdA+1)|0; //wrap int32
-		if(this.lastIdA) this.lastIdB++;
+		this.lastIdB = (this.lastIdB+1)|0; //wrap int32
+		if(!this.lastIdB) this.lastIdA++; //carry
 	};
 	
 	//https://en.wikipedia.org/wiki/Evil_bit
@@ -1127,15 +1128,25 @@ const wikibinator203 = (()=>{
 	vm.touchCounter = 0;
 	
 	const twoPow32 = Math.pow(2,32);
-	const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0);
-	const hashIntSalts = new Int32Array(11);
+	const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0); //FIXME does this make negatives ever? Its supposed to.
+	const hashIntSalts = new Int32Array(13);
 	const hashingInts = new Int32Array(9); //put 8 ints in here (5 from each of 2 Nodes) starting at index 0 to hash, and get the hash from index 8.
 	for(let i=0; i<hashIntSalts.length; i++) hashIntSalts[i] = randInt();
 	
-	vm.hash3Ints = (a,b,c)=>((Math.imul(a,hashIntSalts[8]) +  Math.imul(b,hashIntSalts[9]) + Math.imul(c,hashIntSalts[10]))|0);
+	//random int from pow(2,30) to pow(2,31)-1, to mod hash ints by so bigger digits hash into all digits not just the small digitis.
+	//Max hashtable size is pow(2,30) cuz of this, and cuz it has to be a powOf2 size so can efficiently mask lambda.hashInt to get bucket.
+	//But since each node can potentially contain an Int32Array of up to (todo somewhere around, whats the exact max) pow(2,31) bits,
+	//including that some nodes share the same array, it can still reach 64 bit sizes
+	//such as if the browser supports using a terabyte or petabyte of RAM, or if this VM is ported to other systems that can.
+	//Its normally a very low memory system, but depends how you use it.
+	hashIntSalts[8] = (hashIntSalts[8]&0x7fffffff)|(1<<30);
+	hashIntSalts[12] = (hashIntSalts[12]&0x7fffffff)|(1<<30);
+	
+	vm.hash3Ints = (a,b,c)=>(((Math.imul(a,hashIntSalts[9]) +  Math.imul(b,hashIntSalts[9]) + Math.imul(c,hashIntSalts[11]))%hashIntSalts[12])|0);
 	
 	vm.hash2Nodes = (a,b)=>{
-		if(!a) return 0; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
+		//TODO find some way to not check this IF just for u. its slowing down all the hashing.
+		if(!a || (!a.idA && !b.idA)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
 		hashingInts[0] = a.idA;
 		hashingInts[1] = a.idB;
 		hashingInts[2] = a.blobFrom;
@@ -1146,7 +1157,7 @@ const wikibinator203 = (()=>{
 		hashingInts[7] = b.blobTo;
 		hashingInts[8] = 0;
 		for(let i=0; i<8; i++) hashingInts[8] += Math.imul(hashingInts[i],hashIntSalts[i]); //dotProd with onceRandomAtJsBoot salts
-		return hashingInts[8];
+		return hashingInts[8]%hashIntSalts[8];
 	};
 	
 	/*
@@ -1329,7 +1340,7 @@ const wikibinator203 = (()=>{
 		//vm.nextOpO8++;
 		vm.opInfo.push({name:name, curriesLeft:curriesLeft, description:description});
 		vm.opNameToO8[name] = o8;
-		console.log('Add op '+name+' o8='+o8);
+		console.log('Add op '+name+' o8='+o8+' curriesLeft='+curriesLeft+' description: '+description);
 		return o8;
 	};
 	vm.addOp('evaling',0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
@@ -1342,19 +1353,19 @@ const wikibinator203 = (()=>{
 		let name = 'op'+o8.toString(2);
 		vm.addOp(name, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
 	}
+	vm.addOp('f',2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
+	vm.addOp('t',2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
 	vm.o8OfBit0 = vm.addOp('bit0',248,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
 	vm.o8OfBit1 = vm.addOp('bit1',248,'see bit0');
 	vm.o8OfL = vm.addOp('l',1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 	vm.o8OfR = vm.addOp('r',1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
-	vm.addOp('t',2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
-	vm.addOp('f',2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc.');
+	vm.addOp('isleaf',1,'returns t or f of is its param u aka the universal lambda');
 	vm.addOp('isClean',1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?');
 	vm.addOp('sAllowSinTanhSqrtRoundoffEtc',1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
 	vm.addOp('lambda',2,'Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 	vm.addOp('getNamedParam',2,'ddee? would be a syntax for (getnamedparam "ddee").');
 	vm.addOp('opOneMoreParam',0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 	vm.addOp('s',3,'For control-flow. the s lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-	vm.addOp('isleaf',1,'returns t or f of is its param u aka the universal lambda');
 	vm.addOp('pair',3,'the church-pair lambda aka λx.λy.λz.zxy');
 	vm.addOp('infcur',vm.maxCurriesLeft,'like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
 	vm.addOp('opmutOuter',2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
@@ -1548,13 +1559,15 @@ const wikibinator203 = (()=>{
 		if(cache.ret) return cache.ret;
 		
 		let stackMask = vm.stackStuff.mask;
-		if(l().curriesLeft() > 1){
+		if(l().curriesLeft() > 1 || l().o8() < 128){ //if 64 <= o8 < 128 then its getting its 7th param, and op always becomes known at 7th param, so just cp it.
+			//TODO optimize by getting l().header (an int) and getting curriesLeft and o8 from it, faster than calling those separately.
+		
 			//(l.o8() < 64) implies (l.curriesLeft) but it could also be cuz theres more params such as s takes 3 params so the first 2 curries are halted, and 1 op (lambda) has vararg.
 			return vm.cp(l,r);
 		}else{
-			if(l().o8() < 128){
-				throw 'shouldnt be here cuz should have just done cp';
-			}
+			//if(l().o8() < 128){ //TODO remove this
+			//	throw 'shouldnt be here cuz should have just done cp';
+			//}
 			//last 3 params
 			let x = l().l().r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
 			let y = l().r;
@@ -1705,7 +1718,7 @@ const wikibinator203 = (()=>{
 	//this happens in Node constructor: u.evaler = rootEvaler; //all other evalers, use theLambda.pushEvaler((vm,l,r)=>{...});
 	//let op0000001 = u;
 	//this breaks thingsu.func = u(u)(u)(u)(u)(u)(u)(u); //identityFunc.
-	u().l = vm.identityFunc = vm.cp(u,u,u,u,u,u,u,u);
+	u().l = vm.identityFunc = vm.cp(u,u,u,u,u,u,u,u,u); //aka (f u).
 	u().r = u;
 	
 	vm.uu = vm.u(vm.u);
@@ -1743,6 +1756,55 @@ const wikibinator203 = (()=>{
 	//vm.t = TODO;
 	//vm.f = TODO;
 	
+	let l = vm.ops.l;
+	let r = vm.ops.r;
+	let s = vm.ops.s;
+	let t = vm.ops.t;
+	let f = vm.ops.f;
+	
+	vm.test = (testName, a, b)=>{
+		if(a == b) console.log('Test pass: '+testName+', both equal '+a);
+		else throw ('Test '+testName+' failed cuz '+a+' != '+b);
+	};
+	
+	//a few basic tests...
+	vm.test('tie the quine knot', vm.identityFunc, l(u));
+	vm.test('tie the quine knot 2', vm.identityFunc, f(u));
+	vm.test('tie the quine knot 3', l(u), u(u)(u)(u)(u)(u)(u)(u)(u));
+	vm.test('tie the quine knot 4', r(u), u);
+	vm.test('tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u)', l(u)(r(u)), u);
+	vm.test('tie the quine knot 6', u().idA, 0);
+	vm.test('tie the quine knot 7', u().idB, 0);
+	vm.test('tie the quine knot 8', u().blobFrom, 0);
+	vm.test('tie the quine knot 9', u().blobTo, 0);
+	vm.test('tie the quine knot 10', u.hashInt, 1);
+	vm.test('tie the quine knot 11', vm.hash2Nodes(l(u)(), r(u)()), u.hashInt);
+	vm.test('l(x)(r(x)) equals x, for any x (in this case x is s)', l(s)(r(s)), s);
+	vm.test('l(x)(r(x)) equals x, for any x (in this case x is l)', l(l)(r(l)), l);
+	vm.test('l(x)(r(x)) equals x, for any x (in this case x is r)', l(r)(r(r)), r);
+	vm.test('s(t)(t)(l) which should be an identityFunc', s(t)(t)(l), l);
+	vm.test('check dedup of s(t)(t)', s(t)(t), s(t)(t));
+	vm.test('s(t)(t) called on itself returns itself since its an identityFunc', s(t)(t)(s(t)(t)), s(t)(t));
+	vm.test('o8/opcode of u', u().o8(), 1);
+	vm.test('o8/opcode of u(u)', u(u)().o8(), 2);
+	vm.test('check dedup of u(u)', u(u), u(u));
+	let uu = u(u);
+	vm.test('o8/opcode of u(uu)', u(uu)().o8(), 3);
+	vm.test('o8/opcode ofu(uu)(uu)(uu)(uu)(u)(uu)().o8()', u(uu)(uu)(uu)(uu)(u)(uu)().o8(), 125);
+	vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu)', u(uu)(uu)(uu)(uu)(uu)(uu)().o8(), 127);
+	
+	/*
+	if(vm.identityFunc != l(u)) throw 'Failed to tie the quine knot. identityFunc != l(u)';
+	if(l(s)(r(s)) != s) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is s)';
+	if(l(u)(r(u)) != u) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is u)';
+	if(l(l)(r(l)) != l) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
+	if(l(r)(r(r)) != r) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
+	if(s(t)(t)(l) != l) throw 'Failed s(t)(t)(l) which should be an identityFunc';
+	if(s(t)(t) != s(t)(t)) throw 'Failed s(t)(t) == s(t)(t)';
+	if(s(t)(t)(s(t)(t)) != s(t)(t)) throw 'Failed s(t)(t)(s(t)(t))';
+	if(vm.identityFunc != f(u)) throw 'vm.identityFunc != f(u)';
+	*/
+	
 	
 
 	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
@@ -1757,35 +1819,8 @@ const wikibinator203 = (()=>{
 	
 	return u; //the universal function
 })();
+console.log('Script ended. wikibinator203 = '+wikibinator203+' which is the universal combinator/lambda you can build anything with.');
 
-console.log('Script ended. wikibinator203 = '+wikibinator203);
-
-let u = wikibinator203;
-
-
-let vm = u().vm;
-
-
-console.log('wikibinator203...');
-
-console.log('wikibinator203 = '+wikibinator203);
-
-let uu = u(u);
-
-console.log('uu = '+uu);
-
-if(u().o8() != 1) throw 'Wrong o8: '+u().o8();
-if(u(u)().o8() != 2) throw 'Wrong o8: '+u(u)().o8();
-if(u(u) != u(u)) throw 'dedup is broken';
-if(u(uu)().o8() != 3) throw 'Wrong o8: '+u(uu)().o8();
-if(u(uu)(uu)(uu)(uu)(u)(uu)().o8() != 125) throw 'Wrong o8: '+u(uu)(uu)(uu)(uu)(u)(uu)().o8();
-if(u(uu)(uu)(uu)(uu)(uu)(uu)().o8() != 127) throw 'Wrong o8: '+u(uu)(uu)(uu)(uu)(uu)(uu)().o8();
-
-let ops = u().vm.ops;
-for(name in ops){ console.log('Creating var: '+name); eval(name+' = ops.'+name); };
-
-console.log('t().o8() == '+t().o8());
-t(uu)(u);
 
 
 
