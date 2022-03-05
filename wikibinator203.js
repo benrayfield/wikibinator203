@@ -455,14 +455,53 @@ const wikibinator203 = (()=>{
 		if(!this.lastIdB) this.lastIdA++; //carry
 	};
 	
+	
+	//Any datastruct other than the id of a lambda starts with this byte, and you can choose evilBit of true or false.
+	//The main usecase of this is large blobs, but anything could be mounted in it such as prefix it with a contentType such as put "image/jpeg"
+	//or "application/x-multicodec" (or whats their contenttype) for the https://github.com/multiformats/multicodec data format.
+	//I'm not sure what other datastructs I'll put in, but it should branch by something very general first.
+	//TODO create a multicodec prefix for the default kind of wikibinator203 id, or allocate a range in multicodec for that
+	//(just use a big prefix so nobody else is likely to overlap it by accident or be inconvenienced by it),
+	//and make a pull request on github, but dont do that until its working in a peer to peer network and the ids are well tested.
+	//To wrap any data format (datastruct) in a lambda, use the typeval opcode such as (typeval "image/jpeg" bitstring)
+	//or (typeval "application/x-multicodec" multicodecBitstring) or something like that.
+	//Lambdas only touch lambdas. Its important for sandboxing and math consistency,
+	//so things must be wrapped and used as immutable/stateless to access them from lambdas,
+	//but VMs will need to store stuff and interact with various datastructs to optimize and organize things among lambdas,
+	//hopefully in the form of lambdas usually, but whatever that is, prefix it by vm.prefixByteOfOther_evilBitOn andOr vm.prefixByteOfOther_evilBitOff.
+	//When in doubt which you should use of evilBit being on or off, choose on since off means that by giving someone a copy of it
+	//you're claiming its good and safe for other uses. Evil means "dont know if its good or evil or where between" or "not necessarily good".
+	vm.prefixByteOfOther_evilBitOn =          0b11110100; //FIXME?
+	vm.prefixByteOfOther_evilBitOff =         0b11110100; //FIXME?
+	
 	//https://en.wikipedia.org/wiki/Evil_bit
 	//For wikibinator203, evilBit off means "the normal internet", and on means "antivirus quarantine, spread across many computers which apps may run inside".
 	//Anyone who gives execute permission to, or obeys or believes, something in an antivirus quarantine is at fault/negligence if something goes wrong,
 	//since they were told its evil and chose to do that anyways.
 	//To avoid breaking the merkle garbage collector, "evil" content that has incoming pointers will not be removed,
 	//and the same should be true for "good" content but things might get removed anyways cuz people demand things of eachother, and things might break in the "good" area.
-	vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
-	vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
+	//UPDATE: instead of 0b11110[0or1]00 being callpair, and the 3 after that being id of that with byte val minus 1 (id of id of id of id for example),
+	//vm.prefixByteOfOther is 0b11110[0or1]00 and callpairs start at 0b11110[0or1]01 and 0b11110[0or1]10 is "id of id"
+	//and 0b11110[0or1]11 is "id of id of id" and past that you need 2 nodes of 128 literal bits each to be 256 bits.
+	//such 256 bits doesnt imply it is or is not an id. Its just bits.
+	vm.callPairPrefixByte_evilBitOn =         0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
+	vm.callPairPrefixByte_evilBitOff =        0b11110001; //FIXME?
+	
+	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
+	//(in this case its not its own id, but most literal 256 bits are their own id).
+	vm.prefixByteOfIdOfIdOrOfAny256Bits =     0b11110110; //FIXME?
+	
+	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
+	//(in this case its not its own id, but most literal 256 bits are their own id).
+	vm.prefixByteOfIdOfIdOfIdOrOfAny256Bits = 0b11110111; //FIXME?
+	
+	//Other than the 6 bytes above,
+	//the 248 firstByte prefixes are 256 (or 512, depending on which idMaker) literal bits that are their own id.
+	//On average, 250/256 (125/128) random 256 (or 512, depending on which idMaker) bits fit in an id the same size,
+	//and 252/256 (63/64) of them fit in an id the same size even if they are not their own id.
+	//2/256 (1/128) of them fit in an id the same size as them but are not their own id.
+	//4/256 (1/64) of them require 2 ids of half as many literal bits each, to make a literal the same size as the id.
+	
 	
 	/*
 	//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
