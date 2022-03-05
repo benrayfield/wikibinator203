@@ -497,6 +497,7 @@ const wikibinator203 = (()=>{
 	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA = 0b11110011; //FIXME?
 	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
 	
+	/*
 	FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
 	
 	TODO have a sDepth in it? so you can just give {a b} and {{a b} c} instead of (s a b) and (s (s a b) c) which is the actual lambda shape???
@@ -509,7 +510,7 @@ const wikibinator203 = (()=>{
 	//and 252/256 (63/64) of them fit in an id the same size even if they are not their own id.
 	//2/256 (1/128) of them fit in an id the same size as them but are not their own id.
 	//4/256 (1/64) of them require 2 ids of half as many literal bits each, to make a literal the same size as the id.
-	
+	*/
 	
 	/*
 	//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
