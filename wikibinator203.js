@@ -261,7 +261,7 @@ r
 t
 f
 λimport //(λimport anIdMaker id) -> x where (anIdMaker x)->id, and id may be a cbt256 or concat of 3 of those, and may be some text form such as base64 but if so then idMaker returns such a string as id, and idMaker contains the binary idMaker as one of its params to transform to string. This is similar to solveRecog (and solveFloat64) except its easier to optimize and is expected to look wherever lambdas may be stored such as in browser cache, harddrive, a website, or wherever vm.λimport is hooked in to look. Or, it might load a lazyEval of the lambda like a stub that looks for it if you look deeper into it.
-stackIsAllowGastimeGasmem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
+stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
 stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
 stackIsAllowMutableWrapperLambda
 stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
@@ -302,7 +302,7 @@ Math.tanh
 Math.sqrt
 Math.imul
 ...bunch more Math.something funcs...
-spendTimeMemFuncParam maxGasTime maxGasMem func param
+spendTimeMemFuncParam maxstackTime maxstackMem func param
 ~
 ^
 !
@@ -411,11 +411,11 @@ but inside opMut its just evaling javascript code as an optimization, which depe
 having none of the same fields as Mut (Mut.m for map and Mut.d for double array) so that would get an undefined and throw instead of getting access to Float64Array.buffer etc.
 Thats why Mut separates the map and Float64Array, and why generated code will use amut.m[] and amut.d[] instead of directly amut[].
 ..
-Each musical instrument part will have 3 fields in its state, numbers in, numbers out, and the state it uses for whatever it wants. and maybe a gasTime counter?
+Each musical instrument part will have 3 fields in its state, numbers in, numbers out, and the state it uses for whatever it wants. and maybe a stackTime counter?
 These numbers in and numbers out are hooked together by the outer mut, similar to how it happens in puredata.
 The musical instrument calculation, of chosen t time cycles (such as WebAudioAPI can do 256 cycles, 512 cycles, etc at once, but lambdas dont send to external sound or video, instead
 external stuff would only read lambdas returned after calling lambdas on lambdas) will come in 3 parts:
-* verify each musical instrument piece does not allocate anything in last part, and that each is limited to a chosen amount of gasTime in the outer mut call.
+* verify each musical instrument piece does not allocate anything in last part, and that each is limited to a chosen amount of stackTime in the outer mut call.
 * allocate the Float64Arrays and maps and var fields in those maps.
 * update state in the mut of this instrument part, such as a double loop with some if/elses and x = {,+ y? z?}.
 ...
@@ -472,8 +472,8 @@ const wikibinator203 = (()=>{
 	//	return (0b11111000<<24)|((o8&255)<<16)|((curLeftOr&255))|(upTo8BitsOfMasks&255);
 	//};
 	//vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, cleanMask4){
-	vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, stackIsAllowGastimeGasmem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx){
-		return (vm.callPairPrefixByte<<24)|(curriesLeft12&0xfff)|(stackIsAllowGastimeGasmem?8:0)|(stackIsAllowNondetRoundoff?4:0)|(stackIsAllowMutableWrapperLambdaAndSolve?2:0)|(stackIsAllowAx?1:0);
+	vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx){
+		return (vm.callPairPrefixByte<<24)|(curriesLeft12&0xfff)|(stackIsAllowstackTimestackMem?8:0)|(stackIsAllowNondetRoundoff?4:0)|(stackIsAllowMutableWrapperLambdaAndSolve?2:0)|(stackIsAllowAx?1:0);
 	};
 	//FIXME UPDATE: 6+2+8+12+4+1+31 cuz: FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
 	//FIXME its 6+2+8+16+1+31 bits. the only mask bit is in the bize int, not the header int.
@@ -490,7 +490,7 @@ const wikibinator203 = (()=>{
 		return ((evilBit ? this.callPairPrefixByte_evilBitOn : this.callPairPrefixByte_evilBitOff)<<24)|(o8<<16)|(curriesLeft<<8)|upTo8BitsOfMasks;
 	};
 	
-	vm.mask_stackIsAllowGastimeGasmem = 1;
+	vm.mask_stackIsAllowstackTimestackMem = 1;
 	
 	vm.mask_stackIsAllowNondetRoundoff = 1<<1;
 	
@@ -761,7 +761,7 @@ const wikibinator203 = (()=>{
 		//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
 		
 		/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
-		vm.mask_stackIsAllowGastimeGasmem
+		vm.mask_stackIsAllowstackTimestackMem
 		vm.mask_stackIsAllowNondetRoundoff
 		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
 		vm.mask_stackIsAllowAx
@@ -903,7 +903,7 @@ const wikibinator203 = (()=>{
 		
 		TODO use mutableWrapperLambda?
 		
-		TODO gasUpload gasDownload gasTime gasMem, per user (by ed25519 or just secret url suffix?)? TODO recursiveExpireTime? zapeconacyc?
+		TODO gasUpload gasDownload stackTime stackMem, per user (by ed25519 or just secret url suffix?)? TODO recursiveExpireTime? zapeconacyc?
 		
 		join game by https://someaddress/passwordWfghsdf/roomXYZ ? way to move gas* from one place to another (by mutableWrapperLambda or by url?)
 		no, make the url something shareable so https://someaddress/roomXYZ ?
@@ -912,8 +912,8 @@ const wikibinator203 = (()=>{
 		
 	};*/
 	
-	vm.gasTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-	vm.gasMem = 1000000;
+	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+	vm.stackMem = 1000000;
 
 	vm.gasErr = 'gasErr';
 
@@ -1050,31 +1050,37 @@ const wikibinator203 = (()=>{
 	//which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
 	vm.Mut = function(n){
 	
-	//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
-	//in js, int or float or byte are a subset of doubles.
-	this.n = n&0x7fffffff;
-	
-	//view as thisMut<indexOfDouble>
-	this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
-	
-	//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
-	//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
-	//or for some uses maybe much longer or as fast as a microsecond.
-	this.m = {};
-	
-	//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
-	
-	//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
-	//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
-	//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
-	//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
-	//which may be undefined or have a value of string or double or lambda or Mut, and so on.
-	//
-	//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
-	Object.setPrototypeOf(this.d,null);
-	//block access to this.m.__lookupGetter__ etc in generated js code.
-	Object.setPrototypeOf(this.m,null);
-};
+		//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
+		//in js, int or float or byte are a subset of doubles.
+		this.n = n&0x7fffffff;
+		
+		//view as thisMut<indexOfDouble>.
+		//This is normally copied from Node.blob which is an Int32Array. Can get Int32Array.buffer and wrap that same buffer in a Float64Array.
+		//In opmut, contents of .d and of .m are mutable, but in lambdas everything (except lazyEval cache of Node.bize etc) is used as immutable,
+		//including that Node.blob is used as immutable even though it may technically be mutable but dont write it. ForkEdit only.
+		this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
+		
+		//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
+		//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
+		//or for some uses maybe much longer or as fast as a microsecond.
+		//Cycles are allowed in Mut.m that lead to that same Mut etc, but only during opmut
+		//which is designed to be optimized by compiling to javascript code.
+		//Lambdas cant have cycles while halted, but can eval in cycles or forever expanding etc.
+		this.m = {};
+		
+		//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
+		
+		//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
+		//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
+		//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
+		//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
+		//which may be undefined or have a value of string or double or lambda or Mut, and so on.
+		//
+		//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
+		Object.setPrototypeOf(this.d,null);
+		//block access to this.m.__lookupGetter__ etc in generated js code.
+		Object.setPrototypeOf(this.m,null);
+	};
 	
 	
 	
@@ -1118,7 +1124,7 @@ const wikibinator203 = (()=>{
 	//FIXME must have 4 ints of salt and 3 bits of kinds of clean, on stack, for funcall cache.
 	vm.dedupKeyOfFuncallCache = function(func,param,optionalStackStuff){
 		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
-		//But until then, dedupKeyOfFuncallCache will prepay to include gasMem, instead of just gasTime.
+		//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
 		this.prepay(1,4); //FIXME?
 		return "cache_"+func().slowLocalId()+"_"+param().slowLocalId()+"_"+(optionalStackStuff || vm.defaultStackStuff);
 	};
@@ -1189,7 +1195,7 @@ const wikibinator203 = (()=>{
 	
 
 	//returns a vm.FuncallCache, not its ret, so you can read or write its ret. Sets its FuncallCache.touch to newest of any FuncallCache.
-	//salt isnt needed in pure clean mode, but if you want gasTime gasMem etc, to repeat the same call without getting the same return value from earlier cache, use salt.
+	//salt isnt needed in pure clean mode, but if you want stackTime stackMem etc, to repeat the same call without getting the same return value from earlier cache, use salt.
 	//salt is any 4 ints. Normally the first lambda call uses a random salt, and unitary transforms it by 2 different transforms as it takes different paths on stack,
 	//but only changes salt when it wants to fork a different run of the same lambda call.
 	//Whena all 4 iscleanvsdirty bits are 0, the same run of the same lambda call always returns the same lambda, but its useful to limit compute cycles and memory
@@ -1201,7 +1207,7 @@ const wikibinator203 = (()=>{
 		
 		
 		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
-		//But until then, dedupKeyOfFuncallCache will prepay to include gasMem, instead of just gasTime.
+		//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
 		let key = this.dedupKeyOfFuncallCache(func, param, optionalStackStuff);
 		let cache = this.funcallCacheMap[key];
 		if(cache){
@@ -1318,7 +1324,7 @@ const wikibinator203 = (()=>{
 			//TODO optimize: maybe it should be aLambda.n to get the Node?
 			//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
 			if(param === undefined) return NODE;
-			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf gasTime or gasMem aka prepay(number,number)
+			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
 		};
 		//lambda = lambda.bind(this);
 		lambda.hashInt = vm.hash2Nodes(node.l,node.r);
@@ -1374,7 +1380,7 @@ const wikibinator203 = (()=>{
 	vm.addOp('infcur',vm.maxCurriesLeft,'like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
 	vm.addOp('opmutOuter',2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
 	vm.addOp('opmutInner',2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
-	vm.addOp('stackIsAllowGastimeGasmem',1,'reads a certain bit (stackIsAllowGastimeGasmem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+	vm.addOp('stackIsAllowstackTimestackMem',1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 	vm.addOp('stackIsAllowNondetRoundoff',1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 	vm.addOp('stackIsAllowMutableWrapperLambdaAndSolve',1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 	vm.addOp('stackIsAllowAx',1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
@@ -1416,7 +1422,7 @@ const wikibinator203 = (()=>{
 	Math.sqrt
 	Math.imul
 	...bunch more Math.something funcs...
-	spendTimeMemFuncParam maxGasTime maxGasMem func param
+	spendTimeMemFuncParam maxstackTime maxstackMem func param
 	~
 	^
 	!
@@ -1500,7 +1506,7 @@ const wikibinator203 = (()=>{
 	make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
 	*/
 	
-	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowGastimeGasmem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
+	while(vm.opInfo.length < 256) vm.addOp('op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (s i i (s i i)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
 	
 	vm.bit = function(bit){ return bit ? this.t : this.f };
 	
@@ -1515,11 +1521,11 @@ const wikibinator203 = (()=>{
 	//It must return a lambda, but in the middle steps it has mutable optimizations that can be compiled to javascript for example,
 	//but since the universal lambda doesnt depend on anything outside itself, it could be compiled to any turingComplete system.
 	vm.opmut = mut=>{
-		throw 'TODO compile, making sure to limit gastime gasmem etc.';
+		throw 'TODO compile, making sure to limit stackTime stackMem etc.';
 	};
 	
 	
-	//immutable. but gasTime gasMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
+	//immutable. but stackTime stackMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
 	//mask is the low 4 bits of header int, the cleanvsdirty etc stuff, such as does it allow nondeterministic roundoff.
 	vm.StackStuff = function(mask, saltA, saltB, saltC, saltD){
 		this.mask = mask;
@@ -1532,14 +1538,21 @@ const wikibinator203 = (()=>{
 	//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
 	//Use this as immutable.
 	//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
-	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to gasTime and gasMem can only decrease (or stay same) but not increase,
-	//until the first call returns, then can start with any StackStuff you and gasTime gasMem etc you want.
+	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to stackTime and stackMem can only decrease (or stay same) but not increase,
+	//until the first call returns, then can start with any StackStuff you and stackTime stackMem etc you want.
 	vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
 	
 	
 	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
 	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
 	vm.stackMem = 1000000;
+	//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
+	vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
+	vm.stackCpuCompile = 1000000; //TODO
+	vm.stackNetworkUpload = 1000000; //TODO
+	vm.stackNetworkDownload = 1000000; //TODO
+	vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
+	vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
 	vm.stackStuff = vm.defaultStackStuff;
 	
 	
@@ -1555,7 +1568,7 @@ const wikibinator203 = (()=>{
 		//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
 		//The strictest is pure determinism and will compute the exact same bits in every wikibinator203 VM. All halted lambdas are that strictest way,
 		//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
-		//similar to vm.gasTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
+		//similar to vm.stackTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
 		"use strict";
 		//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 		vm.prepay(1,0);
@@ -1580,8 +1593,8 @@ const wikibinator203 = (()=>{
 			let o = vm.opNameToO8;
 			let o8 = l().o8();
 			switch(o8){
-				case o.stackIsAllowGastimeGasmem: //!isClean. allow gasMem and gasTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
-					ret = vm.bit(stackMask & vm.mask_stackIsAllowGastimeGasmem);
+				case o.stackIsAllowstackTimestackMem: //!isClean. allow stackMem and stackTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
+					ret = vm.bit(stackMask & vm.mask_stackIsAllowstackTimestackMem);
 				break;case o.stackIsAllowNondetRoundoff:
 					ret = vm.bit(stackMask & vm.stackIsAllowNondetRoundoff);
 				break;case o.stackIsAllowMutableWrapperLambdaAndSolve:
@@ -1622,9 +1635,9 @@ const wikibinator203 = (()=>{
 				//UPDATE its down to 255 as in 1<<vm.maxCurriesLeft. FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
 				
 				/*
-				FIXME its 4x2: stackIsAllowGastimeGasmem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambda, stackIsAllowMutableWrapperLambda.
+				FIXME its 4x2: stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambda, stackIsAllowMutableWrapperLambda.
 				opcodes:
-				stackIsAllowGastimeGasmem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
+				stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
 				stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
 				stackIsAllowMutableWrapperLambda
 				stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
@@ -1655,16 +1668,27 @@ const wikibinator203 = (()=>{
 						//vm.stackIsAllowAx
 						
 						//tighten clean/dirty higher in stack during verifying ax constraint so its deterministic.
-						let prev_stackIsAllowGastimeGasmem = vm.stackIsAllowGastimeGasmem;
+						let prev_stackIsAllowstackTimestackMem = vm.stackIsAllowstackTimestackMem;
 						let prev_stackIsAllowMutableWrapperLambda = vm.stackIsAllowMutableWrapperLambda;
 						let prev_stackIsAllowNondetRoundoff = vm.stackIsAllowNondetRoundoff;
+						
+						
+						TODO save and load all of these, and make an object to contain them, maybe just a {}, or maybe vm.stackNums.gpuCompile etc.
+						vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+						vm.stackMem = 1000000;
+						vm.stackGpuCompile = 1000000; //TODO
+						vm.stackCpuCompile = 1000000; //TODO
+						vm.stackNetworkUpload = 1000000; //TODO
+						vm.stackNetworkDownload = 1000000; //TODO
+						vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
+						vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
 						
 						let axEval;
 						try{
 							axEval = funcBodyAndVarargChooser((vm.pair)(l)(r)); //evals to u/theUniversalFunction to define l(r) as halted, else evals to u(theReturnVal)
 						}finally{ //in case throws vm.gasErr
 							//put clean/dirty back on stack the way it was
-							vm.stackIsAllowGastimeGasmem = prev_stackIsAllowGastimeGasmem;
+							vm.stackIsAllowstackTimestackMem = prev_stackIsAllowstackTimestackMem;
 							vm.stackIsAllowMutableWrapperLambda = prev_stackIsAllowMutableWrapperLambda;
 							vm.stackIsAllowNondetRoundoff = prev_stackIsAllowNondetRoundoff;
 						}
@@ -1984,7 +2008,7 @@ TODO
 
 
 clean/dirty bits that only exist on stack:
-	isDirtyGas //limit compute resources recursively by gasTime, gasMem, etc, but that prevents it from being deterministic so can limit to just 1 level of that deep on stack.
+	isDirtyGas //limit compute resources recursively by stackTime, stackMem, etc, but that prevents it from being deterministic so can limit to just 1 level of that deep on stack.
 	isDirtyRoundoff //allow Math.sin(double) Math.tanh(double) etc, vs those funcs always infloop and you only get 
 	//(opMutableWrapperLambda derivedFuncOfEd25519OrWhateverDigsigAlgorithm passwordOrU pubkeyOrU message) -> some signed form,
 	//maybe with a minTime maxTime and time (utcFloat64) or maybe just a pubkey func return, or maybe pubkey func time return.
@@ -1994,8 +2018,8 @@ clean/dirty bits that only exist on stack:
 
 
 
-FIXME its 4x2: stackIsAllowGastimeGasmem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx.
-FIXME should be 3x2 levels of clean/dirty, instead of 2x2. mutableWrapperLambda and solve* are above the level of just allowing spend/gasTime/gasMem.
+FIXME its 4x2: stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx.
+FIXME should be 3x2 levels of clean/dirty, instead of 2x2. mutableWrapperLambda and solve* are above the level of just allowing spend/stackTime/stackMem.
 
 
 
@@ -2020,7 +2044,7 @@ levels of clean: clean, allowSinTanhSqrtRoundoffEtc, allowSpendEtc..orJustCallIt
 TODO vararg? or just a big max curriesLeft such as 126?
 
 
-FIXME its 4x2: stackIsAllowGastimeGasmem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx.
+FIXME its 4x2: stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx.
 
 
 
@@ -2041,7 +2065,7 @@ TODO make this fast. its a variant of wikibinator202 that has these changes:
 * has a GPU.js opcode that tells it to use float32 etc instead of doubles, and with the strangeness of GPU.js opcodes recursively inside.
 * has all the js Math funcs such as sine tanh
 * has all the js operators on doubles such as * / ** - & | <<.
-* has onethirdclean and twothirdsclean levels, instead of clean and dirty, and these levels only allow access to the 4 ints of salt on stack and (spend maxgastime maxgasmem func param) and getgastime and getgasmem and getestimatedeconacycmemcost(...by some combo of fulleconacyc zapeconacyc andor recent use of gasmem...).
+* has onethirdclean and twothirdsclean levels, instead of clean and dirty, and these levels only allow access to the 4 ints of salt on stack and (spend maxstackTime maxstackMem func param) and getstackTime and getstackMem and getestimatedeconacycmemcost(...by some combo of fulleconacyc zapeconacyc andor recent use of stackMem...).
 * theres no vararg but theres up to around 126 or maybe 63 params, with an opcode for each. make it 63, and have space for 64 other opcodes, so o8.
 * same mutableS-like abc.def[mutmap]<mutdouble>={+ {* abc[x] ,3}} syntax, which is a function that in an opmut call does 3 gets and a 3-way put like a[b]=c, or 2way like a=c.
 * bitstrings are limited to 2^31-1 bits, so bize fits in int.
