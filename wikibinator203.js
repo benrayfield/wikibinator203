@@ -692,15 +692,43 @@ const wikibinator203 = (()=>{
 	
 	
 	
+	vm.overlappingBufferInts = new Int32Array(2);
+	vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
+	//FIXME do they overlap as bigEndian or littleEndian, and is it per int or per byte or what? Make it consistent across all systems,
+	//and I would prefer bigEndian unless most or all systems already do littleEndian in browser.
 	
+	vm.isLambda = function(thing){
+		//FIXME some rare times there could be false positive.
+		return thing.n && typeof(thing)=='function';
+	};
 	
+	vm.wrapInTypeval = function(thing){
+		if(vm.isLambda(thing)) return thing;
+		throw 'TODO';
+	};
 	
+	vm.wrapRaw = function(thing){
+		if(vm.isLambda(thing)) return thing;
+		switch(typeof(thing)){
+		case 'number':
+			//FIXME prefix it with (typeval 'application/x-ieee754-double'). No, do that in wrapInTypeval.
+			vm.overlappingBufferDouble[0] = thing;
+			let ints = Int32Array.of(vm.overlappingBufferInts[0], vm.overlappingBufferInts[1]); //FIXME bigendian vs littleendian and of ints vs bytes??
+			let node = new vm.Node(this, null, null, ints, 0, 2);
+			console.log('FIXME put in dedup map'); //FIXME FIXME FIXME!!!!
+			return vm.lambdize(node);
+		break; case 'string':
+			throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
+		break;default:
+			throw 'TODO';
+		}
+	};
 	
 
 	//the datastruct of forest of lambdas, each with 2 childs (Node.l and Node.r, which are the lambdize wrappers of Node) where all paths lead to the universal lambda.
 	//lambdize means to wrap a Node in a lambda. Node is the internal workings of a lambda.
 	//
-	vm.Node = function(vm,l,r){ //TODO rename these params to myL and myR cuz l and r are opcode names. its ok to keep this.l and this.r.
+	vm.Node = function(vm,l,r,optionalBlob,optionalBlobFrom,optionalBlobTo){ //TODO rename these params to myL and myR cuz l and r are opcode names. its ok to keep this.l and this.r.
 		
 		//TODO "header64: 6+2+8+16+1+31", see comment about it.
 		
@@ -853,16 +881,44 @@ const wikibinator203 = (()=>{
 		//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
 		this.idA = vm.lastIdA
 		this.idB = vm.lastIdB;
-		this.blobFrom = 0; //int. TODO
-		this.blobTo = 0; //int. TODO
+		this.blobFrom = optionalBlobFrom | 0; //int. TODO
+		this.blobTo = optionalBlobTo | 0; //int. TODO
 		
 		//this.blob = TODO null or Int32Array.
-		this.blob = null; //TODO null or Int32Array.
+		//The id of the blob is this.idA with this.idB. Every node with that id64 has the same blob and may differ in blobFrom and blobTo.
+		this.blob = optionalBlob; //TODO null or Int32Array.
 		
 		//this.idString;
 		
 		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+		
+		//this.prototype.prototype = vm;
 
+	};
+	
+	//index is in units of ints, not bits. Node.blob is always a Int32Array. always 0s outside range.
+	//If blobFrom<blobTo then blob exists.
+	vm.Node.prototype.intAt = function(index){
+		if(index < this.blobFrom || this.blobTo <= index) return 0;
+		return this.blob[index];
+	};
+	
+	//index is in units of ints
+	vm.Node.prototype.doubleAt = function(index){
+		//FIXME bigEndian or littleEndian and of ints or bytes etc?
+		return vm.twoIntsToDouble(this.intAt(index), this.intAt(index+1));
+	};
+	
+	//as double
+	vm.Node.prototype.d = function(){
+		return this.doubleAt(0);
+	};
+	
+	vm.twoIntsToDouble = function(high32, low32){
+		//FIXME bigEndian or littleEndian and of ints or bytes etc?
+		vm.overlappingBufferInts[0] = high32;
+		vm.overlappingBufferInts[1] = low32;
+		return vm.overlappingBufferDouble[0];
 	};
 	
 	//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
@@ -1131,6 +1187,7 @@ const wikibinator203 = (()=>{
 	};
 	
 	
+	//FIXME where do blobs go in here, that dont have a left and right child yet cuz its lazy and creating the top of the blob as wrapper node?
 	
 	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in Nodes.
 	vm.dedupMap = {};
@@ -1200,7 +1257,11 @@ const wikibinator203 = (()=>{
 	
 	vm.hash2Nodes = (a,b)=>{
 		//TODO find some way to not check this IF just for u. its slowing down all the hashing.
-		if(!a || (!a.idA && !b.idA)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
+		
+		//FIXME verify a is identityfunc and b is u.
+		
+		
+		if(!a || (!b.idA && !b.idB)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
 		hashingInts[0] = a.idA;
 		hashingInts[1] = a.idB;
 		hashingInts[2] = a.blobFrom;
@@ -1374,8 +1435,9 @@ const wikibinator203 = (()=>{
 			if(param === undefined) return NODE;
 			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
 		};
+		lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing "if(param === undefined) return NODE;" and always using .n?
 		//lambda = lambda.bind(this);
-		lambda.hashInt = vm.hash2Nodes(node.l,node.r);
+		lambda.hashInt = vm.hash2Nodes(node.l,node.r); //TODO optimize should hashInt go in node instead of lambda? does that make it harder to use?
 		lambda.toString = vm.lambdaToString;
 		return (node.lam = lambda);
 	};
@@ -1434,6 +1496,7 @@ const wikibinator203 = (()=>{
 	vm.addOp('stackIsAllowAx',1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 	vm.addOp('isCbt',1,'returns t or f, is the param a cbt aka complete binary tree of bit0 and bit1');
 	vm.addOp('containsAxConstraint',1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
+	vm.addOp('dplusraw',2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
 	
 	
 	
@@ -1610,6 +1673,10 @@ const wikibinator203 = (()=>{
 	*/
 	vm.rootEvaler = (vm,l,r)=>{
 		
+		//TODO rename l to myL and r to myR, cuz l and r are ops.
+		
+		//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
+		
 		console.log('Evaling l='+l+' r='+r);
 		//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
 		//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
@@ -1654,6 +1721,8 @@ const wikibinator203 = (()=>{
 					ret = vm.bit(z().isCbt());
 				break;case o.containsAxConstraint:
 					ret = vm.bit(z().containsAxConstraint());
+				break;case o.dplusraw:
+					ret = vm.wrapRaw(y().d()+z().d());
 				break;
 				
 				/*break;case o.stackIsAllowImportEvilIds:
@@ -1809,6 +1878,11 @@ const wikibinator203 = (()=>{
 	};
 	
 	vm.Node.prototype.vm = vm; //can get this like u().vm or u(u)(u(u))(u).vm for example.
+	
+	
+	//let prevProto = vm.Node.prototype;
+	//prevProto
+	//vm.Node.prototype.prototype = vm;
 	
 	/*
 	opcodeToO8 doesnt exist anymore
