@@ -1876,6 +1876,110 @@ const wikibinator203 = (()=>{
 	0
 	*/
 	
+	//These mut* funcs take Mut or double as param, which all have the fields n m d g j e. n is array size. m is {}/map. d is Float64Array. g is string. j is fn/lambda. e is double value.
+	//the prototype of prototype of Number has been modified to have all those fields, such as (10+7).m is a {}, and (10+7).j==u, and (10+7).e==17.
+	//undefined is not allowed as a value. In theory these things have been modified to never return undefined when used certain ways that js code can be generated for.
+	//mut* primitive math...
+	const mutPlus = (a,b)=>(a+b);
+	const mutMult = (a,b)=>(a*b);
+	const mutSin = a=>Math.sin(a);
+	
+	//mut* controlflow such as loops, if/else, and sequence of code...
+	
+	//condition and loopBody are function(mut)->mut.
+	//mutableState is a Mut
+	const mutWhile = (vm,condition,loopBody,mutableState)=>{
+		while(condition(vm,mutableState)){
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			loopBody(vm,mutableState);
+		}
+		return mutableState; //also mutableState may have been modified
+	};
+	
+	const mutDoWhile = (vm,loopBody,condition,mutableState)=>{
+		do{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			loopBody(vm,mutableState);
+		}while(condition(vm,mutableState));
+		return mutableState; //also mutableState may have been modified
+	};
+	
+	const mutFor = (vm, start, condition, afterLoopBody, loopBody, mutableState)=>{
+		for(start(vm,mutableState); condition(vm,mutableState); afterLoopBody(vm,mutableState)){
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			loopBody(vm,mutableState);
+		}
+		return mutableState; //also mutableState may have been modified
+	};
+	
+	const mutIfElse = (vm,condition,ifTrue,ifFalse,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		return (condition(vm,mutableState) ? ifTrue : ifFalse)(vm,mutableState);
+	};
+	
+	const mutIf = (vm,condition,ifTrue,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		return condition(vm,mutableState) ? ifTrue(vm,mutableState) : mutableState;
+	};
+	
+	//a sequence of mut* funcs to call on a mutableState
+	const mutProgn = (vm,listOfMutFuncs,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		for(let mutFunc of listOfMutFuncs){
+			//or should it just be: mutFunc(mutableState); without setting mutableState? might be more optimizable. but dont call it progn if so.
+			mutableState = mutFunc(vm,mutableState);
+		}
+		return mutableState;
+	};
+	
+	const mutMapPut = (vm,getMap,getKey,getVal,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		return getMap(vm,mutableState).m[getKey(vm,mutableState).g] = getVal(vm,mutableState);
+	};
+	
+	const mutMapGet = (vm,getMap,getKey,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		return getMap(vm,mutableState).m[getKey(vm,mutableState).g];
+	};
+	
+	const mutDoubleArrayPut = (vm,getDoubleArray,getKey,getVal,mutableState)=>{
+		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+		//return getDoubleArray(vm,mutableState).d[getKey(vm,mutableState).e] = getVal(vm,mutableState).e;
+		return getDoubleArray(vm,mutableState).d[getKey(vm,mutableState)] = getVal(vm,mutableState);
+	};
+	
+	const mutDoubleArrayGet = (vm,getDoubleArray,getKey,mutableState)=>{
+		//TODO check gas* when?
+		return getDoubleArray(vm,mutableState).d[getKey(vm,mutableState)];
+	};
+	
+	const mutStringConcat = (vm,getStringA,getStringB,mutableState)=>{
+		//TODO check gas* when? and pay for length of new string in stackMem. todo rename gas* to stack* like vm.stackTime vm.stackMem
+		let stringA = getStringA(vm,mutableState).g;
+		let stringB = getStringB(vm,mutableState).g;
+		vm.prepay(1,(stringA.length+stringB.length));
+		return vm.wrapInMut(stringA+stringB); //FIXME create vm.wrapInMut func
+	};
+	
+	//TODO mut* func (or something that returns one)... wrap string, fn/lambda, double, (and maybe Int32Array andOr Float64Array etc) in Mut.
+	//Use Object.freeze(theMut) to make a string constant so aLambda(rootMutGivenByOpmut) can generate efficient js code.
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	//FIXME where do blobs go in here, that dont have a left and right child yet cuz its lazy and creating the top of the blob as wrapper node?
 	
