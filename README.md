@@ -153,6 +153,10 @@ Syntax: abc.def<<ghi<5>>>
   that all lambda calls halt within chosen limits of memory and time that can be tightened recursively on stack.
   
 [a b c] means (infcur a b c). Infcur takes infinity params aka never evals, so its a kind of list.
+
+?varABC is (getVar varABC)
+
+Any string without whitespace that starts with a lowercase letter is a string literal, so varABC is 'varABC'. If capital, its a #Name like (...)#Fibonacci and (Fibonacci 3) of a constant function. There are no variables in a 2-way-forest of universal function, other than constants that act like variables in some ways of using them statelessly/immutably.
   
 (func param)->return caching is used in lambda, but NOT in For/While/DoWhile/streaming/etc which is more for number crunching, thats sometimes done from one lambda call to the next. Lambda will look something like this (TODO)...
 ..
