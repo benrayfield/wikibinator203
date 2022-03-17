@@ -144,13 +144,35 @@ Syntax:
 
 ,a means (t a), often used like ({,+ getX getY} treemapZ) which evals to (+ (getX treemapZ) (getY treemapZ)).
 
-Syntax: abc.def[ghi<5>]
+Syntax: abc.def<<ghi<5>>>
 
-[] gets from something like what {} means in javascript, a map of string to thing.
+<<>> gets from something like what {} means in javascript, a map of string to thing.
 
 <> gets from a Float64Array. These 2 things are used in small blocks of javascript-like code
   that compiles to javascript but blocks access to Float64Array.buffer etc so it can guarantee
   that all lambda calls halt within chosen limits of memory and time that can be tightened recursively on stack.
+  
+(func param)->return caching is used in lambda, but NOT in For/While/DoWhile/streaming/etc which is more for number crunching, thats sometimes done from one lambda call to the next. Lambda will look something like this (TODO)...
+..
+<code>
+(
+	Lambda
+	[x]
+	{
+		,IfElse
+		{,Lt ?x ,2}
+		,1
+		{,+ {Recur1 ?x} {Recur1 {,- ?x ,1}}}
+	}
+)#Fibonacci
+..
+(Fibonacci 0) -> 1
+(Fibonacci 1) -> 1
+(Fibonacci 2) -> 2
+(Fibonacci 3) -> 5
+(Fibonacci 4) -> 8
+(Fibonacci 5) -> 13
+</code>
   
 All lambdas have 2 child lambdas, even the u/universalLambda has the 2 childs of identityFunction and itself.
 The left child called on the right child evals to the parent so its like a quine that way, if its halted,
