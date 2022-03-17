@@ -152,6 +152,8 @@ Syntax: abc.def<<ghi<5>>>
   that compiles to javascript but blocks access to Float64Array.buffer etc so it can guarantee
   that all lambda calls halt within chosen limits of memory and time that can be tightened recursively on stack.
   
+[a b c] means (infcur a b c). Infcur takes infinity params aka never evals, so its a kind of list.
+  
 (func param)->return caching is used in lambda, but NOT in For/While/DoWhile/streaming/etc which is more for number crunching, thats sometimes done from one lambda call to the next. Lambda will look something like this (TODO)...
 ..
 <code>
@@ -160,18 +162,18 @@ Syntax: abc.def<<ghi<5>>>
 	[x]
 	{
 		,IfElse
-		{,Lt ?x ,2}
+		{,Lt ?x ,3}
 		,1
 		{,+ {Recur1 ?x} {Recur1 {,- ?x ,1}}}
 	}
 )#Fibonacci
 ..
-(Fibonacci 0) -> 1
 (Fibonacci 1) -> 1
-(Fibonacci 2) -> 2
-(Fibonacci 3) -> 5
-(Fibonacci 4) -> 8
-(Fibonacci 5) -> 13
+(Fibonacci 2) -> 1
+(Fibonacci 3) -> 2
+(Fibonacci 4) -> 3
+(Fibonacci 5) -> 5
+(Fibonacci 6) -> 8
 </code>
   
 All lambdas have 2 child lambdas, even the u/universalLambda has the 2 childs of identityFunction and itself.
