@@ -1,0 +1,43 @@
+<!DOCTYPE html><html><head>
+<script src=wikibinator203VM.js></script>
+<script>
+var dom = id=>document.getElementById(id);
+
+var h = '';
+
+h += 'wikibinator203='+wikibinator203;
+
+
+//TODO move this to a separate js file or the html file...
+
+console.log('Script (near) ending. wikibinator203 = '+wikibinator203);
+for(let i=0; i<8; i++) console.log('');
+
+var u = wikibinator203;
+
+
+var vm = u().vm;
+
+
+console.log('wikibinator203...');
+
+console.log('wikibinator203 = '+wikibinator203);
+
+var uu = u(u);
+
+console.log('uu = '+uu);
+
+
+var ops = u().vm.ops;
+for(name in ops){ console.log('Creating var: '+name); eval(name+' = ops.'+name); };
+
+console.log('T().o8() == '+T().o8());
+T(uu)(u);
+	
+window.onload = ()=>{
+	dom('mainDiv').innerHTML = h;
+};
+</script>
+</head><body>
+	<div id="mainDiv"></div>
+</body></html>
