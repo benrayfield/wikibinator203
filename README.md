@@ -2,7 +2,7 @@
 
 Some basic parts work, or use earlier wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
-To see it working, look at this browser console output (from the html file)<a href=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/browserConsoleLogOutput.txt>https://raw.githubusercontent.com/benrayfield/wikibinator203/main/browserConsoleLogOutput.txt</a>
+To see it working, look at this browser console output (from the html file)<a href=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt>https://raw.githubusercontent.com/benrayfield/wikibinator203/main/browserConsoleLogOutput.txt</a>
 
 Working on the programming language syntax.
 Its going to be intuitive (see Fibonacci theoretical example farther below) and work with coding or drag-and-drop, but first I have to get through this low level stuff. I've got lambda toString working for basic stuff, and vm.eval(wikibinator203CodeString) is nearly working for basics...
