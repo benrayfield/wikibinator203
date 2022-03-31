@@ -1,3 +1,481 @@
+/*TODO WRITE 30 VARIED USECASES, THEN FIND HOW TO OPTIMIZE FOR THEM...
+30 varied usecases, optimize for. Find efficient way to do all of these, relevant to opmutinner opmutouter Float64Array Int32Array Node lambdize gpujs mutableWrapperLambda etc... Find an efficient-enough way to make things i find fun and useful, focusing on memory and compute bandwidth at first.
+Moving that to todoWrite30VariedUsecases.wikibinator203, so this wikibinator203VM.js file can work again.
+*/
+
+
+
+/*
+(
+	Lambda
+	[arrayAB arrayBC aSize bSize cSize]
+	{
+		,Opmut
+		,_[
+			(push ,x ,10)
+			(push ,x ,hello)
+			(push ,x ,20)
+			(=3 ,z ,y ?x)
+			(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
+			(For (= ,i ,0) (Lt .i .z.y.length) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
+				(=d .z.abc .i .z.y?i) //z.abc[i] = z.y[i];
+			])
+		]
+		LambdaParamsStream
+	}
+)#MatmulInCpu
+
+
+
+
+
+
+
+/*
+
+Mut has to compile to using string keys in js {} map, since otherwise i'd have to make my own stack which would be slow.
+The strings can be: anything that starts with a lowercase letter, such as varABC or x hello etc,
+or a text form of a 256 bit global id, or a deduped localId.
+Otherwise it should be a double used as an int for Float64Array (or maybe Int32Array in some cases).
+FIXME if dedup a localId, then its garbcoled, how could i know to use the same id again if its made again? I wouldnt,
+	THEREFORE deduped ids only verify that at most 1 deduped id exists at a time for a certain forest shape,
+	but it does not guarantee its the same 64 bits if its garbcoled and allocated again as a deduped id,
+	so during opmut, if using deduped id64 that way, dont allow garbcol during opmut,
+	and dont reuse compiled evalers that depend on a string for of deduped localid such as 'n'+node.idA+'_'+node.idB.
+	Could use a global id256, such as around 46 chars (is that base64 or base58?), in js {} map key,
+	but that would be slow. Mostly it would be small var names like abc and x and double indexs.
+	
+	
+This depends on ability to make var names like [ballA x] which is (infcur ballA x), var names that are fns in general,
+and I'm unsure how to compile it to js code, so needs redesign...
+(
+	Lambda
+	[arrayAB arrayBC aSize bSize cSize]
+	{
+		,{
+			,Opmut //,{OptimizationHint opmut}//,Opmut
+			_[
+				(= ?arrayAC {,NewDoubles {,* ?aSize ?cSize}})
+				(For (= ?a ,0) (lt ?a ?aSize) (++ ?a) [
+					(For (= ?c ,0) (< ?c ?cSize) (++ ?c) _[
+						(= ?sum ,0)
+						(For (= ?c ,0) (< ?c ?cSize) (++ ?c)
+							(+=D ?sum {,*
+								{,D ?arrayAB {,+ {,* ?a ?bSize} ?b}}
+								{,D ?arrayBC {,+ {,* ?b ?cSize} ?c}}
+							})
+						)
+						(=D ?arrayAC {,+ {,* ?a ?cSize} ?c} ?sum)
+					])
+				])
+				?arrayAC
+			]
+		}
+		(...This gets [arrayAB someVal arrayBC anotherVal ...]...)#LambdaParams
+	}
+)#Matmul
+
+Instead of each mut in [...muts...] being a key and around 4 vals (of type double, double[], fn, mut[], etc),
+each mut is a map, so things come in threes: ob key val, like mutA mutB mutC means mutA[mutB] = mutC,
+and similar for Float64Array except thats stored in pairs of: mutA cbt.
+LambdaParamsStream op would give its own params as keys of some given ob,
+such as (LambdaParamsStream (pair s "hello") (Lambda [a b c] 10 15))
+-> [... (ObKeyVal (pair s "hello")#psh a 10) (ObKeyVal psh b 15) (ObCbt psh aCbtOfFloat64Array) ...],
+or something like that.
+
+Old: (= ?arrayAC {,NewDoubles {,* ?aSize ?cSize}})
+New: (= ,psh ,arrayAC {,NewDoubles {,* ?aSize ?cSize}}) but could save space by naming (= ,psh) and reusing that.
+	WAIT, i might have mixed up ? aka GetVar, and , aka t.
+
+How would I write code that does the same as this javascript[
+	let x = [10,'hello',20];
+	let z = {y: x, abc: []};
+	for(let i=0; i<z.y.length; i++){
+		z.abc[i] = z.y[i];
+	}
+	//do this outside the Opmut: return z;
+]?
+Trying to write that as wikibinator203 syntax (which you can derive whatever syntaxes you want, but this is what comes in the prototype):
+(
+	Opmut
+	_[
+		(=2 ,x FixmeHowToDefineAJsListOrIsItViewedAsMapA)
+		(=3 ,z ,y ?x)
+		(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
+		(For (= ,i ,0) (Lt ?i (?2 (?2 (? z) y) length)) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
+			//(=3 (?2 (? z) abc) ?i (?2 z (?2 y ?i)))
+			(=d (?2 (? z) abc) ?i (?2 z (?2 y ?i)))
+		])
+	]
+	[] //muts go in here, if it starts with any
+)
+PROBLEM: cant use =3 for double indexs or double vals. Use =d instead.
+
+
+
+_[
+	(push ,x ,10)
+	(push ,x ,hello)
+	(push ,x ,20)
+	(=3 ,z ,y ?x)
+	(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
+	(For (= ,i ,0) (Lt ?i (?2 (?2 (? z) y) length)) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
+		(=d (?2 (? z) abc) ?i (?2 z (?2 y ?i)))
+	])
+]
+
+
+
+
+//z.y.length
+TODO this syntax is too long, but consider that var names could be lambdas such as (Pair S hello) or huge lambdas:
+(?2 (?2 (? z) y) length)
+(?2 (?2 ?z y) length)
+?z.y.length
+
+What about z.abc[i] ...
+?z.abc<?i>
+?z.abc<i>
+?z,abc<i>
+Im mixing things up here. Its not consistent.
+Use a<b> to mean the same as a.b but <> gives you a place to write more stuff.
+a<b<c>> means the same as a.b.c.
+,a means (T a) aka (T 'a').
+?a means (GetVar a).
+?a<?b<?c>> ???
+?a<,b<?c>> ???
+?a<{..some stuff..}<?c>> ???
+
+Put <> as the outer thing, cuz this syntax is getting confusing.
+
+<,a ,b ,c ,b> means js: root.a.b.c.b .
+<,a ,b c ,b> means js: root.a.b[c].b aka root['a']['b'][c]['b'].
+<,a ,b {...any code...} ,b> means js: root.a.b[c].b aka root['a']['b'][whateverThatCodeReturnsWhenCalledOnStream]['b'].
+	Its the same for ,b being whatever (,b theStream) returns, aka (T 'b' theStream) which returns 'b' aka b.
+(<w x y z> aStream) evals (w aStream) and (x aStream) and (y aStream) and (z aStream) and calls ?2 for the first 3 and ? for the last.
+
+
+_[
+	(push ,x ,10)
+	(push ,x ,hello)
+	(push ,x ,20)
+	(=3 ,z ,y ?x)
+	(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
+	(For (= ,i ,0) (Lt ?i <,z ,y ,length>) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
+		(=d <,z ,abc> ?i <,z ,y ?i>)
+	])
+]
+
+Syntax .abc.def.ghi means <,abc ,def ,ghi>
+
+_[
+	(push ,x ,10)
+	(push ,x ,hello)
+	(push ,x ,20)
+	(=3 ,z ,y ?x)
+	(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
+	(For (= ,i ,0) (Lt .i .z.y.length) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
+		(=d .z.abc .i .z.y?i) //z.abc[i] = z.y[i];
+	])
+]
+
+
+
+
+
+
+
+
+
+
+
+
+/*TODO consider using fn directly as mut, such as (anyDoubleAsWhichopmutspace anyFn)
+or as (MutId whichOpmutSpace anyFn), so (MutId whichOpmutSpace) would be used for a call of Opmut.
+There would be mutable fields in fn in general, that would get erased after Opmut call,
+and fn wouldnt be able to read or write them (only Opmut could read and write them as mutable optimization
+of immutable/stateless calculation). A vm.OpmutState would just need to somehow remember which fns
+have mutable state, so when that specific Opmut call ends, their mutable contents can be cleared.
+Example fn: (MutId whichOpmutSpace (MutId whichOpmutSpaceB anyFnB)), since its all fns.
+Only dedupedFns would be allowed as mut keys, but their fields dont have to be deduped.
+So all objects visible to fns would be either fn or double,
+and double is a cbt64 or (todo? wrapper of it to say its a double of those 64 bits).
+fn.e would be a double.
+fn.ee would be a Float64Array.
+fn.ii would be an Int32Array that shares same ArrayBuffer as fn.ee, unless they're both frozen and empty.
+fn.j would be a dup fn.
+fn.jj would be an Array of dup fn.
+fn.m would be a deduped fn.
+fn.mm would be an Array of deduped fn.
+FIXME in what lambdize returns (a function), its prototype cant be changed.
+	BUT I might could put something in the prototype of functions in general.
+Maybe its best to just put 1 mutable field in fn, the Mut, since function prototypes dont work like {} prototypes.
+At least that way theres at most 1 Mut per fn. Also, a dup fn could still have a Mut,
+but it would be shared among all the dups (and the 1 deduped of it).
+..
+(MutId whichOpmutSpace anyFn) could automatically force instant dedup of
+MutId, (MutId whichOpmutSpace), and (MutId whichOpmutSpace anyFn), and (MutId whichOpmutSpace anyFn)
+be at 7th param (where op is known) and 8th param infloops, so you could know by o8 that it is a (MutId whichOpmutSpace anyFn).
+..
+Theres 2 ways Opmut can call itself:
+(1) OpmutOuter uses a new whichOpmutSpace (VM chooses one not used yet in by this run of the VM) and
+	an empty namespace or given namespace of [...muts...] snapsshot.
+(2) OpmutInner is called on an existing mutable state and returns a fn or double.
+	This allows you to make new funcs that work in a mutable state instead of having to inline their parts.
+..
+Garbcol of mutable contents of a (MutId whichOpmutSpace anyFn), which lets call that a fnmut,...
+A fnmut is any fn thats a (MutId whichOpmutSpace anyFn), known by its o8 can be any of 4 values since MutId is at param 5.
+At any specific time and specific VM (mutable parts arent shared across VMs but snapshots of them are),
+	a fnmut either has mutable parts or not.
+For each unique (MutId whichOpmutSpace), I need a set of fnmuts that have mutable state.
+That set could be stored in mutable vars in (MutId whichOpmutSpace), which is created at start of an OpmutOuter call.
+I could easily put a bit field in each fn to say it has such mutable state, but I need the ability to find them fast,
+and during Opmut I MIGHT want the ability to remove their mutable state?
+OR, is it ok to not garbcol any of it until the Opmut call ends (which is likely a small fraction of a second)?
+If garbcol only at end of (small fraction of a second) whole outermost OpmutOuter call,
+then I only need 1 set of fnmuts.
+THEREFORE, vm.fnmutsWithState = anyFnmut, a linkedlist using someFnmut.prevFnmut ptrs, only between deduped fns.
+At end of the outermost Opmut call, just loop over vm.fnmutsWithState and free the memory in their mutable parts,
+but dont free those fns since thats still controlled by FuncallCache.
+PROBLEM: This kind of opmut garbcol could prevent FuncallCache from doing its normal garbcol during opmut,
+which aFuncallCache.touch (TODO) does it by leastRecentlyUsed.
+A basic way to limit that is a kind of gas* for putting state in opmut nodes,
+or maybe just reuse the stackTime and stackMem kinds of gas*.
+..
+THEREFORE, add a prevFnmut field to Node or maybe to fn (which lambdize returns), TODO which???.
+..
+TODO I was going to have aFn(aMut) vs aFn(anotherFn) know the difference between mut/stateful and fn/stateless,
+and still use them as javascript lambdas (call with parens).
+How would that work if (MutId whichOpmutSpace anyFn) is both a mut and a fn?
+It would have to be a fn in OpmutInner and OpmutOuter are those fns???
+But theres still the [...muts...] immutable/stream/snapshot of it, vs the mutable datastructs themselves.
+..
+Should there be a few kinds of Mut, one for mutable Float64Array
+(such as (MutDoubles anyDedupedFn) would be key, and its value is mutable),
+one for mutable array of nondeduped fns, one for mutable double, etc?
+I could have a different o8 (or at most a few o8s) for each kind.
+But could it be done efficiently?
+They could all have the same fields but some of those fields could be frozen as empty arrays etc,
+which could be detectable by the o8.
+..
+OR... just use a [] of such fnmuts, and have a bit in each fnmut to say if its in the [] or not.
+Maybe fn would have an int to say which index in the [] (vm.fnmuts = [], just 1 of them per VM) its in,
+and could have a Float64Array parallel to it.
+If a fn loses its mutable state during opmut, since it knows its index, it could be replaced by the highest index fnmut.
+There might also be an Array() parallel to that, with various other mutable things in it, instead of in a Mut.
+There might be advantage to this way, since an int could be used instead of a Mut.
+Such ints could be allocated using (MutId whichOpmutSpace anyFn), so you could have things like (MutId whichOpmutSpace [ball5 x]).
+Fns wouldnt get to know what those ints are since they're reference not pointer,
+but basically as internal vm optimization you could say give me the int for (MutId whichOpmutSpace [ball5 x]),
+and it would check if that fn has such an int field else would allocate one.
+Careful not to change such ints during a primitive optimization that uses them.
+Maybe just the infcurCallPairs would make good keys, since I can actually allocate ints for those really fast in an Int32Array.
+But do I want fns as keys, or just the combos of var names like [you can even write a sentence here [ball5 x] abc 22] could be a key?
+Remember, any token that starts with a lowercase letter and has no whitespace (might be few other excluded chars)
+is a utf8 (or is it utf16?) string literal of itself.
+If I want the ability to optimize mutable maps of fn to fn, then I must support fns as keys, not just combos of infcur.
+..
+..
+..
+OR...
+consider using just the hash ids of nodes as mut keys, such as 192 bits of hash and 32 bits of array index (of maybe up to 4 kinds of arrays) in it?
+concat(192bitsHash,32bitsOfMakingATempIdOfThose192Bits,2BitsWhichArrayType,30BitsArrayIndex) is 256 bit key. could loop over 30BitsArrayIndex.
+could look up the 192 bits in an Int32Array, using 32bitsOfMakingATempIdOfThose192Bits.
+Or maybe I want an immutable 256 bit space including arrays, thats all possible immutable states,
+so you could for example have a certain 192bitsHash..30BitsArrayIndex point at 5000 of 192bitsHash..30BitsArrayIndex ???
+An advantage over 256 bit keys is garbcol is alot easier. but you cant have 32bitsOfMakingATempIdOfThose192Bits in the hashes,
+just as an optimization, so that part would have to be set to 32 0s before hashing.
+What if Mut has 2 such 192 bit ids, one as you just make it up randomly (whichOpmutSpace) and the other can be the id of a fn.
+fn's bizeInt field could be used as "2BitsWhichArrayType,30BitsArrayIndex" in some cases?
+
+
+
+/*
+Add 2 more int fields, for size of val_dupDoubles and val_dupMuts,
+and include wikibinator203 ops (which can have a max of 128 ops) to,
+given a Mut, pop 2 doubles off its stack then push a multiply, UNLESS the Float64Array in the Mut is not big enough and in that case
+use something like objectThatReturns0ForAllFieldValues for all doubles outside its range etc is constant 0,
+and let stackSize wrap as twosComplement of int32, or something like that. i dont want to auto enlarge the array
+cuz that might slow it down when doing a sequence of such ops.
+Similar, some ops for copying between the double or Mut stacks in multiple Muts.
+Could use a Mut as an array of such "multiple Muts" such as having 3 stacks which is a simple way to do permutations.
+TODO figure out details of that while using it to derive (from these up to 128 ops) the y10x10rgb12 voxel system,
+or y10x10bright4 or y9x9rgb6 etc would fit in a float32 which GPU.js is limited to but CPU can do ints such as y10x10rgb12.
+
+
+
+
+TODO use 1 char long field names, but other than that, I like this design,
+and it will go in vm.ops.Mut which has these 5 things (excluding whichOpmutSpace cuz fns cant see that),
+and TODO make a hashtable in it, as a proofofconcept, combining val_dupMuts and val_dupDoubles (or maybe Int32Array view of it?).
+FIXME would it cause a problem to have to allocate dedupedFn for each potentially nondedupedFn?
+You could, in the worst case, dedup that same fn and use it as its own key,
+or simpler would be to just count doubles up from 0 to use as keys since every double can be viewed as a dedupedFn.
+TODO allocate range of idA_idB for dedupedFns, and that range will be a subset of nonnormedNaNs
+	(or maybe the nonnormed negative infinities) where idA is high 32 bits idB is low 32.
+Mut = function(dedupedFn, whichOpmutSpace){
+	this.key_dedupedFn = dedupedFn;
+	this.key_whichOpmutSpace = whichOpmutSpace;
+	
+	//this.val_dedupedNum = 0;
+	//this.val_dupFn = u;
+	//this.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+	//this.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+	
+	//TODO objectThatReturns0ForAllFieldValues andOr Object.setPrototypeOf(this.m,null); etc, for sandboxing.
+};
+Mut.prototype.val_dedupedNum = 0;
+Mut.prototype.val_dupFn = u;
+Mut.prototype.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+Mut.prototype.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+freeze the above few default vals somehow.
+..
+[
+	(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyA)
+	(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyB)
+	(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyA)
+	...
+]
+
+
+
+
+It appears that if the first 13 bits are 1, then thats never used (a subrange of nonnormed negative infinity), leaving me 51 bits for ids.
+Anything that doesnt start with 13 1s is viewed as a double.
+Use the first 3 of those 51 bits to choose between 8 kinds of things, of up to 2^48 possible ids each?
+Those 8 things: split on deduped/dup, so 4 things left: literalBitsThatFitInId64, fn, other(prefixByteOfOther_*), reservedForFutureExpansion.
+I might want more than the first 3 bits to do that.
+
+https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+0 00000000000 0000000000000000000000000000000000000000000000000000 2 ≙ 0000 0000 0000 000016 ≙ +0
+1 00000000000 0000000000000000000000000000000000000000000000000000 2 ≙ 8000 0000 0000 000016 ≙ −0
+0 11111111111 0000000000000000000000000000000000000000000000000000 2 ≙ 7FF0 0000 0000 000016 ≙ +∞ (positive infinity)
+1 11111111111 0000000000000000000000000000000000000000000000000000 2 ≙ FFF0 0000 0000 000016 ≙ −∞ (negative infinity)
+0 11111111111 0000000000000000000000000000000000000000000000000001 2 ≙ 7FF0 0000 0000 000116 ≙ NaN (sNaN on most processors, such as x86 and ARM)
+0 11111111111 1000000000000000000000000000000000000000000000000001 2 ≙ 7FF8 0000 0000 000116 ≙ NaN (qNaN on most processors, such as x86 and ARM)
+0 11111111111 1111111111111111111111111111111111111111111111111111 2 ≙ 7FFF FFFF FFFF FFFF16 ≙ NaN (an alternative encoding of NaN)
+
+
+
+
+
+
+
+
+
+/*
+Which fields should Mut have?...
+..
+Outerjoin these:
+deduped or dup.
+fn or bits.
+list or one.
+
+Write them out...
+key: deduped fn.
+key: deduped whichOpmutSpace, but fns cant see this, is only to separate the Muts per Opmut call.
+val: deduped fn, actually a Mut, (can put any of the dup parts here, since the only way to dedup something in this system is as a fn)
+val: dup fn
+val: dup fn[], could implement a hashtable in this. The Array() and fn are both dup.
+val: dup Mut[], could implement a hashtable in this. the Array() is dup, but the Mut is not.
+val: deduped double, deduped by Node.idA and .idB, if they are anything except the high and low bits of a nonnormed NaN, are a double.
+val: dup Float64Array, dup ArrayBuffer (and views of it like Float64Array Int32Array Float32Array Uint8Array)
+//val: dupFnSize?
+//val: arrayBufferSize?
+cache: Int32Array, sharing the Float64Array.buffer.
+
+Or maybe each Mut should have only 1 kind of val, except a second kind of val tells which kind that is,
+	and Mut.prototype puts empty stuff in for the rest, such as fn[0].
+	
+	
+vm.Mut = function(dedupedFn, whichOpmutSpace){
+	just have 1 of the fields different.
+};
+vm.Mut.prototype.fieldA = TODO
+vm.Mut.prototype.fieldB = TODO
+vm.Mut.prototype.fieldC = TODO
+
+
+
+VALS...
+fn[]
+bit[]
+???
+
+
+const objectThatReturns0ForAllFieldValues = new Proxy({}, { get(obj, prop){  return 0; } });
+	Object.freeze(objectThatReturns0ForAllFieldValues);
+	vm.objectThatReturns0ForAllFieldValues = objectThatReturns0ForAllFieldValues;
+
+
+Mut = function(dedupedFn, whichOpmutSpace){
+	keys: dedupedFn, whichOpmutSpace.
+	
+	key?: Maybe another key thats a double thats only ever (in the run of a VM) used in 1 Mut, and let that be the id of the Mut instead of the dedupedFn, so can put nondedupedFns in its vals? So could merge fn[] with Mut[] vals?
+	Maybe make that be part of whichOpmutSpace? Probably not enuf space there.
+	
+	val: Mut[]
+	val: bit[]
+	Remember, I have code (objectThatReturns0ForAllFieldValues) to
+		make a Float64Array (and probably similarly Array()/[]) return any chosen object for keys it doesnt have,
+		so can do that instead of & or min/max memory fencing, by putting it as prototype
+		
+	Dont forget to set prototype to null (Object.setPrototypeOf) so cant access __proto__ etc
+		which would allow things to escape into the outer browser tab sandbox.
+	
+	
+	val: double
+	this probably helps js compiler/eval optimize loops, as aMut.val instead of aMut.doubleArray[0]
+	
+}
+
+
+Mut = function(n,aFn,whichOpmutSpace){
+	this.dedupedFn = aFn;
+	this.whichOpmutSpace = whichOpmutSpace;
+	
+	//this.w = whichOpmutSpace
+	//FIXME how can Mut.j be a non-deduped fn? Its id would have to be something else.
+	//this.j = aFn; //fn, TODO is this always deduped?
+	//this.w = whichOpmutSpace
+	//FIXME how can Mut.j be a non-deduped fn? Its id would have to be something else.
+	
+	this.j = u; //dup (not necessarily deduped) fn, so it must be part of the value. To have an array of these, use the array of Mut, and these be its vals.
+	this.e = 0;
+	this.m = Array(); //array of Muts which have same whichOpmutSpace
+	//this.i = new Int32Array(n<<1); //.d and .i overlap the same memory
+	//this.d = new Float64Array(this.i.buffer);
+	this.d = new Float64Array(n); //array of doubles
+	Object.setPrototypeOf(this.m,null);
+	Object.setPrototypeOf(this.d,null);
+	//Object.setPrototypeOf(this.i,null);
+};
+
+Mut = function(dedupedFn, whichOpmutSpace){
+	this.key_dedupedFn = dedupedFn;
+	this.key_whichOpmutSpace = whichOpmutSpace;
+	
+	//this.val_dedupedNum = 0;
+	//this.val_dupFn = u;
+	//this.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+	//this.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+	
+	//TODO objectThatReturns0ForAllFieldValues andOr Object.setPrototypeOf(this.m,null); etc, for sandboxing.
+};
+Mut.prototype.val_dedupedNum = 0;
+Mut.prototype.val_dupFn = u;
+Mut.prototype.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+Mut.prototype.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+freeze the above few default vals somehow.
+
+
+	
+
+
+
+
+//TODO add to readme andor this js file comments, https://en.wikipedia.org/wiki/Explainable_artificial_intelligence , probably is relevant enough to include.
+
 /*stream snapshot is [...] of
 [cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped],
 though I might change the order of those 5 things. The last has to be fnAsKeyThatIsOrWillBeDeduped.
@@ -1761,772 +2239,867 @@ See "THINGS CONSIDERING IN MAKING AN OPENSOURCE LICENSE" in comments farther dow
 */
 
 
-const wikibinator203 = (()=>{
+const Wikibinator203 = (()=>{
 	
 	let vm = new function(){};
-	
-	vm.lastIdA = -1; //high 32 bits
-	vm.lastIdB = -1; //low 32 bits
-	//first lambda is u/theUniversalFunc and has idA and idB of 0.
-	vm.incIdAB = function(){
-		this.lastIdB = (this.lastIdB+1)|0; //wrap int32
-		if(!this.lastIdB) this.lastIdA++; //carry
-	};
-	
-	//WARNING: opNames are not part of the wikibinator203 spec and may vary across different VMs
-	//or change in later versions of the same VM.
-	//You should instead get them like u(u)(u)(u)(u)(u)(u)(u)(u) is identityFunc,
-	//but since I'm still building this first VM, many of those opcodes 128 to 255) arent known yet,
-	//and I'm using this vm.op function to make sure vm.ops.someOpName exists before using it.
-	//TODO optimize, once the ops are final (or at least the first n of them that the VM uses to implement other ops),
-	//optimize by just using those ops directly (let identityFunc = u(u)(u)(u)(u)(u)(u)(u)(u); in VM code,
-	//and use that identityFunc again multiple times.
-	//vm.op = function(opName){
-	//	return vm.ops[opName] || (throw 'No opName='+opName);
-	//};
-	let OP = opName=>{
-		let ret = vm.ops[opName];
-		if(ret) return ret;
-		throw 'No opName='+opName;
-	};
-	
-	
-	//Any datastruct other than the id of a lambda starts with this byte, and you can choose evilBit of true or false.
-	//The main usecase of this is large blobs, but anything could be mounted in it such as prefix it with a contentType such as put "image/jpeg"
-	//or "application/x-multicodec" (or whats their contenttype) for the https://github.com/multiformats/multicodec data format.
-	//I'm not sure what other datastructs I'll put in, but it should branch by something very general first.
-	//TODO create a multicodec prefix for the default kind of wikibinator203 id, or allocate a range in multicodec for that
-	//(just use a big prefix so nobody else is likely to overlap it by accident or be inconvenienced by it),
-	//and make a pull request on github, but dont do that until its working in a peer to peer network and the ids are well tested.
-	//To wrap any data format (datastruct) in a lambda, use the typeval opcode such as (typeval "image/jpeg" bitstring)
-	//or (typeval "application/x-multicodec" multicodecBitstring) or something like that.
-	//Lambdas only touch lambdas. Its important for sandboxing and math consistency,
-	//so things must be wrapped and used as immutable/stateless to access them from lambdas,
-	//but VMs will need to store stuff and interact with various datastructs to optimize and organize things among lambdas,
-	//hopefully in the form of lambdas usually, but whatever that is, prefix it by vm.prefixByteOfOther_evilBitOn andOr vm.prefixByteOfOther_evilBitOff.
-	//When in doubt which you should use of evilBit being on or off, choose on since off means that by giving someone a copy of it
-	//you're claiming its good and safe for other uses. Evil means "dont know if its good or evil or where between" or "not necessarily good".
-	vm.prefixByteOfOther_evilBitOn =           0b11110100; //FIXME?
-	vm.prefixByteOfOther_evilBitOff =          0b11110000; //FIXME?
-	
-	//https://en.wikipedia.org/wiki/Evil_bit
-	//For wikibinator203, evilBit off means "the normal internet", and on means "antivirus quarantine, spread across many computers which apps may run inside".
-	//Anyone who gives execute permission to, or obeys or believes, something in an antivirus quarantine is at fault/negligence if something goes wrong,
-	//since they were told its evil and chose to do that anyways.
-	//To avoid breaking the merkle garbage collector, "evil" content that has incoming pointers will not be removed,
-	//and the same should be true for "good" content but things might get removed anyways cuz people demand things of eachother, and things might break in the "good" area.
-	//UPDATE: instead of 0b11110[0or1]00 being callpair, and the 3 after that being id of that with byte val minus 1 (id of id of id of id for example),
-	//vm.prefixByteOfOther is 0b11110[0or1]00 and callpairs start at 0b11110[0or1]01 and 0b11110[0or1]10 is "id of id"
-	//and 0b11110[0or1]11 is "id of id of id" and past that you need 2 nodes of 128 literal bits each to be 256 bits.
-	//such 256 bits doesnt imply it is or is not an id. Its just bits.
-	vm.callPairPrefixByte_evilBitOn =          0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
-	vm.callPairPrefixByte_evilBitOff =         0b11110001; //FIXME?
-	
-	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
-	//(in this case its not its own id, but most literal 256 bits are their own id).
-	vm.prefixByteOfIdOfIdOrOfAny256BitsA =     0b11110010; //FIXME?
-	vm.prefixByteOfIdOfIdOrOfAny256BitsB =     0b11110110; //FIXME?
-	
-	//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
-	//(in this case its not its own id, but most literal 256 bits are their own id).
-	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA = 0b11110011; //FIXME?
-	vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
-	
-	/*
-	FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
-	
-	TODO have a sDepth in it? so you can just give {a b} and {{a b} c} instead of (s a b) and (s (s a b) c) which is the actual lambda shape???
-	s is the most common lambda, so common theres a syntax for it. and maybe also prefix by t?
-	
-	FIXME these numbers need updating cuz theres 8 bytes above (some have an A and B, the literals that dont have an evilbit and use that bit as part of the literal).
-	//Other than the 6 bytes above,
-	//the 250 firstByte prefixes are 256 (or 512, depending on which idMaker) literal bits that are their own id.
-	//On average, 250/256 (125/128) random 256 (or 512, depending on which idMaker) bits fit in an id the same size,
-	//and 252/256 (63/64) of them fit in an id the same size even if they are not their own id.
-	//2/256 (1/128) of them fit in an id the same size as them but are not their own id.
-	//4/256 (1/64) of them require 2 ids of half as many literal bits each, to make a literal the same size as the id.
-	*/
-	
-	/*
-	//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
-	//If it does not start with 111110 then it is literal 256 bits that is its own id.
-	//Starting with 11111000 means its either a callpair including 192 bits of hash or is a literal 128 bits, or 64 or 32 or 16 or 8 or 4 or 2 or 1.
-	//vm.headerOfNonliteralCallPair = function(o8, curLeftOr, upTo8BitsOfMasks){
-	//	return (0b11111000<<24)|((o8&255)<<16)|((curLeftOr&255))|(upTo8BitsOfMasks&255);
-	//};
-	//vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, cleanMask4){
-	vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx){
-		return (vm.callPairPrefixByte<<24)|(curriesLeft12&0xfff)|(stackIsAllowstackTimestackMem?8:0)|(stackIsAllowNondetRoundoff?4:0)|(stackIsAllowMutableWrapperLambdaAndSolve?2:0)|(stackIsAllowAx?1:0);
-	};
-	//FIXME UPDATE: 6+2+8+12+4+1+31 cuz: FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
-	//FIXME its 6+2+8+16+1+31 bits. the only mask bit is in the bize int, not the header int.
-	//not "teralCallPair = function(o8, curLeftOr, upTo8BitsOf". fix those params.
-	*/
-	
-	
-	//makes a header int like this: namespaceByte o8Byte curriesLeftByte maskByte.
-	//evilBit is true or false.
-	//curriesLeft is 0 to 255. 0 means evaling. 255 means infinite number of curries/params left so never eval.
- 	//o8 is 0 to 255. 0 means evaling. 1-127 means 0-6 params of u/theUniversalFunc. opcodes 128 to 255 are known at param 7 and from then on are copied from left child.
-	//upTo8BitsOfMasks are from vm.mask_* such as vm.mask_isCbt and vm.mask_stackIsAllowNondetRoundoff.
-	vm.headerOfNonliteralCallPair = function(evilBit, o8, curriesLeft, upTo8BitsOfMasks){
-		return ((evilBit ? this.callPairPrefixByte_evilBitOn : this.callPairPrefixByte_evilBitOff)<<24)|(o8<<16)|(curriesLeft<<8)|upTo8BitsOfMasks;
-	};
-	
-	vm.mask_stackIsAllowstackTimestackMem = 1;
-	
-	vm.mask_stackIsAllowNondetRoundoff = 1<<1;
-	
-	vm.mask_stackIsAllowMutableWrapperLambdaAndSolve = 1<<2;
-	
-	//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
-	vm.mask_stackIsAllowAx = 1<<3;
-	
-	//THIS SHOULD INSTEAD JUST BE IN the evilBit in first byte (evil good or 256(or512IfIdsAre512Bit)BitLiteralNeutral) and vm.import func,
-	//and only vm.import can choose where and how to load a lambda by id, and TODO vm.import should take an idMaker param where (idMaker x) -> id of x.
-	//
-	//evilBit is a bit in ids, not a property of the lambdas themselves. Each lambda has 2 ids (at least, can make more kinds): evilBit being on or off.
-	//If this is true, can import either. If false, only allow importing from the good namespace.
-	//EvilBit is easy to parse since its evil if the first byte is vm.callPairPrefixByte_evilBitOn else (the other 255 values) are good or neutral.
-	//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
-	//vm.mask_stackIsAllowImportEvilIds = 1<<6;
-	
-	vm.mask_reservedForFutureExpansion4 = 1<<4;
-	
-	vm.mask_reservedForFutureExpansion5 = 1<<5;
-	
-	//Only includes things whose o8>127 aka has at least 7 params so op is known.
-	//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
-	//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
-	//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
-	vm.mask_isCbt = 1<<6;
-	
-	//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
-	//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
-	vm.mask_containsAxConstraint = 1<<7;
-	
-	//only includes things whose o8>127 aka has at least 7 params so op is known
-	//vm.mask_containsBit0 = 1<<4;
-	
-	//only includes things whose o8>127 aka has at least 7 params so op is known
-	//vm.mask_containsBit1 = 1<<5;
-	
-	//FIXME are there other masks? what about ieee754 float ops vs the nearest value?
-	//What about lazyevaling bize and containsBit1 and containsBit0?
-	
-	
-	vm.headerOfLiteral256BitsThatIsItOwnId = function(firstInt){
-		let first5Bits = (firstInt>>27)&0b11111;
-		if(first5Bits == 0b11110) throw 'Is not its own id cuz starts with 0b11110. vm.callPairPrefixByte_evilBitOn is that then 100 and _evilBitOff is that then 000. If those last 2 bits are not 00 then its still a literal 256 bits that fits in a 256 bit id but is not its own id as the first byte differs (counts down) so you can have id of id of id of id fits in 256 bits, but id of id of id of id of id does not so you need a callpair of 2 of 128 bits. Also TODO option for 512 bit ids for extra security.';
 		
-		/*let firstBitIs1 = firstInt<0;
-		let o8 = firstBitIs1 ? vm.o8OfBit1 : vm.o8OfBit0;
-		TODO curriesLeft... choose if bitstring goes up to around pow(2,vm.maxCurries aka 0xfff) (try for YES, todo make sure design is consistent) or just goes up to 2^31 (try for NO).
+	vm.ops = {}; //map of opName to lambda
+	let ops = vm.ops; //Example: ops.S(ops.T)(ops.T)
+	//with(ops){ //so vm can call its own ops by name, such as (Pair, L, R, S) to implement other ops
+		
+		vm.lastIdA = -1; //high 32 bits
+		vm.lastIdB = -1; //low 32 bits
+		//first lambda is u/theUniversalFunc and has idA and idB of 0.
+		//
+		//FIXME TODO ids of fns that are not doubles or literals that fit in 1 2 4 8 16 or 32 bits,
+		//should have idA whose first 13 bits are 1 (a subrange of nonnormed negative infinities as double),
+		//and all normed doubles are themself as idA_idB. So change "first lambda is u/theUniversalFunc and has idA and idB of 0".
+		
+		
+		vm.incIdAB = function(){
+			this.lastIdB = (this.lastIdB+1)|0; //wrap int32
+			if(!this.lastIdB) this.lastIdA++; //carry
+		};
+		
+		//WARNING: opNames are not part of the wikibinator203 spec and may vary across different VMs
+		//or change in later versions of the same VM.
+		//You should instead get them like u(u)(u)(u)(u)(u)(u)(u)(u) is identityFunc,
+		//but since I'm still building this first VM, many of those opcodes 128 to 255) arent known yet,
+		//and I'm using this vm.op function to make sure vm.ops.someOpName exists before using it.
+		//TODO optimize, once the ops are final (or at least the first n of them that the VM uses to implement other ops),
+		//optimize by just using those ops directly (let identityFunc = u(u)(u)(u)(u)(u)(u)(u)(u); in VM code,
+		//and use that identityFunc again multiple times.
+		//vm.op = function(opName){
+		//	return vm.ops[opName] || (throw 'No opName='+opName);
+		//};
+		let OP = opName=>{
+			let ret = vm.ops[opName];
+			if(ret) return ret;
+			throw 'No opName='+opName;
+		};
+		
+		
+		//Any datastruct other than the id of a lambda starts with this byte, and you can choose evilBit of true or false.
+		//The main usecase of this is large blobs, but anything could be mounted in it such as prefix it with a contentType such as put "image/jpeg"
+		//or "application/x-multicodec" (or whats their contenttype) for the https://github.com/multiformats/multicodec data format.
+		//I'm not sure what other datastructs I'll put in, but it should branch by something very general first.
+		//TODO create a multicodec prefix for the default kind of wikibinator203 id, or allocate a range in multicodec for that
+		//(just use a big prefix so nobody else is likely to overlap it by accident or be inconvenienced by it),
+		//and make a pull request on github, but dont do that until its working in a peer to peer network and the ids are well tested.
+		//To wrap any data format (datastruct) in a lambda, use the typeval opcode such as (typeval "image/jpeg" bitstring)
+		//or (typeval "application/x-multicodec" multicodecBitstring) or something like that.
+		//Lambdas only touch lambdas. Its important for sandboxing and math consistency,
+		//so things must be wrapped and used as immutable/stateless to access them from lambdas,
+		//but VMs will need to store stuff and interact with various datastructs to optimize and organize things among lambdas,
+		//hopefully in the form of lambdas usually, but whatever that is, prefix it by vm.prefixByteOfOther_evilBitOn andOr vm.prefixByteOfOther_evilBitOff.
+		//When in doubt which you should use of evilBit being on or off, choose on since off means that by giving someone a copy of it
+		//you're claiming its good and safe for other uses. Evil means "dont know if its good or evil or where between" or "not necessarily good".
+		vm.prefixByteOfOther_evilBitOn =           0b11110100; //FIXME?
+		vm.prefixByteOfOther_evilBitOff =          0b11110000; //FIXME?
+		
+		//https://en.wikipedia.org/wiki/Evil_bit
+		//For wikibinator203, evilBit off means "the normal internet", and on means "antivirus quarantine, spread across many computers which apps may run inside".
+		//Anyone who gives execute permission to, or obeys or believes, something in an antivirus quarantine is at fault/negligence if something goes wrong,
+		//since they were told its evil and chose to do that anyways.
+		//To avoid breaking the merkle garbage collector, "evil" content that has incoming pointers will not be removed,
+		//and the same should be true for "good" content but things might get removed anyways cuz people demand things of eachother, and things might break in the "good" area.
+		//UPDATE: instead of 0b11110[0or1]00 being callpair, and the 3 after that being id of that with byte val minus 1 (id of id of id of id for example),
+		//vm.prefixByteOfOther is 0b11110[0or1]00 and callpairs start at 0b11110[0or1]01 and 0b11110[0or1]10 is "id of id"
+		//and 0b11110[0or1]11 is "id of id of id" and past that you need 2 nodes of 128 literal bits each to be 256 bits.
+		//such 256 bits doesnt imply it is or is not an id. Its just bits.
+		vm.callPairPrefixByte_evilBitOn =          0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
+		vm.callPairPrefixByte_evilBitOff =         0b11110001; //FIXME?
+		
+		//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
+		//(in this case its not its own id, but most literal 256 bits are their own id).
+		vm.prefixByteOfIdOfIdOrOfAny256BitsA =     0b11110010; //FIXME?
+		vm.prefixByteOfIdOfIdOrOfAny256BitsB =     0b11110110; //FIXME?
+		
+		//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
+		//(in this case its not its own id, but most literal 256 bits are their own id).
+		vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA = 0b11110011; //FIXME?
+		vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
+		
+		/*
+		FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
+		
+		TODO have a sDepth in it? so you can just give {a b} and {{a b} c} instead of (s a b) and (s (s a b) c) which is the actual lambda shape???
+		s is the most common lambda, so common theres a syntax for it. and maybe also prefix by t?
+		
+		FIXME these numbers need updating cuz theres 8 bytes above (some have an A and B, the literals that dont have an evilbit and use that bit as part of the literal).
+		//Other than the 6 bytes above,
+		//the 250 firstByte prefixes are 256 (or 512, depending on which idMaker) literal bits that are their own id.
+		//On average, 250/256 (125/128) random 256 (or 512, depending on which idMaker) bits fit in an id the same size,
+		//and 252/256 (63/64) of them fit in an id the same size even if they are not their own id.
+		//2/256 (1/128) of them fit in an id the same size as them but are not their own id.
+		//4/256 (1/64) of them require 2 ids of half as many literal bits each, to make a literal the same size as the id.
 		*/
-		return firstInt;
-	};
-	
-	
-	
-	/*UPDATED PLAN FOR HEADER INT AND BIZE INT:
-	headerInt is 6+2 bits for literals vs callpair, then 8 bits of o8, then 16 bits of curriesLeft (max curriesSoFar of 2^16-2) (which you can know cbt height from).
-	bizeInt is 1 bit of doesntContainBit1 then 31 bits of bize31, so if its a bitstring then the int is the the bize, and if its all 0s then the bize int is -1 and the bize31 is 0.
-	cbt height ranges 0 to 31. curriesLeft tells the height, since its max someconstant+32 curries for cbt (cuz max of cbt31).
-	cbtN either returns (thisCbtN thisCbtN) if its param is NOT a cbtN (same height of cbt) or (thisCbtN paramCbtN) if it is, except if its a cbt31 then it returns itself regardless of param (or todo should it infloop? or return a pair of the 2 things or some other opcode or what?
-	Number of curries left is always known at 7 params. opOneMoreParam should be (u uu uu uu uu uu) as in (u uu uu uu uu uu paramName (opLambda...)),
-		and that includes 
-	header64: 6+2+8+16+1+31.
-	*/
-	
-	//TODO do I want something like a cbt but for powOf2 size lists in general?
-	
-	
-	/*TODO simplify the combo of these designs:
-	o8
-	curriesLeft
-	opOneMoreParam
-	getnamedparam
-	opLambda
-	opmut
-	opmut inside oplambda, how it uses getnamedparam (or some wrapping or variant of getnamedparam).
-	*/
-	
-	/*vm.o8Of_opOneMoreParam = TODO;
-	
-	FIXME maybe o8Of_opOneMoreParam should be moved to fewer prefix opbits so curriesLeft is always known by param number 7?
-		but if so, then the varName param cant be u (and same for the (opLambda...) param but since thats only useful if the param is an opLambda thats not a problem.
-		It wont know curriesLeft until (opOneMoreParam paramName (opLambda...)), so maybe it should be (u uu uu uu uu uu paramName (opLambda...)) ?
-		Yes do that, and get paramsLeft from (opLambda...)'s paramsLeft plus some constant.
-		Or... could expand to o10, but that seems wasteful.
-		Could maybe have space for storing more of paramsLeft in header. Or do I want 5 of those bits for cbt height (which ranges 0 to 31) and a few mask bits?
-			Or height in general in 6 or 7 bits and the last height value means "higher than that"?
-		Or curriesSoFar (instead of storing height), either way up to some max stored val that means "higher than that"?
+		
+		/*
+		//only for the kind of callpairs whose id starts with 11111000. If it starts with 11111001 or 11111010 or 11111011 then its a literal 256 bits but is not its own id.
+		//If it does not start with 111110 then it is literal 256 bits that is its own id.
+		//Starting with 11111000 means its either a callpair including 192 bits of hash or is a literal 128 bits, or 64 or 32 or 16 or 8 or 4 or 2 or 1.
+		//vm.headerOfNonliteralCallPair = function(o8, curLeftOr, upTo8BitsOfMasks){
+		//	return (0b11111000<<24)|((o8&255)<<16)|((curLeftOr&255))|(upTo8BitsOfMasks&255);
+		//};
+		//vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, cleanMask4){
+		vm.headerOfNonliteralCallPair = function(o8, curriesLeft12, stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambdaAndSolve, stackIsAllowAx){
+			return (vm.callPairPrefixByte<<24)|(curriesLeft12&0xfff)|(stackIsAllowstackTimestackMem?8:0)|(stackIsAllowNondetRoundoff?4:0)|(stackIsAllowMutableWrapperLambdaAndSolve?2:0)|(stackIsAllowAx?1:0);
+		};
+		//FIXME UPDATE: 6+2+8+12+4+1+31 cuz: FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
+		//FIXME its 6+2+8+16+1+31 bits. the only mask bit is in the bize int, not the header int.
+		//not "teralCallPair = function(o8, curLeftOr, upTo8BitsOf". fix those params.
+		*/
+		
+		
+		//makes a header int like this: namespaceByte o8Byte curriesLeftByte maskByte.
+		//evilBit is true or false.
+		//curriesLeft is 0 to 255. 0 means evaling. 255 means infinite number of curries/params left so never eval.
+		//o8 is 0 to 255. 0 means evaling. 1-127 means 0-6 params of u/theUniversalFunc. opcodes 128 to 255 are known at param 7 and from then on are copied from left child.
+		//upTo8BitsOfMasks are from vm.mask_* such as vm.mask_isCbt and vm.mask_stackIsAllowNondetRoundoff.
+		vm.headerOfNonliteralCallPair = function(evilBit, o8, curriesLeft, upTo8BitsOfMasks){
+			return ((evilBit ? this.callPairPrefixByte_evilBitOn : this.callPairPrefixByte_evilBitOff)<<24)|(o8<<16)|(curriesLeft<<8)|upTo8BitsOfMasks;
+		};
+		
+		vm.mask_stackIsAllowstackTimestackMem = 1;
+		
+		vm.mask_stackIsAllowNondetRoundoff = 1<<1;
+		
+		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve = 1<<2;
+		
+		//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
+		vm.mask_stackIsAllowAx = 1<<3;
+		
+		//THIS SHOULD INSTEAD JUST BE IN the evilBit in first byte (evil good or 256(or512IfIdsAre512Bit)BitLiteralNeutral) and vm.import func,
+		//and only vm.import can choose where and how to load a lambda by id, and TODO vm.import should take an idMaker param where (idMaker x) -> id of x.
+		//
+		//evilBit is a bit in ids, not a property of the lambdas themselves. Each lambda has 2 ids (at least, can make more kinds): evilBit being on or off.
+		//If this is true, can import either. If false, only allow importing from the good namespace.
+		//EvilBit is easy to parse since its evil if the first byte is vm.callPairPrefixByte_evilBitOn else (the other 255 values) are good or neutral.
+		//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
+		//vm.mask_stackIsAllowImportEvilIds = 1<<6;
+		
+		vm.mask_reservedForFutureExpansion4 = 1<<4;
+		
+		vm.mask_reservedForFutureExpansion5 = 1<<5;
+		
+		//Only includes things whose o8>127 aka has at least 7 params so op is known.
+		//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
+		//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
+		//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
+		vm.mask_isCbt = 1<<6;
+		
+		//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
+		//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
+		vm.mask_containsAxConstraint = 1<<7;
+		
+		//only includes things whose o8>127 aka has at least 7 params so op is known
+		//vm.mask_containsBit0 = 1<<4;
+		
+		//only includes things whose o8>127 aka has at least 7 params so op is known
+		//vm.mask_containsBit1 = 1<<5;
+		
+		//FIXME are there other masks? what about ieee754 float ops vs the nearest value?
+		//What about lazyevaling bize and containsBit1 and containsBit0?
+		
+		
+		vm.headerOfLiteral256BitsThatIsItOwnId = function(firstInt){
+			let first5Bits = (firstInt>>27)&0b11111;
+			if(first5Bits == 0b11110) throw 'Is not its own id cuz starts with 0b11110. vm.callPairPrefixByte_evilBitOn is that then 100 and _evilBitOff is that then 000. If those last 2 bits are not 00 then its still a literal 256 bits that fits in a 256 bit id but is not its own id as the first byte differs (counts down) so you can have id of id of id of id fits in 256 bits, but id of id of id of id of id does not so you need a callpair of 2 of 128 bits. Also TODO option for 512 bit ids for extra security.';
 			
-	Which bits should go in the mask in header?
-	containsBit1 (this could go in the high 1 bit of the bize int (whose low 31 bits are bize31), but I'd rather not have to mask bize.
-	(reserved space to put the 3 kinds of clean/dirty so 3 bits?)
-	(isEvaling? dont need this since o8==0 means isEvaling.
-	(isCallPair_elseIsSomethingElseSuchAsA3091BitBlob_orAMulticodecMultihash_orADataurl_orAHttpMessageDatastruct?)
-	
-	TODO bize int will be -1 for if it contains no 1 bit? or should it be -pow(2,31)?
-	-1 means is all 0s. -2 means this bize int hasnt been set yet (lazyEval it cuz wrap arrays).
-	*/
-	
-	//vm.maxCurries = 0xffff;
-	//FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
-	
-	
-	//max finite curries left is this minus 1. curries left of u/theUniversalFunc is 7 since opcode is always known at the 7th param.
-	//If aNode.curriesLeft==vm.maxCurriesLeft, that node will never eval, which happens when opOneMoreParam reaches maxCurriesLeft or opInfcur starts that way.
-	//so if vm.maxCurriesLeft is 0xfff (4095) then the max curries left of a lambda to call its funcBody (on the (opOneMoreParam varNameOrComment (lambda funcBody ...)))
-	//is 4094 params its waiting for, not including those its already got such as (lambda funcBodyOfVarargPlus ?a 5 ?b ?c 6 7)
-	//would call (funcBodyOfVarargPlus (pair (lambda funcBodyOfVarargPlus ?a 5 ?b ?c 6) 7)).
-	//(lambda funcBodyOfVarargPlus ?a 5 ?b ?c) has 2 curriesLeft (TODO fixme what about the param right after funcBody
-	//in (lambda funcBody onlyGetOneParamUnlessVarargToGetMore)? is it 3 curriesLeft? maybe should ignore the onlyGetOneParamUnlessVarargToGetMore param
-	//similar to how a lazyeval ignores its last param, and do all params using opOneMoreParam.
-	//
-	//Dont change vm.maxCurriesLeft unless you can fit it in header int, and its already packed tight using every bit, or unless you want to give up hash id bits,
-	//and 192 bits of hash is already not much.
-	//
-	//vm.maxCurriesLeft = 0xfff;
-	vm.maxCurriesLeft = 0xff;
-	
-	//DONE: rename to vm.maxCurriesLeft? or is it maxCurries in total? See "(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params" comment.
-	
-	vm.opInfo = []; //size 256
-	
-	//vm.defaultIdMaker256 = 
-	//vm.defaultIdMaker512 = 
-	
-	//Similar to the solve op, (import idMaker id)-> any x where (idMaker x)->id. Use (import idMaker) as the import func for that kind of id.
-	//Any lambda can be an idMaker if when called on any lambda it always halts and returns the same size of bits such as always 256 bits or always 512 bits,
-	//and the first byte should mean the same thing among all possible kinds of ids to make it easy to parse evilBit and literals.
-	vm.import = function(idMaker, globalIdStringOrBits){
-		throw 'TODO instantly return a Node that it tries to load async, especially if Node.L() or Node.R() etc are called on it? So can run this in a loop for efficient batch loading of nodes/lambdas?';
-	};
-	
-	//evilBit only affects ids. Any VM can import both good and evil lambdas. Its 2 namespaces, 2 ids for the same lambda
-	//(or if its 256 literal bits that fit in a 256 bit id, its in a third "neutral" namespace cuz has no header therefore no evilBit being true or false).
-	//Lambdas cant know if they are good or evil since that's just an interpretation of an observer.
-	//evilBit is more of a word, something you can say about a lambda. Its also part of the opensource license
-	//how they are to interact with eachother.
-	//To avoid accidentally defining something as "certainly good", I'm just making all the evilBits be true for now or when they are generated,
-	//and users andOr whatever tools they want, can flip the evilBit to good/false in lambdas they choose when sharing them online, if they want to.
-	//UPDATE: I'm adding another bit on the stack to limit the use of the import op to "any lambda" vs "only good lambdas": vm.mask_stackIsAllowImportEvilIds.
-	vm.evilBit = true;
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	vm.overlappingBufferInts = new Int32Array(2);
-	vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
-	//FIXME do they overlap as bigEndian or littleEndian, and is it per int or per byte or what? Make it consistent across all systems,
-	//and I would prefer bigEndian unless most or all systems already do littleEndian in browser.
-	
-	vm.isLambda = function(thing){
-		//FIXME some rare times there could be false positive.
-		return thing.n && typeof(thing)=='function';
-	};
-	
-	vm.wrapInTypeval = function(thing){
-		if(vm.isLambda(thing)) return thing;
-		throw 'TODO';
-	};
-	
-	vm.wrapRaw = function(thing){
-		if(vm.isLambda(thing)) return thing;
-		switch(typeof(thing)){
-		case 'number':
-			//FIXME prefix it with (typeval 'application/x-ieee754-double'). No, do that in wrapInTypeval.
-			vm.overlappingBufferDouble[0] = thing;
-			let ints = Int32Array.of(vm.overlappingBufferInts[0], vm.overlappingBufferInts[1]); //FIXME bigendian vs littleendian and of ints vs bytes??
-			let node = new vm.Node(this, null, null, ints, 0, 2);
-			console.log('FIXME put in dedup map'); //FIXME FIXME FIXME!!!!
-			return vm.lambdize(node);
-		break; case 'string':
-			throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
-		break;default:
+			/*let firstBitIs1 = firstInt<0;
+			let o8 = firstBitIs1 ? vm.o8OfBit1 : vm.o8OfBit0;
+			TODO curriesLeft... choose if bitstring goes up to around pow(2,vm.maxCurries aka 0xfff) (try for YES, todo make sure design is consistent) or just goes up to 2^31 (try for NO).
+			*/
+			return firstInt;
+		};
+		
+		
+		
+		/*UPDATED PLAN FOR HEADER INT AND BIZE INT:
+		headerInt is 6+2 bits for literals vs callpair, then 8 bits of o8, then 16 bits of curriesLeft (max curriesSoFar of 2^16-2) (which you can know cbt height from).
+		bizeInt is 1 bit of doesntContainBit1 then 31 bits of bize31, so if its a bitstring then the int is the the bize, and if its all 0s then the bize int is -1 and the bize31 is 0.
+		cbt height ranges 0 to 31. curriesLeft tells the height, since its max someconstant+32 curries for cbt (cuz max of cbt31).
+		cbtN either returns (thisCbtN thisCbtN) if its param is NOT a cbtN (same height of cbt) or (thisCbtN paramCbtN) if it is, except if its a cbt31 then it returns itself regardless of param (or todo should it infloop? or return a pair of the 2 things or some other opcode or what?
+		Number of curries left is always known at 7 params. opOneMoreParam should be (u uu uu uu uu uu) as in (u uu uu uu uu uu paramName (opLambda...)),
+			and that includes 
+		header64: 6+2+8+16+1+31.
+		*/
+		
+		//TODO do I want something like a cbt but for powOf2 size lists in general?
+		
+		
+		/*TODO simplify the combo of these designs:
+		o8
+		curriesLeft
+		opOneMoreParam
+		getnamedparam
+		opLambda
+		opmut
+		opmut inside oplambda, how it uses getnamedparam (or some wrapping or variant of getnamedparam).
+		*/
+		
+		/*vm.o8Of_opOneMoreParam = TODO;
+		
+		FIXME maybe o8Of_opOneMoreParam should be moved to fewer prefix opbits so curriesLeft is always known by param number 7?
+			but if so, then the varName param cant be u (and same for the (opLambda...) param but since thats only useful if the param is an opLambda thats not a problem.
+			It wont know curriesLeft until (opOneMoreParam paramName (opLambda...)), so maybe it should be (u uu uu uu uu uu paramName (opLambda...)) ?
+			Yes do that, and get paramsLeft from (opLambda...)'s paramsLeft plus some constant.
+			Or... could expand to o10, but that seems wasteful.
+			Could maybe have space for storing more of paramsLeft in header. Or do I want 5 of those bits for cbt height (which ranges 0 to 31) and a few mask bits?
+				Or height in general in 6 or 7 bits and the last height value means "higher than that"?
+			Or curriesSoFar (instead of storing height), either way up to some max stored val that means "higher than that"?
+				
+		Which bits should go in the mask in header?
+		containsBit1 (this could go in the high 1 bit of the bize int (whose low 31 bits are bize31), but I'd rather not have to mask bize.
+		(reserved space to put the 3 kinds of clean/dirty so 3 bits?)
+		(isEvaling? dont need this since o8==0 means isEvaling.
+		(isCallPair_elseIsSomethingElseSuchAsA3091BitBlob_orAMulticodecMultihash_orADataurl_orAHttpMessageDatastruct?)
+		
+		TODO bize int will be -1 for if it contains no 1 bit? or should it be -pow(2,31)?
+		-1 means is all 0s. -2 means this bize int hasnt been set yet (lazyEval it cuz wrap arrays).
+		*/
+		
+		//vm.maxCurries = 0xffff;
+		//FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
+		
+		
+		//max finite curries left is this minus 1. curries left of u/theUniversalFunc is 7 since opcode is always known at the 7th param.
+		//If aNode.curriesLeft==vm.maxCurriesLeft, that node will never eval, which happens when opOneMoreParam reaches maxCurriesLeft or opInfcur starts that way.
+		//so if vm.maxCurriesLeft is 0xfff (4095) then the max curries left of a lambda to call its funcBody (on the (opOneMoreParam varNameOrComment (lambda funcBody ...)))
+		//is 4094 params its waiting for, not including those its already got such as (lambda funcBodyOfVarargPlus ?a 5 ?b ?c 6 7)
+		//would call (funcBodyOfVarargPlus (pair (lambda funcBodyOfVarargPlus ?a 5 ?b ?c 6) 7)).
+		//(lambda funcBodyOfVarargPlus ?a 5 ?b ?c) has 2 curriesLeft (TODO fixme what about the param right after funcBody
+		//in (lambda funcBody onlyGetOneParamUnlessVarargToGetMore)? is it 3 curriesLeft? maybe should ignore the onlyGetOneParamUnlessVarargToGetMore param
+		//similar to how a lazyeval ignores its last param, and do all params using opOneMoreParam.
+		//
+		//Dont change vm.maxCurriesLeft unless you can fit it in header int, and its already packed tight using every bit, or unless you want to give up hash id bits,
+		//and 192 bits of hash is already not much.
+		//
+		//vm.maxCurriesLeft = 0xfff;
+		vm.maxCurriesLeft = 0xff;
+		
+		//DONE: rename to vm.maxCurriesLeft? or is it maxCurries in total? See "(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params" comment.
+		
+		vm.opInfo = []; //size 256
+		
+		//vm.defaultIdMaker256 = 
+		//vm.defaultIdMaker512 = 
+		
+		//Similar to the solve op, (import idMaker id)-> any x where (idMaker x)->id. Use (import idMaker) as the import func for that kind of id.
+		//Any lambda can be an idMaker if when called on any lambda it always halts and returns the same size of bits such as always 256 bits or always 512 bits,
+		//and the first byte should mean the same thing among all possible kinds of ids to make it easy to parse evilBit and literals.
+		vm.import = function(idMaker, globalIdStringOrBits){
+			throw 'TODO instantly return a Node that it tries to load async, especially if Node.L() or Node.R() etc are called on it? So can run this in a loop for efficient batch loading of nodes/lambdas?';
+		};
+		
+		//evilBit only affects ids. Any VM can import both good and evil lambdas. Its 2 namespaces, 2 ids for the same lambda
+		//(or if its 256 literal bits that fit in a 256 bit id, its in a third "neutral" namespace cuz has no header therefore no evilBit being true or false).
+		//Lambdas cant know if they are good or evil since that's just an interpretation of an observer.
+		//evilBit is more of a word, something you can say about a lambda. Its also part of the opensource license
+		//how they are to interact with eachother.
+		//To avoid accidentally defining something as "certainly good", I'm just making all the evilBits be true for now or when they are generated,
+		//and users andOr whatever tools they want, can flip the evilBit to good/false in lambdas they choose when sharing them online, if they want to.
+		//UPDATE: I'm adding another bit on the stack to limit the use of the import op to "any lambda" vs "only good lambdas": vm.mask_stackIsAllowImportEvilIds.
+		vm.evilBit = true;
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		vm.overlappingBufferInts = new Int32Array(2);
+		vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
+		//FIXME do they overlap as bigEndian or littleEndian, and is it per int or per byte or what? Make it consistent across all systems,
+		//and I would prefer bigEndian unless most or all systems already do littleEndian in browser.
+		
+		vm.isLambda = function(thing){
+			//FIXME some rare times there could be false positive.
+			return thing.n && typeof(thing)=='function';
+		};
+		
+		vm.wrapInTypeval = function(thing){
+			if(vm.isLambda(thing)) return thing;
 			throw 'TODO';
-		}
-	};
-	
-
-	//the datastruct of forest of lambdas, each with 2 childs (Node.l and Node.r, which are the lambdize wrappers of Node) where all paths lead to the universal lambda.
-	//lambdize means to wrap a Node in a lambda. Node is the internal workings of a lambda.
-	//
-	vm.Node = function(vm,l,r,optionalBlob,optionalBlobFrom,optionalBlobTo){ //TODO rename these params to myL and myR cuz l and r are opcode names. its ok to keep this.l and this.r.
+		};
 		
-		//TODO "header64: 6+2+8+16+1+31", see comment about it.
-		
-		this.l = l;
-		this.r = r;
-		this.cacheFuncBody = null;
-		
-		let isLeaf = r==null;
-		
-		
-		//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
-		//evalers take 3 params: vm func param, instead of making a node of func and param together.
-		//In case other implementations want to have nodes that are evaling (maybe to display them on screen as a directed graphics
-		//with green arrow pointing at left child, blue arrow pointing at right child, and red arrow pointing at what it evals to (itself if is halted, or another lambda,
-		//or to (s i i (s i i)) if its known that it doesnt halt, for example.
-		//if(isEvaling) throw 'Dont eval here, use aLambda().getEvaler() aka aNode.getEvaler()';
-		
-		
-		let curriesLeft;
-		let op;
-		if(isLeaf){
-			op = 1; //u/leaf, the universal lambda
-			curriesLeft = 7; //eval again at 7 just to store what op it is in header. Nothing actually evals at 7 params.
-		}else{
-			
-			let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
-			let rNode = r();
-			let leftOp = lNode.o8();
-			let rightOp = rNode.o8();
-			let lcur = lNode.curriesLeft();
-			let isLessThan7Params = leftOp < 64; //including (l r)
-			let leftOpLessThan128 = leftOp < 128;
-			let chooseOpNowOrEval = lcur==1;
-			let isNowGettingIts7thParam = leftOpLessThan128 && chooseOpNowOrEval;
-			/*let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
-			let isEvaling;
-			let leftIsCbt = (leftOp == vm.o8OfBit0 || leftOp == vm.opOfBit1);
-			if(leftIsCbt){
-				let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
-				let rcur = rNode.curriesLeft;
-				//If its 2 cbts of same size that together dont exceed max cbt size, thats halted, just make the callpair.
-				//If it would exceed max cbt size or they are different sizes of cbt or if r is not a cbt, thats evaling (TODO choose a design to infloop or replace r with l so (r r), and maybe if cbt size gets too big just put it in an infcur).
-				isEvaling = !rightIsCbt || (lcur!=rcur) || lcur==4094; //curriesLeftRaw of 4095 means infinite curriesLeft, and cbt never reaches that (todo put in infcur instead?)
-			}else{
-				isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
-			}*/
-			let isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
-			
-			if(isEvaling){
-				op = 0;
-			}else if(leftOpLessThan128){
-				//curriesLeft = lcur-1;
-				
-				//less than 7 params so far. Op is not known until 7 params. Shift the op bits up 1 and put a 0 (if r is leaf) or 1 (if r is not leaf) in
-				if(rightOp == 1){
-					op = leftOp<<1; //r is leaf, put in 0
-				}else{
-					op = (leftOp<<1)|1; //r is not leaf, put in 1
-				}
-			}else{
-				//if l and r are 2 cbts of same size that would not exceed max cbt size, that happens here, just make the callpair. or it may not be a cbt here.
-				op = leftOp; //copy op from l child since op is known at 7 params and is just copied from left child after that
+		vm.wrapRaw = function(thing){
+			if(vm.isLambda(thing)) return thing;
+			switch(typeof(thing)){
+			case 'number':
+				//FIXME prefix it with (typeval 'application/x-ieee754-double'). No, do that in wrapInTypeval.
+				vm.overlappingBufferDouble[0] = thing;
+				let ints = Int32Array.of(vm.overlappingBufferInts[0], vm.overlappingBufferInts[1]); //FIXME bigendian vs littleendian and of ints vs bytes??
+				let node = new vm.Node(this, null, null, ints, 0, 2);
+				console.log('FIXME put in dedup map'); //FIXME FIXME FIXME!!!!
+				return vm.lambdize(node);
+			break; case 'string':
+				throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
+			break;default:
+				throw 'TODO';
 			}
+		};
+		
+
+		//the datastruct of forest of lambdas, each with 2 childs (Node.l and Node.r, which are the lambdize wrappers of Node) where all paths lead to the universal lambda.
+		//lambdize means to wrap a Node in a lambda. Node is the internal workings of a lambda.
+		//
+		vm.Node = function(vm,l,r,optionalBlob,optionalBlobFrom,optionalBlobTo){ //TODO rename these params to myL and myR cuz l and r are opcode names. its ok to keep this.l and this.r.
 			
-			if(isLessThan7Params){
-				curriesLeft = lcur-1; //at least 1
-				//TODO?? use throw vm.o8ToNumParams[this.op];? it could be computed either way, but lcur-1 is probably faster???
-			}else if(isNowGettingIts7thParam){
-				if(op == vm.o8Of_opOneMoreParam){ //the only vararg op
-					//(opOneMoreParam varNameOrComment lambdaCallToAddParamTo), not including (opOneMoreParam varNameOrComment lambdaCallToAddParamTo ...params...) since lambdaCallToAddParamTo is the 7th param and varNameOrComment is the 6th param
-					//(neither can be u/leaf since that would be a different op, and I designed it to always know the number of params by the 7th param.
-					let varNameOrComment = lNode.r;
-					let lambdaCallToAddParamTo = r;
-					let lambdaNumCurries = lambdaCallToAddParamTo().curriesLeft();
-					//let newNumCurries = lambdaCallToAddParamTo().curriesLeft()+1;
-					if(lambdaNumCurries < vm.maxCurries){ //(opOneMoreParam varNameOrComment (lambda...)) as usual, and later (opOneMoreParam varNameOrComment (lambda...) ...put more params here...).
-						curriesLeft = lambdaNumCurries+1; //if curriesLeft==vm.maxCurries, then it will never eval, similar to infcur
-					}else{
-						//(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params.
-						//also cant infloop or throw like running out of gas, cuz the number of params is always known at the 7th param,
-						//and in that case (lambda...) is the 7th param, and varNameOrComment is the 6th param.
-						//So what should this do? It shouldnt call the funcBody found deep inside the (lambda funcBody ...),
-						//cuz funcBody expects the number of params to match the number of opOneMoreParam its inside plus a certain constant (TODO which constant? 5? 8? etc),
-						//and it would be confusing for other lambdas to get a (opOneMoreParam varNameOrComment (lambda...))
-						//as a param if it has less curriesLeft than as if it hadnt reached the max.
-						//I dont want to infloop (aka throw cuz would run out of gas if did the infloop) cuz 7 params should be halted.
-						//I dont want to use curriesLeft==vm.maxCurries to mean an unlimited number of curries left (never eval)
-						//cuz theres some number of curries already (a variable amount cuz some came in).
-						//I choose this design: rename vm.maxCurries to vm.maxCurriesLeft, and if aNode.curriesLeft==vm.maxCurriesLeft that means infinity (never eval).
-						newNumCurries = vm.maxCurries; //never eval, similar to infcur
-					}
-				}else{ //not vararg. set curriesLeft to the constant number of params the op takes, of 128 ops (o8 is 128 to 255).
-					curriesLeft = vm.opInfo[op].curriesLeft;
-				}
-			}else{ //is more than 7 params, so op is copied from left child. need to check if its about to eval
+			//TODO "header64: 6+2+8+16+1+31", see comment about it.
+			
+			this.l = l;
+			this.r = r;
+			this.cacheFuncBody = null;
+			
+			let isLeaf = r==null;
+			
+			
+			//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
+			//evalers take 3 params: vm func param, instead of making a node of func and param together.
+			//In case other implementations want to have nodes that are evaling (maybe to display them on screen as a directed graphics
+			//with green arrow pointing at left child, blue arrow pointing at right child, and red arrow pointing at what it evals to (itself if is halted, or another lambda,
+			//or to (s i i (s i i)) if its known that it doesnt halt, for example.
+			//if(isEvaling) throw 'Dont eval here, use aLambda().getEvaler() aka aNode.getEvaler()';
+			
+			
+			let curriesLeft;
+			let op;
+			if(isLeaf){
+				op = 1; //u/leaf, the universal lambda
+				curriesLeft = 7; //eval again at 7 just to store what op it is in header. Nothing actually evals at 7 params.
+			}else{
+				
+				let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
+				let rNode = r();
+				let leftOp = lNode.o8();
+				let rightOp = rNode.o8();
+				let lcur = lNode.curriesLeft();
+				let isLessThan7Params = leftOp < 64; //including (l r)
+				let leftOpLessThan128 = leftOp < 128;
+				let chooseOpNowOrEval = lcur==1;
+				let isNowGettingIts7thParam = leftOpLessThan128 && chooseOpNowOrEval;
+				/*let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
+				let isEvaling;
+				let leftIsCbt = (leftOp == vm.o8OfBit0 || leftOp == vm.opOfBit1);
+				if(leftIsCbt){
+					let rightIsCbt = (rightOp == vm.o8OfBit0 || rightOp == vm.opOfBit1);
+					let rcur = rNode.curriesLeft;
+					//If its 2 cbts of same size that together dont exceed max cbt size, thats halted, just make the callpair.
+					//If it would exceed max cbt size or they are different sizes of cbt or if r is not a cbt, thats evaling (TODO choose a design to infloop or replace r with l so (r r), and maybe if cbt size gets too big just put it in an infcur).
+					isEvaling = !rightIsCbt || (lcur!=rcur) || lcur==4094; //curriesLeftRaw of 4095 means infinite curriesLeft, and cbt never reaches that (todo put in infcur instead?)
+				}else{
+					isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
+				}*/
+				let isEvaling = !leftOpLessThan128 && chooseOpNowOrEval;
+				
 				if(isEvaling){
-					curriesLeft = 0; //in case lcur-1 is -1 which could happen if l (left lambda child) isEvaling.
-				}else{
-					if(lcur == vm.maxCurriesLeft){
-						curriesLeft = lcur; //never eval. This happens when enough opOneMoreParam of opOneMoreParam... reach vm.maxCurriesLeft or opInfcur starts at vm.maxCurriesLeft.
+					op = 0;
+				}else if(leftOpLessThan128){
+					//curriesLeft = lcur-1;
+					
+					//less than 7 params so far. Op is not known until 7 params. Shift the op bits up 1 and put a 0 (if r is leaf) or 1 (if r is not leaf) in
+					if(rightOp == 1){
+						op = leftOp<<1; //r is leaf, put in 0
 					}else{
-						curriesLeft = lcur-1; //r is the next curry, so count 1 less
+						op = (leftOp<<1)|1; //r is not leaf, put in 1
+					}
+				}else{
+					//if l and r are 2 cbts of same size that would not exceed max cbt size, that happens here, just make the callpair. or it may not be a cbt here.
+					op = leftOp; //copy op from l child since op is known at 7 params and is just copied from left child after that
+				}
+				
+				if(isLessThan7Params){
+					curriesLeft = lcur-1; //at least 1
+					//TODO?? use throw vm.o8ToNumParams[this.op];? it could be computed either way, but lcur-1 is probably faster???
+				}else if(isNowGettingIts7thParam){
+					if(op == vm.o8Of_opOneMoreParam){ //the only vararg op
+						//(opOneMoreParam varNameOrComment lambdaCallToAddParamTo), not including (opOneMoreParam varNameOrComment lambdaCallToAddParamTo ...params...) since lambdaCallToAddParamTo is the 7th param and varNameOrComment is the 6th param
+						//(neither can be u/leaf since that would be a different op, and I designed it to always know the number of params by the 7th param.
+						let varNameOrComment = lNode.r;
+						let lambdaCallToAddParamTo = r;
+						let lambdaNumCurries = lambdaCallToAddParamTo().curriesLeft();
+						//let newNumCurries = lambdaCallToAddParamTo().curriesLeft()+1;
+						if(lambdaNumCurries < vm.maxCurries){ //(opOneMoreParam varNameOrComment (lambda...)) as usual, and later (opOneMoreParam varNameOrComment (lambda...) ...put more params here...).
+							curriesLeft = lambdaNumCurries+1; //if curriesLeft==vm.maxCurries, then it will never eval, similar to infcur
+						}else{
+							//(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params.
+							//also cant infloop or throw like running out of gas, cuz the number of params is always known at the 7th param,
+							//and in that case (lambda...) is the 7th param, and varNameOrComment is the 6th param.
+							//So what should this do? It shouldnt call the funcBody found deep inside the (lambda funcBody ...),
+							//cuz funcBody expects the number of params to match the number of opOneMoreParam its inside plus a certain constant (TODO which constant? 5? 8? etc),
+							//and it would be confusing for other lambdas to get a (opOneMoreParam varNameOrComment (lambda...))
+							//as a param if it has less curriesLeft than as if it hadnt reached the max.
+							//I dont want to infloop (aka throw cuz would run out of gas if did the infloop) cuz 7 params should be halted.
+							//I dont want to use curriesLeft==vm.maxCurries to mean an unlimited number of curries left (never eval)
+							//cuz theres some number of curries already (a variable amount cuz some came in).
+							//I choose this design: rename vm.maxCurries to vm.maxCurriesLeft, and if aNode.curriesLeft==vm.maxCurriesLeft that means infinity (never eval).
+							newNumCurries = vm.maxCurries; //never eval, similar to infcur
+						}
+					}else{ //not vararg. set curriesLeft to the constant number of params the op takes, of 128 ops (o8 is 128 to 255).
+						curriesLeft = vm.opInfo[op].curriesLeft;
+					}
+				}else{ //is more than 7 params, so op is copied from left child. need to check if its about to eval
+					if(isEvaling){
+						curriesLeft = 0; //in case lcur-1 is -1 which could happen if l (left lambda child) isEvaling.
+					}else{
+						if(lcur == vm.maxCurriesLeft){
+							curriesLeft = lcur; //never eval. This happens when enough opOneMoreParam of opOneMoreParam... reach vm.maxCurriesLeft or opInfcur starts at vm.maxCurriesLeft.
+						}else{
+							curriesLeft = lcur-1; //r is the next curry, so count 1 less
+						}
 					}
 				}
 			}
-		}
-		//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
-		
-		/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
-		vm.mask_stackIsAllowstackTimestackMem
-		vm.mask_stackIsAllowNondetRoundoff
-		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
-		vm.mask_stackIsAllowAx
-		vm.mask_reservedForFutureExpansion4
-		vm.mask_reservedForFutureExpansion5
-		vm.mask_isCbt
-		vm.mask_containsAxConstraint
-		*/
-		let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
-		
-		this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, curriesLeft, upTo8BitsOfMasks);
-		
-		/*TODO order the params of headerOfNonliteralCallPair the same order they occur in the header int,
-			and include the 4 bits of cleanvsdirty, and these: containsBit1 containsBit0, containsAxConstraint, containsNonBitOtherThanLessThan7Params,
-			and I might want another cleanvsdirty bit for IEEE754 float32 and float64 ops but only if they can be defined deterministicly,
-			so that even if Math.sin Math.tanh etc are nondeterministic roundoff, that there would be some
-			welldefined correct answer of 128 bits to 64 bits (double,double)->double, vs the only welldefined way (at max cleanness) being whatever double
-			value is closest to if it had been done with infinite precision. Some (double,double)->double seem to always match between
-			javascript and java and across multiple computers (and should be tested in more systems),
-			such as double*double and double+double, but double/double seems less reliable.
-			In any case, an unlimited number of new "opcodes" can be added to the system,
-			and optimized by making a node.evaler for a group of them or for each (and such evaler may be made of the opmut (uses vm.Mut datastruct)
-			so could in theory be compiled at runtime to javascript instead of needing to modify the VM).
-			If need another bit, there is a bit left in bize int since only low 31 bits of bize are stored, but maybe that bit should say that theres more bits or not,
-			but thats unnecessary since curriesLeft is stored, and since max bitstring size is (approx, todo verify) 2^247-1 bits (vm.maxCurriesLeft is 255),
-			the bit of is there more bits of bize is already knowable from [curriesLeft and o8].
-			Or that high bit in bize int is used for lazyEval of bize, so dont put anything there.
-		*/
+			//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
 			
-		//int. 6 bits are 111110 for is literal self or not. then 2 bits (00 is callpair, else is literal 256 bits).
-		//then o8. then curriesLeftOr255ToMeanMoreThan254. then up to 8 mask bits (containsBit1, etc).
-		//this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, upTo8BitsOfMasks, curriesLeft); //FIXME check if it is a literal (globalId256 does not start with 11111000).
-		//this.header = 0; //FIXME need to compute header as int
-		
-		//FIXME instead of -1 meaning the following comments about bize, use containsBit1 containsBit0, containsNonBitOtherThanLessThan7Params.
-		//int. bize is max 31 bits. past that it will make linkedlist or something (todo) of cbts.
-		this.bize = -2; //-2 means dont know bize yet (lazyEval). -1 means its all 0s or is not a cbt. nonnegative means its the low 31 bits of the index of the last 1 bit. FIXME TODO write code to deal with that in blob and normal callpairs
-		//FIXME set bize
-		
-		vm.incIdAB(); //change vm.lastIdA and vm.lastIdB.
-		//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
-		this.idA = vm.lastIdA
-		this.idB = vm.lastIdB;
-		this.blobFrom = optionalBlobFrom | 0; //int. TODO
-		this.blobTo = optionalBlobTo | 0; //int. TODO
-		
-		//this.blob = TODO null or Int32Array.
-		//The id of the blob is this.idA with this.idB. Every node with that id64 has the same blob and may differ in blobFrom and blobTo.
-		this.blob = optionalBlob; //TODO null or Int32Array.
-		
-		//this.idString;
-		
-		this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
-		
-		//this.prototype.prototype = vm;
+			/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
+			vm.mask_stackIsAllowstackTimestackMem
+			vm.mask_stackIsAllowNondetRoundoff
+			vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
+			vm.mask_stackIsAllowAx
+			vm.mask_reservedForFutureExpansion4
+			vm.mask_reservedForFutureExpansion5
+			vm.mask_isCbt
+			vm.mask_containsAxConstraint
+			*/
+			let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
+			
+			this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, curriesLeft, upTo8BitsOfMasks);
+			
+			/*TODO order the params of headerOfNonliteralCallPair the same order they occur in the header int,
+				and include the 4 bits of cleanvsdirty, and these: containsBit1 containsBit0, containsAxConstraint, containsNonBitOtherThanLessThan7Params,
+				and I might want another cleanvsdirty bit for IEEE754 float32 and float64 ops but only if they can be defined deterministicly,
+				so that even if Math.sin Math.tanh etc are nondeterministic roundoff, that there would be some
+				welldefined correct answer of 128 bits to 64 bits (double,double)->double, vs the only welldefined way (at max cleanness) being whatever double
+				value is closest to if it had been done with infinite precision. Some (double,double)->double seem to always match between
+				javascript and java and across multiple computers (and should be tested in more systems),
+				such as double*double and double+double, but double/double seems less reliable.
+				In any case, an unlimited number of new "opcodes" can be added to the system,
+				and optimized by making a node.evaler for a group of them or for each (and such evaler may be made of the opmut (uses vm.Mut datastruct)
+				so could in theory be compiled at runtime to javascript instead of needing to modify the VM).
+				If need another bit, there is a bit left in bize int since only low 31 bits of bize are stored, but maybe that bit should say that theres more bits or not,
+				but thats unnecessary since curriesLeft is stored, and since max bitstring size is (approx, todo verify) 2^247-1 bits (vm.maxCurriesLeft is 255),
+				the bit of is there more bits of bize is already knowable from [curriesLeft and o8].
+				Or that high bit in bize int is used for lazyEval of bize, so dont put anything there.
+			*/
+				
+			//int. 6 bits are 111110 for is literal self or not. then 2 bits (00 is callpair, else is literal 256 bits).
+			//then o8. then curriesLeftOr255ToMeanMoreThan254. then up to 8 mask bits (containsBit1, etc).
+			//this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, upTo8BitsOfMasks, curriesLeft); //FIXME check if it is a literal (globalId256 does not start with 11111000).
+			//this.header = 0; //FIXME need to compute header as int
+			
+			//FIXME instead of -1 meaning the following comments about bize, use containsBit1 containsBit0, containsNonBitOtherThanLessThan7Params.
+			//int. bize is max 31 bits. past that it will make linkedlist or something (todo) of cbts.
+			this.bize = -2; //-2 means dont know bize yet (lazyEval). -1 means its all 0s or is not a cbt. nonnegative means its the low 31 bits of the index of the last 1 bit. FIXME TODO write code to deal with that in blob and normal callpairs
+			//FIXME set bize
+			
+			vm.incIdAB(); //change vm.lastIdA and vm.lastIdB.
+			//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
+			this.idA = vm.lastIdA
+			this.idB = vm.lastIdB;
+			this.blobFrom = optionalBlobFrom | 0; //int. TODO
+			this.blobTo = optionalBlobTo | 0; //int. TODO
+			
+			//this.blob = TODO null or Int32Array.
+			//The id of the blob is this.idA with this.idB. Every node with that id64 has the same blob and may differ in blobFrom and blobTo.
+			this.blob = optionalBlob; //TODO null or Int32Array.
+			
+			//this.idString;
+			
+			this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+			
+			//this.prototype.prototype = vm;
 
-	};
-	
-	//in op lambda or opOneMoreParam or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
-	//cuz could simplify this. curriesLeft and op must be known at param 7, so lambda 
-	vm.Node.prototype.funcBody = function(){
-		if(!this.cacheFuncBody){
-			throw 'FIXME';
-			switch(this.o8()){
-				/*FIXME optimize by putting in header or some way... to efficiently know if its the 8th param. ???
-				Or change these 3 ops (varargAx opOneMoreParam lambda) so that funcBody is the 7th param?
-				Would need to have 2 or 4 of each of those ops if so, cuz up to the 7th param,
-				every next param being u vs anything_except_u branches to twice as many ops.
-				By design the op and curriesLeft are known at param 7 (or less),
-				so the design of using the 8th param as funcBody and maybe 9th for something related,
-				is complicating that. Write out the design below, and try to make it consistent,
-				and look for all other ops that have strange curriesLeft
-				andOr evalingVsHalted params, such as op.evaling has o8 of 0)...
-				Thats in vm.opInfo[o8].isStrange.
-				Or should they be 1 deeper than that, so can find funcBody just by o8? A few specific o8s have funcBody as their r child.
-				The problem with waiting until param7 is every later param has the same o8 as param7 as it copies from l child after that.
-				...
-				*/
-				
-				
-				case vm.o8OfVarargAx:case o8OfLambda:
-					let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
-					let prevFind = find;
-					//FIXME redesign this so the loop is smaller?
-					while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-					//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-					this.cacheFuncBody = TODO;
-				break;case vm.o8OfOpOneMoreParam:
-					//this.cacheFuncBody = TODO;
-					throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
-				break;default:
-					this.cacheFuncBody = vm.u;
+		};
+		
+		//in op lambda or opOneMoreParam or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
+		//cuz could simplify this. curriesLeft and op must be known at param 7, so lambda 
+		vm.Node.prototype.funcBody = function(){
+			if(!this.cacheFuncBody){
+				throw 'FIXME';
+				switch(this.o8()){
+					/*FIXME optimize by putting in header or some way... to efficiently know if its the 8th param. ???
+					Or change these 3 ops (varargAx opOneMoreParam lambda) so that funcBody is the 7th param?
+					Would need to have 2 or 4 of each of those ops if so, cuz up to the 7th param,
+					every next param being u vs anything_except_u branches to twice as many ops.
+					By design the op and curriesLeft are known at param 7 (or less),
+					so the design of using the 8th param as funcBody and maybe 9th for something related,
+					is complicating that. Write out the design below, and try to make it consistent,
+					and look for all other ops that have strange curriesLeft
+					andOr evalingVsHalted params, such as op.evaling has o8 of 0)...
+					Thats in vm.opInfo[o8].isStrange.
+					Or should they be 1 deeper than that, so can find funcBody just by o8? A few specific o8s have funcBody as their r child.
+					The problem with waiting until param7 is every later param has the same o8 as param7 as it copies from l child after that.
+					...
+					*/
+					
+					
+					case vm.o8OfVarargAx:case o8OfLambda:
+						let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
+						let prevFind = find;
+						//FIXME redesign this so the loop is smaller?
+						while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+						//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+						this.cacheFuncBody = TODO;
+					break;case vm.o8OfOpOneMoreParam:
+						//this.cacheFuncBody = TODO;
+						throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
+					break;default:
+						this.cacheFuncBody = vm.u;
+				}
 			}
-		}
-		return this.cacheFuncBody;
-	};
-	
-	//index is in units of ints, not bits. Node.blob is always a Int32Array. always 0s outside range.
-	//If blobFrom<blobTo then blob exists.
-	vm.Node.prototype.intAt = function(index){
-		if(index < this.blobFrom || this.blobTo <= index) return 0;
-		return this.blob[index];
-	};
-	
-	//index is in units of ints
-	vm.Node.prototype.doubleAt = function(index){
-		//FIXME bigEndian or littleEndian and of ints or bytes etc?
-		return vm.twoIntsToDouble(this.intAt(index), this.intAt(index+1));
-	};
-	
-	//as double
-	vm.Node.prototype.d = function(){
-		return this.doubleAt(0);
-	};
-	
-	vm.twoIntsToDouble = function(high32, low32){
-		//FIXME bigEndian or littleEndian and of ints or bytes etc?
-		vm.overlappingBufferInts[0] = high32;
-		vm.overlappingBufferInts[1] = low32;
-		return vm.overlappingBufferDouble[0];
-	};
-	
-	//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
-	//For perfect dedup, use 256 bit or 512 bit global ids which are lazyEvaled and most nodes never need one.
-	vm.Node.prototype.equalsByLazyDedup = function(otherNode){
-		return this.hashInt==otherNode.hashInt && this.idB==otherNode.idB && this.idA==otherNode.idA && this.blobFrom==otherNode.blobFrom && this.blobTo==otherNode.blobTo;
-	};
-	
-	//The node form of lambda x is x(), such as x().curriesLeft() or x().o8().
-	vm.Node.prototype.equalsByLazyDedupOf2ChildNodes = function(otherLNode,otherRNode){
-		//FIXME if lazy load .l and .r, then need to call .L() and .R() to lazy load them first. but that wont happen until a much later version of this VM.
-		//TODO optimize by using Node instead of the lambdize wrapper of it so can use this.l. instead of this.l(). etc? Or put those funcs in the lambdized form?
-		return this.l().equalsByLazyDedup(otherLNode) && this.r().equalsByLazyDedup(otherRNode);
-	};
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	//3 times bigger if so, but has the advantage that you only need the toString outputs of all the relevant lambdas
-	//to copy all those lambdas to another computer without needing to try many pairs of them to find what is the
-	//left and right childs of which of them so its squared times faster but 3 times more storage. There are of course faster ways if you store many
-	//of them together, but each [parent left right] can be written in a sentence on a forum as a self contained lambda
-	//that tells you what other lambdas to look for (maybe in other sentences or big lists of such [parent left right] on IPFS or something, to find them.
-	vm.nodeToStringIncludesChilds = true;
-	
-	//else localId which is 2 ints of autoIncrement and 2 ints of from and to index in a wrapped array if there is such an array.
-	vm.nodeToStringIsGlobalId = true;
-	
-	vm.nodeToStringPrefix = 'λ';
-	
-	//just 1 of parent left right. nodeToString may concat 3 of these or just use parent.
-	vm.nodeToStringOne = function(){
-		let evilbitStr = 'TODOEVILBITSTR';
-		if(vm.nodeToStringIsGlobalId === undefined) throw 'FIXME bind or what? this is getting disorganized for some funcs to be in vm and some in vm.Node.prototype';
-		if(vm.nodeToStringIsGlobalId){
-			throw 'TODO globalId and toString of it';
-		}else{
-			//TODO? return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
-			return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
-		}
-	};
-	
-	vm.nodeToString = function(node){
-		if(vm.nodeToStringIncludesChilds === undefined) throw 'FIXME bind or what? this is getting disorganized for some funcs to be in vm and some in vm.Node.prototype';
-		if(nodeToStringIncludesChilds) return vm.nodeToStringOne(node);
-		else return vm.nodeToStringOne(node)+vm.nodeToStringOne(node.L())+vm.nodeToStringOne(node.R());
-	};
-	
-	//vm.base58Digits = 
-	
-	//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
-	//literal 256 bits that fits in a 256 bit id (or similar for 512 bit ids) have evilBit==false. Theres just not room in them for even 1 bit of metadata. They have no header,
-	//but they're small enough they they probably cant cause much of a problem. Combining 2 or more of them requires a node capable of having evilBit (true or false)
-	//so its really a statement about a max of 256 or depending on id size 512 bits. Literals that do have a value, such as 1 2 4 8 16 32 64 or 128 bits, do have header,
-	//so can have evilBit, even though its probably not very useful in such small literals.
-	//If that becomes a problem, a new kind of id can be derived that always has header so can always have evilBit, by storing at most 128 bits of literal in a 256 bit id.
-	vm.evilBitOf = function(headerInt){
-		return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
-		/*vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
-		vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
-		return (this.evilBitMaskOfHeaderInt&headerInt)?true:false;
+			return this.cacheFuncBody;
+		};
+		
+		//index is in units of ints, not bits. Node.blob is always a Int32Array. always 0s outside range.
+		//If blobFrom<blobTo then blob exists.
+		vm.Node.prototype.intAt = function(index){
+			if(index < this.blobFrom || this.blobTo <= index) return 0;
+			return this.blob[index];
+		};
+		
+		//index is in units of ints
+		vm.Node.prototype.doubleAt = function(index){
+			//FIXME bigEndian or littleEndian and of ints or bytes etc?
+			return vm.twoIntsToDouble(this.intAt(index), this.intAt(index+1));
+		};
+		
+		//as double
+		vm.Node.prototype.d = function(){
+			return this.doubleAt(0);
+		};
+		
+		vm.twoIntsToDouble = function(high32, low32){
+			//FIXME bigEndian or littleEndian and of ints or bytes etc?
+			vm.overlappingBufferInts[0] = high32;
+			vm.overlappingBufferInts[1] = low32;
+			return vm.overlappingBufferDouble[0];
+		};
+		
+		//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
+		//For perfect dedup, use 256 bit or 512 bit global ids which are lazyEvaled and most nodes never need one.
+		vm.Node.prototype.equalsByLazyDedup = function(otherNode){
+			return this.hashInt==otherNode.hashInt && this.idB==otherNode.idB && this.idA==otherNode.idA && this.blobFrom==otherNode.blobFrom && this.blobTo==otherNode.blobTo;
+		};
+		
+		//The node form of lambda x is x(), such as x().curriesLeft() or x().o8().
+		vm.Node.prototype.equalsByLazyDedupOf2ChildNodes = function(otherLNode,otherRNode){
+			//FIXME if lazy load .l and .r, then need to call .L() and .R() to lazy load them first. but that wont happen until a much later version of this VM.
+			//TODO optimize by using Node instead of the lambdize wrapper of it so can use this.l. instead of this.l(). etc? Or put those funcs in the lambdized form?
+			return this.l().equalsByLazyDedup(otherLNode) && this.r().equalsByLazyDedup(otherRNode);
+		};
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		//3 times bigger if so, but has the advantage that you only need the toString outputs of all the relevant lambdas
+		//to copy all those lambdas to another computer without needing to try many pairs of them to find what is the
+		//left and right childs of which of them so its squared times faster but 3 times more storage. There are of course faster ways if you store many
+		//of them together, but each [parent left right] can be written in a sentence on a forum as a self contained lambda
+		//that tells you what other lambdas to look for (maybe in other sentences or big lists of such [parent left right] on IPFS or something, to find them.
+		vm.nodeToStringIncludesChilds = true;
+		
+		//else localId which is 2 ints of autoIncrement and 2 ints of from and to index in a wrapped array if there is such an array.
+		vm.nodeToStringIsGlobalId = true;
+		
+		vm.nodeToStringPrefix = 'λ';
+		
+		//just 1 of parent left right. nodeToString may concat 3 of these or just use parent.
+		vm.nodeToStringOne = function(){
+			let evilbitStr = 'TODOEVILBITSTR';
+			if(vm.nodeToStringIsGlobalId === undefined) throw 'FIXME bind or what? this is getting disorganized for some funcs to be in vm and some in vm.Node.prototype';
+			if(vm.nodeToStringIsGlobalId){
+				throw 'TODO globalId and toString of it';
+			}else{
+				//TODO? return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
+				return vm.nodeToStringPrefix+evilbitStr+this.slowLocalId();
+			}
+		};
+		
+		vm.nodeToString = function(node){
+			if(vm.nodeToStringIncludesChilds === undefined) throw 'FIXME bind or what? this is getting disorganized for some funcs to be in vm and some in vm.Node.prototype';
+			if(nodeToStringIncludesChilds) return vm.nodeToStringOne(node);
+			else return vm.nodeToStringOne(node)+vm.nodeToStringOne(node.L())+vm.nodeToStringOne(node.R());
+		};
+		
+		//vm.base58Digits = 
+		
+		//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
+		//literal 256 bits that fits in a 256 bit id (or similar for 512 bit ids) have evilBit==false. Theres just not room in them for even 1 bit of metadata. They have no header,
+		//but they're small enough they they probably cant cause much of a problem. Combining 2 or more of them requires a node capable of having evilBit (true or false)
+		//so its really a statement about a max of 256 or depending on id size 512 bits. Literals that do have a value, such as 1 2 4 8 16 32 64 or 128 bits, do have header,
+		//so can have evilBit, even though its probably not very useful in such small literals.
+		//If that becomes a problem, a new kind of id can be derived that always has header so can always have evilBit, by storing at most 128 bits of literal in a 256 bit id.
+		vm.evilBitOf = function(headerInt){
+			return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
+			/*vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
+			vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
+			return (this.evilBitMaskOfHeaderInt&headerInt)?true:false;
+			*/
+		};
+		
+		//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
+		vm.Node.prototype.evilBit = function(){
+			return vm.evilBitOf(this.header);
+		};
+		
+		/*
+		TODO remove the mask_stackIsAllowImportEvilIds and just check for a certain prefix to know if its evil (call pair), good (call pair), or neutral (254 of them for 256 bit literals) namespace. Have vm.evilBit be true or false, and just use them as separate namespaces for generating ids, but allow import of any of them that vm.import func says to. User can replace vm.import function if they want. By default its not able to find anything, but future versions of this VM might hook into a peer to peer network if user checks a checkbox saying it can, andOr you can run a server with 50 people playing a game and sharing lambdas together in realtime, however you want to organize the sending and receiving of lambdas. There should be a kind of gas vm.gasUpload gasDownload or gasNetwork something like that. There should be a kind of gas* counted for each compute resource used, not a cryptocurrency just a local count of it to divide compute resources among lambdas. Or maybe the 50 remote players using such an experimental server together can have gas* on that server that lasts only as long as the game is running, like an hour. Players can copy/paste lambdas between different such servers andOr eachother.
+		//stateful short-term way to upload and download stateless lambdas, such as between 50 players in a game together for an hour.
+		vm.Server = function(){
+			TODO
+			
+			TODO use mutableWrapperLambda?
+			
+			TODO gasUpload gasDownload stackTime stackMem, per user (by ed25519 or just secret url suffix?)? TODO recursiveExpireTime? zapeconacyc?
+			
+			join game by https://someaddress/passwordWfghsdf/roomXYZ ? way to move gas* from one place to another (by mutableWrapperLambda or by url?)
+			no, make the url something shareable so https://someaddress/roomXYZ ?
+			https://someaddress/lambda/id234wer324wr5sadrefasddfid234345id2343245324 ?
+			
+			
+		};*/
+		
+		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+		vm.stackMem = 1000000;
+
+		vm.gasErr = 'gasErr';
+
+		vm.prepay = function(time,mem){
+			let newTime = this.stackTime-time;
+			let newMem = this.stackMem-mem;
+			if(newTime <= 0 || newMem <= 0) throw this.gasErr;
+			this.stackTime = newTime;
+			this.stackMem = newMem;
+			return undefined; //so you can || it with things for shorter lines of code
+		};
+		
+		vm.prepay1Time = function(){
+			if(!this.stackTime) throw this.gasErr;
+			this.stackTime--;
+		};
+		
+		vm.prepay1Mem = function(){
+			if(!this.stackMem) throw this.gasErr;
+			this.stackMem--;
+		};
+		
+		//true or false
+		vm.Node.prototype.isCbt = function(){
+			return !!(this.header&vm.mask_isCbt);
+		};
+		
+		//true or false
+		vm.Node.prototype.containsAxConstraint = function(){
+			return !!(this.header&vm.mask_containsAxConstraint);
+		};
+		
+		vm.Node.prototype.getEvaler = function(){
+			let evaler = this.evaler;
+			if(!evaler) throw 'No evaler in thisNode='+this; //TODO optimize by removing this line since all Nodes will have evalers
+			while(!evaler.on) evaler = evaler.prev;
+			return evaler;
+		};
+		
+		vm.Node.prototype.isLeaf = function(){
+			return this.o8()==1;
+		};
+
+		
+		//u().evaler starts as rootEvaler, but everything elsew uses pushEvaler.
+		vm.Node.prototype.pushEvaler = function(evaler){
+			if(evaler.on === undefined) evaler.on = true;
+			evaler.prev = this.evaler;
+			this.evaler = evaler;
+		};
+		
+		vm.Node.prototype.o8Of = headerInt=>{
+			return (headerInt>>16)&0xff;
+		};
+		
+		//8 bit opcode, a bitstring of 0-7 bits then a high 1 bit. its 1 for u, and is 2*o8 or 2*o8+1 or o8 for next curry.
+		//If o8 < 128 then full opcode isnt known yet, so its 2*o8 if r is u, and its 2*o8+1 if r is not u. Else o8 is just copied from l child.
+		vm.Node.prototype.o8 = function(){
+			return this.o8Of(this.header);
+		};
+		
+		vm.Node.prototype.firstByteOf = function(headerInt){
+			return (headerInt>>24)&0xff;
+		};
+
+		vm.Node.prototype.firstByte = function(){
+			return this.firstByteOf(this.header);
+		};
+		
+		vm.Node.prototype.isCbtOf = function(headerInt){
+			//let o8 = this.o8();
+			//return o8 == vm.o8OfBit0 || o8 == vm.o8OfBit1;
+			//return (headerInt&0x00fe0000)==vm.o8OfBit0;
+			return !!(headerInt&vm.mask_isCbt);
+		};
+		
+		vm.Node.prototype.isCbt = function(){
+			return this.isCbtOf(this.header);
+		};
+		
+		
+		//header int is like: namespaceByte o8Byte curriesLeftByte maskByte
+		
+		vm.Node.prototype.curriesLeft = function(){
+			return this.curriesLeftOf(this.header);
+		};
+		
+		vm.Node.prototype.curriesLeftOf = function(headerInt){
+			return (headerInt>>8)&0xff;
+		};
+		
+		
+		/*
+		vm.Node.prototype.curriesLeft = function(){
+			return this.curriesLeftOf(this.header);
+		};
+		
+		vm.Node.prototype.curriesLeftOf = function(headerInt){
+			if(this.isCbtOf(headerInt)) return 1; //pow(2,4088-rawCurriesLeft) is number of bits in cbt, and curriesLeft is always 1 for cbt.
+			return this.rawCurriesLeftOf(headerInt); //rawCurriesLeft is number of curries left.
+		};
+		
+		
+		//raw means just get the 12 bits without checking if its cbt or not.
+		//1 to 4094 if finite number of curries left, or 4095 for infinity curries left (never eval). or in some implementations 0 means evaling now.
+		vm.Node.prototype.rawCurriesLeftOf = function(headerInt){
+			return this.header&0xff;
+		};
+
+		//raw means just get the 12 bits without checking if its cbt or not.
+		//1 to 4094 if finite number of curries left, or 4095 for infinity curries left (never eval). or in some implementations 0 means evaling now.
+		//
+		//curriesLeft is 12 bits and means 2 different things depending if its a cbt or not.
+		//if cbt, curriesLeft is always 1, and height is 4088-uint12. It enforces that l and r childs are cbts of the same size.
+		//If not cbt, then those 12 bits are the number of curries left.
+		//
+		vm.Node.prototype.rawCurriesLeft = function(){
+			return this.curriesLeftOf(this.header);
+		};*/
+
+		vm.Node.prototype.toString = function(){
+			return this.vm.nodeToString(this);
+			//return this.slowLocalId();
+			//TODO 1 char prefix concat base58 form of 256 bit default kind of id, recursively.
+		};
+		
+		vm.emptyFrozenArray = new Array();
+		Object.setPrototypeOf(vm.emptyFrozenArray,null);
+		Object.freeze(vm.emptyFrozenArray); //FIXME can you both set prototype to null and freeze, and is this the right order to do that?
+		
+		vm.emptyFrozenDoubleArray = new Float64Array(0); //would normally share a buffer between int array and double array, but if its size 0, that might do strange things?
+		Object.setPrototypeOf(vm.emptyFrozenDoubleArray,null);
+		Object.freeze(vm.emptyFrozenDoubleArray);
+		
+		vm.emptyFrozenIntArray = new Int32Array(0); //would normally share a buffer between int array and double array, but if its size 0, that might do strange things?
+		Object.setPrototypeOf(vm.emptyFrozenIntArray,null);
+		Object.freeze(vm.emptyFrozenIntArray);
+		
+		
+		
+		
+		
+		
+		/*
+		vm.OpmutState = function(whichOpmutSpace){
+			this.o = whichOpmutSpace;
+			
+			throw 'TODO';
+			
+		};
+		
+		//Returns a Mut, at most 1 Mut per deduped fn.
+		//wrap the fn in a Mut. If the fn is not deduped (check idA and maybe also idB) then wraps the deduped form instead.
+		//A deduped fn always has blobFrom==0 and blobTo==0, so you only need id64 of the fn, combined with whichOpmutSpace,
+		//to uniqely identify a Mut.
+		vm.OpmutState.prototype.fnToMut = function(fn){
+			throw 'TODO';
+		};
 		*/
-	};
-	
-	//true/false. TODO always store it as evil (since thats the most general, allowing (probably accidental) evil, good, and neutral), and just view it as good if requested.
-	vm.Node.prototype.evilBit = function(){
-		return vm.evilBitOf(this.header);
-	};
-	
-	/*
-	TODO remove the mask_stackIsAllowImportEvilIds and just check for a certain prefix to know if its evil (call pair), good (call pair), or neutral (254 of them for 256 bit literals) namespace. Have vm.evilBit be true or false, and just use them as separate namespaces for generating ids, but allow import of any of them that vm.import func says to. User can replace vm.import function if they want. By default its not able to find anything, but future versions of this VM might hook into a peer to peer network if user checks a checkbox saying it can, andOr you can run a server with 50 people playing a game and sharing lambdas together in realtime, however you want to organize the sending and receiving of lambdas. There should be a kind of gas vm.gasUpload gasDownload or gasNetwork something like that. There should be a kind of gas* counted for each compute resource used, not a cryptocurrency just a local count of it to divide compute resources among lambdas. Or maybe the 50 remote players using such an experimental server together can have gas* on that server that lasts only as long as the game is running, like an hour. Players can copy/paste lambdas between different such servers andOr eachother.
-	//stateful short-term way to upload and download stateless lambdas, such as between 50 players in a game together for an hour.
-	vm.Server = function(){
-		TODO
-		
-		TODO use mutableWrapperLambda?
-		
-		TODO gasUpload gasDownload stackTime stackMem, per user (by ed25519 or just secret url suffix?)? TODO recursiveExpireTime? zapeconacyc?
-		
-		join game by https://someaddress/passwordWfghsdf/roomXYZ ? way to move gas* from one place to another (by mutableWrapperLambda or by url?)
-		no, make the url something shareable so https://someaddress/roomXYZ ?
-		https://someaddress/lambda/id234wer324wr5sadrefasddfid234345id2343245324 ?
 		
 		
-	};*/
-	
-	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-	vm.stackMem = 1000000;
+		
+		
+		
 
-	vm.gasErr = 'gasErr';
+		/*vm.Mut = function(n){
+			this.m = {};
+			this.d = new Float64Array(n);
+		};*/
+		
+		/*
+		See from above something like this[[[
+			FIXED design keeps Mut mostly as it is, adds .j->fn and .g->string and has weaker merged gasTime/gasMem and only runs for a tiny fraction of a second so it wont run out of mem.
+			..
+			TODO asap, but confirm this solves the problem...
+			Have ops for string length, concat, substring, etc.
+			Have try/catch op for undefined[anything] where some things may return undefined.
+			Have just 1 var in opmut that counts down with each thing done next, sometimes counts by variable amount like when string concat it will check their lengths.
+			I'm guessing (TODO verify) that putting a big string as a map key doesnt cost the size of that string as its deduped or hashed or something... but im not sure.
+			Opmut only happens, normally, for a small fraction of a second. Its unlikely to run out of memory at all.
+			So if just use 1 gas* var, gasTimeAndOrMem, and subtract from it for heap allocation and for every write in a {}, then it cant infinite loop and must halt within some approximatable (though might vary by 10 times faster or slower) limit.
+			..
+			Mut.n size of Float64Array if need to have null prototype.
+			Mut.m -> {} where key is string and val is [Mut or double or undefined]. (with null prototype?).
+			Mut.d -> Float64Array, with null prototype. can use this for canvas pixel graphics (copy between them, but lambdas are still immutable, etc).
+			Mut.g -> string
+			Mut.j -> fn (u by default).
+			...
+			{hi:'hello'}+2
+			2
+			{hi:'hello'}+33
+			33
+			{hi:'hello'}*5
+			VM176:1 Uncaught SyntaxError: Unexpected token '*'
+			({hi:'hello'})*5
+			NaN
+			OK.
 
-	vm.prepay = function(time,mem){
-		let newTime = this.stackTime-time;
-		let newMem = this.stackMem-mem;
-		if(newTime <= 0 || newMem <= 0) throw this.gasErr;
-		this.stackTime = newTime;
-		this.stackMem = newMem;
-		return undefined; //so you can || it with things for shorter lines of code
-	};
-	
-	vm.prepay1Time = function(){
-		if(!this.stackTime) throw this.gasErr;
-		this.stackTime--;
-	};
-	
-	vm.prepay1Mem = function(){
-		if(!this.stackMem) throw this.gasErr;
-		this.stackMem--;
-	};
-	
-	//true or false
-	vm.Node.prototype.isCbt = function(){
-		return !!(this.header&vm.mask_isCbt);
-	};
-	
-	//true or false
-	vm.Node.prototype.containsAxConstraint = function(){
-		return !!(this.header&vm.mask_containsAxConstraint);
-	};
-	
-	vm.Node.prototype.getEvaler = function(){
-		let evaler = this.evaler;
-		if(!evaler) throw 'No evaler in thisNode='+this; //TODO optimize by removing this line since all Nodes will have evalers
-		while(!evaler.on) evaler = evaler.prev;
-		return evaler;
-	};
-	
-	vm.Node.prototype.isLeaf = function(){
-		return this.o8()==1;
-	};
+		]]];*/
+		
+		
+		
+		const objectThatReturns0ForAllFieldValues = new Proxy({}, { get(obj, prop){  return 0; } });
+		Object.freeze(objectThatReturns0ForAllFieldValues);
+		vm.objectThatReturns0ForAllFieldValues = objectThatReturns0ForAllFieldValues;
+		
+		
+		
+		/*
+		//TODO start all fields as undefined, since vals of [Mut, double, or undefined] (but not lambda or string, cuz those are wrapped in Mut) are allowed?
+		
+		UPDATE 2022-3-9 todo implement this...
+		
+		TODO asap make the lambdas of variable number of (lambda funcBody ?varA ?varb ?varc u ...paramsOfThatManyParamsUpTo240Something), AND make the Mut as described below, and do some basics graphics, sound, or something just start playing with it.
 
-	
-	//u().evaler starts as rootEvaler, but everything elsew uses pushEvaler.
-	vm.Node.prototype.pushEvaler = function(evaler){
-		if(evaler.on === undefined) evaler.on = true;
-		evaler.prev = this.evaler;
-		this.evaler = evaler;
-	};
-	
-	vm.Node.prototype.o8Of = headerInt=>{
-		return (headerInt>>16)&0xff;
-	};
-	
-	//8 bit opcode, a bitstring of 0-7 bits then a high 1 bit. its 1 for u, and is 2*o8 or 2*o8+1 or o8 for next curry.
-	//If o8 < 128 then full opcode isnt known yet, so its 2*o8 if r is u, and its 2*o8+1 if r is not u. Else o8 is just copied from l child.
-	vm.Node.prototype.o8 = function(){
-		return this.o8Of(this.header);
-	};
-	
-	vm.Node.prototype.firstByteOf = function(headerInt){
-		return (headerInt>>24)&0xff;
-	};
 
-	vm.Node.prototype.firstByte = function(){
-		return this.firstByteOf(this.header);
-	};
-	
-	vm.Node.prototype.isCbtOf = function(headerInt){
-		//let o8 = this.o8();
-		//return o8 == vm.o8OfBit0 || o8 == vm.o8OfBit1;
-		//return (headerInt&0x00fe0000)==vm.o8OfBit0;
-		return !!(headerInt&vm.mask_isCbt);
-	};
-	
-	vm.Node.prototype.isCbt = function(){
-		return this.isCbtOf(this.header);
-	};
-	
-	
-	//header int is like: namespaceByte o8Byte curriesLeftByte maskByte
-	
-	vm.Node.prototype.curriesLeft = function(){
-		return this.curriesLeftOf(this.header);
-	};
-	
-	vm.Node.prototype.curriesLeftOf = function(headerInt){
-		return (headerInt>>8)&0xff;
-	};
-	
-	
-	/*
-	vm.Node.prototype.curriesLeft = function(){
-		return this.curriesLeftOf(this.header);
-	};
-	
-	vm.Node.prototype.curriesLeftOf = function(headerInt){
-		if(this.isCbtOf(headerInt)) return 1; //pow(2,4088-rawCurriesLeft) is number of bits in cbt, and curriesLeft is always 1 for cbt.
-		return this.rawCurriesLeftOf(headerInt); //rawCurriesLeft is number of curries left.
-	};
-	
-	
-	//raw means just get the 12 bits without checking if its cbt or not.
-	//1 to 4094 if finite number of curries left, or 4095 for infinity curries left (never eval). or in some implementations 0 means evaling now.
-	vm.Node.prototype.rawCurriesLeftOf = function(headerInt){
-		return this.header&0xff;
-	};
 
-	//raw means just get the 12 bits without checking if its cbt or not.
-	//1 to 4094 if finite number of curries left, or 4095 for infinity curries left (never eval). or in some implementations 0 means evaling now.
-	//
-	//curriesLeft is 12 bits and means 2 different things depending if its a cbt or not.
-	//if cbt, curriesLeft is always 1, and height is 4088-uint12. It enforces that l and r childs are cbts of the same size.
-	//If not cbt, then those 12 bits are the number of curries left.
-	//
-	vm.Node.prototype.rawCurriesLeft = function(){
-		return this.curriesLeftOf(this.header);
-	};*/
-
-	vm.Node.prototype.toString = function(){
-		return this.vm.nodeToString(this);
-		//return this.slowLocalId();
-		//TODO 1 char prefix concat base58 form of 256 bit default kind of id, recursively.
-	};
-
-	/*vm.Mut = function(n){
-		this.m = {};
-		this.d = new Float64Array(n);
-	};*/
-	
-	/*
-	See from above something like this[[[
 		FIXED design keeps Mut mostly as it is, adds .j->fn and .g->string and has weaker merged gasTime/gasMem and only runs for a tiny fraction of a second so it wont run out of mem.
+		"Mut.m -> {} where key is string and val is [Mut or double or undefined], with null prototype?." prevents accidentally getting string when you expected double.
 		..
 		TODO asap, but confirm this solves the problem...
 		Have ops for string length, concat, substring, etc.
@@ -2537,7 +3110,7 @@ const wikibinator203 = (()=>{
 		So if just use 1 gas* var, gasTimeAndOrMem, and subtract from it for heap allocation and for every write in a {}, then it cant infinite loop and must halt within some approximatable (though might vary by 10 times faster or slower) limit.
 		..
 		Mut.n size of Float64Array if need to have null prototype.
-		Mut.m -> {} where key is string and val is [Mut or double or undefined]. (with null prototype?).
+		Mut.m -> {} where key is string (may be made from double or undefined or concat of mutA.g with mutB.g etc) and val is [Mut or double or undefined], with null prototype?.
 		Mut.d -> Float64Array, with null prototype. can use this for canvas pixel graphics (copy between them, but lambdas are still immutable, etc).
 		Mut.g -> string
 		Mut.j -> fn (u by default).
@@ -2551,1516 +3124,2140 @@ const wikibinator203 = (()=>{
 		({hi:'hello'})*5
 		NaN
 		OK.
-
-	]]];*/
-	
-	
-	
-	const objectThatReturns0ForAllFieldValues = new Proxy({}, { get(obj, prop){  return 0; } });
-	Object.freeze(objectThatReturns0ForAllFieldValues);
-	vm.objectThatReturns0ForAllFieldValues = objectThatReturns0ForAllFieldValues;
-	
-	
-	
-	/*
-	//TODO start all fields as undefined, since vals of [Mut, double, or undefined] (but not lambda or string, cuz those are wrapped in Mut) are allowed?
-	
-	UPDATE 2022-3-9 todo implement this...
-	
-	TODO asap make the lambdas of variable number of (lambda funcBody ?varA ?varb ?varc u ...paramsOfThatManyParamsUpTo240Something), AND make the Mut as described below, and do some basics graphics, sound, or something just start playing with it.
-
-
-
-	FIXED design keeps Mut mostly as it is, adds .j->fn and .g->string and has weaker merged gasTime/gasMem and only runs for a tiny fraction of a second so it wont run out of mem.
-	"Mut.m -> {} where key is string and val is [Mut or double or undefined], with null prototype?." prevents accidentally getting string when you expected double.
-	..
-	TODO asap, but confirm this solves the problem...
-	Have ops for string length, concat, substring, etc.
-	Have try/catch op for undefined[anything] where some things may return undefined.
-	Have just 1 var in opmut that counts down with each thing done next, sometimes counts by variable amount like when string concat it will check their lengths.
-	I'm guessing (TODO verify) that putting a big string as a map key doesnt cost the size of that string as its deduped or hashed or something... but im not sure.
-	Opmut only happens, normally, for a small fraction of a second. Its unlikely to run out of memory at all.
-	So if just use 1 gas* var, gasTimeAndOrMem, and subtract from it for heap allocation and for every write in a {}, then it cant infinite loop and must halt within some approximatable (though might vary by 10 times faster or slower) limit.
-	..
-	Mut.n size of Float64Array if need to have null prototype.
-	Mut.m -> {} where key is string (may be made from double or undefined or concat of mutA.g with mutB.g etc) and val is [Mut or double or undefined], with null prototype?.
-	Mut.d -> Float64Array, with null prototype. can use this for canvas pixel graphics (copy between them, but lambdas are still immutable, etc).
-	Mut.g -> string
-	Mut.j -> fn (u by default).
-	...
-	{hi:'hello'}+2
-	2
-	{hi:'hello'}+33
-	33
-	{hi:'hello'}*5
-	VM176:1 Uncaught SyntaxError: Unexpected token '*'
-	({hi:'hello'})*5
-	NaN
-	OK.
-	..
-	Can aMut.m.someStringABC cuz know 'someStringABC' is a string (dont need to wrap in a Mut in Mut.g),
-	but otherwise the only keys accepted in it are from Mut.g.
-	*
-	//SOLUTION to 1 of the sandbox problems,
-	//though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
-	//which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
-	vm.Mut = function(n, optionalString, optionalLambda){
-		//this was the Mut class 2022-2, that was never done enough to use it, but am about to replace it with one that juses only arrays so will be faster
-		//and not have to undo as much of javascript's existing behaviors such as + doing string concat and number plus. There are no strings in the newer design,
-		//but you can still do concat of ranges of primitive array and use it like a string.
-	
-		//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
-		//in js, int or float or byte are a subset of doubles.
-		this.n = n&0x7fffffff;
+		..
+		Can aMut.m.someStringABC cuz know 'someStringABC' is a string (dont need to wrap in a Mut in Mut.g),
+		but otherwise the only keys accepted in it are from Mut.g.
+		*
+		//SOLUTION to 1 of the sandbox problems,
+		//though maybe not the fastest, will get musical instruments and flexible recursion in opmut working soon,
+		//which sandbox depends on js String and js Number dont have any of these fields (m d n, etc)...:
+		vm.Mut = function(n, optionalString, optionalLambda){
+			//this was the Mut class 2022-2, that was never done enough to use it, but am about to replace it with one that juses only arrays so will be faster
+			//and not have to undo as much of javascript's existing behaviors such as + doing string concat and number plus. There are no strings in the newer design,
+			//but you can still do concat of ranges of primitive array and use it like a string.
 		
-		//view as thisMut<indexOfDouble>.
-		//This is normally copied from Node.blob which is an Int32Array. Can get Int32Array.buffer and wrap that same buffer in a Float64Array.
-		//In opmut, contents of .d and of .m are mutable, but in lambdas everything (except lazyEval cache of Node.bize etc) is used as immutable,
-		//including that Node.blob is used as immutable even though it may technically be mutable but dont write it. ForkEdit only.
-		//TODO start all fields as undefined, since vals of [Mut, double, or undefined] (but not lambda or string, cuz those are wrapped in Mut) are allowed?
-		this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
-		
-		//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
-		//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
-		//or for some uses maybe much longer or as fast as a microsecond.
-		//Cycles are allowed in Mut.m that lead to that same Mut etc, but only during opmut
-		//which is designed to be optimized by compiling to javascript code.
-		//Lambdas cant have cycles while halted, but can eval in cycles or forever expanding etc.
-		this.m = {};
-	
-		//string
-		this.g = optionalString || '';
-		
-		//fn/lambda (lambdized wrapper of node)
-		this.j = optionalLambda || u;
-		
-		//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
-		
-		//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
-		//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
-		//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
-		//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
-		//which may be undefined or have a value of string or double or lambda or Mut, and so on.
-		//
-		//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
-		//Object.setPrototypeOf(this.d,null);
-		//Object.setPrototypeOf(this.d.prototype, objectThatReturns0ForAllFieldValues); //FIXME dont set prototype here like that. set that once outside Mut constructor
-		//block access to this.m.__lookupGetter__ etc in generated js code.
-		//Object.setPrototypeOf(this.m,null);
-		Object.setPrototypeOf(this.m, objectThatReturns0ForAllFieldValues);
-	};
-	Object.setPrototypeOf(Float64Array.prototype, objectThatReturns0ForAllFieldValues); //FIXME dont set prototype here like that. set that once outside Mut constructor
-	Object.setPrototypeOf(vm.Mut.prototype, objectThatReturns0ForAllFieldValues);
-	//FIXME lambdas (lambdize returns it) prototype should be objectThatReturns0ForAllFieldValues?
-	//let protoProtoOfNumber = Object.getPrototypeOf(Object.getPrototypeOf(5));
-	//Object.setPrototypeOf(vm.Mut.prototype, objectThatReturns0ForAllFieldValues);
-	*/
-	
-	
-	/*
-	vm.OpmutState = function(hashtableSizeInNodes){
-		
-		
-		
-		this.log2OfIntsPerHashtableSlot = 3; //mutableIntVal mutablePtrToNode iummutableLeftPtr immutableRightPtr mutableDoubleA mutableDoubleB.
-		//TODO fitting a max of 1<<25 nodes (actually just around half that cuz hashtable needs to be part empty, seems too small for some uses,
-		//but consider that each node can have its own primitive array so can reach 64 bit sizes such as using a petabyte of memory, if your browser (or whatever the VM is ported to) supports it,
-		//and nodes have (other than their left and right childs) mutable data (mutable pointer at node. mutable int, 2 mutable doubles, mutable pointer to fn/lambda, mutable pointer to Float64Array,
-		//and maybe TODO Int32Array, Uint8Array, etc. The array of a node will be a pointer to a shared empty array of that type until its replaced, to avoid allocating unused arrays.
-		if(hashtableSizeInNodes&(hashtableSizeInNodes-1)!=0 || hashtableSize < 1 || hashtableSize > (1<<25)) throw 'Invalid hashtableSize='+hashtableSize+' cuz must be a powOf2 in some range.';
-		this.ptrMask = (this.ints.length-1)&~((1<<this.log2OfIntsPerHashtableSlot)-1);
-		
-		//trs are ints but lambdas and opmuts arent allowed to know what they are, just check them for equality. That way, different hash functions, VMs, etc, have the same input/output behaviors.
-		
-		//a hashtable with no removing, no tombstones. You use it (in this OpmutState) for a fraction of a second, as an optimization of a lambda call, then garbcol/garbageCollect the whole thing.
-		//this.ints[ptr] is mutableIntVal
-		//this.ints[ptr+1] is mutablePtrToNode
-		//this.ints[ptr+2] is iummutableLeftPtr
-		//this.ints[ptr+3] is immutableRightPtr
-		//this.ints[ptr+4 to ptr+7] is not used here since thats where this.doubles overlaps it.
-		this.ints = new Int32Array(hashtableSizeInNodes<<this.log2OfIntsPerHashtableSlot);
-		
-		//this.doubles[2+ptr>>1] is mutableDoubleA
-		//this.doubles[3+ptr>>1] is mutableDoubleB
-		this.doubles = new Float64Array(this.ints.buffer);
-		
-		//index is ptr. size is hashtableSizeInNodes lambdas.
-		//FIXME fill with u? None should be null or undefined. Or use prototype for that to save memory?
-		this.lambdas = new Array();
-		
-		//index is ptr. size is hashtableSizeInNodes lambdas.
-		//FIXME fill with emptyDoubleArray? None should be null or undefined. Or use prototype for that to save memory?
-		this.doubleArrays = new Array();
-	};
-	//TGDO hash func goes here, of 3 int params, the 2 ptrs to make pair of, and which number of hashing again it is, such as the third time it couldnt put something there it has to jump buckets.
-	//a and b are divisible by 8. c is any nonneg int.
-	vm.OpmutState.prototype.hash3IntsToBucket = (leftPtr,rightPtr,triedHowManyTimes)=>(vm.hash3Ints(a,b,c)&this.ptrMask);
-	//like the lambda cp func except it just creates a pair of int ptrs, that is another int ptr, which is whatever hashtable bucket it ends up in.
-	vm.OpmutState.prototype.cp = (leftPtr,rightPtr)=>{
-		for(let triedHowManyTimes=0; triedHowManyTimes<256; triedHowManyTimes++){
-			let parentPtr = this.hash3IntsToBucket(leftPtr,rightPtr,triedHowManyTimes);
-			if(this.ints[2+parentPtr]==leftPtr && this.ints[3+parentPtr]==rightPtr) return parentPtr;
-		}
-		throw 'couldnt make parent ptr of '+leftPtr+' and '+rightPtr+'. Is hashtable near full? Or is hash3IntsToBucket a bad hash function?';
-	};
-	vm.OpmutState.prototype.i = ptr=>this.ints[2+ptr]; //mutableIntVal
-	vm.OpmutState.prototype.I = (ptr,newIntVal)=>(this.ints[2+ptr]=newIntVal); //mutableIntVal
-	vm.OpmutState.prototype.p = ptr=>this.ints[2+ptr]; //mutablePtrToNode
-	vm.OpmutState.prototype.P = (ptr,newPtr)=>(this.ints[2+ptr],newPtr); //mutablePtrToNode. Ptrs are ints but lambdas and opmuts arent allowed to know what they are, just check them for equality. That way, different hash functions, VMs, etc, have the same input/output behaviors.
-	vm.OpmutState.prototype.l = ptr=>this.ints[2+ptr]; //iummutableLeftPtr
-	vm.OpmutState.prototype.r = ptr=>this.ints[3+ptr]; //immutableRightPtr
-	vm.OpmutState.prototype.a = ptr=>this.doubles[2+ptr>>1]; //mutableDoubleA
-	vm.OpmutState.prototype.A = (ptr,newDoubleVal)=>(this.doubles[2+ptr>>1]=newDoubleVal); //mutableDoubleA
-	vm.OpmutState.prototype.b = ptr=>this.doubles[3+ptr>>1]; //mutableDoubleB
-	vm.OpmutState.prototype.B = (ptr,newDoubleVal)=>(this.doubles[3+ptr>>1]=newDoubleVal); //mutableDoubleB
-	vm.OpmutState.prototype.AB = (ptr,newDoubleValA,newDoubleValB)=>{
-		let p = 2+ptr>>1;
-		this.doubles[p] = newDoubleValA; //mutableDoubleA
-		this.doubles[p+1] = newDoubleValB; //mutableDoubleB
-	};
-	
-	
-	//Mut_or_number.e is a number.
-	let getZero = ()=>0;
-	let getThisPlusZero = function(){ return this+0; };
-	let emptyFrozenMap = {};
-	Object.setPrototypeOf(emptyFrozenMap,objectThatReturns0ForAllFieldValues);
-	Object.freeze(emptyFrozenMap);
-	let getEmptyFrozenMap = ()=>emptyFrozenMap;
-	//let emptyFloat64Array = {};
-	let emptyFloat64Array = new Float64Array(0);
-	//Object.setPrototypeOf(emptyFloat64Array,objectThatReturns0ForAllFieldValues);
-	//Object.setPrototypeOf(emptyFloat64Array,objectThatReturns0ForAllFieldValues);
-	Object.freeze(emptyFloat64Array);
-	let getEmptyFloat64Array = ()=>emptyFloat64Array;
-	vm.Mut.prototype.e = getZero;
-	let protoProtoOfNumber = Object.getPrototypeOf(Object.getPrototypeOf(5));
-	Object.defineProperty(protoProtoOfNumber, 'e', { get: getThisPlusZero });
-	Object.defineProperty(protoProtoOfNumber, 'n', { get: getZero });
-	Object.defineProperty(protoProtoOfNumber, 'm', { get: getEmptyFrozenMap }); //FIXME use objectThatReturns0ForAllFieldValues instead of freezing?
-	Object.defineProperty(protoProtoOfNumber, 'd', { get: getEmptyFloat64Array }); //FIXME use objectThatReturns0ForAllFieldValues instead of freezing?
-	Object.defineProperty(protoProtoOfNumber, 'j', { get: ()=>u });
-	//Now (in theory todo test) every number, as long as its in parens, acts like a Mut, but values of Mut_or_number_or_undefined are still a problem when thats undefined since undefined.anything throws.
-	if((10+20).e != 30) throw 'Number proto proto didnt work';
-	if((10+21).n != 0) throw 'Number proto proto didnt work';
-	if((10+21).d.length != 0) throw 'Number proto proto didnt work';
-	//
-	//TODO try this to get rid of undefined in {}...
-	//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get
-	/*Using a computed property name
-	const expr = 'foo';
-	const obj = {
-	  get [expr]() { return 'bar'; }
-	};
-	console.log(obj.foo); // "bar"
-	*/
-	//or this https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
-	/*it works, todo get rid of the undefined in {} and replace it with 0.
-	Proxy
-	ƒ Proxy() { [native code] }
-	x = {};
-	{}
-	z = {
-	  get(bb){
-		  return 'abc';
-	  }
-	}
-	{get: ƒ}
-	z.hi
-	undefined
-	cc = new Proxy({}, {
-	  get(obj, prop) {
-		return 'hello';
-	  }
-	});
-	Proxy {}
-	cc.yo
-	'hello'
-	cc[undefined]
-	'hello'
-	x.hello
-	undefined
-	Object.setPrototypeOf(x,cc);
-	{}
-	x.a = 'b'
-	'b'
-	x.c
-		constructor(params) {
+			//truncate to nonnegative int n even if its string or lambda or mut etc (which if they are not a double then becomes 0).
+			//in js, int or float or byte are a subset of doubles.
+			this.n = n&0x7fffffff;
 			
+			//view as thisMut<indexOfDouble>.
+			//This is normally copied from Node.blob which is an Int32Array. Can get Int32Array.buffer and wrap that same buffer in a Float64Array.
+			//In opmut, contents of .d and of .m are mutable, but in lambdas everything (except lazyEval cache of Node.bize etc) is used as immutable,
+			//including that Node.blob is used as immutable even though it may technically be mutable but dont write it. ForkEdit only.
+			//TODO start all fields as undefined, since vals of [Mut, double, or undefined] (but not lambda or string, cuz those are wrapped in Mut) are allowed?
+			this.d = new Float64Array(this.n); //TODO reuse an empty Float64Array if !this.n aka this.n==0
+			
+			//view as thisMut[abc] or thisMut.xyz where value of abc is 'xyz', and root namespace (in an opmut call) is a Mut (maybe with just 1 key set to the param of opmut??),
+			//and a "root namespace" normally only exists for .001 to .03 seconds between one video frame and the next or multiple such calls during one,
+			//or for some uses maybe much longer or as fast as a microsecond.
+			//Cycles are allowed in Mut.m that lead to that same Mut etc, but only during opmut
+			//which is designed to be optimized by compiling to javascript code.
+			//Lambdas cant have cycles while halted, but can eval in cycles or forever expanding etc.
+			this.m = {};
+		
+			//string
+			this.g = optionalString || '';
+			
+			//fn/lambda (lambdized wrapper of node)
+			this.j = optionalLambda || u;
+			
+			//this.λ = null; //lambda (output of lambdize of Node) or null. or should lambda be value in Mut.m?
+			
+			//To make formal-verification easier and efficient, remove js prototype of fields of Mut,
+			//except Object.getPrototypeOf(Mut.n) is Number, which cant be changed cuz for example 5.67 in js has no prototype pointer and is just literal bits,
+			//similar to Object.getPrototypeOf('xyz') cant be changed and is always String. Number and String, of key n d or m, seem to always be undefined,
+			//so will correctly throw if generated js code reads g.h.i where g.h returns a Number or a String or a lambda, but if it returns a Mut then .i is theMut.m.i
+			//which may be undefined or have a value of string or double or lambda or Mut, and so on.
+			//
+			//block access to this.d.buffer and this.d.length etc in generated js code, without needing to do param|0..
+			//Object.setPrototypeOf(this.d,null);
+			//Object.setPrototypeOf(this.d.prototype, objectThatReturns0ForAllFieldValues); //FIXME dont set prototype here like that. set that once outside Mut constructor
+			//block access to this.m.__lookupGetter__ etc in generated js code.
+			//Object.setPrototypeOf(this.m,null);
+			Object.setPrototypeOf(this.m, objectThatReturns0ForAllFieldValues);
+		};
+		Object.setPrototypeOf(Float64Array.prototype, objectThatReturns0ForAllFieldValues); //FIXME dont set prototype here like that. set that once outside Mut constructor
+		Object.setPrototypeOf(vm.Mut.prototype, objectThatReturns0ForAllFieldValues);
+		//FIXME lambdas (lambdize returns it) prototype should be objectThatReturns0ForAllFieldValues?
+		//let protoProtoOfNumber = Object.getPrototypeOf(Object.getPrototypeOf(5));
+		//Object.setPrototypeOf(vm.Mut.prototype, objectThatReturns0ForAllFieldValues);
+		*/
+		
+		
+		/*
+		vm.OpmutState = function(hashtableSizeInNodes){
+			
+			
+			
+			this.log2OfIntsPerHashtableSlot = 3; //mutableIntVal mutablePtrToNode iummutableLeftPtr immutableRightPtr mutableDoubleA mutableDoubleB.
+			//TODO fitting a max of 1<<25 nodes (actually just around half that cuz hashtable needs to be part empty, seems too small for some uses,
+			//but consider that each node can have its own primitive array so can reach 64 bit sizes such as using a petabyte of memory, if your browser (or whatever the VM is ported to) supports it,
+			//and nodes have (other than their left and right childs) mutable data (mutable pointer at node. mutable int, 2 mutable doubles, mutable pointer to fn/lambda, mutable pointer to Float64Array,
+			//and maybe TODO Int32Array, Uint8Array, etc. The array of a node will be a pointer to a shared empty array of that type until its replaced, to avoid allocating unused arrays.
+			if(hashtableSizeInNodes&(hashtableSizeInNodes-1)!=0 || hashtableSize < 1 || hashtableSize > (1<<25)) throw 'Invalid hashtableSize='+hashtableSize+' cuz must be a powOf2 in some range.';
+			this.ptrMask = (this.ints.length-1)&~((1<<this.log2OfIntsPerHashtableSlot)-1);
+			
+			//trs are ints but lambdas and opmuts arent allowed to know what they are, just check them for equality. That way, different hash functions, VMs, etc, have the same input/output behaviors.
+			
+			//a hashtable with no removing, no tombstones. You use it (in this OpmutState) for a fraction of a second, as an optimization of a lambda call, then garbcol/garbageCollect the whole thing.
+			//this.ints[ptr] is mutableIntVal
+			//this.ints[ptr+1] is mutablePtrToNode
+			//this.ints[ptr+2] is iummutableLeftPtr
+			//this.ints[ptr+3] is immutableRightPtr
+			//this.ints[ptr+4 to ptr+7] is not used here since thats where this.doubles overlaps it.
+			this.ints = new Int32Array(hashtableSizeInNodes<<this.log2OfIntsPerHashtableSlot);
+			
+			//this.doubles[2+ptr>>1] is mutableDoubleA
+			//this.doubles[3+ptr>>1] is mutableDoubleB
+			this.doubles = new Float64Array(this.ints.buffer);
+			
+			//index is ptr. size is hashtableSizeInNodes lambdas.
+			//FIXME fill with u? None should be null or undefined. Or use prototype for that to save memory?
+			this.lambdas = new Array();
+			
+			//index is ptr. size is hashtableSizeInNodes lambdas.
+			//FIXME fill with emptyDoubleArray? None should be null or undefined. Or use prototype for that to save memory?
+			this.doubleArrays = new Array();
+		};
+		//TGDO hash func goes here, of 3 int params, the 2 ptrs to make pair of, and which number of hashing again it is, such as the third time it couldnt put something there it has to jump buckets.
+		//a and b are divisible by 8. c is any nonneg int.
+		vm.OpmutState.prototype.hash3IntsToBucket = (leftPtr,rightPtr,triedHowManyTimes)=>(vm.hash3Ints(a,b,c)&this.ptrMask);
+		//like the lambda cp func except it just creates a pair of int ptrs, that is another int ptr, which is whatever hashtable bucket it ends up in.
+		vm.OpmutState.prototype.cp = (leftPtr,rightPtr)=>{
+			for(let triedHowManyTimes=0; triedHowManyTimes<256; triedHowManyTimes++){
+				let parentPtr = this.hash3IntsToBucket(leftPtr,rightPtr,triedHowManyTimes);
+				if(this.ints[2+parentPtr]==leftPtr && this.ints[3+parentPtr]==rightPtr) return parentPtr;
+			}
+			throw 'couldnt make parent ptr of '+leftPtr+' and '+rightPtr+'. Is hashtable near full? Or is hash3IntsToBucket a bad hash function?';
+		};
+		vm.OpmutState.prototype.i = ptr=>this.ints[2+ptr]; //mutableIntVal
+		vm.OpmutState.prototype.I = (ptr,newIntVal)=>(this.ints[2+ptr]=newIntVal); //mutableIntVal
+		vm.OpmutState.prototype.p = ptr=>this.ints[2+ptr]; //mutablePtrToNode
+		vm.OpmutState.prototype.P = (ptr,newPtr)=>(this.ints[2+ptr],newPtr); //mutablePtrToNode. Ptrs are ints but lambdas and opmuts arent allowed to know what they are, just check them for equality. That way, different hash functions, VMs, etc, have the same input/output behaviors.
+		vm.OpmutState.prototype.l = ptr=>this.ints[2+ptr]; //iummutableLeftPtr
+		vm.OpmutState.prototype.r = ptr=>this.ints[3+ptr]; //immutableRightPtr
+		vm.OpmutState.prototype.a = ptr=>this.doubles[2+ptr>>1]; //mutableDoubleA
+		vm.OpmutState.prototype.A = (ptr,newDoubleVal)=>(this.doubles[2+ptr>>1]=newDoubleVal); //mutableDoubleA
+		vm.OpmutState.prototype.b = ptr=>this.doubles[3+ptr>>1]; //mutableDoubleB
+		vm.OpmutState.prototype.B = (ptr,newDoubleVal)=>(this.doubles[3+ptr>>1]=newDoubleVal); //mutableDoubleB
+		vm.OpmutState.prototype.AB = (ptr,newDoubleValA,newDoubleValB)=>{
+			let p = 2+ptr>>1;
+			this.doubles[p] = newDoubleValA; //mutableDoubleA
+			this.doubles[p+1] = newDoubleValB; //mutableDoubleB
+		};
+		
+		
+		//Mut_or_number.e is a number.
+		let getZero = ()=>0;
+		let getThisPlusZero = function(){ return this+0; };
+		let emptyFrozenMap = {};
+		Object.setPrototypeOf(emptyFrozenMap,objectThatReturns0ForAllFieldValues);
+		Object.freeze(emptyFrozenMap);
+		let getEmptyFrozenMap = ()=>emptyFrozenMap;
+		//let emptyFloat64Array = {};
+		let emptyFloat64Array = new Float64Array(0);
+		//Object.setPrototypeOf(emptyFloat64Array,objectThatReturns0ForAllFieldValues);
+		//Object.setPrototypeOf(emptyFloat64Array,objectThatReturns0ForAllFieldValues);
+		Object.freeze(emptyFloat64Array);
+		let getEmptyFloat64Array = ()=>emptyFloat64Array;
+		vm.Mut.prototype.e = getZero;
+		let protoProtoOfNumber = Object.getPrototypeOf(Object.getPrototypeOf(5));
+		Object.defineProperty(protoProtoOfNumber, 'e', { get: getThisPlusZero });
+		Object.defineProperty(protoProtoOfNumber, 'n', { get: getZero });
+		Object.defineProperty(protoProtoOfNumber, 'm', { get: getEmptyFrozenMap }); //FIXME use objectThatReturns0ForAllFieldValues instead of freezing?
+		Object.defineProperty(protoProtoOfNumber, 'd', { get: getEmptyFloat64Array }); //FIXME use objectThatReturns0ForAllFieldValues instead of freezing?
+		Object.defineProperty(protoProtoOfNumber, 'j', { get: ()=>u });
+		//Now (in theory todo test) every number, as long as its in parens, acts like a Mut, but values of Mut_or_number_or_undefined are still a problem when thats undefined since undefined.anything throws.
+		if((10+20).e != 30) throw 'Number proto proto didnt work';
+		if((10+21).n != 0) throw 'Number proto proto didnt work';
+		if((10+21).d.length != 0) throw 'Number proto proto didnt work';
+		//
+		//TODO try this to get rid of undefined in {}...
+		//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get
+		/*Using a computed property name
+		const expr = 'foo';
+		const obj = {
+		  get [expr]() { return 'bar'; }
+		};
+		console.log(obj.foo); // "bar"
+		*/
+		//or this https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+		/*it works, todo get rid of the undefined in {} and replace it with 0.
+		Proxy
+		ƒ Proxy() { [native code] }
+		x = {};
+		{}
+		z = {
+		  get(bb){
+			  return 'abc';
+		  }
 		}
-	}
-	VM722:2 Uncaught SyntaxError: Unexpected token '{'
-	x.c
-	'hello'
-	*/
-	/*
-	2022-3-9
-	valing l=s(t)(t) r=s(pair)(l)
-	wikibinator203.js:2371 Evaling l=f r=u
-	wikibinator203.js:2371 Evaling l=s r=f(u)
-	wikibinator203.js:2371 Evaling l=f r=u
-	wikibinator203.js:2371 Evaling l=s(f(u)) r=f(u)
-	wikibinator203.js:2371 Evaling l=s(f(u))(f(u)) r=pair
-	(5).d
-	Float64Array []
-	(5).e
-	5
-	(5).n
-	0
-	(5).j
-	ƒ (param){
+		{get: ƒ}
+		z.hi
+		undefined
+		cc = new Proxy({}, {
+		  get(obj, prop) {
+			return 'hello';
+		  }
+		});
+		Proxy {}
+		cc.yo
+		'hello'
+		cc[undefined]
+		'hello'
+		x.hello
+		undefined
+		Object.setPrototypeOf(x,cc);
+		{}
+		x.a = 'b'
+		'b'
+		x.c
+			constructor(params) {
+				
+			}
+		}
+		VM722:2 Uncaught SyntaxError: Unexpected token '{'
+		x.c
+		'hello'
+		*/
+		/*
+		2022-3-9
+		valing l=s(t)(t) r=s(pair)(l)
+		wikibinator203.js:2371 Evaling l=f r=u
+		wikibinator203.js:2371 Evaling l=s r=f(u)
+		wikibinator203.js:2371 Evaling l=f r=u
+		wikibinator203.js:2371 Evaling l=s(f(u)) r=f(u)
+		wikibinator203.js:2371 Evaling l=s(f(u))(f(u)) r=pair
+		(5).d
+		Float64Array []
+		(5).e
+		5
+		(5).n
+		0
+		(5).j
+		ƒ (param){
+					
+					//TODO test the code NODE.evaler(NODE.lam,param) which should do this.
+					//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which i…
+		''+(5).j
+		'u'
+		''+(5).m.hello
+		'0'
+		(5).m.hello
+		0
+		(5).m.helloasdf
+		0
+		(5).m[undefined]
+		0
+		(22*33).m.testab
+		0
+		*/
+		
+		//These mut* funcs take Mut or double as param, which all have the fields n m d g j e. n is array size. m is {}/map. d is Float64Array. g is string. j is fn/lambda. e is double value.
+		//the prototype of prototype of Number has been modified to have all those fields, such as (10+7).m is a {}, and (10+7).j==u, and (10+7).e==17.
+		//undefined is not allowed as a value. In theory these things have been modified to never return undefined when used certain ways that js code can be generated for.
+		//mut* primitive math...
+		const mutPlus = (a,b)=>(a+b);
+		const mutMult = (a,b)=>(a*b);
+		const mutSin = a=>Math.sin(a);
+		
+		//mut* controlflow such as loops, if/else, and sequence of code...
+		
+		//condition and loopBody are function(mut)->mut.
+		//mutableState is a Mut
+		const mutWhile = (condition,loopBody,mutableState)=>{
+			while(condition(mutableState)){
+				//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+				loopBody(mutableState);
+			}
+			return mutableState; //also mutableState may have been modified
+		};
+		
+		const mutDoWhile = (loopBody,condition,mutableState)=>{
+			do{
+				//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+				loopBody(mutableState);
+			}while(condition(mutableState));
+			return mutableState; //also mutableState may have been modified
+		};
+		
+		const mutFor = (start, condition, afterLoopBody, loopBody, mutableState)=>{
+			for(start(mutableState); condition(mutableState); afterLoopBody(mutableState)){
+				//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+				loopBody(mutableState);
+			}
+			return mutableState; //also mutableState may have been modified
+		};
+		
+		const mutIfElse = (condition,ifTrue,ifFalse,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			return (condition(mutableState) ? ifTrue : ifFalse)(mutableState);
+		};
+		
+		const mutIf = (condition,ifTrue,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			return condition(mutableState) ? ifTrue(mutableState) : mutableState;
+		};
+		
+		//a sequence of mut* funcs to call on a mutableState
+		const mutProgn = (listOfMutFuncs,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			for(let mutFunc of listOfMutFuncs){
+				//or should it just be: mutFunc(mutableState); without setting mutableState? might be more optimizable. but dont call it progn if so.
+				mutableState = mutFunc(mutableState);
+			}
+			return mutableState;
+		};
+		
+		const mutMapPut = (getMap,getKey,getVal,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			return getMap(mutableState).m[getKey(mutableState).g] = getVal(mutableState);
+		};
+		
+		const mutMapGet = (getMap,getKey,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			return getMap(mutableState).m[getKey(mutableState).g];
+		};
+		
+		const mutDoubleArrayPut = (getDoubleArray,getKey,getVal,mutableState)=>{
+			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
+			//return getDoubleArray(mutableState).d[getKey(mutableState).e] = getVal(mutableState).e;
+			return getDoubleArray(mutableState).d[getKey(mutableState)] = getVal(mutableState);
+		};
+		
+		const mutDoubleArrayGet = (getDoubleArray,getKey,mutableState)=>{
+			//TODO check gas* when?
+			return getDoubleArray(mutableState).d[getKey(mutableState)];
+		};
+		
+		const mutStringConcat = (getStringA,getStringB,mutableState)=>{
+			//TODO check gas* when? and pay for length of new string in stackMem. todo rename gas* to stack* like vm.stackTime vm.stackMem
+			let stringA = getStringA(mutableState).g;
+			let stringB = getStringB(mutableState).g;
+			vm.prepay(1,(stringA.length+stringB.length));
+			return vm.wrapInMut(stringA+stringB); //FIXME create vm.wrapInMut func
+		};
+		
+		//returns a new empty Mut
+		const mutNewEmpty = ()=>{
+			throw 'TODO';
+		};
+		
+		//You can use Mut without this, but you might want to call opmut from inside funcBody of a lambda, and have easy access to the var names of that lambda.
+		//lambdaCallingDatastruct is (pair_or_lazyeval (lambda funcBody ?a ?b ?varCDE u ...paramsExceptLast) lastParam).
+		const mutPutLambdaParamsInMut = (lambdaCallingDatastruct, getMut)=>{
+			throw 'TODO';
+		};
+		
+		//a lambda that can be used as a mut* func. all of them can be but most just ignore it and return some constant (TODO). default way to compile to cpu is to generate js code string.
+		const mutCompileForCpu = getLambda=>{
+			throw 'TODO';
+		};
+		
+		//a lambda that can be used as a mut* func. all of them can be but most just ignore it and return some constant (TODO). default way to compile to gpu is to generate GPU.js code string,
+		//which will use float32 math, and have nondeterministic roundoff, instead of float64, but it can reach over a teraflop in a browser if not IO bottlenecked such as a 3d fractal,
+		//else maybe around 30 gflops for matmul etc.
+		const mutCompileForGpu = (lambdaCallingDatastruct, getMut)=>{
+			throw 'TODO';
+		};
+		
+		//TODO mut* func (or something that returns one)... wrap string, fn/lambda, double, (and maybe Int32Array andOr Float64Array etc) in Mut.
+		//Use Object.freeze(theMut) to make a string constant so aLambda(rootMutGivenByOpmut) can generate efficient js code.
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		//FIXME where do blobs go in here, that dont have a left and right child yet cuz its lazy and creating the top of the blob as wrapper node?
+		
+		//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in Nodes.
+		vm.dedupMap = {};
+		//FIXME put u in dedupMap
+		
+		/*vm.HashtableNode = function(val,next){
+			this.val = val;
+			this.next = next;
+		};*/
+		
+		//TODO this replaces vm.dedupMap, doesnt create strings, and uses Node.idA .idB .blobFrom and .blobTo from 2 Nodes (8 ints) as key and parent Node as value.
+		//Its a linked hashtable, containing vm.HashtableNode's whose .val is Node. Similar will be done for funcallCacheMap somewhere else. Or nulls?
+		vm.dedupHashtable = [];
+		for(let i=0; i<(1<<24); i++) vm.dedupHashtable.push(null); //TODO expand as needed, doubling size each time?
+		vm.dedupHashtableMask = vm.dedupHashtable.length-1; //only works if its a powOf2.
+		
+		//vm.dedupHashtableBucket = (nodeA,nodeB)=>(vm.hash2Nodes(nodeA,nodeB)&vm.dedupHashtableMask);
+		
+
+		//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
+		vm.funcallCacheMap = {};
+
+		/*
+		//TODO remove this
+		vm.dedupKeyOfNode = function(isLeaf,func,param){
+			//TODO see comment "dont concat strings to create key" in similar code.
+			this.prepay(1,2); //FIXME?
+			return isLeaf+"_"+func().slowLocalId()+"_"+param().slowLocalId();
+		};
+		*/
+		
+		//TODO use faster hashtable specialized in things having 4 ints.
+		vm.Node.prototype.slowLocalId = function(){
+			//TODO see comment "dont concat strings to create key" in similar code.
+			//FIXME need to pay this somewhere but dont have vm param here: vm.prepay(1,2);
+			return this.idA.toString(16)+"_"+this.idB.toString(16)+"_"+this.blobFrom.toString(16)+"_"+this.blobTo.toString(16);
+		};
+
+		//FIXME must have 4 ints of salt and 3 bits of kinds of clean, on stack, for funcall cache.
+		vm.dedupKeyOfFuncallCache = function(func,param,optionalStackStuff){
+			//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
+			//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
+			this.prepay(1,4); //FIXME?
+			return "cache_"+func().slowLocalId()+"_"+param().slowLocalId()+"_"+(optionalStackStuff || vm.defaultStackStuff);
+		};
+
+
+		//increases every time any FuncallCache is used, so can garbcol old funcallcaches.
+		vm.touchCounter = 0;
+		
+		const twoPow32 = Math.pow(2,32);
+		const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0); //FIXME does this make negatives ever? Its supposed to.
+		//const hashIntSalts = new Int32Array(13);
+		const hashIntSalts = new Int32Array(30);
+		const hashingInts = new Int32Array(9); //put 8 ints in here (5 from each of 2 Nodes) starting at index 0 to hash, and get the hash from index 8.
+		for(let i=0; i<hashIntSalts.length; i++) hashIntSalts[i] = randInt();
+		
+		//random int from pow(2,30) to pow(2,31)-1, to mod hash ints by so bigger digits hash into all digits not just the small digitis.
+		//Max hashtable size is pow(2,30) cuz of this, and cuz it has to be a powOf2 size so can efficiently mask lambda.hashInt to get bucket.
+		//But since each node can potentially contain an Int32Array of up to (todo somewhere around, whats the exact max) pow(2,31) bits,
+		//including that some nodes share the same array, it can still reach 64 bit sizes
+		//such as if the browser supports using a terabyte or petabyte of RAM, or if this VM is ported to other systems that can.
+		//Its normally a very low memory system, but depends how you use it.
+		for(let i=8; i<hashIntSalts.length; i++) hashIntSalts[i] = (hashIntSalts[i]&0x7fffffff)|(1<<30); //make it range 1<<30 to 1<<31-1.
+		//hashIntSalts[8] = (hashIntSalts[8]&0x7fffffff)|(1<<30);
+		//hashIntSalts[12] = (hashIntSalts[12]&0x7fffffff)|(1<<30);
+		
+		
+		vm.hash3Ints = (a,b,c)=>{
+		//vm.hash3Ints = (p,q,r)=>{
+			//let a = p^q;
+			//let b = q^r;
+			//let c = r^p;'
+			
+			let C = c+a+b; //cuz c is so often 0, and second most common is 1, then 2, 3, and so on, up to max number of buckets searched in hashtable per key is 256 (should average around 2).
+			
+			let B = a+b;
+			
+			let d = (hashIntSalts[21]+(a*hashIntSalts[9])%hashIntSalts[10]);
+			let e = (hashIntSalts[22]+(B*hashIntSalts[13])%hashIntSalts[14]);		
+			let f = (hashIntSalts[23]+(C*hashIntSalts[17])%hashIntSalts[18]);
+			
+			let g = ((hashIntSalts[24]+a*hashIntSalts[11])%hashIntSalts[12]);
+			let h = ((hashIntSalts[25]+B*hashIntSalts[15])%hashIntSalts[16]);
+			let i = ((hashIntSalts[26]+C*hashIntSalts[19])%hashIntSalts[20]);
+			
+			//minorityBit(d,e,f)*minorityBit(g,h,i), where minorityBit(a,b,c)==~(maj(a,b,c)) like in sha256 "maj",
+			//an NP math op  of 3 bits -> 1 bit, but in this case 32 times at once.
+			//return hashIntSalts[27]+(~(d&e)^(e&f)^(f&d))*(~(g&h)^(h&i)^(i&g));
+			return hashIntSalts[27]+(hashIntSalts[28] + ~(d&e)^(e&f)^(f&d))*(hashIntSalts[29] + ~(g&h)^(h&i)^(i&g));
+			
+			//this hash function might be overkill of number of salts used. i dont want to waste alot of space in hashtables of int mut ids,
+			//but i dont want to make mutCp(int,int)->int too slow. its sparse, and thats necessarily going to be slower than sequential memory access, of course.
+		};
+		//FIXME this is too weak a hash function. needs miniorityBit ((a&b) ^ (b&c) ^ (c&a)), and maybe some extra % and *,
+		//but keep in mind that % and * are expensive compared to + & ^ etc, but since the bottleneck in CPU is usually memory bandwidth thats ok.
+		//vm.hash3Ints = (a,b,c)=>((
+		//	(Math.imul(a,hashIntSalts[9]) +  Math.imul(b,hashIntSalts[10]) + Math.imul(c,hashIntSalts[11]))%hashIntSalts[12]
+		//)|0);
+		
+		vm.hash2Nodes = (a,b)=>{
+			//TODO find some way to not check this IF just for u. its slowing down all the hashing.
+			
+			//FIXME verify a is identityfunc and b is u.
+			
+			
+			if(!a || (!b.idA && !b.idB)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
+			hashingInts[0] = a.idA;
+			hashingInts[1] = a.idB;
+			hashingInts[2] = a.blobFrom;
+			hashingInts[3] = a.blobTo;
+			hashingInts[4] = b.idA;
+			hashingInts[5] = b.idB;
+			hashingInts[6] = b.blobFrom;
+			hashingInts[7] = b.blobTo;
+			hashingInts[8] = 0;
+			for(let i=0; i<8; i++) hashingInts[8] += Math.imul(hashingInts[i],hashIntSalts[i]); //dotProd with onceRandomAtJsBoot salts
+			return hashingInts[8]%hashIntSalts[8];
+		};
+		
+		/*
+		vm.hash10Ints = (d,e,f,g,h,i,j,k,l,m)=>(
+			d*hashIntSalts[0]
+			+ e*hashIntSalts[1]
+			+ f*hashIntSalts[1]
+			+ g*hashIntSalts[1]
+			+ h*hashIntSalts[1]
+			+ i*hashIntSalts[1]
+			+ j*hashIntSalts[1]
+			+ k*hashIntSalts[1]
+			+ l*hashIntSalts[1]
+			+ m*hashIntSalts[1];
+			a*vm.hashIntSaltA + b*vm.hashIntSaltB + c*vm.hashIntSaltC
+		);*/
+
+		//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
+		//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
+		vm.FuncallCache = function(func,param,optionalStackStuff){
+			this.func = func;
+			this.param = param;
+			this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
+			this.ret = null; //func, param, and ret, are all what lambdize returns.
+			this.touch = ++this.touchCounter; //for garbcol of old funcallcaches
+			this.hashInt = vm.hash3Ints(func.hashInt,param.hashInt,this.stackStuff.hashInt);
+		};
+		
+		
+
+		//returns a vm.FuncallCache, not its ret, so you can read or write its ret. Sets its FuncallCache.touch to newest of any FuncallCache.
+		//salt isnt needed in pure clean mode, but if you want stackTime stackMem etc, to repeat the same call without getting the same return value from earlier cache, use salt.
+		//salt is any 4 ints. Normally the first lambda call uses a random salt, and unitary transforms it by 2 different transforms as it takes different paths on stack,
+		//but only changes salt when it wants to fork a different run of the same lambda call.
+		//Whena all 4 iscleanvsdirty bits are 0, the same run of the same lambda call always returns the same lambda, but its useful to limit compute cycles and memory
+		//and for some lambda calls to take different paths depending on if other lambda calls run out of compute resources or not, recursively.
+		//Since there are many possible optimizations and that may vary across wikibinator203 VMs, the amounts of compute resources are nondeterministic,
+		//and so are what digital signatures mutableWrapperLambda may find or not find, or find a newer one if theres multiple.
+		//The 4 bits are to allow or not allow various kinds of nondeterminism, recursively on stack can tighten but not loosen.
+		vm.funcallCache = function(func, param, optionalStackStuff){
+			
+			
+			//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
+			//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
+			let key = this.dedupKeyOfFuncallCache(func, param, optionalStackStuff);
+			let cache = this.funcallCacheMap[key];
+			if(cache){
+				this.prepay(1,0);
+			}else{
+				this.prepay(1,4);
+				cache = this.funcallCacheMap[key] = new this.FuncallCache(this,func,param,optionalStackStuff)
+			}
+			cache.touch = ++this.touchCounter;
+			return cache;
+		};
+		
+		vm.o8OfIdentityFunc = 5000; //FIXME thats the wrong number
+
+		//(func,param) or more params to curry...
+		//FIXME vararg might be slow. use separate func for vararg cp
+		vm.cp = function(){
+			//TODO divide cp into 2 funcs, one with 2 params and 1 with variable number of params, for efficiency.
+			switch(arguments.length){
+				case 0: return this.identityFunc;
+				case 1: return arguments[0];
+				case 2:
+					let func = arguments[0];
+					let param = arguments[1];
+					if(param().o8()==1 && func().o8() == this.o8OfIdentityFunc){
+						vm.prepay1Time();
+						return this.u; //the only node whose o8 is 1, but I'm making a point by implementing it without using == on nodes, just on bytes.
+					}else{
+						
+						/*
+						//TODO use faster kind of localIds and dedup than string. but for now i just want to get it working asap. GPU optimize, js code eval optimize, webasm optimize, etc later.
+						let key = this.dedupKeyOfNode(false,func,param);
+						return this.dedupMap[key] || (this.prepay(0,1) || (this.dedupMap[key] = vm.lambdize(new this.Node(this,func,param))));
+						*/
+						
+						//Look in hashtable for node with those 2 childs, else create it.
+						
+						//TODO optimize: this code looks too big and slow, but will be be fast enough since most calculations will be done in blobs, GPU, evalers, etc
+						//and only use this code when no compiled optimizations exist for the relevant lambda call. But still, it could probably be faster...
+						
+						//TODO optimize: If its 2 cbts sharing the same Node.blob that are adjacent then store parent pointer in them. just check parent pointer.
+						
+						
+						let funcNode = func(), paramNode = param();
+						let bucket = vm.hash2Nodes(funcNode,paramNode)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
+						let lambda = vm.dedupHashtable[bucket]; //null if bucket is empty, else lambda.htNext is next lambda in linkedlist of bucket
+						while(lambda){
+							vm.prepay1Time();
+							if(lambda().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
+								return lambda; //found it, reuse that instead of creating another node of same forest shape
+							}
+							lambda = lambda.htNext;
+						}
+						//didnt find that forest shape. create one.
+						this.prepay1Mem();
+						//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
+						lambda = vm.lambdize(new this.Node(this,func,param));
+						lambda.htNext = vm.dedupHashtable[bucket];
+						vm.dedupHashtable[bucket] = lambda;
+						return lambda;
+						
+						
+						/*
+						let bucket = vm.hash2Nodes(func,param)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
+						let htNode = vm.dedupHashtable[bucket];
+						let funcNode = func(), paramNode = param();
+						while(htNode){
+							vm.prepay1Time();
+							//TODO optimize by HashtableNode storing Node instead of the lambdize wrapper of it, so can use htNode.val instead of htNode.val()?
+							if(htNode.val().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
+								return htNode.val; //found it, reuse that instead of creating another node of same forest shape
+							}
+							htNode = htNode.next;
+						}
+						//didnt find that forest shape. create one.
+						this.prepay1Mem();
+						//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
+						let lambda = vm.lambdize(new this.Node(this,func,param));
+						vm.dedupHashtable[bucket] = new vm.HashtableNode(lambda, vm.dedupHashtable[bucket]);
+						*/
+						
+						
+						return lambda;
+					}
+				break;
+				default:
+					let ret = arguments[0];
+					for(let i=1; i<arguments.length; i++) ret = this.cp(ret,arguments[i]);
+					return ret;
+			}
+		};
+		
+		
+		//to use the same localNames etc, across multiple tostring calls of fn, lambdaToString fills this in if its null.
+		vm.viewer = null;
+		
+		vm.getViewer = function(){
+			if(!vm.viewer) vm.viewer = new vm.Viewer();
+			return vm.viewer;
+		};
+
+		//the this is a Node, not vm
+		vm.lambdaToString = function(){
+			if(vm.booted){
+				return vm.getViewer().fnToString(this); //recursive code string
+			}else{
+				//display simpler way
+				if(this.localName) return this.localName; //starts as the op names, and can name other lambdas (which are all constants), but it doesnt affect ids since its contentAddressable.
+				if(this().isLeaf()) return 'U';
+				else return this().l+'('+this().r+')';
+				//TODO? return this().slowLocalId(); //FIXME return a 45 char 256 bit globalId similar to (this one is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
+			}
+		};
+
+		vm.lambdize = function(node){
+			if(node.lam) return node.lam;
+			const NODE = node;
+			const VM = this;
+			//let lambda = function(param){
+			let lambda = function(param){
 				
 				//TODO test the code NODE.evaler(NODE.lam,param) which should do this.
-				//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which i…
-	''+(5).j
-	'u'
-	''+(5).m.hello
-	'0'
-	(5).m.hello
-	0
-	(5).m.helloasdf
-	0
-	(5).m[undefined]
-	0
-	(22*33).m.testab
-	0
-	*/
-	
-	//These mut* funcs take Mut or double as param, which all have the fields n m d g j e. n is array size. m is {}/map. d is Float64Array. g is string. j is fn/lambda. e is double value.
-	//the prototype of prototype of Number has been modified to have all those fields, such as (10+7).m is a {}, and (10+7).j==u, and (10+7).e==17.
-	//undefined is not allowed as a value. In theory these things have been modified to never return undefined when used certain ways that js code can be generated for.
-	//mut* primitive math...
-	const mutPlus = (a,b)=>(a+b);
-	const mutMult = (a,b)=>(a*b);
-	const mutSin = a=>Math.sin(a);
-	
-	//mut* controlflow such as loops, if/else, and sequence of code...
-	
-	//condition and loopBody are function(mut)->mut.
-	//mutableState is a Mut
-	const mutWhile = (condition,loopBody,mutableState)=>{
-		while(condition(mutableState)){
-			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-			loopBody(mutableState);
-		}
-		return mutableState; //also mutableState may have been modified
-	};
-	
-	const mutDoWhile = (loopBody,condition,mutableState)=>{
-		do{
-			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-			loopBody(mutableState);
-		}while(condition(mutableState));
-		return mutableState; //also mutableState may have been modified
-	};
-	
-	const mutFor = (start, condition, afterLoopBody, loopBody, mutableState)=>{
-		for(start(mutableState); condition(mutableState); afterLoopBody(mutableState)){
-			//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-			loopBody(mutableState);
-		}
-		return mutableState; //also mutableState may have been modified
-	};
-	
-	const mutIfElse = (condition,ifTrue,ifFalse,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		return (condition(mutableState) ? ifTrue : ifFalse)(mutableState);
-	};
-	
-	const mutIf = (condition,ifTrue,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		return condition(mutableState) ? ifTrue(mutableState) : mutableState;
-	};
-	
-	//a sequence of mut* funcs to call on a mutableState
-	const mutProgn = (listOfMutFuncs,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		for(let mutFunc of listOfMutFuncs){
-			//or should it just be: mutFunc(mutableState); without setting mutableState? might be more optimizable. but dont call it progn if so.
-			mutableState = mutFunc(mutableState);
-		}
-		return mutableState;
-	};
-	
-	const mutMapPut = (getMap,getKey,getVal,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		return getMap(mutableState).m[getKey(mutableState).g] = getVal(mutableState);
-	};
-	
-	const mutMapGet = (getMap,getKey,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		return getMap(mutableState).m[getKey(mutableState).g];
-	};
-	
-	const mutDoubleArrayPut = (getDoubleArray,getKey,getVal,mutableState)=>{
-		//TODO check gas* when? todo rename gas* to stack* like vm.stackTime vm.stackMem
-		//return getDoubleArray(mutableState).d[getKey(mutableState).e] = getVal(mutableState).e;
-		return getDoubleArray(mutableState).d[getKey(mutableState)] = getVal(mutableState);
-	};
-	
-	const mutDoubleArrayGet = (getDoubleArray,getKey,mutableState)=>{
-		//TODO check gas* when?
-		return getDoubleArray(mutableState).d[getKey(mutableState)];
-	};
-	
-	const mutStringConcat = (getStringA,getStringB,mutableState)=>{
-		//TODO check gas* when? and pay for length of new string in stackMem. todo rename gas* to stack* like vm.stackTime vm.stackMem
-		let stringA = getStringA(mutableState).g;
-		let stringB = getStringB(mutableState).g;
-		vm.prepay(1,(stringA.length+stringB.length));
-		return vm.wrapInMut(stringA+stringB); //FIXME create vm.wrapInMut func
-	};
-	
-	//returns a new empty Mut
-	const mutNewEmpty = ()=>{
-		throw 'TODO';
-	};
-	
-	//You can use Mut without this, but you might want to call opmut from inside funcBody of a lambda, and have easy access to the var names of that lambda.
-	//lambdaCallingDatastruct is (pair_or_lazyeval (lambda funcBody ?a ?b ?varCDE u ...paramsExceptLast) lastParam).
-	const mutPutLambdaParamsInMut = (lambdaCallingDatastruct, getMut)=>{
-		throw 'TODO';
-	};
-	
-	//a lambda that can be used as a mut* func. all of them can be but most just ignore it and return some constant (TODO). default way to compile to cpu is to generate js code string.
-	const mutCompileForCpu = getLambda=>{
-		throw 'TODO';
-	};
-	
-	//a lambda that can be used as a mut* func. all of them can be but most just ignore it and return some constant (TODO). default way to compile to gpu is to generate GPU.js code string,
-	//which will use float32 math, and have nondeterministic roundoff, instead of float64, but it can reach over a teraflop in a browser if not IO bottlenecked such as a 3d fractal,
-	//else maybe around 30 gflops for matmul etc.
-	const mutCompileForGpu = (lambdaCallingDatastruct, getMut)=>{
-		throw 'TODO';
-	};
-	
-	//TODO mut* func (or something that returns one)... wrap string, fn/lambda, double, (and maybe Int32Array andOr Float64Array etc) in Mut.
-	//Use Object.freeze(theMut) to make a string constant so aLambda(rootMutGivenByOpmut) can generate efficient js code.
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	//FIXME where do blobs go in here, that dont have a left and right child yet cuz its lazy and creating the top of the blob as wrapper node?
-	
-	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in Nodes.
-	vm.dedupMap = {};
-	//FIXME put u in dedupMap
-	
-	/*vm.HashtableNode = function(val,next){
-		this.val = val;
-		this.next = next;
-	};*/
-	
-	//TODO this replaces vm.dedupMap, doesnt create strings, and uses Node.idA .idB .blobFrom and .blobTo from 2 Nodes (8 ints) as key and parent Node as value.
-	//Its a linked hashtable, containing vm.HashtableNode's whose .val is Node. Similar will be done for funcallCacheMap somewhere else. Or nulls?
-	vm.dedupHashtable = [];
-	for(let i=0; i<(1<<24); i++) vm.dedupHashtable.push(null); //TODO expand as needed, doubling size each time?
-	vm.dedupHashtableMask = vm.dedupHashtable.length-1; //only works if its a powOf2.
-	
-	//vm.dedupHashtableBucket = (nodeA,nodeB)=>(vm.hash2Nodes(nodeA,nodeB)&vm.dedupHashtableMask);
-	
-
-	//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
-	vm.funcallCacheMap = {};
-
-	/*
-	//TODO remove this
-	vm.dedupKeyOfNode = function(isLeaf,func,param){
-		//TODO see comment "dont concat strings to create key" in similar code.
-		this.prepay(1,2); //FIXME?
-		return isLeaf+"_"+func().slowLocalId()+"_"+param().slowLocalId();
-	};
-	*/
-	
-	//TODO use faster hashtable specialized in things having 4 ints.
-	vm.Node.prototype.slowLocalId = function(){
-		//TODO see comment "dont concat strings to create key" in similar code.
-		//FIXME need to pay this somewhere but dont have vm param here: vm.prepay(1,2);
-		return this.idA.toString(16)+"_"+this.idB.toString(16)+"_"+this.blobFrom.toString(16)+"_"+this.blobTo.toString(16);
-	};
-
-	//FIXME must have 4 ints of salt and 3 bits of kinds of clean, on stack, for funcall cache.
-	vm.dedupKeyOfFuncallCache = function(func,param,optionalStackStuff){
-		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
-		//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
-		this.prepay(1,4); //FIXME?
-		return "cache_"+func().slowLocalId()+"_"+param().slowLocalId()+"_"+(optionalStackStuff || vm.defaultStackStuff);
-	};
-
-
-	//increases every time any FuncallCache is used, so can garbcol old funcallcaches.
-	vm.touchCounter = 0;
-	
-	const twoPow32 = Math.pow(2,32);
-	const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0); //FIXME does this make negatives ever? Its supposed to.
-	//const hashIntSalts = new Int32Array(13);
-	const hashIntSalts = new Int32Array(30);
-	const hashingInts = new Int32Array(9); //put 8 ints in here (5 from each of 2 Nodes) starting at index 0 to hash, and get the hash from index 8.
-	for(let i=0; i<hashIntSalts.length; i++) hashIntSalts[i] = randInt();
-	
-	//random int from pow(2,30) to pow(2,31)-1, to mod hash ints by so bigger digits hash into all digits not just the small digitis.
-	//Max hashtable size is pow(2,30) cuz of this, and cuz it has to be a powOf2 size so can efficiently mask lambda.hashInt to get bucket.
-	//But since each node can potentially contain an Int32Array of up to (todo somewhere around, whats the exact max) pow(2,31) bits,
-	//including that some nodes share the same array, it can still reach 64 bit sizes
-	//such as if the browser supports using a terabyte or petabyte of RAM, or if this VM is ported to other systems that can.
-	//Its normally a very low memory system, but depends how you use it.
-	for(let i=8; i<hashIntSalts.length; i++) hashIntSalts[i] = (hashIntSalts[i]&0x7fffffff)|(1<<30); //make it range 1<<30 to 1<<31-1.
-	//hashIntSalts[8] = (hashIntSalts[8]&0x7fffffff)|(1<<30);
-	//hashIntSalts[12] = (hashIntSalts[12]&0x7fffffff)|(1<<30);
-	
-	
-	vm.hash3Ints = (a,b,c)=>{
-	//vm.hash3Ints = (p,q,r)=>{
-		//let a = p^q;
-		//let b = q^r;
-		//let c = r^p;'
-		
-		let C = c+a+b; //cuz c is so often 0, and second most common is 1, then 2, 3, and so on, up to max number of buckets searched in hashtable per key is 256 (should average around 2).
-		
-		let B = a+b;
-		
-		let d = (hashIntSalts[21]+(a*hashIntSalts[9])%hashIntSalts[10]);
-		let e = (hashIntSalts[22]+(B*hashIntSalts[13])%hashIntSalts[14]);		
-		let f = (hashIntSalts[23]+(C*hashIntSalts[17])%hashIntSalts[18]);
-		
-		let g = ((hashIntSalts[24]+a*hashIntSalts[11])%hashIntSalts[12]);
-		let h = ((hashIntSalts[25]+B*hashIntSalts[15])%hashIntSalts[16]);
-		let i = ((hashIntSalts[26]+C*hashIntSalts[19])%hashIntSalts[20]);
-		
-		//minorityBit(d,e,f)*minorityBit(g,h,i), where minorityBit(a,b,c)==~(maj(a,b,c)) like in sha256 "maj",
-		//an NP math op  of 3 bits -> 1 bit, but in this case 32 times at once.
-		//return hashIntSalts[27]+(~(d&e)^(e&f)^(f&d))*(~(g&h)^(h&i)^(i&g));
-		return hashIntSalts[27]+(hashIntSalts[28] + ~(d&e)^(e&f)^(f&d))*(hashIntSalts[29] + ~(g&h)^(h&i)^(i&g));
-		
-		//this hash function might be overkill of number of salts used. i dont want to waste alot of space in hashtables of int mut ids,
-		//but i dont want to make mutCp(int,int)->int too slow. its sparse, and thats necessarily going to be slower than sequential memory access, of course.
-	};
-	//FIXME this is too weak a hash function. needs miniorityBit ((a&b) ^ (b&c) ^ (c&a)), and maybe some extra % and *,
-	//but keep in mind that % and * are expensive compared to + & ^ etc, but since the bottleneck in CPU is usually memory bandwidth thats ok.
-	//vm.hash3Ints = (a,b,c)=>((
-	//	(Math.imul(a,hashIntSalts[9]) +  Math.imul(b,hashIntSalts[10]) + Math.imul(c,hashIntSalts[11]))%hashIntSalts[12]
-	//)|0);
-	
-	vm.hash2Nodes = (a,b)=>{
-		//TODO find some way to not check this IF just for u. its slowing down all the hashing.
-		
-		//FIXME verify a is identityfunc and b is u.
-		
-		
-		if(!a || (!b.idA && !b.idB)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
-		hashingInts[0] = a.idA;
-		hashingInts[1] = a.idB;
-		hashingInts[2] = a.blobFrom;
-		hashingInts[3] = a.blobTo;
-		hashingInts[4] = b.idA;
-		hashingInts[5] = b.idB;
-		hashingInts[6] = b.blobFrom;
-		hashingInts[7] = b.blobTo;
-		hashingInts[8] = 0;
-		for(let i=0; i<8; i++) hashingInts[8] += Math.imul(hashingInts[i],hashIntSalts[i]); //dotProd with onceRandomAtJsBoot salts
-		return hashingInts[8]%hashIntSalts[8];
-	};
-	
-	/*
-	vm.hash10Ints = (d,e,f,g,h,i,j,k,l,m)=>(
-		d*hashIntSalts[0]
-		+ e*hashIntSalts[1]
-		+ f*hashIntSalts[1]
-		+ g*hashIntSalts[1]
-		+ h*hashIntSalts[1]
-		+ i*hashIntSalts[1]
-		+ j*hashIntSalts[1]
-		+ k*hashIntSalts[1]
-		+ l*hashIntSalts[1]
-		+ m*hashIntSalts[1];
-		a*vm.hashIntSaltA + b*vm.hashIntSaltB + c*vm.hashIntSaltC
-	);*/
-
-	//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
-	//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
-	vm.FuncallCache = function(func,param,optionalStackStuff){
-		this.func = func;
-		this.param = param;
-		this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
-		this.ret = null; //func, param, and ret, are all what lambdize returns.
-		this.touch = ++this.touchCounter; //for garbcol of old funcallcaches
-		this.hashInt = vm.hash3Ints(func.hashInt,param.hashInt,this.stackStuff.hashInt);
-	};
-	
-	
-
-	//returns a vm.FuncallCache, not its ret, so you can read or write its ret. Sets its FuncallCache.touch to newest of any FuncallCache.
-	//salt isnt needed in pure clean mode, but if you want stackTime stackMem etc, to repeat the same call without getting the same return value from earlier cache, use salt.
-	//salt is any 4 ints. Normally the first lambda call uses a random salt, and unitary transforms it by 2 different transforms as it takes different paths on stack,
-	//but only changes salt when it wants to fork a different run of the same lambda call.
-	//Whena all 4 iscleanvsdirty bits are 0, the same run of the same lambda call always returns the same lambda, but its useful to limit compute cycles and memory
-	//and for some lambda calls to take different paths depending on if other lambda calls run out of compute resources or not, recursively.
-	//Since there are many possible optimizations and that may vary across wikibinator203 VMs, the amounts of compute resources are nondeterministic,
-	//and so are what digital signatures mutableWrapperLambda may find or not find, or find a newer one if theres multiple.
-	//The 4 bits are to allow or not allow various kinds of nondeterminism, recursively on stack can tighten but not loosen.
-	vm.funcallCache = function(func, param, optionalStackStuff){
-		
-		
-		//TODO dont concat strings to create key. just look it up without creating heap mem, in a hashtable specialized in 128+128 bit keys (128 bits of localId per lambda).
-		//But until then, dedupKeyOfFuncallCache will prepay to include stackMem, instead of just stackTime.
-		let key = this.dedupKeyOfFuncallCache(func, param, optionalStackStuff);
-		let cache = this.funcallCacheMap[key];
-		if(cache){
-			this.prepay(1,0);
-		}else{
-			this.prepay(1,4);
-			cache = this.funcallCacheMap[key] = new this.FuncallCache(this,func,param,optionalStackStuff)
-		}
-		cache.touch = ++this.touchCounter;
-		return cache;
-	};
-	
-	vm.o8OfIdentityFunc = 5000; //FIXME thats the wrong number
-
-	//(func,param) or more params to curry...
-	//FIXME vararg might be slow. use separate func for vararg cp
-	vm.cp = function(){
-		//TODO divide cp into 2 funcs, one with 2 params and 1 with variable number of params, for efficiency.
-		switch(arguments.length){
-			case 0: return this.identityFunc;
-			case 1: return arguments[0];
-			case 2:
-				let func = arguments[0];
-				let param = arguments[1];
-				if(param().o8()==1 && func().o8() == this.o8OfIdentityFunc){
-					vm.prepay1Time();
-					return this.u; //the only node whose o8 is 1, but I'm making a point by implementing it without using == on nodes, just on bytes.
-				}else{
-					
-					/*
-					//TODO use faster kind of localIds and dedup than string. but for now i just want to get it working asap. GPU optimize, js code eval optimize, webasm optimize, etc later.
-					let key = this.dedupKeyOfNode(false,func,param);
-					return this.dedupMap[key] || (this.prepay(0,1) || (this.dedupMap[key] = vm.lambdize(new this.Node(this,func,param))));
-					*/
-					
-					//Look in hashtable for node with those 2 childs, else create it.
-					
-					//TODO optimize: this code looks too big and slow, but will be be fast enough since most calculations will be done in blobs, GPU, evalers, etc
-					//and only use this code when no compiled optimizations exist for the relevant lambda call. But still, it could probably be faster...
-					
-					//TODO optimize: If its 2 cbts sharing the same Node.blob that are adjacent then store parent pointer in them. just check parent pointer.
-					
-					
-					let funcNode = func(), paramNode = param();
-					let bucket = vm.hash2Nodes(funcNode,paramNode)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
-					let lambda = vm.dedupHashtable[bucket]; //null if bucket is empty, else lambda.htNext is next lambda in linkedlist of bucket
-					while(lambda){
-						vm.prepay1Time();
-						if(lambda().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
-							return lambda; //found it, reuse that instead of creating another node of same forest shape
-						}
-						lambda = lambda.htNext;
-					}
-					//didnt find that forest shape. create one.
-					this.prepay1Mem();
-					//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
-					lambda = vm.lambdize(new this.Node(this,func,param));
-					lambda.htNext = vm.dedupHashtable[bucket];
-					vm.dedupHashtable[bucket] = lambda;
-					return lambda;
-					
-					
-					/*
-					let bucket = vm.hash2Nodes(func,param)&vm.dedupHashtableMask; //its a linked hashtable so its either in that bucket or not in the hashtable
-					let htNode = vm.dedupHashtable[bucket];
-					let funcNode = func(), paramNode = param();
-					while(htNode){
-						vm.prepay1Time();
-						//TODO optimize by HashtableNode storing Node instead of the lambdize wrapper of it, so can use htNode.val instead of htNode.val()?
-						if(htNode.val().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
-							return htNode.val; //found it, reuse that instead of creating another node of same forest shape
-						}
-						htNode = htNode.next;
-					}
-					//didnt find that forest shape. create one.
-					this.prepay1Mem();
-					//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
-					let lambda = vm.lambdize(new this.Node(this,func,param));
-					vm.dedupHashtable[bucket] = new vm.HashtableNode(lambda, vm.dedupHashtable[bucket]);
-					*/
-					
-					
-					return lambda;
-				}
-			break;
-			default:
-				let ret = arguments[0];
-				for(let i=1; i<arguments.length; i++) ret = this.cp(ret,arguments[i]);
-				return ret;
-		}
-	};
-
-	//the this is a Node, not vm
-	vm.lambdaToString = function(){
-		if(this.localName) return this.localName; //starts as the op names, and can name other lambdas (which are all constants), but it doesnt affect ids since its contentAddressable.
-		if(this().isLeaf()) return 'u';
-		else return this().l+'('+this().r+')';
-		//TODO? return this().slowLocalId(); //FIXME return a 45 char 256 bit globalId similar to (this one is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
-	};
-
-	vm.lambdize = function(node){
-		if(node.lam) return node.lam;
-		const NODE = node;
-		const VM = this;
-		//let lambda = function(param){
-		let lambda = function(param){
-			
-			//TODO test the code NODE.evaler(NODE.lam,param) which should do this.
-			//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which in the chain is used.
-			//use the first aNode.evaler where aNode.evaler.on such as aNode.evaler.prev.prev.on.
-			
-			//aLambda() returns the node it wraps. Example: aLambda().l or aLambda().r or aLambda().vm.Node
-			//or aLambda().vm.FuncallCache or aLambda().header or aLambdas().bize or aLambda().idA or aLambda().blob.
-			//TODO optimize: maybe it should be aLambda.n to get the Node?
-			//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
-			if(param === undefined) return NODE;
-			return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
+				//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which in the chain is used.
+				//use the first aNode.evaler where aNode.evaler.on such as aNode.evaler.prev.prev.on.
+				
+				//aLambda() returns the node it wraps. Example: aLambda().l or aLambda().r or aLambda().vm.Node
+				//or aLambda().vm.FuncallCache or aLambda().header or aLambdas().bize or aLambda().idA or aLambda().blob.
+				//TODO optimize: maybe it should be aLambda.n to get the Node?
+				//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
+				if(param === undefined) return NODE;
+				return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
+			};
+			lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing "if(param === undefined) return NODE;" and always using .n?
+			//lambda = lambda.bind(this);
+			lambda.hashInt = vm.hash2Nodes(node.l,node.r); //TODO optimize should hashInt go in node instead of lambda? does that make it harder to use?
+			lambda.toString = vm.lambdaToString;
+			return (node.lam = lambda);
 		};
-		lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing "if(param === undefined) return NODE;" and always using .n?
-		//lambda = lambda.bind(this);
-		lambda.hashInt = vm.hash2Nodes(node.l,node.r); //TODO optimize should hashInt go in node instead of lambda? does that make it harder to use?
-		lambda.toString = vm.lambdaToString;
-		return (node.lam = lambda);
-	};
-	
-	//TODO pushEvaler with .on and .prev and (prepay,func,param) or maybe (vm,func,param)
-	
-	//vm.opcodeToO8 = {}; //string to o8
-	//vm.opcodesDescription = {};
-	//vm.nextOpO8 = 128; //128..255
-	//vm.o8ToLambda = []; //o8 of 0 is either evaling or doesnt exist. o8 of 1 to 255 exists. Past that, they copy o8 from l child.
-	//vm.o8ToLambda[0] = (x=>{throw 'o8 of 0 does nothing or is evaling';});
-	vm.opInfo = []; //o8 to info
-	vm.opNameToO8 = {}; //a cache of vm.opInfo, used in a switch statement in vm.rootEvaler. TODO optimize further by making a separate evaler for each op and a few other common lambdas.
-	vm.addOp = (name,isStrange,curriesLeft,description)=>{
-		let o8 = vm.opInfo.length;
-		if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc.';
-		//TODO vm.o8ToLambda[vm.nextOpO8] = 
-		//vm.opcodeToO8[name] = vm.nextOpO8;
-		//vm.opcodesDescription[name] = (description || 'TODO write description of opcode '+name);
-		//vm.nextOpO8++;
-		vm.opInfo.push({name:name, isStrange:isStrange, curriesLeft:curriesLeft, description:description});
-		vm.opNameToO8[name] = o8;
-		console.log('Add op '+name+' o8='+o8+' curriesLeft='+curriesLeft+' description: '+description);
-		return o8;
-	};
-	vm.addOp('evaling',true,0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
-	vm.addOp('u',true,7,'the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.');
-	for(let o8=2; o8<128; o8++){
-		//TODO 'op' + 2 hex digits?
-		let numLeadingZeros = Math.clz32(o8);
-		let curriesSoFar = 31-numLeadingZeros;
-		let curriesLeft = 7-curriesSoFar;
-		let name = 'Op'+o8.toString(2);
-		vm.addOp(name, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
-	}
-	vm.addOp('F',false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
-	vm.addOp('T',false,2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
-	vm.o8OfBit0 = vm.addOp('bit0',false,248,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
-	vm.o8OfBit1 = vm.addOp('Bit1',false,248,'see bit0');
-	vm.o8OfL = vm.addOp('L',false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
-	vm.o8OfR = vm.addOp('R',1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
-	vm.addOp('Isleaf',false,1,'returns t or f of is its param u aka the universal lambda');
-	vm.addOp('IsClean',false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?');
-	vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
-	vm.o8OfLambda = vm.addOp('Lambda',true,2,'FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
-	vm.addOp('GetVarFn',false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-	vm.addOp('GetVarDouble',false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-	vm.addOp('GetVarDoubles',false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-	//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
-	vm.o8OfVarargAx = vm.addOp('VarargAx',true,2,'FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
-	vm.addOp('S',false,3,'For control-flow. the s lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-	vm.addOp('Pair',false,3,'the church-pair lambda aka λx.λy.λz.zxy');
-	vm.addOp('Infcur',true,vm.maxCurriesLeft,'Infcur aka (Infcur) is []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
-	
-	vm.addOp('Mut',false,6,'Used with opmut* and lambdaParams*. This is a snapshot of a key/fourVals, normally used in a [...] stream/Infcur. (Mut cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped) is halted, and add 1 more param and it infloops). FIXME should Mut be a little varargAx-like as it could verify its params are those types (but unlike varargAx, guarantees it verifies fast)?');
-	vm.addOp('OpmutOuter',false,2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
-	vm.addOp('OpmutInner',false,2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
-	
-	
-	vm.addOp('StackIsAllowstackTimestackMem',false,1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
-	vm.addOp('StackIsAllowNondetRoundoff',false,1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
-	vm.addOp('StackIsAllowMutableWrapperLambdaAndSolve',false,1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
-	vm.addOp('StackIsAllowAx',false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
-	vm.addOp('IsCbt',false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
-	vm.addOp('ContainsAxConstraint',false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
-	vm.addOp('Dplusraw',false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
-	vm.addOp('StreamGet',false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.');
-	vm.addOp('StreamPut',false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]');
-	vm.addOp('StreamPack',false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].');
-	vm.addOp('Get32BitsInCbt',false,2,'(get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val');
-	vm.addOp('Put32BitsInCbt',false,3,'(put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks');
-	//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks');
-	vm.addOp('Equals',false,2,'By content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).');
-	vm.addOp('StreamWhile',false,3,'(streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
-	vm.addOp('StreamDoWhile',false,3,'(streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
-	vm.addOp('StreamFor',false,5,'(streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
-	vm.addOp('IfElse',false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
-	vm.addOp('If',false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
-	vm.addOp('GetSalt128',false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.');
-	vm.addOp('WithSalt128',false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.');
-	vm.addOp('WithSalt128TransformedBy',false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).');
-	vm.addOp('SolveRecog',false,1,'(solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64.');
-	vm.addOp('SolveFloat64',false,1,'(solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack.');
-	vm.addOp('Bize31',false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number).');
-	vm.addOp('Bize53',false,1,'(bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general.');
-	vm.addOp('Bize256',false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id.');
-	vm.addOp('LambdaParamsList',false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.');
-	vm.addOp('LambdaParamsStream',false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.');
-	/*vm.addOp('lambdaParams',false,1,'Same as LambdaParamsReverse except is the same order they occur in the Lambda call, and is less efficient cuz has to reverse it. This is normally implemented by calling LambdaParamsReverse then reversing that []/stream.');
-	vm.addOp('lambdaParamsReverse',false,1,'Used with (opLambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). (LambdaParamsReverse (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
-	*/
-	vm.addOp('Seq',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].');
-	vm.addOp('HasMoreThan7Params',false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.');
-	
-	/* todo these ops too...
-	TODO...
-	bit0
-	bit1
-	getSalt128 ignore
-	withSalt128 cbt128 func param
-	withSalt128TransformedBy funcOf128BitsTo128Bits func param
-	//no, just use opmut* instead of: mutableSLike
-	ifElse condition iftrue iffalse state //if (condition state)->t then returns (iftrue state) else returns (iffalse state). todo check o8 for is it t, vs do it like pair x y t vs pair x y f? just check its opcode.
-	todo fill in the others.
-	for //...
-	while condition state
-	dowhile
-	varname //like typeval but its a utf8 or is it utf16? use this (or just typeval names) in ifElse for while dowhile etc.
-	[]= nameOb nameKey nameVal //{} in Mut
-	[] nameOb nameKey
-	<>= nameOb nameKey nameVal //Float64Array in Mut
-	<> nameOb nameKey
-	copy<>ToCbt ob key
-	copyCbtTo<>
-	new<>OfNDoubles
-	//new<>OfNFloats
-	//new<>OfNInts
-	//new<>OfNUbytes
-	isJsDoubleDuringMut getVarName
-	isJsStringDuringMut
-	funcallDuringMut func param //similar to (+ x y) it returns something instead of being a []= or <>=
-		//funcallDuringMut getVarNameLvalue getVarNameFunc getVarNameParam
-	Math.sin //allow nondeterministic roundoff. but in pure mode you cant use this.
-	Math.tanh
-	Math.sqrt
-	Math.imul
-	...bunch more Math.something funcs...
-	spendTimeMemFuncParam maxstackTime maxstackMem func param
-	~
-	^
-	!
-	||
-	&&
-	*
-	-
-	/
-	%
-	?:
-	!!!!!!!!!!!!! no == for fns cuz of nondeterministic partialDedup?
-	TODO ^= |= ~= etc?
-	//fixme is this the same as Math.pow: ** aka pow
-	Math.abs
-	Math.acos
-	Math.acosh
-	Math.asin
-	Math.asinh
-	Math.atan
-	Math.atan2
-	Math.atanh
-	Math.cbrt
-	Math.ceil
-	Math.clz32
-	Math.cos
-	Math.cosh
-	Math.exp
-	Math.expm1
-	Math.floor
-	Math.fround
-	Math.hypot
-	Math.imul
-	Math.log
-	Math.log1p
-	Math.log2
-	Math.log10
-	Math.max
-	Math.min
-	Math.pow
-	Math.round
-	Math.sign
-	Math.sin
-	Math.sinh
-	Math.sqrt
-	Math.tan
-	Math.tanh
-	Math.trunc
-	//sigmoid //todo implement using tanh andOr exp
-	//square
-	//cube
-	isNaN
-	isSubnormalNumber
-	isFiniteNumber
-	isNormedDoubleBits
-	asyncStartGpuFloat32CompileEarly
-	isGpuCompiledFor
-	asyncBatchDownloadMutableWrapperLambdaEachWithBellcurveOfTimeForWhenAndHowMuchWantIt
-	isMutableWrapperLambdaCallDownloadedOrKnownFor
-	hyperquasicrystal (it cant get access to anything outside this opcode. it sees this opcode as its leaf, and infloops if called on anything not made entirely of it)
-	solveRecog x //returns any y where (x y)->u.
-	solveFloat64 x //returns any y where (x y)->float64 where the float64 is positive, and the higher the better.
-	getdoublefromcbtaligned64
-	getint...
-	getbyte..
-	getshort...
-	getchar...
-	concat2cbt
-	bize31 //bitstrings are limited to 2^31-1 bits so bize fits in int. you can still use a list or tree of bitstrings to make things as big as you want.
-	doublesLen //same as floor(bize31/64)
-	floatsOrIntsLen //same as floor(bize31/32)
-	shortsOrCharsLen //same as floor(bize31/16)
-	bytesLen //same as floor(bize31/8)
-	containsbit1
-	normfloat64
-	normfloat32
-	optimizationhint hint func param ???
-	  or just gpujslikecall
-	//Math.random //only works in opmut or with a different salt128 each time. whatever Math.random() does, or GPU.js's random func does. not high quality random. if you want that, derive a securehash and seed it with things like this.
-	//time //returns double of seconds since Y1970 utc time. only works in opmut or with a different salt128 each time.
-	...reservedForFutureOpcodes... //up to 128.
-	make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
-	*/
-	
-	while(vm.opInfo.length < 256) vm.addOp('Op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (S I I (S I I)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
-	
-	vm.bit = function(bit){ return bit ? this.t : this.f };
-	
-	//In abstract math, evals to (s s s s) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
-	//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
-	//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
-	vm.infloop = ()=>{ throw this.gasErr; }
-	
-	//throw 'vm.pair = TODO; //similar to vm.t and vm.f and few other ops';
-	
-	//takes a mut where mut.m.func is (... opmut treeOfJavascriptlikeCode) so can call itself recursively,
-	//and mut.m.param is its lambda param. Using that, it can do things like loop over pixels in an array, use js {} maps, etc.
-	//It must return a lambda, but in the middle steps it has mutable optimizations that can be compiled to javascript for example,
-	//but since the universal lambda doesnt depend on anything outside itself, it could be compiled to any turingComplete system.
-	vm.opmut = mut=>{
-		throw 'TODO compile, making sure to limit stackTime stackMem etc.';
-	};
-	
-	
-	//immutable. but stackTime stackMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
-	//mask is the low 4 bits of header int, the cleanvsdirty etc stuff, such as does it allow nondeterministic roundoff.
-	vm.StackStuff = function(mask, saltA, saltB, saltC, saltD){
-		this.mask = mask;
-		this.saltA = saltA;
-		this.saltB = saltB;
-		this.saltC = saltC;
-		this.saltD = saltD;
-	};
-	
-	//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
-	//Use this as immutable.
-	//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
-	//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to stackTime and stackMem can only decrease (or stay same) but not increase,
-	//until the first call returns, then can start with any StackStuff you and stackTime stackMem etc you want.
-	vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
-	
-	
-	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
-	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-	vm.stackMem = 1000000;
-	vm.stackDeep = 300; //FIXME this is a way to prevent stackoverflowerrors in the outer system the VM is built in, such as on javascript python java or c++ stack, BUT FIXME what units to measure it in, stackframes? no, cuz they are variable size. ints or bytes or sizeof(pointer)? seems better but might be hard to count those. Figure it out.
-	//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
-	vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
-	vm.stackCpuCompile = 1000000; //TODO
-	vm.stackNetworkUpload = 1000000; //TODO
-	vm.stackNetworkDownload = 1000000; //TODO
-	vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
-	vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
-	vm.stackStuff = vm.defaultStackStuff;
-	
-	
-	/*
-	NEW:
-	//primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>. primaryKey of a dedupedFn is 64 bits. primaryKey of a non-deduped-fn is 128 bits.
-	vm.Mut = function(whichOpmutSpace,dedupedFn){
-		this.whichOpmutSpace = whichOpmutSpace; //primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>
-		this.dedupedFn = dedupedFn; //primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>
-		//this.hashInt = ...
-		//FIXME have 2 dedupedFns here, one you're allowed to see and one you're not, to allow for isolating musical instrument parts etc?
-		this.valMut = todo same whichOpmutSpace as this, of u; //same as this.valFn implies, TODO merge this disorganized code.
-		//this.valFn = u; //FIXME TODO. This merges Mut.j with Mut.m as in findOrCreateMut(this.whichOpmutSpace,anyDedupedFn).valFn or .valDoubles
-		this.valDouble = 0;
-		this.valDoubles = emptyDoubleArray; //FIXME TODO
-	};
-	----------------
-	OLD:
-	//linkedlist of vm.OpmutState. vm.stackMut is the top OpmutState. vm.stackMut.prev.prev.prev... is the linkedlist.
-	//The prev ptr is only for what happens when pop an OpmutState, when a call of opmut* (some opmut-related op) ends, that an opmut* had called an opmut* to create a new OpmutState.
-	//Its not a recursive namespace.
-	vm.stackMut = null;
-	//vm.stackMutPtr = 0 or should this go in vm.stackMut.ptr or in compiled code with for loops if/else etc that uses vm.stackMutPtr.ints[ptr]?
-	//The purpose of stackMutPtr is like a "this" or a "namespace" that opmut code runs relative to. If its for(let i=0; i<abc; i++){...} then 'i' and 'j' are
-	//(another ptr is this int from cp) vm.stackMut.cp(vm.stackMutPtr,someNodeWhoseBitsAreUtf8OfIOrJChars), but in some faster way than that, caching things along the way, etc.
-	//OpmutState/stackMut doesnt have the ability to list what fields have been set (such as cp(ptr,intOf_'i') or cp(ptr,intOf_'j'). It can read or write it if you know the key.
-	//If you want to remember keys, you can make a linkedlist using cp(cp(somePtrRepresentingLinkedListType,leftPtr),rightPtr)->parentPtr or something like that.
-	//All such int ptrs are interchangible with calling infcur on itself. The opmut leaf key (int 0) is infcur. (infcur infcur) is cp(0,0), and so on,
-	//so state of an opmut call can be copied from and to lambdas, as its a map of (various combos of infcur) to some few things including int val, 2 double vals, Float64Array val, fn val.
-	*/
-	vm.stack_whichOpmutSpace;
-	//as in "primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>". Up to a few thousand of these might exist at once
-	//in one computer, but normally 1 or just a few at a time. Multiple exist when opmut calls opmut. After all that returns, all of them become garbcolable.
-	
-	vm.saveLoadStack = [];
-	
-	
-	
-	/*
-	//save vm.stackTime, vm.stackStuff, etc, to be loaded after do something such as a call of ax.
-	vm.saveStackTop = function(){
-		this.saveLoadStack.push(
-			this.stackTime,
-			this.stackMem,
-			this.stackGpuCompile,
-			this.stackCpuCompile,
-			this.stackNetworkUpload,
-			this.stackNetworkDownload,
-			this.stackDriveRead,
-			this.stackDriveWrite,
-			this.stackStuff
-		);
-	};
-	
-	//see vm.saveStackTop. Call this in a finally after saveStackTop in the try.
-	vm.loadStackTop = function(){
-		//FIXME verify this shouldnt be in reverse order
-		this.stackStuff = this.saveLoadStack.pop();
-		this.stackDriveWrite = this.saveLoadStack.pop();
-		this.stackDriveRead = this.saveLoadStack.pop();
-		this.stackNetworkDownload = this.saveLoadStack.pop();
-		this.stackNetworkUpload = this.saveLoadStack.pop();
-		this.stackCpuCompile = this.saveLoadStack.pop();
-		this.stackGpuCompile = this.saveLoadStack.pop();
-		this.stackMem = this.saveLoadStack.pop();
-		this.stackTime = this.saveLoadStack.pop();
-	};*/
-	
-	
-	/* very slow interpreted mode. add optimizations as recursive evalers whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
-	u.evaler is this rootEvaler. All other evalers are hooked in by aLambda.pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda.evaler before setting aLambda.evaler to the new one,
-	and if the evaler doesnt have an evaler.on field, creates it as true.
-	*/
-	vm.rootEvaler = (vm,l,r)=>{
 		
-		//TODO rename l to myL and r to myR, cuz l and r are ops.
+		//TODO pushEvaler with .on and .prev and (prepay,func,param) or maybe (vm,func,param)
 		
-		//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
-		
-		console.log('Evaling l='+l+' r='+r);
-		//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
-		//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
-		//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
-		//The strictest is pure determinism and will compute the exact same bits in every wikibinator203 VM. All halted lambdas are that strictest way,
-		//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
-		//similar to vm.stackTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
-		"use strict";
-		//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
-		vm.prepay(1,0);
-		let cache = vm.funcallCache(l,r);
-		if(cache.ret) return cache.ret;
-		
-		let stackMask = vm.stackStuff.mask;
-		if(l().curriesLeft() > 1 || l().o8() < 128){ //if 64 <= o8 < 128 then its getting its 7th param, and op always becomes known at 7th param, so just cp it.
-			//TODO optimize by getting l().header (an int) and getting curriesLeft and o8 from it, faster than calling those separately.
-		
-			//(l.o8() < 64) implies (l.curriesLeft) but it could also be cuz theres more params such as s takes 3 params so the first 2 curries are halted, and 1 op (lambda) has vararg.
-			return vm.cp(l,r);
-		}else{
-			//if(l().o8() < 128){ //TODO remove this
-			//	throw 'shouldnt be here cuz should have just done cp';
-			//}
-			//last 3 params
-			let x = l().l().r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
-			let y = l().r;
-			let z = r;
-			let ret = null;
-			let o = vm.opNameToO8;
-			let o8 = l().o8();
-			switch(o8){
-				case o.StackIsAllowstackTimestackMem: //!isClean. allow stackMem and stackTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
-					ret = vm.bit(stackMask & vm.mask_stackIsAllowstackTimestackMem);
-				break;case o.StackIsAllowNondetRoundoff:
-					ret = vm.bit(stackMask & vm.stackIsAllowNondetRoundoff);
-				break;case o.StackIsAllowMutableWrapperLambdaAndSolve:
-					ret = vm.bit(stackMask & vm.stackIsAllowMutableWrapperLambdaAndSolve);
-				break;case o.StackIsAllowAx:
-					ret = vm.bit(stackMask & vm.stackIsAllowAx);
-				//ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
-				break;case o.IsCbt:
-					ret = vm.bit(z().isCbt());
-				break;case o.ContainsAxConstraint:
-					ret = vm.bit(z().containsAxConstraint());
-				break;case o.Dplusraw:
-					ret = vm.wrapRaw(y().d()+z().d());
-				//break;
-				
-				/*break;case o.stackIsAllowImportEvilIds:
-					THIS WAS REMOVED CUZ IT SHOULD BE DONE ONLY IN vm.import(idMaker,id) func, which makes formalVerifying it easier.
-					
-					//A lambda cant check if a lambda is good or evil (evilBit) cuz its always both, just an interpretation of an observer, only affects ids,
-					//and each lambda has (at least, can make more kinds) 2 ids, one where evilBit is on and one where its off.
-					//What makes the good namespace good (or so people might define what is good) is to call it good while sharing it is to certify that you are copying it out of the "antivirus quarantine"/uncensoredArea and that you take responsibility for doing so,
-					//such as if you made all the parts of it yourself and know its safe for other uses, or if you somehow know
-					//its parts and the combo of them are safe.
-					//When in doubt, just say its evil (evilBit=true).
-					ret = vm.bit(vm.stackIsAllowImportEvilIds); FIXME get these 5 "vm.stackIsAllow" bits from StackStuff.
-				*/
-				
-				/*break; case TODO a few opmut* ops that create/push, use, and call recursively, and cp(int,int)->int, and read and write doubleA doubleB intVal fn and Float64Array[up to 1 array per node] in OpmutState
-					TODO
-				*/
-				break;case o.OpmutOuter:
-					//TODO merge opmutOuter and opmutInner?
-					let mut = new Mut(0);
-					mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
-					mut.m.param = r; //param as in (... opmut treeOfJavascriptlikeCode param)
-					ret = vm.opmut(m);
-				break;case o.OpmutInner:
-					//TODO merge opmutOuter and opmutInner?
-					vm.infloop();
-					//throw 'TODO this is not normally called outside opmutOuter. What should it do? just act like an opmutOuter? Or infloop?';
-				
-					//UPDATE its down to 255 as in 1<<vm.maxCurriesLeft. FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
-					
-					/*
-					FIXME its 4x2: stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambda, stackIsAllowMutableWrapperLambda.
-					opcodes:
-					stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
-					stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
-					stackIsAllowMutableWrapperLambda
-					stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
-					*/
-
-				break;case o.S:
-					ret = x(z)(y(z));
-				break;case o.T:
-					ret = y;
-				break;case o.F:
-					ret = z;
-				break;case o.L:
-					ret = z().l;
-				break;case o.R:
-					ret = z().r;
-				break;case o.IsLeaf:
-					ret = Bit(z.o8==1);
-				break;case o.Pair:case o.Typeval:
-					ret = z(x)(y);
-				break;case o.VarargAx:
-					if(vm.stackIsAllowAx){
-						//throw 'TODO ax';
-						
-						//FIXME this isnt right cuz thats just what happens when funcBodyAndVarargChooser gets it, but havent found funcBodyAndVarargChooser yet.
-						//For now this is an evaler calling (varargAx funcBodyAndVarargChooser a b c d) on e, a b c d... nextParam/e.
-						//
-						//This wont happen until theres at least 9 params.
-						//z is (pair_or_lazyeval_todochooseone (varargAx funcBodyAndVarargChooser a b c d) e).
-						//let find = z().l.r; //starts as (varargAx funcBodyAndVarargChooser a b c d)
-						//let funcBodyAndVarargChooser = TODO get eighth param;
-						
-						//
-						//let find = y; //starts as (varargAx funcBodyAndVarargChooser a b c d)
-						//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-						//FIXME can this be redesigned so that loop is faster? Maybe cache funcBody for use in op lambda and op varargAx?
-						//let funcBodyAndVarargChooser = find.n.r;
-						let funcBodyAndVarargChooser = y.n.funcBody();
-						
-						
-						//FIXME prevent opOneMoreParam from interacting with ax constraints in some ways, since ax has to be verified
-						//at every param starting at 9th param. At 8 params, the last param is funcBodyAndVarargChooser and hasnt evaled yet.
-						//(ax funcBodyAndVarargChooser) is always halted.
-						//(ax funcBodyAndVarargChooser a) is halted if (funcBodyAndVarargChooser (pair (ax funcBodyAndVarargChooser) a))->u.
-						//(ax funcBodyAndVarargChooser a b) is halted if (funcBodyAndVarargChooser (pair (ax funcBodyAndVarargChooser a) b))->u.
-						//and so on, for unlimited params. curriesLeft of ax is 2.
-						//curriesLeft of everything after that is 1 meaning to verify constraint at each next param.
-						//FIXME should it be lazyeval (Lx.Ly.Lz.xy) instead of pair?
-						
-						
-						
-						//FIXME??? varargAx should always have curriesLeft of 1 even after it gets its next curry, and next after that...
-						//It can have unlimited curries since funcBodyAndVarargChooser chooses to be halted or to eval, at each next curry.
-						
-						//let nextParam = z;
-						//vm.stackIsAllowAx
-						
-						//tighten clean/dirty higher in stack during verifying ax constraint so its deterministic.
-						let prev_stackIsAllowstackTimestackMem = vm.stackIsAllowstackTimestackMem;
-						let prev_stackIsAllowMutableWrapperLambda = vm.stackIsAllowMutableWrapperLambda;
-						let prev_stackIsAllowNondetRoundoff = vm.stackIsAllowNondetRoundoff;
-						//vm.saveStackTop(); no cuz only want some of the cleanVsDirtyBits.
-						
-						let axEval;
-						try{
-							//cuz ax must be deterministic
-							vm.stackIsAllowstackTimestackMem = false;
-							vm.stackIsAllowMutableWrapperLambda = false;
-							vm.stackIsAllowNondetRoundoff = false;
-							
-							axEval = funcBodyAndVarargChooser((vm.pair)(l)(r)); //evals to u/theUniversalFunction to define l(r) as halted, else evals to u(theReturnVal)
-						}finally{ //in case throws vm.gasErr
-							//put clean/dirty back on stack the way it was
-							vm.stackIsAllowstackTimestackMem = prev_stackIsAllowstackTimestackMem;
-							vm.stackIsAllowMutableWrapperLambda = prev_stackIsAllowMutableWrapperLambda;
-							vm.stackIsAllowNondetRoundoff = prev_stackIsAllowNondetRoundoff;
-						}
-						
-						if(axEval === u){
-							ret = vm.cp(l,r); //l(r) is halted. l(r) is whats evaling right now, which is what makes varargAx a strange op.
-						}else{
-							ret = axEval().r; //L(axEval). TODO optimize by L and R and isLeaf ops dont cache, just return instantly by getting those fields
-						}
-						//FIXME, if any lambda contains a call of varargAx with more than 8 params, since that means a constraint has been verified, //then stackIsAllowAx bit must be 1 when halted.
-					}else{
-						//prevent ax constraints from existing that werent verified.
-						//They wont be verified while !vm.stackIsAllowAx, so during that, verify says fail.
-						vm.infloop();
-						
-					}
-					//FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
-					//so update comments and maybe code depends on that?
-				break;case o.Sqrt: //of a cbt64 viewed as float64
-					if(vm.stackIsAllowNondetRoundoff){
-						let float64 = TODO;
-						throw 'ret = TODO wrap Math.sqrt(float64) in cbt64;';
-						throw 'TODO';
-					}else{
-						throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
-					}
-				break; case o.LambdaParams:
-					ret = vm.lambdaParamsInfcurInReverseOrder(z);
-					//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
-					//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
-					//since the reverse order is faster and order of the key/vals only matters if theres duplicate keys.
-					//There could be duplicate keys like (Lambda FuncBody [y x y y z] ...)
-					//but thats only allowed since its faster than checking for duplicates,
-					//and I dont expect people to want to do that.
-					//If they do, the first y in [y x y y z] becomes the last y in [z val y val y val x val y val].
-					
-				
-					//throw 'TODO';
-					//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
-				
-				break; case o.Qes:
-					{
-						//TODO merge duplicate code between qes and seq
-						let reverseSeq = y;
-						//qes is like the seq op except in reverse order cuz its more efficient, but less intuitive.
-						let state = z; //x in (_[a b c] x)
-						while(reverseSeq().hasMoreThan7Params()){
-							let func = reverseSeq().r;
-							state = func(state);
-							reverseSeq = reverseSeq().l;
-						}
-						ret = state;
-					}
-				break; case o.Seq:
-					{
-						//TODO merge duplicate code between qes and seq
-						//vm.addOp('seq',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any 	vararg in the [].');
-						
-						let reverseSeq = vm.reverseInfcurlikeList(y); //might be faster this way (than the commentedout code below) by using funcallCache cuz can look it up instead of looping over the list.
-						let state = z; //x in (_[a b c] x)
-						while(reverseSeq().hasMoreThan7Params()){
-							let func = reverseSeq().r;
-							state = func(state);
-							reverseSeq = reverseSeq().l;
-						}
-						ret = state;
-					}
-					
-					
-					/* above comment says "the commentedout code below".
-					vm.prepay(1,1);
-					let infcurList = y;
-					let reverseSeq = [];
-					while(infcurList().hasMoreThan7Params()){
-						vm.prepay(1,1);
-						reverseSeq.push(infcurList().r);
-						infcurList = infcurList().l;
-					}
-					let param = z;
-					for(let funcInSeq of reverseSeq){
-						param = funcInSeq(param);
-					}
-					ret = param;
-					*/
-				break; case o.HasMoreThan7Params:
-					return vm.Bit(z().hasMoreThan7Params());
-				break;default:
-					throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
-			}
-			return cache.ret = ret;
+		//vm.opcodeToO8 = {}; //string to o8
+		//vm.opcodesDescription = {};
+		//vm.nextOpO8 = 128; //128..255
+		//vm.o8ToLambda = []; //o8 of 0 is either evaling or doesnt exist. o8 of 1 to 255 exists. Past that, they copy o8 from l child.
+		//vm.o8ToLambda[0] = (x=>{throw 'o8 of 0 does nothing or is evaling';});
+		vm.opInfo = []; //o8 to info
+		vm.opNameToO8 = {}; //a cache of vm.opInfo, used in a switch statement in vm.rootEvaler. TODO optimize further by making a separate evaler for each op and a few other common lambdas.
+		//prefix is like _ for Seq, as in _[...], a 1 char prefix that doesnt need a space between it and its param, or null to not have one.
+		vm.addOp = (name,prefix,isStrange,curriesLeft,description)=>{
+			let o8 = vm.opInfo.length;
+			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc.';
+			//TODO vm.o8ToLambda[vm.nextOpO8] = 
+			//vm.opcodeToO8[name] = vm.nextOpO8;
+			//vm.opcodesDescription[name] = (description || 'TODO write description of opcode '+name);
+			//vm.nextOpO8++;
+			vm.opInfo.push({name:name, prefix:prefix, isStrange:isStrange, curriesLeft:curriesLeft, description:description});
+			vm.opNameToO8[name] = o8;
+			console.log('Add op '+name+' o8='+o8+' curriesLeft='+curriesLeft+' description: '+description);
+			return o8;
+		};
+		vm.addOp('Evaling',null,true,0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
+		vm.addOp('U',null,true,7,'the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.');
+		for(let o8=2; o8<128; o8++){
+			//TODO 'op' + 2 hex digits?
+			let numLeadingZeros = Math.clz32(o8);
+			let curriesSoFar = 31-numLeadingZeros;
+			let curriesLeft = 7-curriesSoFar;
+			let name = 'Op'+o8.toString(2);
+			vm.addOp(name, null, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
 		}
-	};
-	vm.rootEvaler.on = true; //vm.rootEvaler.on must always be true, and vm.rootEvaler.prev must always be null.
-	vm.rootEvaler.prev = null;
-	
-	
-	
-	/*
-	let ops = [];
-	
-	let newOp = (opName,evaler)=>{
-		if(ops.length == 128) throw 'Max 128 ops';
-		evaler.opName = opName;
-		evaler.on = true;
-		//TODO pushEvaler. evaler.prev.
-		ops.push(evaler)
-	};
-	
-	newOp('isClean', (vm,func,param)=>{
-		FIXME evalers need to check if just do callpair first, if they have more than 1 param after the evaler.
-	});
-	*/
-	
-	let u = vm.u = vm.lambdize(new vm.Node(vm,null,null)); //the universal function
-	//u.evaler = vm.rootEvaler();
-	//this happens in Node constructor: u.evaler = rootEvaler; //all other evalers, use theLambda.pushEvaler((vm,l,r)=>{...});
-	//let op0000001 = u;
-	//this breaks thingsu.func = u(u)(u)(u)(u)(u)(u)(u); //identityFunc.
-	u().l = vm.identityFunc = vm.cp(u,u,u,u,u,u,u,u,u); //aka (f u).
-	u().r = u;
-	
-	vm.uu = vm.u(vm.u);
-	
-	vm.o8ToLambda = function(o8){
-		//console.log('vm.o8ToLambda '+o8);
-		if(o8 > 255) throw 'o8='+o8;
-		if(o8 == 1) return vm.u;
-		let exceptLastParam = vm.o8ToLambda(o8>>1);
-		//return exceptLastParam((o8&1) ? uu : u);
-		return vm.cp(exceptLastParam, ((o8&1) ? vm.uu : vm.u));
-	};
-	
-	vm.Node.prototype.vm = vm; //can get this like u().vm or u(u)(u(u))(u).vm for example.
-	
-	//op is known at 7 params.
-	//TODO optimize this by storing a hasMoreThan7Params bit in headerInt mask?
-	vm.Node.prototype.hasMoreThan7Params = function(){
-		return this.o8()==this().l.o8();
-	};
-	
-	vm.lambdasAreSameOp = function(a,b){
-		return a().o8()==b().o8();
-	};
-	
-	//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
-	//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
-	//since the reverse order is faster and order of the key/vals only matters if theres duplicate keys.
-	//There could be duplicate keys like (Lambda FuncBody [y x y y z] ...)
-	//but thats only allowed since its faster than checking for duplicates,
-	//and I dont expect people to want to do that.
-	//If they do, the first y in [y x y y z] becomes the last y in [z val y val y val x val y val].	
-	//throw 'TODO';
-	//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
-	vm.lambdaParamsInfcurInReverseOrder = function(z){
-		let Infcur = OP('infcur');
+		vm.addOp('F',null,false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
+		vm.addOp('T',',',false,2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
+		vm.o8OfBit0 = vm.addOp('Bit0',null,false,248,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
+		vm.o8OfBit1 = vm.addOp('Bit1',null,false,248,'see bit0');
+		vm.o8OfL = vm.addOp('L',null,false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
+		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
+		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
+		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?');
+		vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
+		vm.o8OfLambda = vm.addOp('Lambda',null,true,2,'FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
+		vm.addOp('GetVarFn',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		vm.addOp('GetVarDouble',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		vm.addOp('GetVarDoubles',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
+		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,2,'FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
+		vm.addOp('S',null,false,3,'For control-flow. the s lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
+		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy');
+		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka (Infcur) is []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
+		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
+		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
+		vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
+		//vm.addOp('Mut',null,false,6,'Used with opmut* and lambdaParams*. This is a snapshot of a key/fourVals, normally used in a [...] stream/Infcur. (Mut cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped) is halted, and add 1 more param and it infloops). FIXME should Mut be a little varargAx-like as it could verify its params are those types (but unlike varargAx, guarantees it verifies fast)?');
+		vm.addOp('OpmutOuter',null,false,2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
+		vm.addOp('OpmutInner',null,false,2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
 		
-		//FIXME...
-		//(Lambda FuncBody [x y z]) is 7 params of u. Lambda is 5 params of u.
-		/*let Infcur = OP('infcur'), Lambda = OP('lambda'), LazyEval = OP('lazyEval');
-		FIXME since Lambda is 5 params of u, there are 4 Lambda ops, not just 1,
-		so the above Lambda = OP('Lambda') wont work. Also, fix that in addOp, needs to be 4 calls of addOp.
-		Can check if o8 has a certain 5 bits in it and is in the right range.
-		if(vm.lambdasAreSameOp(z,Lambda)){
-			FIXME
-			Also need to check z().curriesLeft() and compare that to the size of the [x y z] that is 7th param.
-			Also what if that 7th param is not a [...] or is a [...] but with more params than lambda allows (250-somethign)? At 7th param, it must always be halted and curriesLeft known.
-		}else if(vm.lambdasAreSameOp(z,LazyEval)){
+		
+		vm.addOp('StackIsAllowstackTimestackMem',null,false,1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('StackIsAllowNondetRoundoff',null,false,1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('StackIsAllowMutableWrapperLambdaAndSolve',null,false,1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('StackIsAllowAx',null,false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
+		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
+		vm.addOp('Dplusraw',null,false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
+		vm.addOp('StreamGet',null,false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.');
+		vm.addOp('StreamPut',null,false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]');
+		vm.addOp('StreamPack',null,false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].');
+		vm.addOp('Get32BitsInCbt',null,false,2,'(get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val');
+		vm.addOp('Put32BitsInCbt',null,false,3,'(put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks');
+		//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks');
+		vm.addOp('Equals',null,false,2,'By content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).');
+		vm.addOp('StreamWhile',null,false,3,'(streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
+		vm.addOp('StreamDoWhile',null,false,3,'(streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
+		vm.addOp('StreamFor',null,false,5,'(streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
+		vm.addOp('IfElse',null,false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
+		vm.addOp('If',null,false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
+		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.');
+		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.');
+		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).');
+		vm.addOp('SolveRecog',null,false,1,'(solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64.');
+		vm.addOp('SolveFloat64',null,false,1,'(solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack.');
+		vm.addOp('Bize31',null,false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number).');
+		vm.addOp('Bize53',null,false,1,'(bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general.');
+		vm.addOp('Bize256',null,false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id.');
+		vm.addOp('LambdaParamsList',null,false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.');
+		vm.addOp('LambdaParamsStream',null,false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.');
+		/*vm.addOp('lambdaParams',null,false,1,'Same as LambdaParamsReverse except is the same order they occur in the Lambda call, and is less efficient cuz has to reverse it. This is normally implemented by calling LambdaParamsReverse then reversing that []/stream.');
+		vm.addOp('lambdaParamsReverse',null,false,1,'Used with (opLambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). (LambdaParamsReverse (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
 		*/
-			let ret = Infcur;
-			//let exceptLastParam = z().l().r; //(Lambda FuncBody [x y z] valX valY) without the LazyEval and valZ
-			let keys = exceptLastParam;
-			let vals = z;
-			//FIXME if keys already has less than 7 params (so is not a Lambda call)???
-			while(keys().hasMoreThan7Params()) keys = keys().l;
-			//except a few edge cases (TODO), keys is [x y z] for example.
-			//FIXME if its a LazyEval that was not created by Lambda reaching its last param.
-			ret = ret(keys().r, vals().r); //z and valZ. get past the LazyEval, so can loop over the rest.
-			keys = keys().l;
-			vals = vals().l().r; //get past the LazyEval, so can loop over the rest.
-			while(vals().hasMoreThan7Params()){
-				ret = ret(keys().r)(vals().r);
+		vm.addOp('Seq','_',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].');
+		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.');
+		
+		/* todo these ops too...
+		TODO...
+		bit0
+		bit1
+		getSalt128 ignore
+		withSalt128 cbt128 func param
+		withSalt128TransformedBy funcOf128BitsTo128Bits func param
+		//no, just use opmut* instead of: mutableSLike
+		ifElse condition iftrue iffalse state //if (condition state)->t then returns (iftrue state) else returns (iffalse state). todo check o8 for is it t, vs do it like pair x y t vs pair x y f? just check its opcode.
+		todo fill in the others.
+		for //...
+		while condition state
+		dowhile
+		varname //like typeval but its a utf8 or is it utf16? use this (or just typeval names) in ifElse for while dowhile etc.
+		[]= nameOb nameKey nameVal //{} in Mut
+		[] nameOb nameKey
+		<>= nameOb nameKey nameVal //Float64Array in Mut
+		<> nameOb nameKey
+		copy<>ToCbt ob key
+		copyCbtTo<>
+		new<>OfNDoubles
+		//new<>OfNFloats
+		//new<>OfNInts
+		//new<>OfNUbytes
+		isJsDoubleDuringMut getVarName
+		isJsStringDuringMut
+		funcallDuringMut func param //similar to (+ x y) it returns something instead of being a []= or <>=
+			//funcallDuringMut getVarNameLvalue getVarNameFunc getVarNameParam
+		Math.sin //allow nondeterministic roundoff. but in pure mode you cant use this.
+		Math.tanh
+		Math.sqrt
+		Math.imul
+		...bunch more Math.something funcs...
+		spendTimeMemFuncParam maxstackTime maxstackMem func param
+		~
+		^
+		!
+		||
+		&&
+		*
+		-
+		/
+		%
+		?:
+		!!!!!!!!!!!!! no == for fns cuz of nondeterministic partialDedup?
+		TODO ^= |= ~= etc?
+		//fixme is this the same as Math.pow: ** aka pow
+		Math.abs
+		Math.acos
+		Math.acosh
+		Math.asin
+		Math.asinh
+		Math.atan
+		Math.atan2
+		Math.atanh
+		Math.cbrt
+		Math.ceil
+		Math.clz32
+		Math.cos
+		Math.cosh
+		Math.exp
+		Math.expm1
+		Math.floor
+		Math.fround
+		Math.hypot
+		Math.imul
+		Math.log
+		Math.log1p
+		Math.log2
+		Math.log10
+		Math.max
+		Math.min
+		Math.pow
+		Math.round
+		Math.sign
+		Math.sin
+		Math.sinh
+		Math.sqrt
+		Math.tan
+		Math.tanh
+		Math.trunc
+		//sigmoid //todo implement using tanh andOr exp
+		//square
+		//cube
+		isNaN
+		isSubnormalNumber
+		isFiniteNumber
+		isNormedDoubleBits
+		asyncStartGpuFloat32CompileEarly
+		isGpuCompiledFor
+		asyncBatchDownloadMutableWrapperLambdaEachWithBellcurveOfTimeForWhenAndHowMuchWantIt
+		isMutableWrapperLambdaCallDownloadedOrKnownFor
+		hyperquasicrystal (it cant get access to anything outside this opcode. it sees this opcode as its leaf, and infloops if called on anything not made entirely of it)
+		solveRecog x //returns any y where (x y)->u.
+		solveFloat64 x //returns any y where (x y)->float64 where the float64 is positive, and the higher the better.
+		getdoublefromcbtaligned64
+		getint...
+		getbyte..
+		getshort...
+		getchar...
+		concat2cbt
+		bize31 //bitstrings are limited to 2^31-1 bits so bize fits in int. you can still use a list or tree of bitstrings to make things as big as you want.
+		doublesLen //same as floor(bize31/64)
+		floatsOrIntsLen //same as floor(bize31/32)
+		shortsOrCharsLen //same as floor(bize31/16)
+		bytesLen //same as floor(bize31/8)
+		containsbit1
+		normfloat64
+		normfloat32
+		optimizationhint hint func param ???
+		  or just gpujslikecall
+		//Math.random //only works in opmut or with a different salt128 each time. whatever Math.random() does, or GPU.js's random func does. not high quality random. if you want that, derive a securehash and seed it with things like this.
+		//time //returns double of seconds since Y1970 utc time. only works in opmut or with a different salt128 each time.
+		...reservedForFutureOpcodes... //up to 128.
+		make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
+		*/
+		
+		while(vm.opInfo.length < 256) vm.addOp('Op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (S I I (S I I)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
+		
+		vm.bit = function(bit){ return bit ? this.t : this.f };
+		
+		//In abstract math, evals to (s s s s) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
+		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
+		//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
+		vm.infloop = ()=>{ throw this.gasErr; }
+		
+		//throw 'vm.pair = TODO; //similar to vm.t and vm.f and few other ops';
+		
+		//takes a mut where mut.m.func is (... opmut treeOfJavascriptlikeCode) so can call itself recursively,
+		//and mut.m.param is its lambda param. Using that, it can do things like loop over pixels in an array, use js {} maps, etc.
+		//It must return a lambda, but in the middle steps it has mutable optimizations that can be compiled to javascript for example,
+		//but since the universal lambda doesnt depend on anything outside itself, it could be compiled to any turingComplete system.
+		vm.opmut = mut=>{
+			throw 'TODO compile, making sure to limit stackTime stackMem etc.';
+		};
+		
+		
+		//immutable. but stackTime stackMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
+		//mask is the low 4 bits of header int, the cleanvsdirty etc stuff, such as does it allow nondeterministic roundoff.
+		vm.StackStuff = function(mask, saltA, saltB, saltC, saltD){
+			this.mask = mask;
+			this.saltA = saltA;
+			this.saltB = saltB;
+			this.saltC = saltC;
+			this.saltD = saltD;
+		};
+		
+		//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
+		//Use this as immutable.
+		//When forkEditing, salt can change to anything by unitary transform or replacing it with its hash,
+		//but the 4 iscleanvsdirty bits can only change from 1 to 0, similar to stackTime and stackMem can only decrease (or stay same) but not increase,
+		//until the first call returns, then can start with any StackStuff you and stackTime stackMem etc you want.
+		vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
+		
+		
+		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
+		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+		vm.stackMem = 1000000;
+		vm.stackDeep = 300; //FIXME this is a way to prevent stackoverflowerrors in the outer system the VM is built in, such as on javascript python java or c++ stack, BUT FIXME what units to measure it in, stackframes? no, cuz they are variable size. ints or bytes or sizeof(pointer)? seems better but might be hard to count those. Figure it out.
+		//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
+		vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
+		vm.stackCpuCompile = 1000000; //TODO
+		vm.stackNetworkUpload = 1000000; //TODO
+		vm.stackNetworkDownload = 1000000; //TODO
+		vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
+		vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
+		vm.stackStuff = vm.defaultStackStuff;
+		
+		
+		/*
+		NEW:
+		//primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>. primaryKey of a dedupedFn is 64 bits. primaryKey of a non-deduped-fn is 128 bits.
+		vm.Mut = function(whichOpmutSpace,dedupedFn){
+			this.whichOpmutSpace = whichOpmutSpace; //primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>
+			this.dedupedFn = dedupedFn; //primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>
+			//this.hashInt = ...
+			//FIXME have 2 dedupedFns here, one you're allowed to see and one you're not, to allow for isolating musical instrument parts etc?
+			this.valMut = todo same whichOpmutSpace as this, of u; //same as this.valFn implies, TODO merge this disorganized code.
+			//this.valFn = u; //FIXME TODO. This merges Mut.j with Mut.m as in findOrCreateMut(this.whichOpmutSpace,anyDedupedFn).valFn or .valDoubles
+			this.valDouble = 0;
+			this.valDoubles = emptyDoubleArray; //FIXME TODO
+		};
+		----------------
+		OLD:
+		//linkedlist of vm.OpmutState. vm.stackMut is the top OpmutState. vm.stackMut.prev.prev.prev... is the linkedlist.
+		//The prev ptr is only for what happens when pop an OpmutState, when a call of opmut* (some opmut-related op) ends, that an opmut* had called an opmut* to create a new OpmutState.
+		//Its not a recursive namespace.
+		vm.stackMut = null;
+		//vm.stackMutPtr = 0 or should this go in vm.stackMut.ptr or in compiled code with for loops if/else etc that uses vm.stackMutPtr.ints[ptr]?
+		//The purpose of stackMutPtr is like a "this" or a "namespace" that opmut code runs relative to. If its for(let i=0; i<abc; i++){...} then 'i' and 'j' are
+		//(another ptr is this int from cp) vm.stackMut.cp(vm.stackMutPtr,someNodeWhoseBitsAreUtf8OfIOrJChars), but in some faster way than that, caching things along the way, etc.
+		//OpmutState/stackMut doesnt have the ability to list what fields have been set (such as cp(ptr,intOf_'i') or cp(ptr,intOf_'j'). It can read or write it if you know the key.
+		//If you want to remember keys, you can make a linkedlist using cp(cp(somePtrRepresentingLinkedListType,leftPtr),rightPtr)->parentPtr or something like that.
+		//All such int ptrs are interchangible with calling infcur on itself. The opmut leaf key (int 0) is infcur. (infcur infcur) is cp(0,0), and so on,
+		//so state of an opmut call can be copied from and to lambdas, as its a map of (various combos of infcur) to some few things including int val, 2 double vals, Float64Array val, fn val.
+		*/
+		vm.stack_whichOpmutSpace;
+		//as in "primaryKey is <int_or_maybe_double whichOpmutSpace, fn dedupedFn>". Up to a few thousand of these might exist at once
+		//in one computer, but normally 1 or just a few at a time. Multiple exist when opmut calls opmut. After all that returns, all of them become garbcolable.
+		
+		vm.saveLoadStack = [];
+		
+		
+		
+		/*
+		//save vm.stackTime, vm.stackStuff, etc, to be loaded after do something such as a call of ax.
+		vm.saveStackTop = function(){
+			this.saveLoadStack.push(
+				this.stackTime,
+				this.stackMem,
+				this.stackGpuCompile,
+				this.stackCpuCompile,
+				this.stackNetworkUpload,
+				this.stackNetworkDownload,
+				this.stackDriveRead,
+				this.stackDriveWrite,
+				this.stackStuff
+			);
+		};
+		
+		//see vm.saveStackTop. Call this in a finally after saveStackTop in the try.
+		vm.loadStackTop = function(){
+			//FIXME verify this shouldnt be in reverse order
+			this.stackStuff = this.saveLoadStack.pop();
+			this.stackDriveWrite = this.saveLoadStack.pop();
+			this.stackDriveRead = this.saveLoadStack.pop();
+			this.stackNetworkDownload = this.saveLoadStack.pop();
+			this.stackNetworkUpload = this.saveLoadStack.pop();
+			this.stackCpuCompile = this.saveLoadStack.pop();
+			this.stackGpuCompile = this.saveLoadStack.pop();
+			this.stackMem = this.saveLoadStack.pop();
+			this.stackTime = this.saveLoadStack.pop();
+		};*/
+		
+		
+		/* very slow interpreted mode. add optimizations as recursive evalers whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
+		u.evaler is this rootEvaler. All other evalers are hooked in by aLambda.pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda.evaler before setting aLambda.evaler to the new one,
+		and if the evaler doesnt have an evaler.on field, creates it as true.
+		*/
+		vm.rootEvaler = (vm,l,r)=>{
+			
+			//TODO rename l to myL and r to myR, cuz l and r are ops.
+			
+			//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
+			
+			console.log('Evaling l='+l+' r='+r);
+			//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
+			//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
+			//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
+			//The strictest is pure determinism and will compute the exact same bits in every wikibinator203 VM. All halted lambdas are that strictest way,
+			//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
+			//similar to vm.stackTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
+			"use strict";
+			//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
+			vm.prepay(1,0);
+			let cache = vm.funcallCache(l,r);
+			if(cache.ret) return cache.ret;
+			
+			let stackMask = vm.stackStuff.mask;
+			if(l().curriesLeft() > 1 || l().o8() < 128){ //if 64 <= o8 < 128 then its getting its 7th param, and op always becomes known at 7th param, so just cp it.
+				//TODO optimize by getting l().header (an int) and getting curriesLeft and o8 from it, faster than calling those separately.
+			
+				//(l.o8() < 64) implies (l.curriesLeft) but it could also be cuz theres more params such as s takes 3 params so the first 2 curries are halted, and 1 op (lambda) has vararg.
+				return vm.cp(l,r);
+			}else{
+				//if(l().o8() < 128){ //TODO remove this
+				//	throw 'shouldnt be here cuz should have just done cp';
+				//}
+				//last 3 params
+				let x = l().l().r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
+				let y = l().r;
+				let z = r;
+				let ret = null;
+				let o = vm.opNameToO8;
+				let o8 = l().o8();
+				switch(o8){
+					case o.StackIsAllowstackTimestackMem: //!isClean. allow stackMem and stackTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
+						ret = vm.bit(stackMask & vm.mask_stackIsAllowstackTimestackMem);
+					break;case o.StackIsAllowNondetRoundoff:
+						ret = vm.bit(stackMask & vm.stackIsAllowNondetRoundoff);
+					break;case o.StackIsAllowMutableWrapperLambdaAndSolve:
+						ret = vm.bit(stackMask & vm.stackIsAllowMutableWrapperLambdaAndSolve);
+					break;case o.StackIsAllowAx:
+						ret = vm.bit(stackMask & vm.stackIsAllowAx);
+					//ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
+					break;case o.IsCbt:
+						ret = vm.bit(z().isCbt());
+					break;case o.ContainsAxConstraint:
+						ret = vm.bit(z().containsAxConstraint());
+					break;case o.Dplusraw:
+						ret = vm.wrapRaw(y().d()+z().d());
+					//break;
+					
+					/*break;case o.stackIsAllowImportEvilIds:
+						THIS WAS REMOVED CUZ IT SHOULD BE DONE ONLY IN vm.import(idMaker,id) func, which makes formalVerifying it easier.
+						
+						//A lambda cant check if a lambda is good or evil (evilBit) cuz its always both, just an interpretation of an observer, only affects ids,
+						//and each lambda has (at least, can make more kinds) 2 ids, one where evilBit is on and one where its off.
+						//What makes the good namespace good (or so people might define what is good) is to call it good while sharing it is to certify that you are copying it out of the "antivirus quarantine"/uncensoredArea and that you take responsibility for doing so,
+						//such as if you made all the parts of it yourself and know its safe for other uses, or if you somehow know
+						//its parts and the combo of them are safe.
+						//When in doubt, just say its evil (evilBit=true).
+						ret = vm.bit(vm.stackIsAllowImportEvilIds); FIXME get these 5 "vm.stackIsAllow" bits from StackStuff.
+					*/
+					
+					/*break; case TODO a few opmut* ops that create/push, use, and call recursively, and cp(int,int)->int, and read and write doubleA doubleB intVal fn and Float64Array[up to 1 array per node] in OpmutState
+						TODO
+					*/
+					break;case o.OpmutOuter:
+						//TODO merge opmutOuter and opmutInner?
+						let mut = new Mut(0);
+						mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
+						mut.m.param = r; //param as in (... opmut treeOfJavascriptlikeCode param)
+						ret = vm.opmut(m);
+					break;case o.OpmutInner:
+						//TODO merge opmutOuter and opmutInner?
+						vm.infloop();
+						//throw 'TODO this is not normally called outside opmutOuter. What should it do? just act like an opmutOuter? Or infloop?';
+					
+						//UPDATE its down to 255 as in 1<<vm.maxCurriesLeft. FIXME go down to max 4095 params so an evaling can store the 4 bits that go on stack? cuz need those 4 bits. Halted lambdas are always clean (those 4 bits are 0).
+						
+						/*
+						FIXME its 4x2: stackIsAllowstackTimestackMem, stackIsAllowNondetRoundoff, stackIsAllowMutableWrapperLambda, stackIsAllowMutableWrapperLambda.
+						opcodes:
+						stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
+						stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
+						stackIsAllowMutableWrapperLambda
+						stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
+						*/
+
+					break;case o.S:
+						ret = x(z)(y(z));
+					break;case o.T:
+						ret = y;
+					break;case o.F:
+						ret = z;
+					break;case o.L:
+						ret = z().l;
+					break;case o.R:
+						ret = z().r;
+					break;case o.IsLeaf:
+						ret = Bit(z.o8==1);
+					break;case o.Pair:case o.Typeval:
+						ret = z(x)(y);
+					break;case o.VarargAx:
+						if(vm.stackIsAllowAx){
+							//throw 'TODO ax';
+							
+							//FIXME this isnt right cuz thats just what happens when funcBodyAndVarargChooser gets it, but havent found funcBodyAndVarargChooser yet.
+							//For now this is an evaler calling (varargAx funcBodyAndVarargChooser a b c d) on e, a b c d... nextParam/e.
+							//
+							//This wont happen until theres at least 9 params.
+							//z is (pair_or_lazyeval_todochooseone (varargAx funcBodyAndVarargChooser a b c d) e).
+							//let find = z().l.r; //starts as (varargAx funcBodyAndVarargChooser a b c d)
+							//let funcBodyAndVarargChooser = TODO get eighth param;
+							
+							//
+							//let find = y; //starts as (varargAx funcBodyAndVarargChooser a b c d)
+							//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+							//FIXME can this be redesigned so that loop is faster? Maybe cache funcBody for use in op lambda and op varargAx?
+							//let funcBodyAndVarargChooser = find.n.r;
+							let funcBodyAndVarargChooser = y.n.funcBody();
+							
+							
+							//FIXME prevent opOneMoreParam from interacting with ax constraints in some ways, since ax has to be verified
+							//at every param starting at 9th param. At 8 params, the last param is funcBodyAndVarargChooser and hasnt evaled yet.
+							//(ax funcBodyAndVarargChooser) is always halted.
+							//(ax funcBodyAndVarargChooser a) is halted if (funcBodyAndVarargChooser (pair (ax funcBodyAndVarargChooser) a))->u.
+							//(ax funcBodyAndVarargChooser a b) is halted if (funcBodyAndVarargChooser (pair (ax funcBodyAndVarargChooser a) b))->u.
+							//and so on, for unlimited params. curriesLeft of ax is 2.
+							//curriesLeft of everything after that is 1 meaning to verify constraint at each next param.
+							//FIXME should it be lazyeval (Lx.Ly.Lz.xy) instead of pair?
+							
+							
+							
+							//FIXME??? varargAx should always have curriesLeft of 1 even after it gets its next curry, and next after that...
+							//It can have unlimited curries since funcBodyAndVarargChooser chooses to be halted or to eval, at each next curry.
+							
+							//let nextParam = z;
+							//vm.stackIsAllowAx
+							
+							//tighten clean/dirty higher in stack during verifying ax constraint so its deterministic.
+							let prev_stackIsAllowstackTimestackMem = vm.stackIsAllowstackTimestackMem;
+							let prev_stackIsAllowMutableWrapperLambda = vm.stackIsAllowMutableWrapperLambda;
+							let prev_stackIsAllowNondetRoundoff = vm.stackIsAllowNondetRoundoff;
+							//vm.saveStackTop(); no cuz only want some of the cleanVsDirtyBits.
+							
+							let axEval;
+							try{
+								//cuz ax must be deterministic
+								vm.stackIsAllowstackTimestackMem = false;
+								vm.stackIsAllowMutableWrapperLambda = false;
+								vm.stackIsAllowNondetRoundoff = false;
+								
+								axEval = funcBodyAndVarargChooser((vm.pair)(l)(r)); //evals to u/theUniversalFunction to define l(r) as halted, else evals to u(theReturnVal)
+							}finally{ //in case throws vm.gasErr
+								//put clean/dirty back on stack the way it was
+								vm.stackIsAllowstackTimestackMem = prev_stackIsAllowstackTimestackMem;
+								vm.stackIsAllowMutableWrapperLambda = prev_stackIsAllowMutableWrapperLambda;
+								vm.stackIsAllowNondetRoundoff = prev_stackIsAllowNondetRoundoff;
+							}
+							
+							if(axEval === u){
+								ret = vm.cp(l,r); //l(r) is halted. l(r) is whats evaling right now, which is what makes varargAx a strange op.
+							}else{
+								ret = axEval().r; //L(axEval). TODO optimize by L and R and isLeaf ops dont cache, just return instantly by getting those fields
+							}
+							//FIXME, if any lambda contains a call of varargAx with more than 8 params, since that means a constraint has been verified, //then stackIsAllowAx bit must be 1 when halted.
+						}else{
+							//prevent ax constraints from existing that werent verified.
+							//They wont be verified while !vm.stackIsAllowAx, so during that, verify says fail.
+							vm.infloop();
+							
+						}
+						//FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
+						//so update comments and maybe code depends on that?
+					break;case o.Sqrt: //of a cbt64 viewed as float64
+						if(vm.stackIsAllowNondetRoundoff){
+							let float64 = TODO;
+							throw 'ret = TODO wrap Math.sqrt(float64) in cbt64;';
+							throw 'TODO';
+						}else{
+							throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
+						}
+					break; case o.LambdaParams:
+						ret = vm.lambdaParamsInfcurInReverseOrder(z);
+						//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
+						//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
+						//since the reverse order is faster and order of the key/vals only matters if theres duplicate keys.
+						//There could be duplicate keys like (Lambda FuncBody [y x y y z] ...)
+						//but thats only allowed since its faster than checking for duplicates,
+						//and I dont expect people to want to do that.
+						//If they do, the first y in [y x y y z] becomes the last y in [z val y val y val x val y val].
+						
+					
+						//throw 'TODO';
+						//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
+					
+					break; case o.Qes:
+						{
+							//TODO merge duplicate code between qes and seq
+							let reverseSeq = y;
+							//qes is like the seq op except in reverse order cuz its more efficient, but less intuitive.
+							let state = z; //x in (_[a b c] x)
+							while(reverseSeq().hasMoreThan7Params()){
+								let func = reverseSeq().r;
+								state = func(state);
+								reverseSeq = reverseSeq().l;
+							}
+							ret = state;
+						}
+					break; case o.Seq:
+						{
+							//TODO merge duplicate code between qes and seq
+							//vm.addOp('seq',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any 	vararg in the [].');
+							
+							let reverseSeq = vm.reverseInfcurlikeList(y); //might be faster this way (than the commentedout code below) by using funcallCache cuz can look it up instead of looping over the list.
+							let state = z; //x in (_[a b c] x)
+							while(reverseSeq().hasMoreThan7Params()){
+								let func = reverseSeq().r;
+								state = func(state);
+								reverseSeq = reverseSeq().l;
+							}
+							ret = state;
+						}
+						
+						
+						/* above comment says "the commentedout code below".
+						vm.prepay(1,1);
+						let infcurList = y;
+						let reverseSeq = [];
+						while(infcurList().hasMoreThan7Params()){
+							vm.prepay(1,1);
+							reverseSeq.push(infcurList().r);
+							infcurList = infcurList().l;
+						}
+						let param = z;
+						for(let funcInSeq of reverseSeq){
+							param = funcInSeq(param);
+						}
+						ret = param;
+						*/
+					break; case o.HasMoreThan7Params:
+						return vm.Bit(z().hasMoreThan7Params());
+					break;default:
+						throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
+				}
+				return cache.ret = ret;
+			}
+		};
+		vm.rootEvaler.on = true; //vm.rootEvaler.on must always be true, and vm.rootEvaler.prev must always be null.
+		vm.rootEvaler.prev = null;
+		
+		
+		
+		/*
+		let ops = [];
+		
+		let newOp = (opName,evaler)=>{
+			if(ops.length == 128) throw 'Max 128 ops';
+			evaler.opName = opName;
+			evaler.on = true;
+			//TODO pushEvaler. evaler.prev.
+			ops.push(evaler)
+		};
+		
+		newOp('isClean', (vm,func,param)=>{
+			FIXME evalers need to check if just do callpair first, if they have more than 1 param after the evaler.
+		});
+		*/
+		
+		let u = vm.u = vm.lambdize(new vm.Node(vm,null,null)); //the universal function
+		//u.evaler = vm.rootEvaler();
+		//this happens in Node constructor: u.evaler = rootEvaler; //all other evalers, use theLambda.pushEvaler((vm,l,r)=>{...});
+		//let op0000001 = u;
+		//this breaks thingsu.func = u(u)(u)(u)(u)(u)(u)(u); //identityFunc.
+		u().l = vm.identityFunc = vm.cp(u,u,u,u,u,u,u,u,u); //aka (f u).
+		u().r = u;
+		
+		vm.uu = vm.u(vm.u);
+		
+		vm.o8ToLambda = function(o8){
+			//console.log('vm.o8ToLambda '+o8);
+			if(o8 > 255) throw 'o8='+o8;
+			if(o8 == 1) return vm.u;
+			let exceptLastParam = vm.o8ToLambda(o8>>1);
+			//return exceptLastParam((o8&1) ? uu : u);
+			return vm.cp(exceptLastParam, ((o8&1) ? vm.uu : vm.u));
+		};
+		
+		vm.Node.prototype.vm = vm; //can get this like u().vm or u(u)(u(u))(u).vm for example.
+		
+		//op is known at 7 params.
+		//TODO optimize this by storing a hasMoreThan7Params bit in headerInt mask?
+		vm.Node.prototype.hasMoreThan7Params = function(){
+			return this.o8()==this().l.o8();
+		};
+		
+		vm.lambdasAreSameOp = function(a,b){
+			return a().o8()==b().o8();
+		};
+		
+		
+		//new Viewer().fnToString(anyFn) -> code string. TODO hook that into toString of fn (aka of what lambdize returns).
+		//
+		//Start here for parse and tostring of combos of fns. View and Viewing are used inside it.
+		//A parser and tostringer, for using wikibinator203 as a programming language.
+		//You dont have to use this syntax, since its turingComplete and can make its own syntaxes.
+		//Its just an example syntax you could use, something to get started with.
+		//This makes View objects, 1 per fn (output of lambdize).
+		//You can open and close branches, view as a name or literal bits or literal double, or expanded,
+		//view as {} or [] or () or <> , ? . _ etc.
+		//Start with new vm.Viewer(), then call its funcs on fns.
+		vm.Viewer = function(){
+			this.views = new Map();
+			
+			this.localNameToView = {};
+			
+			this.syntaxTypeIsLeaf = {'U':true, '0':true, '_':true, ',':true};
+		};
+		
+		vm.View = function(viewer, fn){
+			this.viewer = viewer; //what makes these View objects
+			this.fn = fn; //the fn its a View of		
+			this.localName = null;
+			//Example: '_' for Seq, 'U' for theUniversalLambda, and maybe ',' for T but I tend to write T when its by itself.
+			this.builtInName = fn.builtInName || null; //replace undefined with null
+			//Examples: '(', '{', '[', '<', '0', '_', ',', '.'.
+			//I might just do ( { [ < and maybe U, and just use builtInName and localName etc to know where to end recursion.
+			//Also, stringliterals can have any chars in it and they start with ' (or is it "?).
+			this.syntaxType = null;
+		};
+		
+		//during a tostring from a fn recursively into its childs, accumulate strings in this.tokens.
+		//A Viewing is a param of fnToStringRecurse.
+		//You normally use 2 Viewing per fnToStringRecurse,
+		//the first time to count the number of incoming ptrs per fn (if 2 or more, then it needs a #LocalName,
+		//and the second time to use those counts, to choose to make up a #LocalName or not per fn.
+		vm.Viewing = function(){
+			this.tokens = []; //strings
+			this.stack = []; //stack of View.
+			//map of View to number, only counting refs (incoming pointer) that are displayed, not counting those inside double literals etc.
+			this.refCount = new Map();
+			this.indentString = '\t';
+		};
+		
+		vm.Viewer.prototype.newViewing = function(){
+			return new vm.Viewing();
+		};
+		
+		vm.Viewing.prototype.incRefs = function(view){
+			this.refCount[view] = (this.refCount[view]|0)+1; //the |0 makes it 0 if its undefined
+		};
+		
+		vm.Viewing.prototype.refs = function(view){
+			return this.refCount[view]|0;
+		};
+		
+		//I'm about to put space in as a token where needed, but not after _ or , etc.
+		//OLD...
+		//
+		//TODO should this handle indenting (this.indentString)? Or should that go in tokens?
+		//
+		//FIXME For now I'm just joining tokens with 1 space between each, which will look terrible, but I need to get it working first.
+		vm.Viewing.prototype.makeString = function(){
+			//let code = this.tokens.join(' ');
+			//return code;
+			return this.tokens.join('');
+		};
+		
+		//string -> fn
+		//
+		//Normally implemented in vm.Viewer.prototype.eval
+		vm.eval = function(wikibinator203CodeString){
+			return vm.getViewer().eval(wikibinator203CodeString);
+		};
+		
+		vm.Viewer.prototype.fnToString = function(fn){
+			let viewing = this.newViewing();
+			//this.viewToStringRecurse(this.view(fn), viewing, false);
+			this.viewToStringRecurse(this.view(fn), viewing, 'C', true);
+			console.log('tokens: '+JSON.stringify(viewing.tokens));
+			return viewing.makeString();
+		};
+		
+		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
+			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
+			
+			if(view.builtInName && view.fn != ops.Infcur){ //FIXME
+				//includes U (or FIXME is it still lowercase u? cuz Names cant start with lowercase
+				//cuz thats automatic string literal if it has no spaces.)
+				viewing.tokens.push(view.builtInName);
+				console.log('viewing.tokens.push builtInName '+view.builtInName);
+			}else{
+				//FIXME where to put the info that something is a (S Thing)? cuz (S (S A B) C) is {A B C} aka {{A B} C}.
+				//Should that be syntaxtype 'S' or '(S' etc?
+				
+				let syty = view.syty();
+				switch(syty){
+					case 'GV': //<...>
+						throw 'TODO';
+					//break; case 'start[':
+					break; case 'IC0':
+					
+						viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
+					
+						/*if(isRightRecursion){
+							viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
+						}else{
+							let callerSytyIsSimilar = callerSyty=='IC0' || callerSyty=='IC+';
+							if(!callerSytyIsSimilar) viewing.tokens.push('[');
+							this.viewToStringRecurse(view.l(), viewing, syty, false);
+							viewing.tokens.push(' ');
+							console.log('start[ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, syty, true);
+							if(!callerSytyIsSimilar) viewing.tokens.push(']');
+						}*/
+					
+						/*
+						viewing.tokens.push('['); //FIXME
+						if(view.fn != ops.Infcur){
+							this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
+							viewing.tokens.push(' ');
+							console.log('start[ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+						}
+						viewing.tokens.push(']'); //FIXME
+						*/
+						
+					break; case 'IC+':
+					
+						if(isRightRecursion) viewing.tokens.push('[');
+						if(view.lsyty() != 'IC0'){
+							this.viewToStringRecurse(view.l(), viewing, syty, false);
+							viewing.tokens.push(' ');
+							console.log('[ pushed space');
+						}
+						this.viewToStringRecurse(view.r(), viewing, syty, true);
+						if(isRightRecursion) viewing.tokens.push(']');
+					
+						/*
+						//if(!inVararg) viewing.tokens.push('['); //FIXME
+						//if(view.fn != ops.Infcur){
+							this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
+							viewing.tokens.push(' ');
+							console.log('[ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+						//}
+						//if(!inVararg) viewing.tokens.push(']'); //FIXME
+						
+						/*
+						if(!inVararg) viewing.tokens.push('['); //FIXME
+						if(view.fn != ops.Infcur){
+							this.viewToStringRecurse(view.l(), viewing, true); //FIXME
+							viewing.tokens.push(' ');
+							console.log('[ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+						}
+						if(!inVararg) viewing.tokens.push(']'); //FIXME
+						*/
+						/*if(!inVararg){
+							viewing.tokens.push('['); //FIXME
+							this.viewToStringRecurse(view.l(), viewing, true);
+							viewing.tokens.push(' ');
+							this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+							//FIXME? viewToStringRecurse will do this: viewing.tokens.push(']');
+							viewing.tokens.push(']'); //FIXME
+						}else{
+							
+						}*/
+					//break; case '{':
+					break; case 'S2':
+						if(isRightRecursion || callerSyty != 'S2') viewing.tokens.push('{'); //FIXME
+						//this.viewToStringRecurse(view.l(), viewing);
+						this.viewToStringRecurse(view.l().r(), viewing, syty, false);
+						viewing.tokens.push(' ');
+						console.log('{ pushed space');
+						this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+						if(isRightRecursion || callerSyty != 'S2') viewing.tokens.push('}'); //FIXME
+					/*break; case '{':
+						if(!inVararg) viewing.tokens.push('{'); //FIXME
+						//this.viewToStringRecurse(view.l(), viewing);
+						this.viewToStringRecurse(view.l().r(), viewing, true);
+						viewing.tokens.push(' ');
+						console.log('{ pushed space');
+						this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+						if(!inVararg) viewing.tokens.push('}'); //FIXME
+					*/
+					break; case '_1':
+						viewing.tokens.push('_');
+						this.viewToStringRecurse(view.r(), viewing, syty, true);
+					break; case 'T1':
+						viewing.tokens.push(',');
+						this.viewToStringRecurse(view.r(), viewing, syty, );
+					break; case 'C': case 'S1': //C is normal call (a b c d e) aka ((((a b) c) d) e)
+						if(view.builtInName){
+							viewing.tokens.push(view.builtInName);
+						}else{
+							let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
+							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push('(');
+							this.viewToStringRecurse(view.l(), viewing, syty, false);
+							viewing.tokens.push(' ');
+							console.log('( pushed space');
+							this.viewToStringRecurse(view.r(), viewing, syty, true);
+							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push(')');
+						}
+					break; default:
+						throw 'Unknown syntaxtype: '+syty;
+				}
+				
+			}
+			
+		};
+		
+		//syntax type
+		//Fills in this.syntaxType recursively, down to whatever is the smallest displayable part,
+		//like U/theUniversalLambda or 3.45 a double literal, etc. Stops where this.syntaxType exists.
+		//vm.view.fillInSyntaxTypeRecursively = function(){
+		vm.View.prototype.syty = function(){
+			if(this.syntaxType) return this.syntaxType;
+			let fn = this.fn;
+			
+			if(fn().isLeaf()){
+				this.syntaxType = 'U';
+				//dont call lsyty rsyty or lrsyty past U cuz might infloop
+				
+			//TODO GV aka getvar syntax, displayed as < ... >	
+			
+			}else if(fn == ops.S){
+				this.syntaxType = 'S0';
+			}else if(fn == ops.Infcur){
+				this.syntaxType = 'IC0';
+			}else if(fn == ops.Seq){
+				this.syntaxType = '_0';
+			}else if(fn == ops.T){
+				this.syntaxType = 'T0';
+			}else{
+				let lsyty = this.lsyty();
+				let rsyty = this.rsyty();
+				//let lrsyty = this.lrsyty();
+				if(lsyty == 'S0'){
+					this.syntaxType = 'S1';
+				}else if(lsyty == 'S1'){
+					this.syntaxType = 'S2';
+				}else if(lsyty == 'IC0' || lsyty == 'IC+'){
+					this.syntaxType = 'IC+';
+				}else if(lsyty == '_0'){
+					this.syntaxType = '_1';
+				}else if(lsyty == 'T0'){
+					this.syntaxType = 'T1';
+				}else{
+					this.syntaxType = 'C'; //normal call (a b c d e) aka ((((a b) c) d) e)
+				}
+			}
+			
+			/*
+			let fnL = this.fn().l;
+			if(fn().isLeaf()){
+				this.syntaxType = 'U';
+			//}else if(node.l == ops.S){
+				//this.syntaxType = 'S';
+			}else if(fnL().l == ops.S){
+				this.syntaxType = '{';
+			//}else if(fn == ops.Infcur || this.l().SyntaxType()=='['){
+			//	this.syntaxType = '[';
+			}else if(fnL == ops.Infcur){
+				this.syntaxType = 'start[';
+			}else if(this.l().SyntaxType()=='[' || this.l().SyntaxType()=='start['){
+				this.syntaxType = '[';
+			}else if(fnL == ops.Seq){
+				this.syntaxType = '_'; //FIXME use ops.Seq.builtInName which is '_'?
+			}else if(fnL == ops.T){
+				this.syntaxType = ','; //FIXME use ops.T.builtInName which is ','?
+			//TODO < > for ? and ?2 aka the variants of GetVar etc.
+			}else{
+				this.syntaxType = '('; //FIXME could be { [ <, which are all views of a larger number of (.
+			}
+			*/
+				
+			/*}else if(node.IsCbt() && cbtheight is at most 6 (size of double/long)){
+				TODO
+			}else{
+				need to know to reuse its localName vs if this is the first display of it.
+				TODO should there be a ToStringing/Stringer/Viewing class that remembers those things?
+				TODO should View.syntaxType have to care if its the first or later tostring? could do that separately.
+				
+				
+			}
+			Fills in this.syntaxType recursively, down to whatever is the smallest displayable part, like U/theUniversalLambda or 3.45 a double literal, etc.
+			*/
+			
+			return this.syntaxType;
+		};
+		
+		//left child syntax type
+		vm.View.prototype.lsyty = function(){
+			return this.l().syty();
+		};
+		
+		//right child syntax type
+		vm.View.prototype.rsyty = function(){
+			return this.r().syty();
+		};
+		
+		//right child of left child syntax type, like the syty of X in ((S X) Y) aka (S X Y) aka {X Y}.
+		vm.View.prototype.lrsyty = function(){
+			return this.l().r().syty();
+		};
+		
+		//get View of fn's left child
+		vm.View.prototype.l = function(){
+			return this.viewer.view(this.fn().l);
+		};
+		
+		//get View of fn's right child
+		vm.View.prototype.r = function(){
+			return this.viewer.view(this.fn().r);
+		};
+		
+		//creates or reuses the same vm.View of the same (by ===) fn,
+		//which means the fn can be duplicate forest shape as long as it has different idA idB blobFrom blobTo.
+		vm.Viewer.prototype.view = function(fn){
+			let ret = this.views.get(fn);
+			if(!ret) this.views.set(fn, ret = new vm.View(this,fn));
+			return ret;
+		};
+		
+		vm.View.prototype.setLocalName = function(localName){
+			if(!localName) throw 'localName='+localName;
+			let v = this.viewer.localNameToView[localName];
+			if(v == null){
+				this.localName = localName;
+			}else{
+				if(v == this){
+					if(this.localName != localName){
+						delete this.viewer[this.localName];
+						this.viewer[localName] = this;
+						this.localName = localName;
+					}
+				}else{
+					throw 'Name already used (by a different View): '+localName;
+				}
+			}
+		};
+		
+		//returns a string without comments
+		vm.Viewer.prototype.removeComments = function(wikibinator203CodeString){
+			if(wikibinator203CodeString.includes('//') || wikibinator203CodeString.includes('/*')) throw 'TODO';
+			return wikibinator203CodeString;
+		};
+		
+		//called by tokenize, to get the string literals out to avoid tokenizing inside them.
+		vm.Viewer.prototype.tokenizeStringLiterals = function(wikibinator203CodeString){
+			if(wikibinator203CodeString.includes("'")) throw 'TODO';
+			return [wikibinator203CodeString];
+		}
+		
+		//key is char. val is true. these are not for splitting in string literals, just for the parts of code between them.
+		vm.Viewer.prototype.simpleSplitCharsSet = {};
+		for(let ch of '_,()[]{}<>? \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
+		//FIXME maybe . shouldnt be a splitChar like in .varA.b.cde if its also going to be used in number literals like 3.4 .
+		
+		//code thats before, between, or after string literals -> list of tokens.
+		vm.Viewer.prototype.tokenizeBetweenStringLiterals = function(partOfWikibinator203CodeString){
+			let tokens = [];
+			let s = partOfWikibinator203CodeString+' ';
+			let from = 0, to = 0;
+			let splitSet = this.simpleSplitCharsSet;
+			while(from < s.length){
+				do{
+					to++
+				}while(to < s.length && !splitSet[s[to]]);
+				let token = s.substring(from,to).trim();
+				if(token.length) tokens.push(token); //dont include whitespace
+				from = to;
+			}
+			return tokens;
+		}
+		
+		//returns list of strings. string literals start with ' such as returns js list ["(", "Concat", "'hello wor'", "'ld'"].
+		vm.Viewer.prototype.tokenize = function(wikibinator203CodeString){
+			let code = wikibinator203CodeString;
+			code = this.removeComments(code);
+			let bigTokens = this.tokenizeStringLiterals(code);
+			let tokens = [];
+			for(let i=0; i<bigTokens.length; i++){
+				let bigToken = bigTokens[i];
+				if(bigToken.startsWith("'")){ //is string literal. include it as it is.
+					tokens.push(bigToken);
+				}else{
+					tokens.push(...this.tokenizeBetweenStringLiterals(bigToken));
+				}
+			}
+			return tokens;
+		}
+		
+		//used by Viewer.eval and Viewer.parse
+		vm.Parsing = function(tokens){
+			//tokens[from] is first token to eval. returns when that opening token (or it might be just 1 token by itself) is closed
+			this.tokens = tokens;
+			this.from = 0;
+			this.toExcl = 0;
+			
+			//empty string evals to identityFunc. Whatever is parsing.fn gets called on the next thing parsed, and replace it with that.
+			//this.fn = vm.identityFunc;
+			this.stack = [vm.identityFunc]; //of fns. When parsing finishes, there is 1 thing on the stack, the fn the wikibinator203 code evaled to.
+		};
+		
+		vm.Parsing.prototype.isUnaryToken = function(token){
+			return token=='_' || token=='?' || token==',';
+		};
+		
+		vm.Parsing.prototype.onParsedFn = function(fn){
+			if(!this.stack.length) this.stack.push(fn);
+			else this.stack.push(this.stack.pop()(fn));
+		};
+		
+		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
+		vm.Parsing.prototype.isLoneToken = function(token){
+			return token.length != 1 || !'_?,(){}[]<>'.includes(token);
+		};
+		
+		vm.Parsing.prototype.isPushToken = function(token){
+			return isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
+		};
+		
+		//Examples: 'S', 'Pair' (which are builtInName), or TODO if its a localName.
+		//TODO make all builtInName be localName, and just derive those names instead of hardcoding them.
+		vm.Parsing.prototype.loneTokenToFn = function(loneToken){
+			if(loneToken == 'U') return vm.u;
+			//FIXME TODO also localNames, and use the names in Viewer not in vm.ops,
+			//and dont have builtInNames and instead derive all builtInNames as localNames.
+			//builtInNames and localNames dont change ids. globalIds are computed deterministicly from forest shape only.
+			//local ids (such as idA idB blobFrom blobTo (128 bits)) are computed nondeterministicly from forest shape as optimization.
+			if(ops[loneToken]) return ops[loneToken];
+			
+			//FIXME For now just do builtInName
+			//let ret = ops[loneToken];
+			//TODO theres some field in ops that gets the '_' '?' ',' etc. Which field? For now just hardcode those few here:
+			//FIXME no these are unary tokens _ ? ,: if(loneToken == '_') return ops.Seq;
+			//FIXME no these are unary tokens _ ? ,: //TODO if(loneToken == '?') return ops.GetVar; //FIXME theres a few kinds of getvar, such as get as double, ? vs ?2 etc.
+			//FIXME no these are unary tokens _ ? ,: if(loneToken == ',') return ops.T;
+			//if(!ret) throw 'FIXME do localNames too, loneToken='+loneToken;
+			//return ret;
+			
+			//TODO if loneToken starts with a lowercase letter and has no whitespace, then its a string literal (utf8? utf16? TODO CHOOSE).
+			
+			throw 'TODO, loneToken='+loneToken;
+		};
+		
+		vm.Parsing.prototype.isMatchingPushAndPopTokens = function(pushToken, popToken){
+			switch(pushToken){
+				case '(':
+					return popToken == ')';
+				case '{':
+					return popToken == '}';
+				case '[':
+					return popToken == ']';
+				case '<':
+					return popToken == '>';
+				default:
+					return false;
+			}
+		};
+		
+		vm.Parsing.prototype.pushFn = function(fn){
+			this.stack.push(fn);
+			return undefined;
+		};
+		
+		vm.Parsing.prototype.popFnByCall = function(){
+			if(this.stack.length < 2) throw 'stack.length='+stack.length+' and cant pop last thing on stack';
+			let param = this.stack.pop();
+			let func = this.stack.pop();
+			console.log('parsing, about to call '+func+' on '+param);
+			stack.push(func(param));
+			return undefined;
+		};
+		
+		//string -> fn.
+		vm.Viewer.prototype.eval = function(wikibinator203CodeString){
+			let code = wikibinator203CodeString;
+			let tokens = this.tokenize(code);
+			console.log('TOKENS: '+tokens.join(' .. '));
+			let parsing = new vm.Parsing(tokens);
+			this.parse(parsing);
+			if(parsing.stack.length != 1) throw 'parsing.stack.length should be 1 but is '+parsing.stack.length;
+			return parsing.stack[0];
+		};
+
+		//Reads parse.tokens and parse.from. Writes parse.to when whatever parse.tokens[parse.from] opens is closed, such as ( and ) or { and },
+		//or a lone token may be its own open and close such as hello or 'hello'.
+		vm.Viewer.prototype.parse = function(parsing){
+			let tok = parsing.tokens;
+			let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
+			parsing.toExcl = parsing.from+1;
+			//let nextFn = null;
+			while(true){
+				if(parsing.isLoneToken(fromTok)){
+					nextFn = parsing.loneTokenToFn(fromTok);
+					break;
+				}else if(parsing.isUnaryToken(fromTok)){
+					throw 'TODO';
+				}else{
+					while(parsing.toExcl < tok.length && !parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1])){
+						if(parsing.isPushToken(tok[parsing.toExcl])){
+							//Example: tok[fromTok] is '(' and toExcl has found another '(' or a '{' etc, so recurse.
+							let rememberFrom = parsing.from;
+							parsing.from = parsing.toExcl;
+							this.parse(parsing);
+							parsing.from = rememberFrom;
+							//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
+							parsing.toExcl++; //FIXME remove this line?
+						}else{
+							throw 'TODO';
+						}
+					}
+					
+					
+					//nextFn = some interpretation of the range tok[parsing.from .. parsing.toExcl-1]
+				}
+				
+				//FIXME pop parsing.from and parsing.toExcl to pop
+				
+				parsing.toExcl++;
+			}
+			//console.log('parsing, about to call '+parsing.fn+' on '+nextFn);
+			//parsing.fn = parsing.fn(nextFn);
+		};
+		
+		
+		
+		//TODO use vm.viewer.eval
+		
+		
+		/*let testViewer = ()=>{
+			TODO names like S and Pair in vm.ops.S and vm.ops.Pair, where to store those?
+			in param of some instance func in Viewer, or in the fns? Or in View.localName?
+			
+			let code = '{}';
+			
+			throw 'TODO';
+		};*/
+		
+		/*
+		Add 2 more int fields, for size of val_dupDoubles and val_dupMuts,
+		and include wikibinator203 ops (which can have a max of 128 ops) to,
+		given a Mut, pop 2 doubles off its stack then push a multiply, UNLESS the Float64Array in the Mut is not big enough and in that case
+		use something like objectThatReturns0ForAllFieldValues for all doubles outside its range etc is constant 0,
+		and let stackSize wrap as twosComplement of int32, or something like that. i dont want to auto enlarge the array
+		cuz that might slow it down when doing a sequence of such ops.
+		Similar, some ops for copying between the double or Mut stacks in multiple Muts.
+		Could use a Mut as an array of such "multiple Muts" such as having 3 stacks which is a simple way to do permutations.
+		TODO figure out details of that while using it to derive (from these up to 128 ops) the y10x10rgb12 voxel system,
+		or y10x10bright4 or y9x9rgb6 etc would fit in a float32 which GPU.js is limited to but CPU can do ints such as y10x10rgb12.
+
+
+
+
+		TODO use 1 char long field names, but other than that, I like this design,
+		and it will go in vm.ops.Mut which has these 5 things (excluding whichOpmutSpace cuz fns cant see that),
+		and TODO make a hashtable in it, as a proofofconcept, combining val_dupMuts and val_dupDoubles (or maybe Int32Array view of it?).
+		FIXME would it cause a problem to have to allocate dedupedFn for each potentially nondedupedFn?
+		You could, in the worst case, dedup that same fn and use it as its own key,
+		or simpler would be to just count doubles up from 0 to use as keys since every double can be viewed as a dedupedFn.
+		TODO allocate range of idA_idB for dedupedFns, and that range will be a subset of nonnormedNaNs
+			(or maybe the nonnormed negative infinities) where idA is high 32 bits idB is low 32.
+		Mut = function(dedupedFn, whichOpmutSpace){
+			this.key_dedupedFn = dedupedFn;
+			this.key_whichOpmutSpace = whichOpmutSpace;
+			
+			//this.val_dedupedNum = 0;
+			//this.val_dupFn = u;
+			//this.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+			//this.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+			
+			//TODO objectThatReturns0ForAllFieldValues andOr Object.setPrototypeOf(this.m,null); etc, for sandboxing.
+		};
+		Mut.prototype.val_dedupedNum = 0;
+		Mut.prototype.val_dupFn = u;
+		Mut.prototype.val_dupDoubles = emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) and Object.setPrototypeOf null of it.
+		Mut.prototype.val_dupMuts = emptyFrozenMutsArray; //can replace with new Array() and Object.setPrototypeOf null of it.
+		freeze the above few default vals somehow.
+		..
+		[
+			(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyA)
+			(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyB)
+			(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyA)
+			...
+		]
+		*/
+		vm.Mut = function(dedupedFn, whichOpmutSpace){
+			this.k = dedupedFn; 
+			this.o = whichOpmutSpace;
+			//this.keyFn = dedupedFn; 
+			//this.keyNum = whichOpmutSpace;
+			//can have instance fields of e (double), j (dup fn), m (dup Array of Mut), i (dup Int32Array that shares buffer with field d).
+		};
+		
+		
+		//FIXME make sure these prototype field vals get frozen so forexample, aMut.e = 5, doesnt change aMut.prototype.e to 5.
+		//Test that.
+		//Also test that cant get to things like __proto__ etc by generated code, so can prove its sandboxed.
+		
+		vm.Mut.prototype.e = 0; //a double (which implies its normed form is Node.idA and Node.idB in fn form).
+		
+		vm.Mut.prototype.j = u; //a dup (not necessarily deduped) fn. can replace with any fn in Mut instance //Mut.prototype.j = u; //a dup (not necessarily deduped) fn. can replace with any fn in Mut instance
+		//vm.Mut.prototype.jj = vm.emptyFrozenArray; //Mut.prototype.j = u; //a dup (not necessarily deduped) fn. can replace with any fn in Mut instance //Mut.prototype.j = u; //a dup (not necessarily deduped) fn. can replace with any fn in Mut instance
+		
+		vm.Mut.prototype.mm = vm.emptyFrozenArray; //list of Mut. can replace with new Array(someNumber) in Mut instance
+		
+		vm.Mut.prototype.ii = vm.emptyFrozenIntArray; //can replace with new Int32Array(someNumber) in Mut instance. must be even size cuz shares buffer with Float64Array.
+		vm.Mut.prototype.dd = vm.emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) in Mut instance
+		
+		
+		
+		//FIXME use variants of objectThatReturns0ForAllFieldValues?
+		/*//returns a number (this.e) in case you do aMut+someNumber you get a number instead of it throwing.
+		vm.Mut.toString = function(){
+			return this.e;
+		};*/
+		vm.Mut.prototype.E = function(){
+			this.e = 0;
+		};
+		
+		vm.Mut.prototype.J = function(){
+			this.j = [];
+		};
+		
+		vm.Mut.prototype.M = function(){
+			this.m = [];
+		};
+		
+		//this.i and this.d overlap same memory
+		vm.Mut.prototype.D = function(numDoubles){
+			this.i = new Int32Array(numDoubles<<1);
+			this.d = new Float64Array(this.i.buffer);
+		};
+		
+		
+		
+		//snapshot of this Mut as a fn, to be put in a [...] as stream.
+		vm.Mut.prototype.toFn = function(){
+			return ops.Mut(this.mm)(this.ii)(this.e)(this.j)(this.k);
+		};
+		
+		//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
+		//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
+		//since the reverse order is faster and order of the key/vals only matters if theres duplicate keys.
+		//There could be duplicate keys like (Lambda FuncBody [y x y y z] ...)
+		//but thats only allowed since its faster than checking for duplicates,
+		//and I dont expect people to want to do that.
+		//If they do, the first y in [y x y y z] becomes the last y in [z val y val y val x val y val].	
+		//throw 'TODO';
+		//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
+		vm.lambdaParamsInfcurInReverseOrder = function(z){
+			//let Infcur = OP('infcur');
+			
+			//FIXME...
+			//(Lambda FuncBody [x y z]) is 7 params of u. Lambda is 5 params of u.
+			/*let Infcur = OP('infcur'), Lambda = OP('lambda'), LazyEval = OP('lazyEval');
+			FIXME since Lambda is 5 params of u, there are 4 Lambda ops, not just 1,
+			so the above Lambda = OP('Lambda') wont work. Also, fix that in addOp, needs to be 4 calls of addOp.
+			Can check if o8 has a certain 5 bits in it and is in the right range.
+			if(vm.lambdasAreSameOp(z,Lambda)){
+				FIXME
+				Also need to check z().curriesLeft() and compare that to the size of the [x y z] that is 7th param.
+				Also what if that 7th param is not a [...] or is a [...] but with more params than lambda allows (250-somethign)? At 7th param, it must always be halted and curriesLeft known.
+			}else if(vm.lambdasAreSameOp(z,LazyEval)){
+			*/
+				let ret = ops.Infcur;
+				//let exceptLastParam = z().l().r; //(Lambda FuncBody [x y z] valX valY) without the LazyEval and valZ
+				let keys = exceptLastParam;
+				let vals = z;
+				//FIXME if keys already has less than 7 params (so is not a Lambda call)???
+				while(keys().hasMoreThan7Params()) keys = keys().l;
+				//except a few edge cases (TODO), keys is [x y z] for example.
+				//FIXME if its a LazyEval that was not created by Lambda reaching its last param.
+				ret = ret(keys().r, vals().r); //z and valZ. get past the LazyEval, so can loop over the rest.
 				keys = keys().l;
-				vals = vals().l;
+				vals = vals().l().r; //get past the LazyEval, so can loop over the rest.
+				while(vals().hasMoreThan7Params()){
+					ret = ret(keys().r)(vals().r);
+					keys = keys().l;
+					vals = vals().l;
+				}
+				return ret;
+			/*else{
+				return ops.Infcur; //empty
+			}*/
+		};
+		
+		//reverses an infcur-like thing (normally just an infcur), 2 curries at a time,
+		//like [x xval y yval z zval] vs [z zval y yval x xval].
+		//FIXME what if it has even/odd the wrong number of params for key/val pairs?
+		//or what if its not an infcur?
+		vm.reverseStream = function(z){
+			//let ret = OP('Infcur');
+			let ret = ops.Infcur
+			while(z().hasMoreThan7Params()){
+				let key = z().r;
+				z = z().l;
+				let val = z().r;
+				z = z().l;
+				ret = ret(key)(val);
 			}
 			return ret;
-		/*else{
-			return Infcur; //empty
+		};
+		
+		vm.lambdaParamsInfcur = function(z){
+			return vm.reverseStream(vm.lambdaParamsInfcurInReverseOrder());
+		};
+		
+		vm.reverseInfcurlikeList = function(infcurlikeList){
+			vm.prepay(1,1);
+			//TODO optimize by using funcall caching (which an op would automatically do). Call an op that reverses an infcurlikelist. TODO make such an op.
+			//let ret = OP('infcur');
+			let ret = ops.Infcur;
+			//let ret = vm.ops.infcur;
+			//if(!ret) throw 'FIXME theres no infcur op, Im probably still building the VM';
+			while(infcurlikeList().hasMoreThan7Params()){
+				ret = ret(infcurlikeList().r); //does vm.prepay
+				infcurlikeList = infcurlikeList().l;
+			}
+			return ret;
+		};
+		
+		
+		//let prevProto = vm.Node.prototype;
+		//prevProto
+		//vm.Node.prototype.prototype = vm;
+		
+		/*
+		opcodeToO8 doesnt exist anymore
+		//map of op name (such as 's' or 'pair' to lambda
+		vm.ops = {};
+		for(let opName in vm.opcodeToO8){
+			let o8 = vm.opcodeToO8[opName];
+			let lambda = vm.o8ToLambda(o8);
+			lambda.localName = opName;
+			vm.ops[opName] = lambda;
 		}*/
-	};
-	
-	//reverses an infcur-like thing (normally just an infcur), 2 curries at a time,
-	//like [x xval y yval z zval] vs [z zval y yval x xval].
-	//FIXME what if it has even/odd the wrong number of params for key/val pairs?
-	//or what if its not an infcur?
-	vm.reverseStream = function(z){
-		let ret = OP('infcur');
-		while(z().hasMoreThan7Params()){
-			let key = z().r;
-			z = z().l;
-			let val = z().r;
-			z = z().l;
-			ret = ret(key)(val);
+		
+		for(let o8=1; o8<256; o8++){ //excluses o8 of 0 aka evaling.
+			let lambda = vm.o8ToLambda(o8);
+			//The difference between a builtInName and a localName is the builtInName can be used the first time it occurs,
+			//but the localName has to be displayed as expanded once, then #ItsLocalName, before the next time just append 'ItsLocalName'.
+			lambda.builtInName = lambda.localName = vm.opInfo[o8].name;
+			vm.ops[lambda.localName] = lambda;
 		}
-		return ret;
-	};
-	
-	vm.lambdaParamsInfcur = function(z){
-		return vm.reverseStream(vm.lambdaParamsInfcurInReverseOrder());
-	};
-	
-	vm.reverseInfcurlikeList = function(infcurlikeList){
-		vm.prepay(1,1);
-		//TODO optimize by using funcall caching (which an op would automatically do). Call an op that reverses an infcurlikelist. TODO make such an op.
-		let ret = OP('infcur');
-		//let ret = vm.ops.infcur;
-		//if(!ret) throw 'FIXME theres no infcur op, Im probably still building the VM';
-		while(infcurlikeList().hasMoreThan7Params()){
-			ret = ret(infcurlikeList().r); //does vm.prepay
-			infcurlikeList = infcurlikeList().l;
-		}
-		return ret;
-	};
-	
-	
-	//let prevProto = vm.Node.prototype;
-	//prevProto
-	//vm.Node.prototype.prototype = vm;
-	
-	/*
-	opcodeToO8 doesnt exist anymore
-	//map of op name (such as 's' or 'pair' to lambda
-	vm.ops = {};
-	for(let opName in vm.opcodeToO8){
-		let o8 = vm.opcodeToO8[opName];
-		let lambda = vm.o8ToLambda(o8);
-		lambda.localName = opName;
-		vm.ops[opName] = lambda;
-	}*/
-	
-	vm.ops = {}; //map of opName to lambda
-	for(let o8=1; o8<256; o8++){ //excluses o8 of 0 aka evaling.
-		let lambda = vm.o8ToLambda(o8);
-		lambda.localName = vm.opInfo[o8].name;
-		vm.ops[lambda.localName] = lambda;
-	}
-	
-	//cuz vm.bit func needs these. todo opcode order.
-	//vm.t = TODO;
-	//vm.f = TODO;
-	
-	let l = vm.ops.L;
-	let r = vm.ops.R;
-	let s = vm.ops.S;
-	let t = vm.ops.T;
-	let f = vm.ops.F;
-	let pair = vm.ops.Pair;
-	let ident = f(u);
-	
-	vm.test = (testName, a, b)=>{
-		if(a === b) console.log('Test pass: '+testName+', both equal '+a);
-		else throw ('Test '+testName+' failed cuz '+a+' != '+b);
-	};
-	
-	//a few basic tests...
-	vm.test('tie the quine knot', vm.identityFunc, l(u));
-	vm.test('tie the quine knot 2', vm.identityFunc, f(u));
-	vm.test('tie the quine knot 3', l(u), u(u)(u)(u)(u)(u)(u)(u)(u));
-	vm.test('tie the quine knot 4', r(u), u);
-	vm.test('tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u)', l(u)(r(u)), u);
-	vm.test('tie the quine knot 6', u().idA, 0);
-	vm.test('tie the quine knot 7', u().idB, 0);
-	vm.test('tie the quine knot 8', u().blobFrom, 0);
-	vm.test('tie the quine knot 9', u().blobTo, 0);
-	vm.test('tie the quine knot 10', u.hashInt, 1);
-	vm.test('tie the quine knot 11', vm.hash2Nodes(l(u)(), r(u)()), u.hashInt);
-	vm.test('l(x)(r(x)) equals x, for any x (in this case x is s)', l(s)(r(s)), s);
-	vm.test('l(x)(r(x)) equals x, for any x (in this case x is l)', l(l)(r(l)), l);
-	vm.test('l(x)(r(x)) equals x, for any x (in this case x is r)', l(r)(r(r)), r);
-	vm.test('s(t)(t)(l) which should be an identityFunc', s(t)(t)(l), l);
-	vm.test('check dedup of s(t)(t)', s(t)(t), s(t)(t));
-	vm.test('s(t)(t) called on itself returns itself since its an identityFunc', s(t)(t)(s(t)(t)), s(t)(t));
-	vm.test('o8/opcode of u', u().o8(), 1);
-	vm.test('o8/opcode of u(u)', u(u)().o8(), 2);
-	vm.test('check dedup of u(u)', u(u), u(u));
-	let uu = u(u);
-	vm.test('o8/opcode of u(uu)', u(uu)().o8(), 3);
-	vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(u)(uu)().o8()', u(uu)(uu)(uu)(uu)(u)(uu)().o8(), 125);
-	vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu)', u(uu)(uu)(uu)(uu)(uu)(uu)().o8(), 127);
-	vm.test('(l x (r x)) equals x forall x, deeper', l(l)(r(l))(s)(l(r)(r(r))(s)), s);
-	vm.test('(l x (r x)) equals x forall x, deeper 2', l(l)(r(l))(pair(s)(l))(l(r)(r(r))(pair(s)(l))), pair(s)(l));
-	vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
-	vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
-	
-	/*
-	if(vm.identityFunc != l(u)) throw 'Failed to tie the quine knot. identityFunc != l(u)';
-	if(l(s)(r(s)) != s) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is s)';
-	if(l(u)(r(u)) != u) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is u)';
-	if(l(l)(r(l)) != l) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
-	if(l(r)(r(r)) != r) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
-	if(s(t)(t)(l) != l) throw 'Failed s(t)(t)(l) which should be an identityFunc';
-	if(s(t)(t) != s(t)(t)) throw 'Failed s(t)(t) == s(t)(t)';
-	if(s(t)(t)(s(t)(t)) != s(t)(t)) throw 'Failed s(t)(t)(s(t)(t))';
-	if(vm.identityFunc != f(u)) throw 'vm.identityFunc != f(u)';
-	*/
-	
-	
-	//This optimization makes it fast enough to use l(lambda) and r(lambda) instead of lambda().l and lambda().r.
-	//dont FuncallCache things that instantly return and cant make an infinite loop.
-	l().pushEvaler((vm,func,param)=>(param().l));
-	r().pushEvaler((vm,func,param)=>(param().r));
-	//TODO pushEvaler for isleaf etc
-	
+		
+		//cuz vm.bit func needs these. todo opcode order.
+		//vm.t = TODO;
+		//vm.f = TODO;
+		
+		let l = vm.ops.L;
+		
+		//if(l != L) throw 'with(ops) isnt working for L';
+		//console.log('testing with(ops): L='+L+' l='+l);	
+		
+		let r = vm.ops.R;
+		let s = vm.ops.S;
+		let t = vm.ops.T;
+		let f = vm.ops.F;
+		let pair = vm.ops.Pair;
+		let ident = f(u);
+		
+		vm.test = (testName, a, b)=>{
+			if(a === b) console.log('Test pass: '+testName+', both equal '+a);
+			else throw ('Test '+testName+' failed cuz '+a+' != '+b);
+		};
+		
+		//a few basic tests...
+		vm.test('tie the quine knot', vm.identityFunc, l(u));
+		vm.test('tie the quine knot 2', vm.identityFunc, f(u));
+		vm.test('tie the quine knot 3', l(u), u(u)(u)(u)(u)(u)(u)(u)(u));
+		vm.test('tie the quine knot 4', r(u), u);
+		vm.test('tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u)', l(u)(r(u)), u);
+		vm.test('tie the quine knot 6', u().idA, 0);
+		vm.test('tie the quine knot 7', u().idB, 0);
+		vm.test('tie the quine knot 8', u().blobFrom, 0);
+		vm.test('tie the quine knot 9', u().blobTo, 0);
+		vm.test('tie the quine knot 10', u.hashInt, 1);
+		vm.test('tie the quine knot 11', vm.hash2Nodes(l(u)(), r(u)()), u.hashInt);
+		vm.test('l(x)(r(x)) equals x, for any x (in this case x is s)', l(s)(r(s)), s);
+		vm.test('l(x)(r(x)) equals x, for any x (in this case x is l)', l(l)(r(l)), l);
+		vm.test('l(x)(r(x)) equals x, for any x (in this case x is r)', l(r)(r(r)), r);
+		vm.test('s(t)(t)(l) which should be an identityFunc', s(t)(t)(l), l);
+		vm.test('check dedup of s(t)(t)', s(t)(t), s(t)(t));
+		vm.test('s(t)(t) called on itself returns itself since its an identityFunc', s(t)(t)(s(t)(t)), s(t)(t));
+		vm.test('o8/opcode of u', u().o8(), 1);
+		vm.test('o8/opcode of u(u)', u(u)().o8(), 2);
+		vm.test('check dedup of u(u)', u(u), u(u));
+		let uu = u(u);
+		vm.test('o8/opcode of u(uu)', u(uu)().o8(), 3);
+		vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(u)(uu)().o8()', u(uu)(uu)(uu)(uu)(u)(uu)().o8(), 125);
+		vm.test('o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu)', u(uu)(uu)(uu)(uu)(uu)(uu)().o8(), 127);
+		vm.test('(l x (r x)) equals x forall x, deeper', l(l)(r(l))(s)(l(r)(r(r))(s)), s);
+		vm.test('(l x (r x)) equals x forall x, deeper 2', l(l)(r(l))(pair(s)(l))(l(r)(r(r))(pair(s)(l))), pair(s)(l));
+		vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
+		vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
+		
+		/*
+		if(vm.identityFunc != l(u)) throw 'Failed to tie the quine knot. identityFunc != l(u)';
+		if(l(s)(r(s)) != s) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is s)';
+		if(l(u)(r(u)) != u) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is u)';
+		if(l(l)(r(l)) != l) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
+		if(l(r)(r(r)) != r) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is l)';
+		if(s(t)(t)(l) != l) throw 'Failed s(t)(t)(l) which should be an identityFunc';
+		if(s(t)(t) != s(t)(t)) throw 'Failed s(t)(t) == s(t)(t)';
+		if(s(t)(t)(s(t)(t)) != s(t)(t)) throw 'Failed s(t)(t)(s(t)(t))';
+		if(vm.identityFunc != f(u)) throw 'vm.identityFunc != f(u)';
+		*/
+		
+		
+		//This optimization makes it fast enough to use l(lambda) and r(lambda) instead of lambda().l and lambda().r.
+		//dont FuncallCache things that instantly return and cant make an infinite loop.
+		l().pushEvaler((vm,func,param)=>(param().l));
+		r().pushEvaler((vm,func,param)=>(param().r));
+		//TODO pushEvaler for isleaf etc
+		
 
-	//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
-	vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-	vm.stackMem = 1000000;
-	vm.stackStuff = vm.defaultStackStuff;
-	
-	
-	vm.prepay(1,2);
-	if(vm.stackTime != 999999) throw 'stackTime is broken';
-	if(vm.stackMem != 999998) throw 'stackMem is broken';
-	
-	return u; //the universal function
+		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
+		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+		vm.stackMem = 1000000;
+		vm.stackStuff = vm.defaultStackStuff;
+		
+		vm.booted = true;
+		
+		
+		
+		
+		vm.prepay(1,2);
+		if(vm.stackTime != 999999) throw 'stackTime is broken';
+		if(vm.stackMem != 999998) throw 'stackMem is broken';
+		
+		console.log('this='+this);
+		
+		return u; //the universal function
+	//} //end with(ops)	
 })();
-console.log('Script ended. wikibinator203 = '+wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".');
-
-
-
-
-
+console.log('Script ended. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".');     
 
 
 

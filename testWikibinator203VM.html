@@ -1,42 +1,67 @@
 <!DOCTYPE html><html><head>
-<script src=wikibinator203VM.js></script>
+<script src=Wikibinator203VM.js></script>
 <script>
 var dom = id=>document.getElementById(id);
 
 var h = '';
 
-h += 'wikibinator203='+wikibinator203;
+h += 'Wikibinator203='+Wikibinator203+' Push F12 to see some tests in browser console.';
+
+window.onload = ()=>{
+	dom('mainDiv').innerHTML = h;
+};
 
 
 //TODO move this to a separate js file or the html file...
 
-console.log('Script (near) ending. wikibinator203 = '+wikibinator203);
+console.log('Script (near) ending. Wikibinator203 = '+Wikibinator203);
 for(let i=0; i<8; i++) console.log('');
 
-var u = wikibinator203;
+var U = Wikibinator203;
 
 
-var vm = u().vm;
+var vm = U().vm;
 
 
-console.log('wikibinator203...');
+console.log('Wikibinator203...');
 
-console.log('wikibinator203 = '+wikibinator203);
+console.log('Wikibinator203 = '+Wikibinator203);
 
-var uu = u(u);
+var UU = U(U);
 
-console.log('uu = '+uu);
+console.log('UU = '+UU);
 
 
-var ops = u().vm.ops;
+var ops = U().vm.ops;
 for(name in ops){ console.log('Creating var: '+name); eval(name+' = ops.'+name); };
 
 console.log('T().o8() == '+T().o8());
-T(uu)(u);
+T(UU)(U);
+
+console.log('\n\n\n\n\nS(S(T)(T))(T)  aka {T T T} = '+S(S(T)(T))(T)+'\n\n\n\n\n');
+
+console.log('\n\n\n\n\nS(S(T)(S(L)(R)))(T) aka {T {L R} T} = '+S(S(T)(S(L)(R)))(T)+'\n\n\n\n\n');
+
+console.log('\n\n\n\n\nT(T(Seq(S(S(T)(Pair))(T)))) = '+T(T(Seq(S(S(T)(Pair))(T))))+'\n\n\n\n\n');
+
+console.log('\n\n\n\n\nPair(Pair(S)(S))(R) = '+Pair(Pair(S)(S))(R)+'\n\n\n\n\n');
+
+console.log('\n\n\n\n\nInfcur(U)(U)(Infcur(T)) = '+Infcur(U)(U)(Infcur(T))+'\n\n\n\n\n');
+
+console.log('\n\n\n\n\nSeq(Infcur(L)(R)(Seq(T(Seq(Pair))))) aka _[L R _,_Pair] = '+Seq(Infcur(L)(R)(Seq(T(Seq(Pair)))))+'\n\n\n\n\n');
+
+console.log('starting basic tests of vm.eval:');
+
+let wikibinator203Code = '_[L R _,_Pair]';
+let evaledTo = vm.eval(wikibinator203Code);
+if(evaledTo != Seq(Infcur(L)(R)(Seq(T(Seq(Pair)))))) throw 'Eval failed';
+
+wikibinator203Code = '{T {L R} T}';
+evaledTo = vm.eval(wikibinator203Code);
+if(evaledTo != S(S(T)(S(L)(R)))(T)) throw 'Eval failed';
+
+console.log('vm.eval passed basic tests.');
 	
-window.onload = ()=>{
-	dom('mainDiv').innerHTML = h;
-};
 </script>
 </head><body>
 	<div id="mainDiv"></div>
