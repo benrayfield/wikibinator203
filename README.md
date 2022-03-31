@@ -2,6 +2,81 @@
 
 Some basic parts work, or use earlier wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
+Working on the programming language syntax.
+Its going to be intuitive (see Fibonacci theoretical example farther below) and work with coding or drag-and-drop, but first I have to get through this low level stuff. I've got lambda toString working for basic stuff, and vm.eval(wikibinator203CodeString) is nearly working for basics...
+
+
+
+If you type this on browser console:
+''+Seq(Infcur(L)(R)(Seq(T(Seq(Pair)))))
+It returns this:
+'_[L R _,_Pair]'
+
+Infcur(U)(U)(Infcur(T)) = [U U [T]]
+
+Pair(Pair(S)(S))(R) = (Pair (Pair S S) R)
+
+T(T(Seq(S(S(T)(Pair))(T)))) = ,,_{T Pair T}
+
+S(S(T)(S(L)(R)))(T) aka {T {L R} T} = {T {L R} T}
+
+S(S(T)(T))(T)  aka {T T T} = {T T T}
+
+
+''+Seq(Infcur(L)(R)(Seq(T(Seq(Pair)))))
+Wikibinator203VM.js:4500 tokens: ["[]"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4500 tokens: ["L"]
+Wikibinator203VM.js:4124 Evaling l=[] r=L
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4500 tokens: ["[","L","]"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4500 tokens: ["R"]
+Wikibinator203VM.js:4124 Evaling l=[L] r=R
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4500 tokens: ["Seq"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: ["Pair"]
+Wikibinator203VM.js:4124 Evaling l=Seq r=Pair
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
+Wikibinator203VM.js:4500 tokens: ["T"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: ["_","Pair"]
+Wikibinator203VM.js:4124 Evaling l=T r=_Pair
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4500 tokens: ["Seq"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: [",","_","Pair"]
+Wikibinator203VM.js:4124 Evaling l=Seq r=,_Pair
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4554 [ pushed space
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4500 tokens: ["[","L"," ","R","]"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: ["_",",","_","Pair"]
+Wikibinator203VM.js:4124 Evaling l=[L R] r=_,_Pair
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4500 tokens: ["Seq"]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4554 [ pushed space
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4554 [ pushed space
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: ["[","L"," ","R"," ","_",",","_","Pair","]"]
+Wikibinator203VM.js:4124 Evaling l=Seq r=[L R _,_Pair]
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4554 [ pushed space
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4554 [ pushed space
+Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4500 tokens: ["_","[","L"," ","R"," ","_",",","_","Pair","]"]
+'_[L R _,_Pair]'
+
+
+
+OLDER browser console output...
+
+
 ''+u(u)
 
 wikibinator203.js:1404 Evaling l=u r=u
