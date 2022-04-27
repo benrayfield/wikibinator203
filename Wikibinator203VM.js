@@ -1,7 +1,114 @@
+/*TODOS...
+
+TODO todoWrite30VariedUsecases.wikibinator203 first.
+
+implement op (getLocalId128 x) gives the 4 ints (in js) x().idA x().idB x().blobFrom and x().blobTo.
+blobFrom and blobTo are both 0 in any node thats not a cbt so you only need half the id then.
+Use it in a treemap (Lambda [...] ...) of #SomeName to fn, for use as a code editor.
+Strings that fit in an id256 dont need to be hashed (which is slow, .0001 to .0000001 per second per hash id).
+Using an idmaker that uses literalinid (or (typeval "text/plain;charset=utf8" TheBits)) or hashidofanyfn,
+together as just whatever (AnIdMaker SomeFn) returns, could view code being made and deleted,
+much faster without having to hash it, but can only be
+run in vm.stackAllow* mode, some dirty mode (not purely deterministic)
+depending on salt of course for nondeterministic recursion and caching.
+The localid of a fn may differ from other times that fn is observed,
+but for the same localid in the same VM run (til wikibinator203 VM is restarted),
+there is at most 1 val, so [localid128 many-to-1 dedupedFn (within same run of VM)].
+For each localid128 there is at most 1 dedupedFn, until restart VM then those may change.
+Each VM running simultaneously can be running a different "VM run",
+so the nondeterministic localid128s should be limited to when vm.mask_stackAllowReadLocalIds (now 1 of 5 kinds of clean/dirty).
+..
+also see "TODO use this to, with StackAllowReadLocalIds true, make a fast evallable textarea" comment in code far below.
+..
+see mask_stackAllowReadLocalIds
+
 /*TODO WRITE 30 VARIED USECASES, THEN FIND HOW TO OPTIMIZE FOR THEM...
 30 varied usecases, optimize for. Find efficient way to do all of these, relevant to opmutinner opmutouter Float64Array Int32Array Node lambdize gpujs mutableWrapperLambda etc... Find an efficient-enough way to make things i find fun and useful, focusing on memory and compute bandwidth at first.
 Moving that to todoWrite30VariedUsecases.wikibinator203, so this wikibinator203VM.js file can work again.
+*
+
+TODO for vararg syntax use A[B C D] meaning (A [B C D]), where A B C and D are #Names.
+In general if you dont put a space before ( { [ or < then it means a call.
+This simplifies _ , ? and maybe the first . like in .abc.def .
+(?2 (?2 (? z) y) length) is written as something like <z y length>,
+but you could also write that as A[z y length] if A is the #Name of a fn that does (?2 (?2 (? z) y) length) with [z y length],
+as it would be (A [z y length] [...stream...]).
+I'm willing to sacrifice the code being a little longer, having to write (W (X (Y Z))) with spaces before the (s, instead of (W(X(Y Z))),
+but the new syntax also allows W(X (Y Z)) or W(X(Y Z)) since lack of a prefix space implies calling.
+You cant have 2 names touching eachother, except if its a builtin name like _ , ?.
+W(X(Y Z))   //smaller, but more complex to parse. maybe more confusing to read?
+(W(X(Y Z))) //bigger
+Maybe also allow : between #Names, to mean the same thing as lacking a space between them, but you cant write WX to mean (W X), so you write W:X.
+/*But what about direction? What does W:X:Y mean, (W (X Y)) or ((W X) Y)? Would having 2 symbols fix that, like W<X<Y vs W>X<Y vs W<X>Y ?
+W<Anything means W before Anything. W>Anything means W after Anything??? So what would W<X<Y mean? W first, so (W X<Y).
+What would W>X<Y mean? W after X<Y, but what does that mean? X<Y and X>Y both mean (X Y), so W>(X Y). Its (W (X Y)).
+What would W>X>Y mean? W after X>Y. so (W (X Y)).
+What would W<X<Y<Z mean? (W X<Y<Z). (W (X Y<Z)). (W (X (Y Z))).
+Wait... which one means (((W X) Y) Z) ?
+Forget that < > stuff above. Do it this way instead....
 */
+/*
+> means ) and implies the ( happened before it.
+< means ( and implies the ) happens after it.
+W<X<Y<Z means W(X(Y(Z with some )s implied, which means (W (X (Y Z))).
+W>X<Y<Z means W)X(Y(Z, which means (W X (Y Z)) ???? that doesnt seem right. might be right. try few more examples...
+W>X>Y<Z  W)X)Y(Z  ((W)X)Y(Z)  ((((W)X)Y)(Z))  (W X Y Z). Its just (W X Y Z). The last < vs > never matters, since theres only 2 things. W>X>Y:Z .
+But if the last < vs > doesnt matter, how would i write (W X (Y Z)) ?
+Maybe this syntax doesnt work either. Or maybe W>X>Y>Z means (W X Y Z), and W>X>Y<Z means (W X (Y Z)) ? What parsing rule could detect that?
+How many possible trees are there of W X Y Z that have each of those once and occur in that order? Write them all...
+(((W X) Y) Z)
+((W X) (Y Z))
+((W (X Y)) Z)  W<X<Y>Z  problem, these 2 seem to need the same syntax
+(W (X (Y Z)))  W<X<Y>Z  problem, these 2 seem to need the same syntax
+*
+Figure out more syntaxes later. For now just use W:X:Y:Z to mean (W X:Y:Z) aka (W (X Y:Z)) aka (W (X (Y Z))).
+That will make it easier to read and small enuf that can make custom syntaxes by prefixing by a fn that does parsing (and can Evaler optimize some of them).
+Example: (Y[A B C] D) could do the same as ({A B C} D) if Y is a fn that takes a [...] of any size and does what {...} does.
+Similarly Y{A B C} or Y(A B C), but [...] is the most useful for vararg.
+Keep <...> for the ?2 and ? syntax, as in "(?2 (?2 (? z) y) length) is written as something like <z y length>" but I'm not completely sure of that part
+as I'm still figuring out how these parts of syntax fit together.
+..
+(=d .z.abc .i .z.y?i) //z.abc[i] = z.y[i];
+...could be written as...
+ED[.z.abc .i .z.y?i]   where ED is a #Name of a fn that does with [...] that same thing when it gets 1 more param., 
+
+
+
+
+
+
+
+lambda
+ja code generator for mutlam. test it on a Fo loop with hypot3 (a derived mutlam of 3 params) and the js code should inline it as Math.sqrt(Square?x...codegen y.. z..) without heap alloc in loop, by detecting its all doubles. add optimization to often detect if something always returns doubles.
+Mut.m is js {}.
+Mut.d is Float64Array overlapping buffer with Int32Array and Float32Array. Mut.e is a double. Mut.k is dedupedfn and Mut.o is whichopmutspacenum which together are the primarykey. Mut.j is dup fn. i might add more fields later such as jj being js [] of dup fn. (ObKeyVal ob key val) (ObCbt ob acbt) etc. cache mutevaler of Mut.k andor mutevaler of Mut.j?
+..
+For MutLam params, use a js {} (either pooled and emptied after used or new {} each mutlam call) of varnameorstringid to val. val is Mut or double. use ?x for mutlam var x, and.x for rootstate Mut.m.x. i could, but dont use {}.prototype being lower {} on mutlamcallstackwhichisjystjsstack, cuz namespaces are only supposed to see their own vars. can still share Muts as params of mutlam, in Mut.m.varnameorstringid.
+...
+(;[a b c] d) means (a ;[a b c] d), or maybe (a [a b c] d), as a way of defining vararg and custom syntaxes. or maybe <a b c d> means (a [b c d]) if a is (some certain op with FuncBody param).
+The problem this is meant to solve is <.xy .zz {...} ...>, as way to getvar ? and ?2, is not general enuf cuz theres =dd =d =j and getters of those etc. need general vararg syntax and im willing to pay an extra char for it. maybe A<b c d> instead of writing it as <A b c d>, and A is a #Name, and if you dont give a fn before the < then its ? and ?2 default syntax. will optimize for that.
+..
+yes, do that, but as []... A[B C D] is (A [B C D]). more generally if you dont put a space before ( or { or < or [ then its automatically a call. that simplifies , and _ and maybe the first . but im unsure if i want to ((...) (...) (...))
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12,9 +119,9 @@ Moving that to todoWrite30VariedUsecases.wikibinator203, so this wikibinator203V
 	{
 		,Opmut
 		,_[
-			(push ,x ,10)
-			(push ,x ,hello)
-			(push ,x ,20)
+			(Push ,x ,10)
+			(Push ,x ,hello)
+			(Push ,x ,20)
 			(=3 ,z ,y ?x)
 			(=3 ,z ,abc FixmeHowToDefineAJsListOrIsItViewedAsMapB)
 			(For (= ,i ,0) (Lt .i .z.y.length) (++ ,i) _[ //TODO this syntax is too long: (?2 (?2 (? z) y) length)
@@ -2099,6 +2206,38 @@ Math.sqrt
 Math.imul
 ...bunch more Math.something funcs...
 spendTimeMemFuncParam maxstackTime maxstackMem func param
+
+/*
+//voxel32 -> int32 with red as lowest 4 bits.
+{,& (>> 8) ,15}##VoxRed4
+
+//voxel32 -> int32 with green as lowest 4 bits.
+{,& (>> 4) ,15}##VoxGreen4
+
+//voxel32 -> int32 with blue as lowest 4 bits.
+(& 15)##VoxBlue4
+
+/*
+//FIXME this is too general, cant name it VoxRGB12 cuz others will use it for other things.
+//could put a comment param in Lambda op, but makes it harder to optimize.
+//(& 4095)#VoxRGB12
+OpCommentedFuncOfOneParam#Cf //This would be easier to optimize.
+(Cf voxRGB12 (& 4095))#VoxRGB12 //name would default to the first param of OpCommentedFuncOfOneParam, except first char of it made capital, if name is not given, though there can be duplicates.
+Could abbrev it this way: (& 4095)##VoxRGB12
+*
+(& 4095)##VoxRGB12
+
+//voxel32 -> int32 with x as lowest 10 bits.
+{,& (>> 12) ,1023}##VoxX10
+
+//voxel32 -> int32 with y as lowest 10 bits.
+{,& (>> 22) ,1023}##VoxY10
+
+//voxel32 -> int32 with yx as lowest 20 bits.
+{,& (>> 12) ,1048575}##VoxYX20
+*
+OpCommentedFuncOfOneParam
+
 ~
 ^
 !
@@ -2244,7 +2383,9 @@ const Wikibinator203 = (()=>{
 	let vm = new function(){};
 		
 	vm.ops = {}; //map of opName to lambda
+	vm.opAbbrevs = {}; //similar to vm.ops except its , instead of T, and _ instead of Seq
 	let ops = vm.ops; //Example: ops.S(ops.T)(ops.T)
+	let opAbbrevs = vm.opAbbrevs;
 	//with(ops){ //so vm can call its own ops by name, such as (Pair, L, R, S) to implement other ops
 		
 		vm.lastIdA = -1; //high 32 bits
@@ -2379,7 +2520,25 @@ const Wikibinator203 = (()=>{
 		//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
 		//vm.mask_stackIsAllowImportEvilIds = 1<<6;
 		
-		vm.mask_reservedForFutureExpansion4 = 1<<4;
+
+		/*implement op (getLocalId128 x) gives the 4 ints (in js) x().idA x().idB x().blobFrom and x().blobTo.
+		blobFrom and blobTo are both 0 in any node thats not a cbt so you only need half the id then.
+		Use it in a treemap (Lambda [...] ...) of #SomeName to fn, for use as a code editor.
+		Strings that fit in an id256 dont need to be hashed (which is slow, .0001 to .0000001 per second per hash id).
+		Using an idmaker that uses literalinid (or (typeval "text/plain;charset=utf8" TheBits)) or hashidofanyfn,
+		together as just whatever (AnIdMaker SomeFn) returns, could view code being made and deleted,
+		much faster without having to hash it, but can only be
+		run in vm.stackAllow* mode, some dirty mode (not purely deterministic)
+		depending on salt of course for nondeterministic recursion and caching.
+		The localid of a fn may differ from other times that fn is observed,
+		but for the same localid in the same VM run (til wikibinator203 VM is restarted),
+		there is at most 1 val, so [localid128 many-to-1 dedupedFn (within same run of VM)].
+		For each localid128 there is at most 1 dedupedFn, until restart VM then those may change.
+		Each VM running simultaneously can be running a different "VM run",
+		so the nondeterministic localid128s should be limited to when vm.mask_stackAllowReadLocalIds (now 1 of 5 kinds of clean/dirty).
+		*/
+		vm.mask_stackAllowReadLocalIds = 1<<4;
+		//vm.mask_reservedForFutureExpansion4 = 1<<4;
 		
 		vm.mask_reservedForFutureExpansion5 = 1<<5;
 		
@@ -2521,13 +2680,14 @@ const Wikibinator203 = (()=>{
 		//and I would prefer bigEndian unless most or all systems already do littleEndian in browser.
 		
 		vm.isLambda = function(thing){
-			//FIXME some rare times there could be false positive.
-			return thing.n && typeof(thing)=='function';
+			//FIXME some rare times there could be false positive. Maybe lambdize should put in a isLambda:true field.
+			//return thing.n && typeof(thing)=='function';
+			return thing.isWikibinator203Lambda && typeof(thing)=='function';
 		};
 		
 		vm.wrapInTypeval = function(thing){
 			if(vm.isLambda(thing)) return thing;
-			throw 'TODO';
+			throw 'TODO use (ops.Typeval contentType thing)';
 		};
 		
 		vm.wrapRaw = function(thing){
@@ -2546,6 +2706,11 @@ const Wikibinator203 = (()=>{
 				throw 'TODO';
 			}
 		};
+		
+		//must be either vm.wrapRaw or vm.wrapInTypeval.
+		//TODO choose which is default, aka which happens when you call a fn on a non-fn
+		//such as U(3.45)('hello')
+		vm.wrap = vm.wrapInTypeval;
 		
 
 		//the datastruct of forest of lambdas, each with 2 childs (Node.l and Node.r, which are the lambdize wrappers of Node) where all paths lead to the universal lambda.
@@ -2720,7 +2885,9 @@ const Wikibinator203 = (()=>{
 
 		};
 		
-		//in op lambda or opOneMoreParam or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
+		//in op lambda or opOneMoreParam
+		//(UPDATE: opOneMoreParam was removed from the design, and instead (Lambda [1 to 250-something paramNames] ...params)
+		//or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
 		//cuz could simplify this. curriesLeft and op must be known at param 7, so lambda 
 		vm.Node.prototype.funcBody = function(){
 			if(!this.cacheFuncBody){
@@ -2748,7 +2915,8 @@ const Wikibinator203 = (()=>{
 						//FIXME redesign this so the loop is smaller?
 						while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
 						//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-						this.cacheFuncBody = TODO;
+						throw 'TODO';
+						//this.cacheFuncBody = TODO;
 					break;case vm.o8OfOpOneMoreParam:
 						//this.cacheFuncBody = TODO;
 						throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
@@ -2762,14 +2930,38 @@ const Wikibinator203 = (()=>{
 		//index is in units of ints, not bits. Node.blob is always a Int32Array. always 0s outside range.
 		//If blobFrom<blobTo then blob exists.
 		vm.Node.prototype.intAt = function(index){
-			if(index < this.blobFrom || this.blobTo <= index) return 0;
-			return this.blob[index];
+			//if(index < this.blobFrom || this.blobTo <= index) return 0;
+			//return this.blob[index];
+			//in case its undefined cuz outside valid range.
+			//index|0 might help js compiler optimize since it cant be a string index etc.
+			//FIXME if this.blob is not a powOf2 number of bits,
+			//then it must be viewed as padded by a 1 bit then 0s until the next powOf2 IF VIEWED AS BITSTRING,
+			//ELSE PAD WITH ALL 0S AS JUST A SPARSE REPRESENTATION OF A CBT.
+			//Every bitstring is a cbt, but not every cbt is a bitstring.
+			//The only cbts that are not bitstrings, are all 0s.
+			//The easiest way is just to keep all blobs as powOf2 number
+			//of ints and preallocate pow(2,0)..+..pow(2,16) number of cbts for all possible
+			//bitstrings up to 16 bits, so calling 2 of those together makes 32 bits. calling 2
+			//of those together makes 64 bits. and so on.
+			return this.blob[index|0]|0;
+		};
+		
+		//TODO choose to swap the names doubleAt vs doubleAtt (which both should exist). which way is more intuitive?
+		
+		//index is in units of doubles
+		vm.Node.prototype.doubleAtt = function(index){
+			return this.doubleAt(index<<1);
 		};
 		
 		//index is in units of ints
 		vm.Node.prototype.doubleAt = function(index){
 			//FIXME bigEndian or littleEndian and of ints or bytes etc?
 			return vm.twoIntsToDouble(this.intAt(index), this.intAt(index+1));
+			//TODO optionalPerNode optimization of this func (just replace it, or inherit using .prototype?)
+			//that overlaps a new Float64Array(this.blob.buffer) with this.blob which is an Int32Array,
+			//and cache that in a this.blobD, similar to also do this.blobF for Float32Array etc,
+			//but since many nodes wont use that, dont make these type specific optimizations by default,
+			//just where its likely to help. To be explored later.
 		};
 		
 		//as double
@@ -2787,6 +2979,7 @@ const Wikibinator203 = (()=>{
 		//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
 		//For perfect dedup, use 256 bit or 512 bit global ids which are lazyEvaled and most nodes never need one.
 		vm.Node.prototype.equalsByLazyDedup = function(otherNode){
+			//TODO optimize by using === between 2 nodes, since only 1 node in memory should ever have the same localId128?
 			return this.hashInt==otherNode.hashInt && this.idB==otherNode.idB && this.idA==otherNode.idA && this.blobFrom==otherNode.blobFrom && this.blobTo==otherNode.blobTo;
 		};
 		
@@ -2850,6 +3043,11 @@ const Wikibinator203 = (()=>{
 		//so can have evilBit, even though its probably not very useful in such small literals.
 		//If that becomes a problem, a new kind of id can be derived that always has header so can always have evilBit, by storing at most 128 bits of literal in a 256 bit id.
 		vm.evilBitOf = function(headerInt){
+			//FIXME theres multiple prefixes that have evilBit. Look around vm.callPairPrefixByte_evilBitOn for similar named things,
+			//Basically theres a 5 bit prefix (0b11110) that if it matches then the next bit is an evilBit,
+			//and if it doesnt match those first 5 bits
+			//then its neutral (doesnt have a header so doesnt have an evilBit being true or false)
+			//and is small enough its a literal that fits in an id.
 			return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
 			/*vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
 			vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
@@ -2913,9 +3111,14 @@ const Wikibinator203 = (()=>{
 			return !!(this.header&vm.mask_containsAxConstraint);
 		};
 		
+		//You can turn an evaler (which is used by 0-infinity nodes, on or off using aNode.n.evaler.prev.prev.on = trueOrFalse.
+		//and to find whichever is the nearest Evaler thats on, use aNode.n.getEvaler(),
+		//and vm.lambdize(aNode)(vm.lambdize(bNode)) does that lambda call.
+		//You normally use the lambdized form so you dont need to call lambdize directly or even know that Nodes exist.
+		//Its stuff inside the wikibiantor203 VM.
 		vm.Node.prototype.getEvaler = function(){
 			let evaler = this.evaler;
-			if(!evaler) throw 'No evaler in thisNode='+this; //TODO optimize by removing this line since all Nodes will have evalers
+			//if(!evaler) throw 'No evaler in thisNode='+this; //TODO optimize by removing this line since all Nodes will have evalers
 			while(!evaler.on) evaler = evaler.prev;
 			return evaler;
 		};
@@ -3758,6 +3961,15 @@ const Wikibinator203 = (()=>{
 			}
 		};
 
+		//wraps a vm.Node in a javascript lambda of 1 param.
+		//The output of lambdize is a fn (a wikibinator203 lambda). fnA(fnB)->fnC.
+		//This allows using .prototype for object-oriented implementation of the lambdas
+		//while they're still javascript lambdas.
+		//lambdize(nodeA).n==nodeA.
+		//lambdize(nodeA)()==nodeA.
+		//lambdize(nodeA)().idA or .otherFieldsOfNode .
+		//lambdize(nodeA).n.idA or .otherFieldsOfNode .
+		//lambdize(nodeA).n.lam==lambdize(nodeA).
 		vm.lambdize = function(node){
 			if(node.lam) return node.lam;
 			const NODE = node;
@@ -3776,7 +3988,9 @@ const Wikibinator203 = (()=>{
 				if(param === undefined) return NODE;
 				return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
 			};
-			lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing "if(param === undefined) return NODE;" and always using .n?
+			lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing the aLambda() way cuz its slower.
+			//causes vm.isLambda(lambda)->true but vm.isLambda({isWikibinator203Lambda:true})->false
+			lambda.isWikibinator203Lambda = true;
 			//lambda = lambda.bind(this);
 			lambda.hashInt = vm.hash2Nodes(node.l,node.r); //TODO optimize should hashInt go in node instead of lambda? does that make it harder to use?
 			lambda.toString = vm.lambdaToString;
@@ -3792,7 +4006,7 @@ const Wikibinator203 = (()=>{
 		//vm.o8ToLambda[0] = (x=>{throw 'o8 of 0 does nothing or is evaling';});
 		vm.opInfo = []; //o8 to info
 		vm.opNameToO8 = {}; //a cache of vm.opInfo, used in a switch statement in vm.rootEvaler. TODO optimize further by making a separate evaler for each op and a few other common lambdas.
-		//prefix is like _ for Seq, as in _[...], a 1 char prefix that doesnt need a space between it and its param, or null to not have one.
+		//prefix is like _ for Seq, as in _[...], a 1 char prefix that doesnt need a space between it and its param, or null to not have one. TODO rename prefix to opAbbrev.
 		vm.addOp = (name,prefix,isStrange,curriesLeft,description)=>{
 			let o8 = vm.opInfo.length;
 			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc.';
@@ -3845,6 +4059,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('StackIsAllowNondetRoundoff',null,false,1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowMutableWrapperLambdaAndSolve',null,false,1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowAx',null,false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('stackAllowReadLocalIds ',null,false,1,'reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.');
 		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
 		vm.addOp('Dplusraw',null,false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
@@ -3875,6 +4090,7 @@ const Wikibinator203 = (()=>{
 		*/
 		vm.addOp('Seq','_',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].');
 		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.');
+		vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params?');
 		
 		/* todo these ops too...
 		TODO...
@@ -4022,6 +4238,7 @@ const Wikibinator203 = (()=>{
 			this.saltC = saltC;
 			this.saltD = saltD;
 		};
+
 		
 		//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
 		//Use this as immutable.
@@ -4131,6 +4348,9 @@ const Wikibinator203 = (()=>{
 			"use strict";
 			//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 			vm.prepay(1,0);
+			l = vm.wrap(l); //If is already a fn (vm.isWikibinator203Lambda), leaves it as it is
+			r = vm.wrap(r);
+			
 			let cache = vm.funcallCache(l,r);
 			if(cache.ret) return cache.ret;
 			
@@ -4155,12 +4375,26 @@ const Wikibinator203 = (()=>{
 					case o.StackIsAllowstackTimestackMem: //!isClean. allow stackMem and stackTime etc more than 1 level deep (clean lambdas cant see it, but can still run out of it, throws to just past the cleans)
 						ret = vm.bit(stackMask & vm.mask_stackIsAllowstackTimestackMem);
 					break;case o.StackIsAllowNondetRoundoff:
-						ret = vm.bit(stackMask & vm.stackIsAllowNondetRoundoff);
+						ret = vm.bit(stackMask & vm.mask_stackIsAllowNondetRoundoff);
 					break;case o.StackIsAllowMutableWrapperLambdaAndSolve:
-						ret = vm.bit(stackMask & vm.stackIsAllowMutableWrapperLambdaAndSolve);
+						ret = vm.bit(stackMask & vm.mask_stackIsAllowMutableWrapperLambdaAndSolve);
 					break;case o.StackIsAllowAx:
-						ret = vm.bit(stackMask & vm.stackIsAllowAx);
-					//ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
+						ret = vm.bit(stackMask & vm.mask_stackIsAllowAx);
+					break;case o.StackAllowReadLocalIds:
+						ret = vm.bit(stackMask & vm.mask_stackAllowReadLocalIds);
+						
+						/*TODO use this to, with StackAllowReadLocalIds true, make a fast evallable textarea of wikibinator203 code,
+							in a tree of voxel32s to make windows and subwindows recursively, and in some of those
+							there will be localids (128 bits in this case, might allow different sizes in other VMs?)
+							read by the user level code to choose what text to paint (as cbt of int32 voxels relative to a voxel y x)
+								anywhere on screen, so use wikibinator203 code make a code editor of wikibinator203 code,
+								using the optimization of can get localids instead of having to hash,
+								so trading determinism for speed. Both ways will be supported by just swapping out an idMaker func.
+						*/
+							
+						
+					//StackAllowReadLocalIds used 1 more reserved index.
+					//OLD: ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
 					break;case o.IsCbt:
 						ret = vm.bit(z().isCbt());
 					break;case o.ContainsAxConstraint:
@@ -4288,10 +4522,12 @@ const Wikibinator203 = (()=>{
 							//prevent ax constraints from existing that werent verified.
 							//They wont be verified while !vm.stackIsAllowAx, so during that, verify says fail.
 							vm.infloop();
-							
 						}
 						//FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
 						//so update comments and maybe code depends on that?
+					break; case o.OpCommentedFuncOfOneParam:
+						//(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param)
+						ret = y(z);
 					break;case o.Sqrt: //of a cbt64 viewed as float64
 						if(vm.stackIsAllowNondetRoundoff){
 							let float64 = TODO;
@@ -4411,7 +4647,7 @@ const Wikibinator203 = (()=>{
 		//op is known at 7 params.
 		//TODO optimize this by storing a hasMoreThan7Params bit in headerInt mask?
 		vm.Node.prototype.hasMoreThan7Params = function(){
-			return this.o8()==this().l.o8();
+			return this.o8()==this.l().o8();
 		};
 		
 		vm.lambdasAreSameOp = function(a,b){
@@ -4501,6 +4737,7 @@ const Wikibinator203 = (()=>{
 			return viewing.makeString();
 		};
 		
+		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
 			
@@ -4781,18 +5018,22 @@ const Wikibinator203 = (()=>{
 		//code thats before, between, or after string literals -> list of tokens.
 		vm.Viewer.prototype.tokenizeBetweenStringLiterals = function(partOfWikibinator203CodeString){
 			let tokens = [];
-			let s = partOfWikibinator203CodeString+' ';
-			let from = 0, to = 0;
+			let s = ' '+partOfWikibinator203CodeString+' ';
+			let from = 0, toExcl = 0;
 			let splitSet = this.simpleSplitCharsSet;
 			while(from < s.length){
 				do{
-					to++
-				}while(to < s.length && !splitSet[s[to]]);
-				let token = s.substring(from,to).trim();
-				if(token.length) tokens.push(token); //dont include whitespace
-				from = to;
+					toExcl++
+				}while(toExcl < s.length-1 && !splitSet[s[toExcl-1]] && !splitSet[s[toExcl]]);
+				//let token = s.substring(from,to).trim();
+				let token = s.substring(from,toExcl);
+				//if(token.length) tokens.push(token); //dont include whitespace
+				tokens.push(token);
+				from = toExcl;
 			}
-			return tokens;
+			let startIndex = tokens[0]==' ' ? 1 : 0;
+			let endIndexExcl = tokens[tokens.length-1]==' ' ? tokens.length-1 : tokens.length;
+			return tokens.slice(startIndex,endIndexExcl);
 		}
 		
 		//returns list of strings. string literals start with ' such as returns js list ["(", "Concat", "'hello wor'", "'ld'"].
@@ -4818,6 +5059,8 @@ const Wikibinator203 = (()=>{
 			this.tokens = tokens;
 			this.from = 0;
 			this.toExcl = 0;
+			//this needs to be set (in vm.eval normally) before parsing, since it counts down.
+			this.maxParseSteps = 0;
 			
 			//empty string evals to identityFunc. Whatever is parsing.fn gets called on the next thing parsed, and replace it with that.
 			//this.fn = vm.identityFunc;
@@ -4835,11 +5078,15 @@ const Wikibinator203 = (()=>{
 		
 		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
 		vm.Parsing.prototype.isLoneToken = function(token){
-			return token.length != 1 || !'_?,(){}[]<>'.includes(token);
+			//include whitespace (FIXME theres lots of kinds of unicode whitespace, but those 4 '\t\r\n ' are usually enough. Default: \n instead of \r or \r\n.
+			
+			//Example: vm.ops.S and vm.opAbbrevs._->ops.Seq and vm.opAbbrevs[',']->ops.T
+			return token.length != 1 || '\t\r\n _?,'.includes(token) || vm.ops[token] || vm.opAbbrevs[token]; //TODO get these from vm.opInfo.prefix
+			//return token.length != 1 || '_?,(){}[]<>'.includes(token);
 		};
 		
 		vm.Parsing.prototype.isPushToken = function(token){
-			return isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
+			return this.isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
 		};
 		
 		//Examples: 'S', 'Pair' (which are builtInName), or TODO if its a localName.
@@ -4850,7 +5097,11 @@ const Wikibinator203 = (()=>{
 			//and dont have builtInNames and instead derive all builtInNames as localNames.
 			//builtInNames and localNames dont change ids. globalIds are computed deterministicly from forest shape only.
 			//local ids (such as idA idB blobFrom blobTo (128 bits)) are computed nondeterministicly from forest shape as optimization.
-			if(ops[loneToken]) return ops[loneToken];
+			if(ops[loneToken]) return ops[loneToken]; //Example: T Seq
+			if(opAbbrevs[loneToken]) return opAbbrevs[loneToken]; //Example: , instead of T, _ instead of Seq
+			if(loneToken == 0){ //is all whitespace
+				throw 'Dont call loneTokenToFn if its all whitespace cuz theres no fn for it. Its part of syntax between fns etc. loneToken=['+loneToken+'] inside the [...]'
+			}
 			
 			//FIXME For now just do builtInName
 			//let ret = ops[loneToken];
@@ -4864,6 +5115,11 @@ const Wikibinator203 = (()=>{
 			//TODO if loneToken starts with a lowercase letter and has no whitespace, then its a string literal (utf8? utf16? TODO CHOOSE).
 			
 			throw 'TODO, loneToken='+loneToken;
+		};
+		
+		vm.Parsing.prototype.pay1ParseStep = function(){
+			if(this.maxParseSteps <= 0) throw 'Parser is broken. Ran out of parsing.maxParseSteps. If this isnt a call of vm.eval/vm.viewer.eval then caller should set maxParseSteps to vm.viewer.maxParseStepsForNumTokens(yourTokens.length). parsing='+this;
+			this.maxParseSteps--;
 		};
 		
 		vm.Parsing.prototype.isMatchingPushAndPopTokens = function(pushToken, popToken){
@@ -4882,18 +5138,29 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.Parsing.prototype.pushFn = function(fn){
+			console.log('pushFnSTART stackSize='+this.stack.length);
 			this.stack.push(fn);
+			console.log('pushFnEND stackSize='+this.stack.length);
 			return undefined;
 		};
 		
-		vm.Parsing.prototype.popFnByCall = function(){
+		//pops 2. pushes 1.
+		vm.Parsing.prototype.popPopPushFnByCall = function(){
+			console.log('popPopPushFnByCallSTART stackSize='+this.stack.length);
 			if(this.stack.length < 2) throw 'stack.length='+stack.length+' and cant pop last thing on stack';
 			let param = this.stack.pop();
 			let func = this.stack.pop();
-			console.log('parsing, about to call '+func+' on '+param);
-			stack.push(func(param));
+			//console.log('parsing, about to call (look for ENDCALL) '+func+' on '+param);
+			console.log('parsing, about to call (look for ENDCALL) func(param)');
+			this.stack.push(func(param));
+			console.log('ENDCALL');
+			console.log('popPopPushFnByCallEND stackSize='+this.stack.length);
 			return undefined;
 		};
+		
+		//vm.Parsing.prototype.logStackSizeEtc = function(){
+		//	console.log('STACKSIZE '+parsing.stack.length+' maxParseStepsLeft='+parsing.maxParseSteps);
+		//};
 		
 		//string -> fn.
 		vm.Viewer.prototype.eval = function(wikibinator203CodeString){
@@ -4901,27 +5168,95 @@ const Wikibinator203 = (()=>{
 			let tokens = this.tokenize(code);
 			console.log('TOKENS: '+tokens.join(' .. '));
 			let parsing = new vm.Parsing(tokens);
+			//maxParseSteps is for things that dont parse at runtime in user code,
+			//or bugs in the parser while I'm still designing the parser.
+			parsing.maxParseSteps = this.maxParseStepsForNumTokens(tokens.length);
+			console.log('eval starting, maxParseSteps='+parsing.maxParseSteps);
 			this.parse(parsing);
 			if(parsing.stack.length != 1) throw 'parsing.stack.length should be 1 but is '+parsing.stack.length;
+			//this part of stack started as vm.identityFunc (F U) but should have replaced it,
+			//unless the code is empty in which case its identityFunc aka vm.eval('')->vm.identityFunc.
+			//Otherwise, identityFunc is called on whatever it does first/last on stack, so returns that.
+			//TODO make an Evaler for identityFunc.
+			
+			//Remember, identityFunc is optimized by this, so its fast enough to use it and L R etc as lambdas.
+			//This is code from near the end of this file.
+			//l().pushEvaler((vm,func,param)=>(param().l));
+			//r().pushEvaler((vm,func,param)=>(param().r));
+			//vm.identityFunc().pushEvaler((vm,func,param)=>param);
+			//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
+			
 			return parsing.stack[0];
 		};
+		
+		//TODO move this func to Parsing class?
+		vm.Viewer.prototype.maxParseStepsForNumTokens = function(numTokens){ return 5+3*numTokens; };
 
+		//reads a list of js strings (parse.tokens) and evals the combo of lambdas it means,
+		//and returns it (whatevers at top parsing.stack[parsing.stack.length-1] at end of this parse call,
+		//including calling itself recursively while modifying fields in the Parsing.
+		//
+		//If all those lambdas dont have enough params yet then evaling them halts instantly
+		//by creating a halted call pair (see Node.evaler such as vm.rootEvaler) so just normal evaling.
 		//Reads parse.tokens and parse.from. Writes parse.to when whatever parse.tokens[parse.from] opens is closed, such as ( and ) or { and },
 		//or a lone token may be its own open and close such as hello or 'hello'.
 		vm.Viewer.prototype.parse = function(parsing){
 			let tok = parsing.tokens;
-			let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
+			/*let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
+			if(fromTok === undefined) throw 'parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
+			console.log('PARSING====fromTok='+fromTok);
+			*/
 			parsing.toExcl = parsing.from+1;
-			//let nextFn = null;
-			while(true){
-				if(parsing.isLoneToken(fromTok)){
+			let nextFn = null;
+			do{
+				let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
+				if(fromTok === undefined) throw 'MOVEDTOINWHILE: parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
+				console.log('MOVEDTOINWHILE: PARSING====fromTok='+fromTok);
+			
+				parsing.pay1ParseStep();
+				if(fromTok == 0){ //fromTok is all whitespace
+					//TODO Any 2 fns with no whitespace or { [ ( < between eachother,
+					//like a[b c], means (a [b c]). means call one on another left to right.
+					//
+					//FIXME, is this code (push then popPopPush) at end of loop(s),
+					//doing that "call one on aother left to right"?
+					//Or where should that be done instead?
+					//parsing.pushFn(nextFn);
+					//parsing.popPopPushFnByCall();
+					console.log('parsing, all whitespace, fromTok['+fromTok+'] from['+parsing.from+'] toExcl['+parsing.toExcl+'] typeof(fromTok)['+typeof(fromTok)+']');
+					parsing.from++;
+					console.log('increased from['+parsing.from+'], toExcl['+parsing.toExcl+']');
+					
+					//FIXME more code to write
+					
+				}else if(parsing.isLoneToken(fromTok)){ //this token alone
+					//lone token might be #SomeName or ( or ) or { etc.
+					console.log('    parsingA, is lone token: '+fromTok);
+					//FIXME also handle stringliterals, #Names, numberliterals, etc here.
+					nextFn = parsing.loneTokenToFn(fromTok);	
+				}else if(parsing.isUnaryToken(fromTok)){ //this token and recurse on next objects
+					//unaryToken parses like __x is (_ (_ x)).
+					console.log('parsing, isUnaryToken fromTok='+fromTok);
+					//throw 'TODO';
 					nextFn = parsing.loneTokenToFn(fromTok);
-					break;
-				}else if(parsing.isUnaryToken(fromTok)){
-					throw 'TODO';
-				}else{
-					while(parsing.toExcl < tok.length && !parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1])){
-						if(parsing.isPushToken(tok[parsing.toExcl])){
+					let rememberFrom = parsing.from;
+					parsing.from = parsing.toExcl; //start at the next token
+					this.parse(parsing);
+					parsing.from = rememberFrom;
+					//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
+					parsing.toExcl++; //FIXME remove this line?
+				}else{ //this token and recurse on variable number of next objects: {...}, [...], (...), or <...>.
+					//while(parsing.toExcl < tok.length && !parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1])){
+					let isPop;
+					let listOfFns = []; //whats between { and }, [ and ], ( and ), or < and >, similar to sexp/s-expression.
+					while(
+						parsing.toExcl < tok.length
+						&& !(isPop=parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1]))
+					){
+						parsing.pay1ParseStep();
+						let tk = tok[parsing.toExcl-1];
+						if(parsing.isPushToken(tk)){
+							console.log('parsingB, is push token: '+tk);
 							//Example: tok[fromTok] is '(' and toExcl has found another '(' or a '{' etc, so recurse.
 							let rememberFrom = parsing.from;
 							parsing.from = parsing.toExcl;
@@ -4929,21 +5264,68 @@ const Wikibinator203 = (()=>{
 							parsing.from = rememberFrom;
 							//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
 							parsing.toExcl++; //FIXME remove this line?
+						}else if(isPop){
+							console.log('parse, about to pop');
+							break;
 						}else{
-							throw 'TODO';
+							console.log('parsing, its not push or pop. is literal or look up by #Name or .abc.def etc. tk='+tk);
+							let rememberFrom = parsing.from;
+							parsing.from = parsing.toExcl;
+							let fn = this.parse(parsing); //like U in [U U U] or (U U U) or for <> or {}
+							listOfFns.push(fn);
+							//FIXME also pop here (from parsing.stack)?
+							parsing.from = rememberFrom;
+							//throw 'TODO its not push or pop. is literal or look up by #Name or .abc.def etc.';
 						}
 					}
-					
-					
-					//nextFn = some interpretation of the range tok[parsing.from .. parsing.toExcl-1]
+					let toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
+					if(toTok === undefined){
+						//throw 'toTok===undefined';
+						console.log('toTok===undefined so past the end (todo use from and toExcl and tok.length instead');
+						break;
+					}
+					console.log('fromTok switch [](){}<>, fromTok='+fromTok+' toTok='+toTok);
+					switch(toTok){
+						case ']': //Infcur list
+							console.log('parse [...] aka infcur-list, size '+listOfFns.length);
+							nextFn = ops.Infcur;
+							for(let fn of listOfFns)  nextFn = nextFn(fn);
+						break;case ')': //curry list
+							console.log('parse (...) aka curry-list');
+							nextFn = vm.identityFunc; //(F U) aka I
+							for(let fn of listOfFns)  nextFn = nextFn(fn);
+						break;case '}': //sCurry list
+							console.log('parse {...} aka s-curry-list, size '+listOfFns.length);
+							//syntax {} means S. {x} means S(x). {x y} means s(x)(y). {x y z} means s(s(x)(y))(z). and so on.
+							if(!listOfFns.length) return ops.S;
+							nextFn = listOfFn[0];
+							for(let i=0; i<listOfFns.length; i++)  nextFn = ops.S(nextFn)(fn);
+						break;case '>': //opmut getter list
+							console.log('parse <...> aka opmut-getter-list, size '+listOfFns.length);
+							//nextFn = TODO
+							throw 'TODO what exactly does the < syntax do? look up that ?2 ?1 syntax (where did i put that?) - aka opmut getter list syntax. Normally only used to get from a [...] in an opmut.';
+						break;default:
+							throw 'Unknown pop token: '+toTok;
+					}
+					//TODO nextFn = some interpretation of the range tok[parsing.from .. parsing.toExcl-1]
+					parsing.pushFn(nextFn);
+					parsing.popPopPushFnByCall();
+					//TODO parsing.pushFn(nextFn); parsing.popPopPushFnByCall(); depending on if is push, pop, or loneToken etc above.
 				}
 				
-				//FIXME pop parsing.from and parsing.toExcl to pop
+				//FIXME pop parsing.from and parsing.toExcl to pop. FIXME thats confusing. did i mean pop 2 and push calling one on the other?
+				
+				//Do these depending on if is push, pop, or loneToken etc above.
+				//parsing.pushFn(nextFn);
+				//parsing.popPopPushFnByCall();
 				
 				parsing.toExcl++;
-			}
+			}while(parsing.stack.length > 1); //when theres 1 thing on stack left, return it.
 			//console.log('parsing, about to call '+parsing.fn+' on '+nextFn);
 			//parsing.fn = parsing.fn(nextFn);
+			if(!parsing.stack.length) throw 'parsing.stack is empty but should never have less than 1 fn in it';
+			console.log('PARSEEND');
+			return parsing.stack[parsing.stack.length-1]; //Parsing.parse returns return whatever on top of Parsing.stack at end
 		};
 		
 		
@@ -5164,7 +5546,9 @@ const Wikibinator203 = (()=>{
 			//The difference between a builtInName and a localName is the builtInName can be used the first time it occurs,
 			//but the localName has to be displayed as expanded once, then #ItsLocalName, before the next time just append 'ItsLocalName'.
 			lambda.builtInName = lambda.localName = vm.opInfo[o8].name;
-			vm.ops[lambda.localName] = lambda;
+			lambda.opAbbrev = vm.opInfo[o8].prefix; //TODO rename prefix to opAbbrev
+			vm.ops[lambda.localName] = lambda; // -> fn
+			vm.opAbbrevs[lambda.opAbbrev] = lambda; //Example: T is , and Seq is _. -> fn
 		}
 		
 		//cuz vm.bit func needs these. todo opcode order.
@@ -5235,6 +5619,9 @@ const Wikibinator203 = (()=>{
 		//dont FuncallCache things that instantly return and cant make an infinite loop.
 		l().pushEvaler((vm,func,param)=>(param().l));
 		r().pushEvaler((vm,func,param)=>(param().r));
+		vm.identityFunc().pushEvaler((vm,func,param)=>param);
+		//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
+		//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
 		//TODO pushEvaler for isleaf etc
 		
 

@@ -1,734 +1,734 @@
-Wikibinator203VM.js:3805 Add op Evaling o8=0 curriesLeft=0 description: This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.
-Wikibinator203VM.js:3805 Add op U o8=1 curriesLeft=7 description: the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.
-Wikibinator203VM.js:3805 Add op Op10 o8=2 curriesLeft=Op10 has 1 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11 o8=3 curriesLeft=Op11 has 1 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100 o8=4 curriesLeft=Op100 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101 o8=5 curriesLeft=Op101 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110 o8=6 curriesLeft=Op110 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111 o8=7 curriesLeft=Op111 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000 o8=8 curriesLeft=Op1000 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001 o8=9 curriesLeft=Op1001 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010 o8=10 curriesLeft=Op1010 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011 o8=11 curriesLeft=Op1011 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100 o8=12 curriesLeft=Op1100 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101 o8=13 curriesLeft=Op1101 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110 o8=14 curriesLeft=Op1110 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111 o8=15 curriesLeft=Op1111 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10000 o8=16 curriesLeft=Op10000 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10001 o8=17 curriesLeft=Op10001 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10010 o8=18 curriesLeft=Op10010 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10011 o8=19 curriesLeft=Op10011 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10100 o8=20 curriesLeft=Op10100 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10101 o8=21 curriesLeft=Op10101 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10110 o8=22 curriesLeft=Op10110 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op10111 o8=23 curriesLeft=Op10111 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11000 o8=24 curriesLeft=Op11000 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11001 o8=25 curriesLeft=Op11001 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11010 o8=26 curriesLeft=Op11010 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11011 o8=27 curriesLeft=Op11011 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11100 o8=28 curriesLeft=Op11100 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11101 o8=29 curriesLeft=Op11101 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11110 o8=30 curriesLeft=Op11110 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op11111 o8=31 curriesLeft=Op11111 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100000 o8=32 curriesLeft=Op100000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100001 o8=33 curriesLeft=Op100001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100010 o8=34 curriesLeft=Op100010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100011 o8=35 curriesLeft=Op100011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100100 o8=36 curriesLeft=Op100100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100101 o8=37 curriesLeft=Op100101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100110 o8=38 curriesLeft=Op100110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op100111 o8=39 curriesLeft=Op100111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101000 o8=40 curriesLeft=Op101000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101001 o8=41 curriesLeft=Op101001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101010 o8=42 curriesLeft=Op101010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101011 o8=43 curriesLeft=Op101011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101100 o8=44 curriesLeft=Op101100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101101 o8=45 curriesLeft=Op101101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101110 o8=46 curriesLeft=Op101110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op101111 o8=47 curriesLeft=Op101111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110000 o8=48 curriesLeft=Op110000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110001 o8=49 curriesLeft=Op110001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110010 o8=50 curriesLeft=Op110010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110011 o8=51 curriesLeft=Op110011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110100 o8=52 curriesLeft=Op110100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110101 o8=53 curriesLeft=Op110101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110110 o8=54 curriesLeft=Op110110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op110111 o8=55 curriesLeft=Op110111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111000 o8=56 curriesLeft=Op111000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111001 o8=57 curriesLeft=Op111001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111010 o8=58 curriesLeft=Op111010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111011 o8=59 curriesLeft=Op111011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111100 o8=60 curriesLeft=Op111100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111101 o8=61 curriesLeft=Op111101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111110 o8=62 curriesLeft=Op111110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op111111 o8=63 curriesLeft=Op111111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000000 o8=64 curriesLeft=Op1000000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000001 o8=65 curriesLeft=Op1000001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000010 o8=66 curriesLeft=Op1000010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000011 o8=67 curriesLeft=Op1000011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000100 o8=68 curriesLeft=Op1000100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000101 o8=69 curriesLeft=Op1000101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000110 o8=70 curriesLeft=Op1000110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1000111 o8=71 curriesLeft=Op1000111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001000 o8=72 curriesLeft=Op1001000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001001 o8=73 curriesLeft=Op1001001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001010 o8=74 curriesLeft=Op1001010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001011 o8=75 curriesLeft=Op1001011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001100 o8=76 curriesLeft=Op1001100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001101 o8=77 curriesLeft=Op1001101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001110 o8=78 curriesLeft=Op1001110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1001111 o8=79 curriesLeft=Op1001111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010000 o8=80 curriesLeft=Op1010000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010001 o8=81 curriesLeft=Op1010001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010010 o8=82 curriesLeft=Op1010010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010011 o8=83 curriesLeft=Op1010011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010100 o8=84 curriesLeft=Op1010100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010101 o8=85 curriesLeft=Op1010101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010110 o8=86 curriesLeft=Op1010110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1010111 o8=87 curriesLeft=Op1010111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011000 o8=88 curriesLeft=Op1011000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011001 o8=89 curriesLeft=Op1011001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011010 o8=90 curriesLeft=Op1011010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011011 o8=91 curriesLeft=Op1011011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011100 o8=92 curriesLeft=Op1011100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011101 o8=93 curriesLeft=Op1011101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011110 o8=94 curriesLeft=Op1011110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1011111 o8=95 curriesLeft=Op1011111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100000 o8=96 curriesLeft=Op1100000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100001 o8=97 curriesLeft=Op1100001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100010 o8=98 curriesLeft=Op1100010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100011 o8=99 curriesLeft=Op1100011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100100 o8=100 curriesLeft=Op1100100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100101 o8=101 curriesLeft=Op1100101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100110 o8=102 curriesLeft=Op1100110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1100111 o8=103 curriesLeft=Op1100111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101000 o8=104 curriesLeft=Op1101000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101001 o8=105 curriesLeft=Op1101001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101010 o8=106 curriesLeft=Op1101010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101011 o8=107 curriesLeft=Op1101011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101100 o8=108 curriesLeft=Op1101100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101101 o8=109 curriesLeft=Op1101101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101110 o8=110 curriesLeft=Op1101110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1101111 o8=111 curriesLeft=Op1101111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110000 o8=112 curriesLeft=Op1110000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110001 o8=113 curriesLeft=Op1110001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110010 o8=114 curriesLeft=Op1110010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110011 o8=115 curriesLeft=Op1110011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110100 o8=116 curriesLeft=Op1110100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110101 o8=117 curriesLeft=Op1110101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110110 o8=118 curriesLeft=Op1110110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1110111 o8=119 curriesLeft=Op1110111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111000 o8=120 curriesLeft=Op1111000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111001 o8=121 curriesLeft=Op1111001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111010 o8=122 curriesLeft=Op1111010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111011 o8=123 curriesLeft=Op1111011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111100 o8=124 curriesLeft=Op1111100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111101 o8=125 curriesLeft=Op1111101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111110 o8=126 curriesLeft=Op1111110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op Op1111111 o8=127 curriesLeft=Op1111111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
-Wikibinator203VM.js:3805 Add op F o8=128 curriesLeft=2 description: the church-false lambda aka Î»y.Î»z.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.
-Wikibinator203VM.js:3805 Add op T o8=129 curriesLeft=2 description: the church-true lambda and the k lambda of SKI-Calculus, aka Î»y.Î»z.y
-Wikibinator203VM.js:3805 Add op Bit0 o8=130 curriesLeft=248 description: complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size
-Wikibinator203VM.js:3805 Add op Bit1 o8=131 curriesLeft=248 description: see bit0
-Wikibinator203VM.js:3805 Add op L o8=132 curriesLeft=1 description: get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.
-Wikibinator203VM.js:3805 Add op R o8=133 curriesLeft=get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u. description: undefined
-Wikibinator203VM.js:3805 Add op Isleaf o8=134 curriesLeft=1 description: returns t or f of is its param u aka the universal lambda
-Wikibinator203VM.js:3805 Add op IsClean o8=135 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
-Wikibinator203VM.js:3805 Add op IsAllowSinTanhSqrtRoundoffEtc o8=136 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
-Wikibinator203VM.js:3805 Add op Lambda o8=137 curriesLeft=2 description: FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) undefined params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).
-Wikibinator203VM.js:3805 Add op GetVarFn o8=138 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
-Wikibinator203VM.js:3805 Add op GetVarDouble o8=139 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
-Wikibinator203VM.js:3805 Add op GetVarDoubles o8=140 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
-Wikibinator203VM.js:3805 Add op VarargAx o8=141 curriesLeft=2 description: FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.
-Wikibinator203VM.js:3805 Add op S o8=142 curriesLeft=3 description: For control-flow. the s lambda of SKI-Calculus, aka Î»x.Î»y.Î»z.xz(yz)
-Wikibinator203VM.js:3805 Add op Pair o8=143 curriesLeft=3 description: the church-pair lambda aka Î»x.Î»y.Î»z.zxy
-Wikibinator203VM.js:3805 Add op Infcur o8=144 curriesLeft=255 description: Infcur aka (Infcur) is []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.
-Wikibinator203VM.js:3805 Add op ObVal o8=145 curriesLeft=2 description: used with opmut and _[...] etc.
-Wikibinator203VM.js:3805 Add op ObCbt o8=146 curriesLeft=2 description: used with opmut and _[...] etc.
-Wikibinator203VM.js:3805 Add op ObKeyVal o8=147 curriesLeft=3 description: used with opmut and _[...] etc.
-Wikibinator203VM.js:3805 Add op OpmutOuter o8=148 curriesLeft=2 description: (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.
-Wikibinator203VM.js:3805 Add op OpmutInner o8=149 curriesLeft=2 description: See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.
-Wikibinator203VM.js:3805 Add op StackIsAllowstackTimestackMem o8=150 curriesLeft=1 description: reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
-Wikibinator203VM.js:3805 Add op StackIsAllowNondetRoundoff o8=151 curriesLeft=1 description: reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
-Wikibinator203VM.js:3805 Add op StackIsAllowMutableWrapperLambdaAndSolve o8=152 curriesLeft=1 description: reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
-Wikibinator203VM.js:3805 Add op StackIsAllowAx o8=153 curriesLeft=1 description: reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
-Wikibinator203VM.js:3805 Add op IsCbt o8=154 curriesLeft=1 description: returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1
-Wikibinator203VM.js:3805 Add op ContainsAxConstraint o8=155 curriesLeft=1 description: returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify
-Wikibinator203VM.js:3805 Add op Dplusraw o8=156 curriesLeft=2 description: raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.
-Wikibinator203VM.js:3805 Add op StreamGet o8=157 curriesLeft=2 description: FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.
-Wikibinator203VM.js:3805 Add op StreamPut o8=158 curriesLeft=2 description: Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]
-Wikibinator203VM.js:3805 Add op StreamPack o8=159 curriesLeft=1 description: ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].
-Wikibinator203VM.js:3805 Add op Get32BitsInCbt o8=160 curriesLeft=2 description: (get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val
-Wikibinator203VM.js:3805 Add op Put32BitsInCbt o8=161 curriesLeft=3 description: (put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks
-Wikibinator203VM.js:3805 Add op Equals o8=162 curriesLeft=2 description: By content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).
-Wikibinator203VM.js:3805 Add op StreamWhile o8=163 curriesLeft=3 description: (streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;
-Wikibinator203VM.js:3805 Add op StreamDoWhile o8=164 curriesLeft=3 description: (streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; 
-Wikibinator203VM.js:3805 Add op StreamFor o8=165 curriesLeft=5 description: (streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;
-Wikibinator203VM.js:3805 Add op IfElse o8=166 curriesLeft=4 description: (ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).
-Wikibinator203VM.js:3805 Add op If o8=167 curriesLeft=3 description: (if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).
-Wikibinator203VM.js:3805 Add op GetSalt128 o8=168 curriesLeft=1 description: (getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.
-Wikibinator203VM.js:3805 Add op WithSalt128 o8=169 curriesLeft=3 description: (withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.
-Wikibinator203VM.js:3805 Add op WithSalt128TransformedBy o8=170 curriesLeft=1 description: (withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).
-Wikibinator203VM.js:3805 Add op SolveRecog o8=171 curriesLeft=1 description: (solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64.
-Wikibinator203VM.js:3805 Add op SolveFloat64 o8=172 curriesLeft=1 description: (solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack.
-Wikibinator203VM.js:3805 Add op Bize31 o8=173 curriesLeft=1 description: (bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number).
-Wikibinator203VM.js:3805 Add op Bize53 o8=174 curriesLeft=1 description: (bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general.
-Wikibinator203VM.js:3805 Add op Bize256 o8=175 curriesLeft=1 description: (bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id.
-Wikibinator203VM.js:3805 Add op LambdaParamsList o8=176 curriesLeft=1 description: From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.
-Wikibinator203VM.js:3805 Add op LambdaParamsStream o8=177 curriesLeft=1 description: FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.
-Wikibinator203VM.js:3805 Add op Seq o8=178 curriesLeft=2 description: The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].
-Wikibinator203VM.js:3805 Add op HasMoreThan7Params o8=179 curriesLeft=1 description: op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.
-Wikibinator203VM.js:3805 Add op Op180ReservedForFutureExpansionAndInfloopsForNow o8=180 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op181ReservedForFutureExpansionAndInfloopsForNow o8=181 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op182ReservedForFutureExpansionAndInfloopsForNow o8=182 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op183ReservedForFutureExpansionAndInfloopsForNow o8=183 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op184ReservedForFutureExpansionAndInfloopsForNow o8=184 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op185ReservedForFutureExpansionAndInfloopsForNow o8=185 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op186ReservedForFutureExpansionAndInfloopsForNow o8=186 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op187ReservedForFutureExpansionAndInfloopsForNow o8=187 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op188ReservedForFutureExpansionAndInfloopsForNow o8=188 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op189ReservedForFutureExpansionAndInfloopsForNow o8=189 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op190ReservedForFutureExpansionAndInfloopsForNow o8=190 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op191ReservedForFutureExpansionAndInfloopsForNow o8=191 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op192ReservedForFutureExpansionAndInfloopsForNow o8=192 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op193ReservedForFutureExpansionAndInfloopsForNow o8=193 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op194ReservedForFutureExpansionAndInfloopsForNow o8=194 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op195ReservedForFutureExpansionAndInfloopsForNow o8=195 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op196ReservedForFutureExpansionAndInfloopsForNow o8=196 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op197ReservedForFutureExpansionAndInfloopsForNow o8=197 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op198ReservedForFutureExpansionAndInfloopsForNow o8=198 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op199ReservedForFutureExpansionAndInfloopsForNow o8=199 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op200ReservedForFutureExpansionAndInfloopsForNow o8=200 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op201ReservedForFutureExpansionAndInfloopsForNow o8=201 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op202ReservedForFutureExpansionAndInfloopsForNow o8=202 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op203ReservedForFutureExpansionAndInfloopsForNow o8=203 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op204ReservedForFutureExpansionAndInfloopsForNow o8=204 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op205ReservedForFutureExpansionAndInfloopsForNow o8=205 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op206ReservedForFutureExpansionAndInfloopsForNow o8=206 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op207ReservedForFutureExpansionAndInfloopsForNow o8=207 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op208ReservedForFutureExpansionAndInfloopsForNow o8=208 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op209ReservedForFutureExpansionAndInfloopsForNow o8=209 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op210ReservedForFutureExpansionAndInfloopsForNow o8=210 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op211ReservedForFutureExpansionAndInfloopsForNow o8=211 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op212ReservedForFutureExpansionAndInfloopsForNow o8=212 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op213ReservedForFutureExpansionAndInfloopsForNow o8=213 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op214ReservedForFutureExpansionAndInfloopsForNow o8=214 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op215ReservedForFutureExpansionAndInfloopsForNow o8=215 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op216ReservedForFutureExpansionAndInfloopsForNow o8=216 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op217ReservedForFutureExpansionAndInfloopsForNow o8=217 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op218ReservedForFutureExpansionAndInfloopsForNow o8=218 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op219ReservedForFutureExpansionAndInfloopsForNow o8=219 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op220ReservedForFutureExpansionAndInfloopsForNow o8=220 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op221ReservedForFutureExpansionAndInfloopsForNow o8=221 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op222ReservedForFutureExpansionAndInfloopsForNow o8=222 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op223ReservedForFutureExpansionAndInfloopsForNow o8=223 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op224ReservedForFutureExpansionAndInfloopsForNow o8=224 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op225ReservedForFutureExpansionAndInfloopsForNow o8=225 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op226ReservedForFutureExpansionAndInfloopsForNow o8=226 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op227ReservedForFutureExpansionAndInfloopsForNow o8=227 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op228ReservedForFutureExpansionAndInfloopsForNow o8=228 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op229ReservedForFutureExpansionAndInfloopsForNow o8=229 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op230ReservedForFutureExpansionAndInfloopsForNow o8=230 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op231ReservedForFutureExpansionAndInfloopsForNow o8=231 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op232ReservedForFutureExpansionAndInfloopsForNow o8=232 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op233ReservedForFutureExpansionAndInfloopsForNow o8=233 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op234ReservedForFutureExpansionAndInfloopsForNow o8=234 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op235ReservedForFutureExpansionAndInfloopsForNow o8=235 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op236ReservedForFutureExpansionAndInfloopsForNow o8=236 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op237ReservedForFutureExpansionAndInfloopsForNow o8=237 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op238ReservedForFutureExpansionAndInfloopsForNow o8=238 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op239ReservedForFutureExpansionAndInfloopsForNow o8=239 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op240ReservedForFutureExpansionAndInfloopsForNow o8=240 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op241ReservedForFutureExpansionAndInfloopsForNow o8=241 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op242ReservedForFutureExpansionAndInfloopsForNow o8=242 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op243ReservedForFutureExpansionAndInfloopsForNow o8=243 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op244ReservedForFutureExpansionAndInfloopsForNow o8=244 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op245ReservedForFutureExpansionAndInfloopsForNow o8=245 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op246ReservedForFutureExpansionAndInfloopsForNow o8=246 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op247ReservedForFutureExpansionAndInfloopsForNow o8=247 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op248ReservedForFutureExpansionAndInfloopsForNow o8=248 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op249ReservedForFutureExpansionAndInfloopsForNow o8=249 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op250ReservedForFutureExpansionAndInfloopsForNow o8=250 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op251ReservedForFutureExpansionAndInfloopsForNow o8=251 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op252ReservedForFutureExpansionAndInfloopsForNow o8=252 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op253ReservedForFutureExpansionAndInfloopsForNow o8=253 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op254ReservedForFutureExpansionAndInfloopsForNow o8=254 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:3805 Add op Op255ReservedForFutureExpansionAndInfloopsForNow o8=255 curriesLeft=undefined description: undefined
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4124 Evaling l=F r=U
-Wikibinator203VM.js:4124 Evaling l=L r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot, both equal F(U)
-Wikibinator203VM.js:4124 Evaling l=F r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 2, both equal F(U)
-Wikibinator203VM.js:4124 Evaling l=L r=U
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4124 Evaling l=Op10 r=U
-Wikibinator203VM.js:4124 Evaling l=Op100 r=U
-Wikibinator203VM.js:4124 Evaling l=Op1000 r=U
-Wikibinator203VM.js:4124 Evaling l=Op10000 r=U
-Wikibinator203VM.js:4124 Evaling l=Op100000 r=U
-Wikibinator203VM.js:4124 Evaling l=Op1000000 r=U
-Wikibinator203VM.js:4124 Evaling l=F r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 3, both equal F(U)
-Wikibinator203VM.js:4124 Evaling l=R r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 4, both equal U
-Wikibinator203VM.js:4124 Evaling l=L r=U
-Wikibinator203VM.js:4124 Evaling l=R r=U
-Wikibinator203VM.js:4124 Evaling l=F(U) r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u), both equal U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 6, both equal 0
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 7, both equal 0
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 8, both equal 0
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 9, both equal 0
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 10, both equal 1
-Wikibinator203VM.js:4124 Evaling l=L r=U
-Wikibinator203VM.js:4124 Evaling l=R r=U
-Wikibinator203VM.js:5187 Test pass: tie the quine knot 11, both equal 1
-Wikibinator203VM.js:4124 Evaling l=L r=S
-Wikibinator203VM.js:4124 Evaling l=R r=S
-Wikibinator203VM.js:4124 Evaling l=Op1000111 r=U
-Wikibinator203VM.js:5187 Test pass: l(x)(r(x)) equals x, for any x (in this case x is s), both equal S
-Wikibinator203VM.js:4124 Evaling l=L r=L
-Wikibinator203VM.js:4124 Evaling l=R r=L
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=U
-Wikibinator203VM.js:5187 Test pass: l(x)(r(x)) equals x, for any x (in this case x is l), both equal L
-Wikibinator203VM.js:4124 Evaling l=L r=R
-Wikibinator203VM.js:4124 Evaling l=R r=R
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=Op10
-Wikibinator203VM.js:5187 Test pass: l(x)(r(x)) equals x, for any x (in this case x is r), both equal R
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:4124 Evaling l=S(T)(T) r=L
-Wikibinator203VM.js:4124 Evaling l=T r=L
-Wikibinator203VM.js:4124 Evaling l=T r=L
-Wikibinator203VM.js:4124 Evaling l=T(L) r=T(L)
-Wikibinator203VM.js:5187 Test pass: s(t)(t)(l) which should be an identityFunc, both equal L
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:5187 Test pass: check dedup of s(t)(t), both equal S(T)(T)
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:4124 Evaling l=S(T)(T) r=S(T)(T)
-Wikibinator203VM.js:4124 Evaling l=T r=S(T)(T)
-Wikibinator203VM.js:4124 Evaling l=T r=S(T)(T)
-Wikibinator203VM.js:4124 Evaling l=T(S(T)(T)) r=T(S(T)(T))
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:5187 Test pass: s(t)(t) called on itself returns itself since its an identityFunc, both equal S(T)(T)
-Wikibinator203VM.js:5187 Test pass: o8/opcode of u, both equal 1
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:5187 Test pass: o8/opcode of u(u), both equal 2
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:5187 Test pass: check dedup of u(u), both equal Op10
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4124 Evaling l=U r=Op10
-Wikibinator203VM.js:5187 Test pass: o8/opcode of u(uu), both equal 3
-Wikibinator203VM.js:4124 Evaling l=U r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op11 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op111 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op1111 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op11111 r=U
-Wikibinator203VM.js:4124 Evaling l=Op111110 r=Op10
-Wikibinator203VM.js:5187 Test pass: o8/opcode of u(uu)(uu)(uu)(uu)(u)(uu)().o8(), both equal 125
-Wikibinator203VM.js:4124 Evaling l=U r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op11 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op111 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op1111 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op11111 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Op111111 r=Op10
-Wikibinator203VM.js:5187 Test pass: o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu), both equal 127
-Wikibinator203VM.js:4124 Evaling l=L r=L
-Wikibinator203VM.js:4124 Evaling l=R r=L
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=U
-Wikibinator203VM.js:4124 Evaling l=L r=S
-Wikibinator203VM.js:4124 Evaling l=L r=R
-Wikibinator203VM.js:4124 Evaling l=R r=R
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=Op10
-Wikibinator203VM.js:4124 Evaling l=R r=S
-Wikibinator203VM.js:4124 Evaling l=Op1000111 r=U
-Wikibinator203VM.js:5187 Test pass: (l x (r x)) equals x forall x, deeper, both equal S
-Wikibinator203VM.js:4124 Evaling l=L r=L
-Wikibinator203VM.js:4124 Evaling l=R r=L
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=U
-Wikibinator203VM.js:4124 Evaling l=Pair r=S
-Wikibinator203VM.js:4124 Evaling l=Pair(S) r=L
-Wikibinator203VM.js:4124 Evaling l=L r=Pair(S)(L)
-Wikibinator203VM.js:4124 Evaling l=L r=R
-Wikibinator203VM.js:4124 Evaling l=R r=R
-Wikibinator203VM.js:4124 Evaling l=Op1000010 r=Op10
-Wikibinator203VM.js:4124 Evaling l=Pair r=S
-Wikibinator203VM.js:4124 Evaling l=Pair(S) r=L
-Wikibinator203VM.js:4124 Evaling l=R r=Pair(S)(L)
-Wikibinator203VM.js:4124 Evaling l=Pair(S) r=L
-Wikibinator203VM.js:4124 Evaling l=Pair r=S
-Wikibinator203VM.js:4124 Evaling l=Pair(S) r=L
-Wikibinator203VM.js:5187 Test pass: (l x (r x)) equals x forall x, deeper 2, both equal Pair(S)(L)
-Wikibinator203VM.js:4124 Evaling l=S r=F(U)
-Wikibinator203VM.js:4124 Evaling l=S(F(U)) r=F(U)
-Wikibinator203VM.js:4124 Evaling l=S(F(U))(F(U)) r=Pair
-Wikibinator203VM.js:4124 Evaling l=F(U) r=Pair
-Wikibinator203VM.js:4124 Evaling l=F(U) r=Pair
-Wikibinator203VM.js:4124 Evaling l=Pair r=Pair
-Wikibinator203VM.js:4124 Evaling l=Pair r=Pair
-Wikibinator203VM.js:5187 Test pass: callParamOnItself(pair)->pair(pair), both equal Pair(Pair)
-Wikibinator203VM.js:4124 Evaling l=S r=F(U)
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4124 Evaling l=S(T) r=T
-Wikibinator203VM.js:4124 Evaling l=S(F(U)) r=S(T)(T)
-Wikibinator203VM.js:4124 Evaling l=S(F(U))(S(T)(T)) r=Pair
-Wikibinator203VM.js:4124 Evaling l=F(U) r=Pair
-Wikibinator203VM.js:4124 Evaling l=S(T)(T) r=Pair
-Wikibinator203VM.js:4124 Evaling l=T r=Pair
-Wikibinator203VM.js:4124 Evaling l=T r=Pair
-Wikibinator203VM.js:4124 Evaling l=T(Pair) r=T(Pair)
-Wikibinator203VM.js:4124 Evaling l=Pair r=Pair
-Wikibinator203VM.js:4124 Evaling l=Pair r=Pair
-Wikibinator203VM.js:5187 Test pass: callParamOnItself(pair)->pair(pair) 2 different identityFuncs, both equal Pair(Pair)
-Wikibinator203VM.js:5255 this=[object Window]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op10
-Wikibinator203VM.js:4500 tokens: ["Op10"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op10
-Wikibinator203VM.js:4500 tokens: ["Op10"]
-Wikibinator203VM.js:4124 Evaling l=Op10 r=Op10
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op101
-Wikibinator203VM.js:4500 tokens: ["Op101"]
-Wikibinator203VM.js:5260 Script ended. Wikibinator203 = U which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))=Op101 aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-testWikibinator203VM.html:17 Script (near) ending. Wikibinator203 = U
-8testWikibinator203VM.html:18 
-testWikibinator203VM.html:26 Wikibinator203...
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-testWikibinator203VM.html:28 Wikibinator203 = U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=U r=U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op10
-Wikibinator203VM.js:4500 tokens: ["Op10"]
-testWikibinator203VM.html:32 UU = Op10
-testWikibinator203VM.html:36 Creating var: U
-testWikibinator203VM.html:36 Creating var: Op10
-testWikibinator203VM.html:36 Creating var: Op11
-testWikibinator203VM.html:36 Creating var: Op100
-testWikibinator203VM.html:36 Creating var: Op101
-testWikibinator203VM.html:36 Creating var: Op110
-testWikibinator203VM.html:36 Creating var: Op111
-testWikibinator203VM.html:36 Creating var: Op1000
-testWikibinator203VM.html:36 Creating var: Op1001
-testWikibinator203VM.html:36 Creating var: Op1010
-testWikibinator203VM.html:36 Creating var: Op1011
-testWikibinator203VM.html:36 Creating var: Op1100
-testWikibinator203VM.html:36 Creating var: Op1101
-testWikibinator203VM.html:36 Creating var: Op1110
-testWikibinator203VM.html:36 Creating var: Op1111
-testWikibinator203VM.html:36 Creating var: Op10000
-testWikibinator203VM.html:36 Creating var: Op10001
-testWikibinator203VM.html:36 Creating var: Op10010
-testWikibinator203VM.html:36 Creating var: Op10011
-testWikibinator203VM.html:36 Creating var: Op10100
-testWikibinator203VM.html:36 Creating var: Op10101
-testWikibinator203VM.html:36 Creating var: Op10110
-testWikibinator203VM.html:36 Creating var: Op10111
-testWikibinator203VM.html:36 Creating var: Op11000
-testWikibinator203VM.html:36 Creating var: Op11001
-testWikibinator203VM.html:36 Creating var: Op11010
-testWikibinator203VM.html:36 Creating var: Op11011
-testWikibinator203VM.html:36 Creating var: Op11100
-testWikibinator203VM.html:36 Creating var: Op11101
-testWikibinator203VM.html:36 Creating var: Op11110
-testWikibinator203VM.html:36 Creating var: Op11111
-testWikibinator203VM.html:36 Creating var: Op100000
-testWikibinator203VM.html:36 Creating var: Op100001
-testWikibinator203VM.html:36 Creating var: Op100010
-testWikibinator203VM.html:36 Creating var: Op100011
-testWikibinator203VM.html:36 Creating var: Op100100
-testWikibinator203VM.html:36 Creating var: Op100101
-testWikibinator203VM.html:36 Creating var: Op100110
-testWikibinator203VM.html:36 Creating var: Op100111
-testWikibinator203VM.html:36 Creating var: Op101000
-testWikibinator203VM.html:36 Creating var: Op101001
-testWikibinator203VM.html:36 Creating var: Op101010
-testWikibinator203VM.html:36 Creating var: Op101011
-testWikibinator203VM.html:36 Creating var: Op101100
-testWikibinator203VM.html:36 Creating var: Op101101
-testWikibinator203VM.html:36 Creating var: Op101110
-testWikibinator203VM.html:36 Creating var: Op101111
-testWikibinator203VM.html:36 Creating var: Op110000
-testWikibinator203VM.html:36 Creating var: Op110001
-testWikibinator203VM.html:36 Creating var: Op110010
-testWikibinator203VM.html:36 Creating var: Op110011
-testWikibinator203VM.html:36 Creating var: Op110100
-testWikibinator203VM.html:36 Creating var: Op110101
-testWikibinator203VM.html:36 Creating var: Op110110
-testWikibinator203VM.html:36 Creating var: Op110111
-testWikibinator203VM.html:36 Creating var: Op111000
-testWikibinator203VM.html:36 Creating var: Op111001
-testWikibinator203VM.html:36 Creating var: Op111010
-testWikibinator203VM.html:36 Creating var: Op111011
-testWikibinator203VM.html:36 Creating var: Op111100
-testWikibinator203VM.html:36 Creating var: Op111101
-testWikibinator203VM.html:36 Creating var: Op111110
-testWikibinator203VM.html:36 Creating var: Op111111
-testWikibinator203VM.html:36 Creating var: Op1000000
-testWikibinator203VM.html:36 Creating var: Op1000001
-testWikibinator203VM.html:36 Creating var: Op1000010
-testWikibinator203VM.html:36 Creating var: Op1000011
-testWikibinator203VM.html:36 Creating var: Op1000100
-testWikibinator203VM.html:36 Creating var: Op1000101
-testWikibinator203VM.html:36 Creating var: Op1000110
-testWikibinator203VM.html:36 Creating var: Op1000111
-testWikibinator203VM.html:36 Creating var: Op1001000
-testWikibinator203VM.html:36 Creating var: Op1001001
-testWikibinator203VM.html:36 Creating var: Op1001010
-testWikibinator203VM.html:36 Creating var: Op1001011
-testWikibinator203VM.html:36 Creating var: Op1001100
-testWikibinator203VM.html:36 Creating var: Op1001101
-testWikibinator203VM.html:36 Creating var: Op1001110
-testWikibinator203VM.html:36 Creating var: Op1001111
-testWikibinator203VM.html:36 Creating var: Op1010000
-testWikibinator203VM.html:36 Creating var: Op1010001
-testWikibinator203VM.html:36 Creating var: Op1010010
-testWikibinator203VM.html:36 Creating var: Op1010011
-testWikibinator203VM.html:36 Creating var: Op1010100
-testWikibinator203VM.html:36 Creating var: Op1010101
-testWikibinator203VM.html:36 Creating var: Op1010110
-testWikibinator203VM.html:36 Creating var: Op1010111
-testWikibinator203VM.html:36 Creating var: Op1011000
-testWikibinator203VM.html:36 Creating var: Op1011001
-testWikibinator203VM.html:36 Creating var: Op1011010
-testWikibinator203VM.html:36 Creating var: Op1011011
-testWikibinator203VM.html:36 Creating var: Op1011100
-testWikibinator203VM.html:36 Creating var: Op1011101
-testWikibinator203VM.html:36 Creating var: Op1011110
-testWikibinator203VM.html:36 Creating var: Op1011111
-testWikibinator203VM.html:36 Creating var: Op1100000
-testWikibinator203VM.html:36 Creating var: Op1100001
-testWikibinator203VM.html:36 Creating var: Op1100010
-testWikibinator203VM.html:36 Creating var: Op1100011
-testWikibinator203VM.html:36 Creating var: Op1100100
-testWikibinator203VM.html:36 Creating var: Op1100101
-testWikibinator203VM.html:36 Creating var: Op1100110
-testWikibinator203VM.html:36 Creating var: Op1100111
-testWikibinator203VM.html:36 Creating var: Op1101000
-testWikibinator203VM.html:36 Creating var: Op1101001
-testWikibinator203VM.html:36 Creating var: Op1101010
-testWikibinator203VM.html:36 Creating var: Op1101011
-testWikibinator203VM.html:36 Creating var: Op1101100
-testWikibinator203VM.html:36 Creating var: Op1101101
-testWikibinator203VM.html:36 Creating var: Op1101110
-testWikibinator203VM.html:36 Creating var: Op1101111
-testWikibinator203VM.html:36 Creating var: Op1110000
-testWikibinator203VM.html:36 Creating var: Op1110001
-testWikibinator203VM.html:36 Creating var: Op1110010
-testWikibinator203VM.html:36 Creating var: Op1110011
-testWikibinator203VM.html:36 Creating var: Op1110100
-testWikibinator203VM.html:36 Creating var: Op1110101
-testWikibinator203VM.html:36 Creating var: Op1110110
-testWikibinator203VM.html:36 Creating var: Op1110111
-testWikibinator203VM.html:36 Creating var: Op1111000
-testWikibinator203VM.html:36 Creating var: Op1111001
-testWikibinator203VM.html:36 Creating var: Op1111010
-testWikibinator203VM.html:36 Creating var: Op1111011
-testWikibinator203VM.html:36 Creating var: Op1111100
-testWikibinator203VM.html:36 Creating var: Op1111101
-testWikibinator203VM.html:36 Creating var: Op1111110
-testWikibinator203VM.html:36 Creating var: Op1111111
-testWikibinator203VM.html:36 Creating var: F
-testWikibinator203VM.html:36 Creating var: T
-testWikibinator203VM.html:36 Creating var: Bit0
-testWikibinator203VM.html:36 Creating var: Bit1
-testWikibinator203VM.html:36 Creating var: L
-testWikibinator203VM.html:36 Creating var: R
-testWikibinator203VM.html:36 Creating var: Isleaf
-testWikibinator203VM.html:36 Creating var: IsClean
-testWikibinator203VM.html:36 Creating var: IsAllowSinTanhSqrtRoundoffEtc
-testWikibinator203VM.html:36 Creating var: Lambda
-testWikibinator203VM.html:36 Creating var: GetVarFn
-testWikibinator203VM.html:36 Creating var: GetVarDouble
-testWikibinator203VM.html:36 Creating var: GetVarDoubles
-testWikibinator203VM.html:36 Creating var: VarargAx
-testWikibinator203VM.html:36 Creating var: S
-testWikibinator203VM.html:36 Creating var: Pair
-testWikibinator203VM.html:36 Creating var: Infcur
-testWikibinator203VM.html:36 Creating var: ObVal
-testWikibinator203VM.html:36 Creating var: ObCbt
-testWikibinator203VM.html:36 Creating var: ObKeyVal
-testWikibinator203VM.html:36 Creating var: OpmutOuter
-testWikibinator203VM.html:36 Creating var: OpmutInner
-testWikibinator203VM.html:36 Creating var: StackIsAllowstackTimestackMem
-testWikibinator203VM.html:36 Creating var: StackIsAllowNondetRoundoff
-testWikibinator203VM.html:36 Creating var: StackIsAllowMutableWrapperLambdaAndSolve
-testWikibinator203VM.html:36 Creating var: StackIsAllowAx
-testWikibinator203VM.html:36 Creating var: IsCbt
-testWikibinator203VM.html:36 Creating var: ContainsAxConstraint
-testWikibinator203VM.html:36 Creating var: Dplusraw
-testWikibinator203VM.html:36 Creating var: StreamGet
-testWikibinator203VM.html:36 Creating var: StreamPut
-testWikibinator203VM.html:36 Creating var: StreamPack
-testWikibinator203VM.html:36 Creating var: Get32BitsInCbt
-testWikibinator203VM.html:36 Creating var: Put32BitsInCbt
-testWikibinator203VM.html:36 Creating var: Equals
-testWikibinator203VM.html:36 Creating var: StreamWhile
-testWikibinator203VM.html:36 Creating var: StreamDoWhile
-testWikibinator203VM.html:36 Creating var: StreamFor
-testWikibinator203VM.html:36 Creating var: IfElse
-testWikibinator203VM.html:36 Creating var: If
-testWikibinator203VM.html:36 Creating var: GetSalt128
-testWikibinator203VM.html:36 Creating var: WithSalt128
-testWikibinator203VM.html:36 Creating var: WithSalt128TransformedBy
-testWikibinator203VM.html:36 Creating var: SolveRecog
-testWikibinator203VM.html:36 Creating var: SolveFloat64
-testWikibinator203VM.html:36 Creating var: Bize31
-testWikibinator203VM.html:36 Creating var: Bize53
-testWikibinator203VM.html:36 Creating var: Bize256
-testWikibinator203VM.html:36 Creating var: LambdaParamsList
-testWikibinator203VM.html:36 Creating var: LambdaParamsStream
-testWikibinator203VM.html:36 Creating var: Seq
-testWikibinator203VM.html:36 Creating var: HasMoreThan7Params
-testWikibinator203VM.html:36 Creating var: Op180ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op181ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op182ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op183ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op184ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op185ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op186ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op187ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op188ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op189ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op190ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op191ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op192ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op193ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op194ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op195ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op196ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op197ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op198ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op199ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op200ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op201ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op202ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op203ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op204ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op205ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op206ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op207ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op208ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op209ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op210ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op211ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op212ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op213ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op214ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op215ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op216ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op217ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op218ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op219ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op220ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op221ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op222ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op223ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op224ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op225ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op226ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op227ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op228ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op229ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op230ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op231ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op232ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op233ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op234ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op235ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op236ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op237ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op238ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op239ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op240ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op241ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op242ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op243ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op244ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op245ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op246ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op247ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op248ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op249ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op250ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op251ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op252ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op253ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op254ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:36 Creating var: Op255ReservedForFutureExpansionAndInfloopsForNow
-testWikibinator203VM.html:38 T().o8() == 129
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op10
-Wikibinator203VM.js:4500 tokens: ["Op10"]
-Wikibinator203VM.js:4124 Evaling l=T r=Op10
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Op10
-Wikibinator203VM.js:4500 tokens: [",","Op10"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=,Op10 r=U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","T",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=(S T) r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","T","}"]
-Wikibinator203VM.js:4124 Evaling l=S r={T T}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","{","T"," ","T","}",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=(S {T T}) r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","T"," ","T","}"]
-testWikibinator203VM.html:41 
+Wikibinator203VM.js:4019 Add op Evaling o8=0 curriesLeft=0 description: This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.
+Wikibinator203VM.js:4019 Add op U o8=1 curriesLeft=7 description: the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.
+Wikibinator203VM.js:4019 Add op Op10 o8=2 curriesLeft=Op10 has 1 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11 o8=3 curriesLeft=Op11 has 1 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100 o8=4 curriesLeft=Op100 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101 o8=5 curriesLeft=Op101 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110 o8=6 curriesLeft=Op110 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111 o8=7 curriesLeft=Op111 has 2 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000 o8=8 curriesLeft=Op1000 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001 o8=9 curriesLeft=Op1001 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1010 o8=10 curriesLeft=Op1010 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1011 o8=11 curriesLeft=Op1011 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1100 o8=12 curriesLeft=Op1100 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1101 o8=13 curriesLeft=Op1101 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1110 o8=14 curriesLeft=Op1110 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1111 o8=15 curriesLeft=Op1111 has 3 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10000 o8=16 curriesLeft=Op10000 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10001 o8=17 curriesLeft=Op10001 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10010 o8=18 curriesLeft=Op10010 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10011 o8=19 curriesLeft=Op10011 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10100 o8=20 curriesLeft=Op10100 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10101 o8=21 curriesLeft=Op10101 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10110 o8=22 curriesLeft=Op10110 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op10111 o8=23 curriesLeft=Op10111 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11000 o8=24 curriesLeft=Op11000 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11001 o8=25 curriesLeft=Op11001 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11010 o8=26 curriesLeft=Op11010 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11011 o8=27 curriesLeft=Op11011 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11100 o8=28 curriesLeft=Op11100 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11101 o8=29 curriesLeft=Op11101 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11110 o8=30 curriesLeft=Op11110 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op11111 o8=31 curriesLeft=Op11111 has 4 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100000 o8=32 curriesLeft=Op100000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100001 o8=33 curriesLeft=Op100001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100010 o8=34 curriesLeft=Op100010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100011 o8=35 curriesLeft=Op100011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100100 o8=36 curriesLeft=Op100100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100101 o8=37 curriesLeft=Op100101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100110 o8=38 curriesLeft=Op100110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op100111 o8=39 curriesLeft=Op100111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101000 o8=40 curriesLeft=Op101000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101001 o8=41 curriesLeft=Op101001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101010 o8=42 curriesLeft=Op101010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101011 o8=43 curriesLeft=Op101011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101100 o8=44 curriesLeft=Op101100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101101 o8=45 curriesLeft=Op101101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101110 o8=46 curriesLeft=Op101110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op101111 o8=47 curriesLeft=Op101111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110000 o8=48 curriesLeft=Op110000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110001 o8=49 curriesLeft=Op110001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110010 o8=50 curriesLeft=Op110010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110011 o8=51 curriesLeft=Op110011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110100 o8=52 curriesLeft=Op110100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110101 o8=53 curriesLeft=Op110101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110110 o8=54 curriesLeft=Op110110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op110111 o8=55 curriesLeft=Op110111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111000 o8=56 curriesLeft=Op111000 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111001 o8=57 curriesLeft=Op111001 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111010 o8=58 curriesLeft=Op111010 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111011 o8=59 curriesLeft=Op111011 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111100 o8=60 curriesLeft=Op111100 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111101 o8=61 curriesLeft=Op111101 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111110 o8=62 curriesLeft=Op111110 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op111111 o8=63 curriesLeft=Op111111 has 5 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000000 o8=64 curriesLeft=Op1000000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000001 o8=65 curriesLeft=Op1000001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000010 o8=66 curriesLeft=Op1000010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000011 o8=67 curriesLeft=Op1000011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000100 o8=68 curriesLeft=Op1000100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000101 o8=69 curriesLeft=Op1000101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000110 o8=70 curriesLeft=Op1000110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1000111 o8=71 curriesLeft=Op1000111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001000 o8=72 curriesLeft=Op1001000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001001 o8=73 curriesLeft=Op1001001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001010 o8=74 curriesLeft=Op1001010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001011 o8=75 curriesLeft=Op1001011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001100 o8=76 curriesLeft=Op1001100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001101 o8=77 curriesLeft=Op1001101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001110 o8=78 curriesLeft=Op1001110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1001111 o8=79 curriesLeft=Op1001111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+Wikibinator203VM.js:4019 Add op Op1010000 o8=80 curriesLeft=Op1010000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010001 o8=81 curriesLeft=Op1010001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010010 o8=82 curriesLeft=Op1010010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010011 o8=83 curriesLeft=Op1010011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010100 o8=84 curriesLeft=Op1010100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010101 o8=85 curriesLeft=Op1010101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010110 o8=86 curriesLeft=Op1010110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1010111 o8=87 curriesLeft=Op1010111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011000 o8=88 curriesLeft=Op1011000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011001 o8=89 curriesLeft=Op1011001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011010 o8=90 curriesLeft=Op1011010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011011 o8=91 curriesLeft=Op1011011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011100 o8=92 curriesLeft=Op1011100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011101 o8=93 curriesLeft=Op1011101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011110 o8=94 curriesLeft=Op1011110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1011111 o8=95 curriesLeft=Op1011111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100000 o8=96 curriesLeft=Op1100000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100001 o8=97 curriesLeft=Op1100001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100010 o8=98 curriesLeft=Op1100010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100011 o8=99 curriesLeft=Op1100011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100100 o8=100 curriesLeft=Op1100100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100101 o8=101 curriesLeft=Op1100101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100110 o8=102 curriesLeft=Op1100110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1100111 o8=103 curriesLeft=Op1100111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101000 o8=104 curriesLeft=Op1101000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101001 o8=105 curriesLeft=Op1101001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101010 o8=106 curriesLeft=Op1101010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101011 o8=107 curriesLeft=Op1101011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101100 o8=108 curriesLeft=Op1101100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101101 o8=109 curriesLeft=Op1101101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101110 o8=110 curriesLeft=Op1101110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1101111 o8=111 curriesLeft=Op1101111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110000 o8=112 curriesLeft=Op1110000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110001 o8=113 curriesLeft=Op1110001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110010 o8=114 curriesLeft=Op1110010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110011 o8=115 curriesLeft=Op1110011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110100 o8=116 curriesLeft=Op1110100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110101 o8=117 curriesLeft=Op1110101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110110 o8=118 curriesLeft=Op1110110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1110111 o8=119 curriesLeft=Op1110111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111000 o8=120 curriesLeft=Op1111000 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111001 o8=121 curriesLeft=Op1111001 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111010 o8=122 curriesLeft=Op1111010 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111011 o8=123 curriesLeft=Op1111011 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111100 o8=124 curriesLeft=Op1111100 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111101 o8=125 curriesLeft=Op1111101 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111110 o8=126 curriesLeft=Op1111110 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op Op1111111 o8=127 curriesLeft=Op1111111 has 6 params. Op is known at 7 params, and is copied from left child after that. description: undefined
+​ Add op F o8=128 curriesLeft=2 description: the church-false lambda aka Î»y.Î»z.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.
+​ Add op T o8=129 curriesLeft=2 description: the church-true lambda and the k lambda of SKI-Calculus, aka Î»y.Î»z.y
+​ Add op Bit0 o8=130 curriesLeft=248 description: complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size
+​ Add op Bit1 o8=131 curriesLeft=248 description: see bit0
+​ Add op L o8=132 curriesLeft=1 description: get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.
+​ Add op R o8=133 curriesLeft=get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u. description: undefined
+​ Add op Isleaf o8=134 curriesLeft=1 description: returns t or f of is its param u aka the universal lambda
+​ Add op IsClean o8=135 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?
+​ Add op IsAllowSinTanhSqrtRoundoffEtc o8=136 curriesLeft=1 description: the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
+​ Add op Lambda o8=137 curriesLeft=2 description: FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) undefined params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).
+​ Add op GetVarFn o8=138 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
+​ Add op GetVarDouble o8=139 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
+​ Add op GetVarDoubles o8=140 curriesLeft=2 description: theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").
+​ Add op VarargAx o8=141 curriesLeft=2 description: FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.
+​ Add op S o8=142 curriesLeft=3 description: For control-flow. the s lambda of SKI-Calculus, aka Î»x.Î»y.Î»z.xz(yz)
+​ Add op Pair o8=143 curriesLeft=3 description: the church-pair lambda aka Î»x.Î»y.Î»z.zxy
+​ Add op Infcur o8=144 curriesLeft=255 description: Infcur aka (Infcur) is []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.
+​ Add op ObVal o8=145 curriesLeft=2 description: used with opmut and _[...] etc.
+​ Add op ObCbt o8=146 curriesLeft=2 description: used with opmut and _[...] etc.
+​ Add op ObKeyVal o8=147 curriesLeft=3 description: used with opmut and _[...] etc.
+​ Add op OpmutOuter o8=148 curriesLeft=2 description: (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.
+​ Add op OpmutInner o8=149 curriesLeft=2 description: See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.
+​ Add op StackIsAllowstackTimestackMem o8=150 curriesLeft=1 description: reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+​ Add op StackIsAllowNondetRoundoff o8=151 curriesLeft=1 description: reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+​ Add op StackIsAllowMutableWrapperLambdaAndSolve o8=152 curriesLeft=1 description: reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+​ Add op StackIsAllowAx o8=153 curriesLeft=1 description: reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system
+​ Add op stackAllowReadLocalIds  o8=154 curriesLeft=1 description: reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.
+​ Add op IsCbt o8=155 curriesLeft=1 description: returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1
+​ Add op ContainsAxConstraint o8=156 curriesLeft=1 description: returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify
+​ Add op Dplusraw o8=157 curriesLeft=2 description: raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.
+​ Add op StreamGet o8=158 curriesLeft=2 description: FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.
+​ Add op StreamPut o8=159 curriesLeft=2 description: Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]
+​ Add op StreamPack o8=160 curriesLeft=1 description: ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].
+​ Add op Get32BitsInCbt o8=161 curriesLeft=2 description: (get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val
+​ Add op Put32BitsInCbt o8=162 curriesLeft=3 description: (put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks
+​ Add op Equals o8=163 curriesLeft=2 description: By content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).
+​ Add op StreamWhile o8=164 curriesLeft=3 description: (streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;
+​ Add op StreamDoWhile o8=165 curriesLeft=3 description: (streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; 
+​ Add op StreamFor o8=166 curriesLeft=5 description: (streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;
+​ Add op IfElse o8=167 curriesLeft=4 description: (ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).
+​ Add op If o8=168 curriesLeft=3 description: (if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).
+​ Add op GetSalt128 o8=169 curriesLeft=1 description: (getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.
+​ Add op WithSalt128 o8=170 curriesLeft=3 description: (withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.
+​ Add op WithSalt128TransformedBy o8=171 curriesLeft=1 description: (withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).
+​ Add op SolveRecog o8=172 curriesLeft=1 description: (solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64.
+​ Add op SolveFloat64 o8=173 curriesLeft=1 description: (solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack.
+​ Add op Bize31 o8=174 curriesLeft=1 description: (bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number).
+​ Add op Bize53 o8=175 curriesLeft=1 description: (bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general.
+​ Add op Bize256 o8=176 curriesLeft=1 description: (bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id.
+​ Add op LambdaParamsList o8=177 curriesLeft=1 description: From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.
+​ Add op LambdaParamsStream o8=178 curriesLeft=1 description: FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.
+​ Add op Seq o8=179 curriesLeft=2 description: The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].
+​ Add op HasMoreThan7Params o8=180 curriesLeft=1 description: op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.
+​ Add op OpCommentedFuncOfOneParam o8=181 curriesLeft=(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka 'commentXYZ' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? description: undefined
+​ Add op Op182ReservedForFutureExpansionAndInfloopsForNow o8=182 curriesLeft=undefined description: undefined
+​ Add op Op183ReservedForFutureExpansionAndInfloopsForNow o8=183 curriesLeft=undefined description: undefined
+​ Add op Op184ReservedForFutureExpansionAndInfloopsForNow o8=184 curriesLeft=undefined description: undefined
+​ Add op Op185ReservedForFutureExpansionAndInfloopsForNow o8=185 curriesLeft=undefined description: undefined
+​ Add op Op186ReservedForFutureExpansionAndInfloopsForNow o8=186 curriesLeft=undefined description: undefined
+​ Add op Op187ReservedForFutureExpansionAndInfloopsForNow o8=187 curriesLeft=undefined description: undefined
+​ Add op Op188ReservedForFutureExpansionAndInfloopsForNow o8=188 curriesLeft=undefined description: undefined
+​ Add op Op189ReservedForFutureExpansionAndInfloopsForNow o8=189 curriesLeft=undefined description: undefined
+​ Add op Op190ReservedForFutureExpansionAndInfloopsForNow o8=190 curriesLeft=undefined description: undefined
+​ Add op Op191ReservedForFutureExpansionAndInfloopsForNow o8=191 curriesLeft=undefined description: undefined
+​ Add op Op192ReservedForFutureExpansionAndInfloopsForNow o8=192 curriesLeft=undefined description: undefined
+​ Add op Op193ReservedForFutureExpansionAndInfloopsForNow o8=193 curriesLeft=undefined description: undefined
+​ Add op Op194ReservedForFutureExpansionAndInfloopsForNow o8=194 curriesLeft=undefined description: undefined
+​ Add op Op195ReservedForFutureExpansionAndInfloopsForNow o8=195 curriesLeft=undefined description: undefined
+​ Add op Op196ReservedForFutureExpansionAndInfloopsForNow o8=196 curriesLeft=undefined description: undefined
+​ Add op Op197ReservedForFutureExpansionAndInfloopsForNow o8=197 curriesLeft=undefined description: undefined
+​ Add op Op198ReservedForFutureExpansionAndInfloopsForNow o8=198 curriesLeft=undefined description: undefined
+​ Add op Op199ReservedForFutureExpansionAndInfloopsForNow o8=199 curriesLeft=undefined description: undefined
+​ Add op Op200ReservedForFutureExpansionAndInfloopsForNow o8=200 curriesLeft=undefined description: undefined
+​ Add op Op201ReservedForFutureExpansionAndInfloopsForNow o8=201 curriesLeft=undefined description: undefined
+​ Add op Op202ReservedForFutureExpansionAndInfloopsForNow o8=202 curriesLeft=undefined description: undefined
+​ Add op Op203ReservedForFutureExpansionAndInfloopsForNow o8=203 curriesLeft=undefined description: undefined
+​ Add op Op204ReservedForFutureExpansionAndInfloopsForNow o8=204 curriesLeft=undefined description: undefined
+​ Add op Op205ReservedForFutureExpansionAndInfloopsForNow o8=205 curriesLeft=undefined description: undefined
+​ Add op Op206ReservedForFutureExpansionAndInfloopsForNow o8=206 curriesLeft=undefined description: undefined
+​ Add op Op207ReservedForFutureExpansionAndInfloopsForNow o8=207 curriesLeft=undefined description: undefined
+​ Add op Op208ReservedForFutureExpansionAndInfloopsForNow o8=208 curriesLeft=undefined description: undefined
+​ Add op Op209ReservedForFutureExpansionAndInfloopsForNow o8=209 curriesLeft=undefined description: undefined
+​ Add op Op210ReservedForFutureExpansionAndInfloopsForNow o8=210 curriesLeft=undefined description: undefined
+​ Add op Op211ReservedForFutureExpansionAndInfloopsForNow o8=211 curriesLeft=undefined description: undefined
+​ Add op Op212ReservedForFutureExpansionAndInfloopsForNow o8=212 curriesLeft=undefined description: undefined
+​ Add op Op213ReservedForFutureExpansionAndInfloopsForNow o8=213 curriesLeft=undefined description: undefined
+​ Add op Op214ReservedForFutureExpansionAndInfloopsForNow o8=214 curriesLeft=undefined description: undefined
+​ Add op Op215ReservedForFutureExpansionAndInfloopsForNow o8=215 curriesLeft=undefined description: undefined
+​ Add op Op216ReservedForFutureExpansionAndInfloopsForNow o8=216 curriesLeft=undefined description: undefined
+​ Add op Op217ReservedForFutureExpansionAndInfloopsForNow o8=217 curriesLeft=undefined description: undefined
+​ Add op Op218ReservedForFutureExpansionAndInfloopsForNow o8=218 curriesLeft=undefined description: undefined
+​ Add op Op219ReservedForFutureExpansionAndInfloopsForNow o8=219 curriesLeft=undefined description: undefined
+​ Add op Op220ReservedForFutureExpansionAndInfloopsForNow o8=220 curriesLeft=undefined description: undefined
+​ Add op Op221ReservedForFutureExpansionAndInfloopsForNow o8=221 curriesLeft=undefined description: undefined
+​ Add op Op222ReservedForFutureExpansionAndInfloopsForNow o8=222 curriesLeft=undefined description: undefined
+​ Add op Op223ReservedForFutureExpansionAndInfloopsForNow o8=223 curriesLeft=undefined description: undefined
+​ Add op Op224ReservedForFutureExpansionAndInfloopsForNow o8=224 curriesLeft=undefined description: undefined
+​ Add op Op225ReservedForFutureExpansionAndInfloopsForNow o8=225 curriesLeft=undefined description: undefined
+​ Add op Op226ReservedForFutureExpansionAndInfloopsForNow o8=226 curriesLeft=undefined description: undefined
+​ Add op Op227ReservedForFutureExpansionAndInfloopsForNow o8=227 curriesLeft=undefined description: undefined
+​ Add op Op228ReservedForFutureExpansionAndInfloopsForNow o8=228 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op229ReservedForFutureExpansionAndInfloopsForNow o8=229 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op230ReservedForFutureExpansionAndInfloopsForNow o8=230 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op231ReservedForFutureExpansionAndInfloopsForNow o8=231 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op232ReservedForFutureExpansionAndInfloopsForNow o8=232 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op233ReservedForFutureExpansionAndInfloopsForNow o8=233 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op234ReservedForFutureExpansionAndInfloopsForNow o8=234 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op235ReservedForFutureExpansionAndInfloopsForNow o8=235 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op236ReservedForFutureExpansionAndInfloopsForNow o8=236 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op237ReservedForFutureExpansionAndInfloopsForNow o8=237 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op238ReservedForFutureExpansionAndInfloopsForNow o8=238 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op239ReservedForFutureExpansionAndInfloopsForNow o8=239 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op240ReservedForFutureExpansionAndInfloopsForNow o8=240 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op241ReservedForFutureExpansionAndInfloopsForNow o8=241 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op242ReservedForFutureExpansionAndInfloopsForNow o8=242 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op243ReservedForFutureExpansionAndInfloopsForNow o8=243 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op244ReservedForFutureExpansionAndInfloopsForNow o8=244 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op245ReservedForFutureExpansionAndInfloopsForNow o8=245 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op246ReservedForFutureExpansionAndInfloopsForNow o8=246 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op247ReservedForFutureExpansionAndInfloopsForNow o8=247 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op248ReservedForFutureExpansionAndInfloopsForNow o8=248 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op249ReservedForFutureExpansionAndInfloopsForNow o8=249 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op250ReservedForFutureExpansionAndInfloopsForNow o8=250 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op251ReservedForFutureExpansionAndInfloopsForNow o8=251 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op252ReservedForFutureExpansionAndInfloopsForNow o8=252 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op253ReservedForFutureExpansionAndInfloopsForNow o8=253 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op254ReservedForFutureExpansionAndInfloopsForNow o8=254 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4019 Add op Op255ReservedForFutureExpansionAndInfloopsForNow o8=255 curriesLeft=undefined description: undefined
+Wikibinator203VM.js:4341 Evaling l=U r=U
+​ Evaling l=F r=U
+​ Evaling l=L r=U
+​ Test pass: tie the quine knot, both equal F(U)
+​ Evaling l=F r=U
+​ Test pass: tie the quine knot 2, both equal F(U)
+​ Evaling l=L r=U
+​ Evaling l=U r=U
+​ Evaling l=Op10 r=U
+​ Evaling l=Op100 r=U
+​ Evaling l=Op1000 r=U
+​ Evaling l=Op10000 r=U
+​ Evaling l=Op100000 r=U
+​ Evaling l=Op1000000 r=U
+​ Evaling l=F r=U
+​ Test pass: tie the quine knot 3, both equal F(U)
+​ Evaling l=R r=U
+​ Test pass: tie the quine knot 4, both equal U
+​ Evaling l=L r=U
+​ Evaling l=R r=U
+​ Evaling l=F(U) r=U
+​ Test pass: tie the quine knot 5 aka l(x)(r(x)) equals x, for any x (in this case x is u), both equal U
+​ Test pass: tie the quine knot 6, both equal 0
+​ Test pass: tie the quine knot 7, both equal 0
+​ Test pass: tie the quine knot 8, both equal 0
+​ Test pass: tie the quine knot 9, both equal 0
+​ Test pass: tie the quine knot 10, both equal 1
+​ Evaling l=L r=U
+​ Evaling l=R r=U
+​ Test pass: tie the quine knot 11, both equal 1
+​ Evaling l=L r=S
+​ Evaling l=R r=S
+​ Evaling l=Op1000111 r=U
+​ Test pass: l(x)(r(x)) equals x, for any x (in this case x is s), both equal S
+​ Evaling l=L r=L
+​ Evaling l=R r=L
+​ Evaling l=Op1000010 r=U
+​ Test pass: l(x)(r(x)) equals x, for any x (in this case x is l), both equal L
+​ Evaling l=L r=R
+​ Evaling l=R r=R
+​ Evaling l=Op1000010 r=Op10
+​ Test pass: l(x)(r(x)) equals x, for any x (in this case x is r), both equal R
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Evaling l=S(T)(T) r=L
+​ Evaling l=T r=L
+​ Evaling l=T r=L
+​ Evaling l=T(L) r=T(L)
+​ Test pass: s(t)(t)(l) which should be an identityFunc, both equal L
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Test pass: check dedup of s(t)(t), both equal S(T)(T)
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Evaling l=S(T)(T) r=S(T)(T)
+​ Evaling l=T r=S(T)(T)
+​ Evaling l=T r=S(T)(T)
+​ Evaling l=T(S(T)(T)) r=T(S(T)(T))
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Test pass: s(t)(t) called on itself returns itself since its an identityFunc, both equal S(T)(T)
+​ Test pass: o8/opcode of u, both equal 1
+​ Evaling l=U r=U
+​ Test pass: o8/opcode of u(u), both equal 2
+​ Evaling l=U r=U
+​ Evaling l=U r=U
+​ Test pass: check dedup of u(u), both equal Op10
+​ Evaling l=U r=U
+​ Evaling l=U r=Op10
+​ Test pass: o8/opcode of u(uu), both equal 3
+​ Evaling l=U r=Op10
+​ Evaling l=Op11 r=Op10
+​ Evaling l=Op111 r=Op10
+​ Evaling l=Op1111 r=Op10
+​ Evaling l=Op11111 r=U
+​ Evaling l=Op111110 r=Op10
+​ Test pass: o8/opcode of u(uu)(uu)(uu)(uu)(u)(uu)().o8(), both equal 125
+​ Evaling l=U r=Op10
+​ Evaling l=Op11 r=Op10
+​ Evaling l=Op111 r=Op10
+​ Evaling l=Op1111 r=Op10
+​ Evaling l=Op11111 r=Op10
+​ Evaling l=Op111111 r=Op10
+​ Test pass: o8/opcode of u(uu)(uu)(uu)(uu)(uu)(uu), both equal 127
+​ Evaling l=L r=L
+​ Evaling l=R r=L
+​ Evaling l=Op1000010 r=U
+​ Evaling l=L r=S
+​ Evaling l=L r=R
+​ Evaling l=R r=R
+​ Evaling l=Op1000010 r=Op10
+​ Evaling l=R r=S
+​ Evaling l=Op1000111 r=U
+​ Test pass: (l x (r x)) equals x forall x, deeper, both equal S
+​ Evaling l=L r=L
+​ Evaling l=R r=L
+​ Evaling l=Op1000010 r=U
+​ Evaling l=Pair r=S
+​ Evaling l=Pair(S) r=L
+​ Evaling l=L r=Pair(S)(L)
+​ Evaling l=L r=R
+​ Evaling l=R r=R
+​ Evaling l=Op1000010 r=Op10
+​ Evaling l=Pair r=S
+​ Evaling l=Pair(S) r=L
+​ Evaling l=R r=Pair(S)(L)
+​ Evaling l=Pair(S) r=L
+​ Evaling l=Pair r=S
+​ Evaling l=Pair(S) r=L
+​ Test pass: (l x (r x)) equals x forall x, deeper 2, both equal Pair(S)(L)
+​ Evaling l=S r=F(U)
+​ Evaling l=S(F(U)) r=F(U)
+​ Evaling l=S(F(U))(F(U)) r=Pair
+​ Evaling l=F(U) r=Pair
+​ Evaling l=F(U) r=Pair
+​ Evaling l=Pair r=Pair
+​ Evaling l=Pair r=Pair
+​ Test pass: callParamOnItself(pair)->pair(pair), both equal Pair(Pair)
+​ Evaling l=S r=F(U)
+​ Evaling l=S r=T
+​ Evaling l=S(T) r=T
+​ Evaling l=S(F(U)) r=S(T)(T)
+​ Evaling l=S(F(U))(S(T)(T)) r=Pair
+​ Evaling l=F(U) r=Pair
+​ Evaling l=S(T)(T) r=Pair
+​ Evaling l=T r=Pair
+​ Evaling l=T r=Pair
+​ Evaling l=T(Pair) r=T(Pair)
+​ Evaling l=Pair r=Pair
+​ Evaling l=Pair r=Pair
+​ Test pass: callParamOnItself(pair)->pair(pair) 2 different identityFuncs, both equal Pair(Pair)
+​ this=[object Window]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=U r=U
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=U r=U
+​ viewing.tokens.push builtInName Op10
+​ tokens: ["Op10"]
+​ viewing.tokens.push builtInName Op10
+​ tokens: ["Op10"]
+​ Evaling l=Op10 r=Op10
+​ viewing.tokens.push builtInName Op101
+​ tokens: ["Op101"]
+​ Script ended. Wikibinator203 = U which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))=Op101 aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Script (near) ending. Wikibinator203 = U
+8​ 
+​ Wikibinator203...
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Wikibinator203 = U
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=U r=U
+​ viewing.tokens.push builtInName Op10
+​ tokens: ["Op10"]
+​ UU = Op10
+​ Creating var: U
+​ Creating var: Op10
+​ Creating var: Op11
+​ Creating var: Op100
+​ Creating var: Op101
+​ Creating var: Op110
+​ Creating var: Op111
+​ Creating var: Op1000
+​ Creating var: Op1001
+​ Creating var: Op1010
+​ Creating var: Op1011
+​ Creating var: Op1100
+​ Creating var: Op1101
+​ Creating var: Op1110
+​ Creating var: Op1111
+​ Creating var: Op10000
+​ Creating var: Op10001
+​ Creating var: Op10010
+​ Creating var: Op10011
+​ Creating var: Op10100
+​ Creating var: Op10101
+​ Creating var: Op10110
+​ Creating var: Op10111
+​ Creating var: Op11000
+​ Creating var: Op11001
+​ Creating var: Op11010
+​ Creating var: Op11011
+​ Creating var: Op11100
+​ Creating var: Op11101
+​ Creating var: Op11110
+​ Creating var: Op11111
+​ Creating var: Op100000
+​ Creating var: Op100001
+​ Creating var: Op100010
+​ Creating var: Op100011
+​ Creating var: Op100100
+​ Creating var: Op100101
+​ Creating var: Op100110
+​ Creating var: Op100111
+​ Creating var: Op101000
+​ Creating var: Op101001
+​ Creating var: Op101010
+​ Creating var: Op101011
+​ Creating var: Op101100
+​ Creating var: Op101101
+​ Creating var: Op101110
+​ Creating var: Op101111
+​ Creating var: Op110000
+​ Creating var: Op110001
+​ Creating var: Op110010
+​ Creating var: Op110011
+​ Creating var: Op110100
+​ Creating var: Op110101
+​ Creating var: Op110110
+​ Creating var: Op110111
+​ Creating var: Op111000
+​ Creating var: Op111001
+​ Creating var: Op111010
+​ Creating var: Op111011
+​ Creating var: Op111100
+​ Creating var: Op111101
+​ Creating var: Op111110
+​ Creating var: Op111111
+​ Creating var: Op1000000
+​ Creating var: Op1000001
+​ Creating var: Op1000010
+​ Creating var: Op1000011
+​ Creating var: Op1000100
+​ Creating var: Op1000101
+​ Creating var: Op1000110
+​ Creating var: Op1000111
+​ Creating var: Op1001000
+​ Creating var: Op1001001
+​ Creating var: Op1001010
+​ Creating var: Op1001011
+​ Creating var: Op1001100
+​ Creating var: Op1001101
+​ Creating var: Op1001110
+​ Creating var: Op1001111
+​ Creating var: Op1010000
+​ Creating var: Op1010001
+​ Creating var: Op1010010
+​ Creating var: Op1010011
+​ Creating var: Op1010100
+​ Creating var: Op1010101
+​ Creating var: Op1010110
+​ Creating var: Op1010111
+​ Creating var: Op1011000
+​ Creating var: Op1011001
+​ Creating var: Op1011010
+​ Creating var: Op1011011
+​ Creating var: Op1011100
+​ Creating var: Op1011101
+​ Creating var: Op1011110
+​ Creating var: Op1011111
+​ Creating var: Op1100000
+​ Creating var: Op1100001
+​ Creating var: Op1100010
+​ Creating var: Op1100011
+​ Creating var: Op1100100
+​ Creating var: Op1100101
+​ Creating var: Op1100110
+​ Creating var: Op1100111
+​ Creating var: Op1101000
+​ Creating var: Op1101001
+​ Creating var: Op1101010
+​ Creating var: Op1101011
+​ Creating var: Op1101100
+​ Creating var: Op1101101
+​ Creating var: Op1101110
+​ Creating var: Op1101111
+​ Creating var: Op1110000
+​ Creating var: Op1110001
+​ Creating var: Op1110010
+​ Creating var: Op1110011
+​ Creating var: Op1110100
+​ Creating var: Op1110101
+​ Creating var: Op1110110
+​ Creating var: Op1110111
+​ Creating var: Op1111000
+​ Creating var: Op1111001
+​ Creating var: Op1111010
+​ Creating var: Op1111011
+​ Creating var: Op1111100
+​ Creating var: Op1111101
+​ Creating var: Op1111110
+​ Creating var: Op1111111
+​ Creating var: F
+​ Creating var: T
+​ Creating var: Bit0
+​ Creating var: Bit1
+​ Creating var: L
+​ Creating var: R
+​ Creating var: Isleaf
+​ Creating var: IsClean
+​ Creating var: IsAllowSinTanhSqrtRoundoffEtc
+​ Creating var: Lambda
+​ Creating var: GetVarFn
+​ Creating var: GetVarDouble
+​ Creating var: GetVarDoubles
+​ Creating var: VarargAx
+​ Creating var: S
+​ Creating var: Pair
+​ Creating var: Infcur
+​ Creating var: ObVal
+​ Creating var: ObCbt
+​ Creating var: ObKeyVal
+​ Creating var: OpmutOuter
+​ Creating var: OpmutInner
+​ Creating var: StackIsAllowstackTimestackMem
+​ Creating var: StackIsAllowNondetRoundoff
+​ Creating var: StackIsAllowMutableWrapperLambdaAndSolve
+​ Creating var: StackIsAllowAx
+​ Creating var: stackAllowReadLocalIds 
+​ Creating var: IsCbt
+​ Creating var: ContainsAxConstraint
+​ Creating var: Dplusraw
+​ Creating var: StreamGet
+​ Creating var: StreamPut
+​ Creating var: StreamPack
+​ Creating var: Get32BitsInCbt
+​ Creating var: Put32BitsInCbt
+​ Creating var: Equals
+​ Creating var: StreamWhile
+​ Creating var: StreamDoWhile
+​ Creating var: StreamFor
+​ Creating var: IfElse
+​ Creating var: If
+​ Creating var: GetSalt128
+​ Creating var: WithSalt128
+​ Creating var: WithSalt128TransformedBy
+​ Creating var: SolveRecog
+​ Creating var: SolveFloat64
+​ Creating var: Bize31
+​ Creating var: Bize53
+​ Creating var: Bize256
+​ Creating var: LambdaParamsList
+​ Creating var: LambdaParamsStream
+​ Creating var: Seq
+​ Creating var: HasMoreThan7Params
+​ Creating var: OpCommentedFuncOfOneParam
+​ Creating var: Op182ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op183ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op184ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op185ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op186ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op187ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op188ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op189ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op190ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op191ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op192ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op193ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op194ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op195ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op196ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op197ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op198ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op199ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op200ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op201ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op202ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op203ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op204ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op205ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op206ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op207ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op208ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op209ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op210ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op211ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op212ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op213ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op214ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op215ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op216ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op217ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op218ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op219ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op220ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op221ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op222ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op223ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op224ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op225ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op226ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op227ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op228ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op229ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op230ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op231ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op232ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op233ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op234ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op235ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op236ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op237ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op238ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op239ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op240ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op241ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op242ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op243ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op244ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op245ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op246ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op247ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op248ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op249ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op250ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op251ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op252ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op253ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op254ReservedForFutureExpansionAndInfloopsForNow
+​ Creating var: Op255ReservedForFutureExpansionAndInfloopsForNow
+​ T().o8() == 129
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ viewing.tokens.push builtInName Op10
+​ tokens: ["Op10"]
+​ Evaling l=T r=Op10
+​ viewing.tokens.push builtInName Op10
+​ tokens: [",","Op10"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=,Op10 r=U
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=S r=T
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["(","S"," ","T",")"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=(S T) r=T
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["{","T"," ","T","}"]
+​ Evaling l=S r={T T}
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["(","S"," ","{","T"," ","T","}",")"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=(S {T T}) r=T
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["{","T"," ","T"," ","T","}"]
+​ 
 
 
 
@@ -739,61 +739,61 @@ S(S(T)(T))(T)  aka {T T T} = {T T T}
 
 
 
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4500 tokens: ["L"]
-Wikibinator203VM.js:4124 Evaling l=S r=L
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","L",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["R"]
-Wikibinator203VM.js:4124 Evaling l=(S L) r=R
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","T",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["{","L"," ","R","}"]
-Wikibinator203VM.js:4124 Evaling l=(S T) r={L R}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","{","L"," ","R","}","}"]
-Wikibinator203VM.js:4124 Evaling l=S r={T {L R}}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","{","T"," ","{","L"," ","R","}","}",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=(S {T {L R}}) r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","{","L"," ","R","}"," ","T","}"]
-testWikibinator203VM.html:43 
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=S r=T
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName L
+​ tokens: ["L"]
+​ Evaling l=S r=L
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName L
+​ tokens: ["(","S"," ","L",")"]
+​ viewing.tokens.push builtInName R
+​ tokens: ["R"]
+​ Evaling l=(S L) r=R
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["(","S"," ","T",")"]
+​ viewing.tokens.push builtInName L
+​ { pushed space
+​ viewing.tokens.push builtInName R
+​ tokens: ["{","L"," ","R","}"]
+​ Evaling l=(S T) r={L R}
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName L
+​ { pushed space
+​ viewing.tokens.push builtInName R
+​ tokens: ["{","T"," ","{","L"," ","R","}","}"]
+​ Evaling l=S r={T {L R}}
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName L
+​ { pushed space
+​ viewing.tokens.push builtInName R
+​ tokens: ["(","S"," ","{","T"," ","{","L"," ","R","}","}",")"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=(S {T {L R}}) r=T
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName L
+​ { pushed space
+​ viewing.tokens.push builtInName R
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["{","T"," ","{","L"," ","R","}"," ","T","}"]
+​ 
 
 
 
@@ -804,68 +804,68 @@ S(S(T)(S(L)(R)))(T) aka {T {L R} T} = {T {L R} T}
 
 
 
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=S r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","T",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["Pair"]
-Wikibinator203VM.js:4124 Evaling l=(S T) r=Pair
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","Pair","}"]
-Wikibinator203VM.js:4124 Evaling l=S r={T Pair}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["(","S"," ","{","T"," ","Pair","}",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=(S {T Pair}) r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
-Wikibinator203VM.js:4500 tokens: ["Seq"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["{","T"," ","Pair"," ","T","}"]
-Wikibinator203VM.js:4124 Evaling l=Seq r={T Pair T}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=S r=T
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["(","S"," ","T",")"]
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["Pair"]
+​ Evaling l=(S T) r=Pair
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["{","T"," ","Pair","}"]
+​ Evaling l=S r={T Pair}
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["(","S"," ","{","T"," ","Pair","}",")"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=(S {T Pair}) r=T
+​ viewing.tokens.push builtInName Seq
+​ tokens: ["Seq"]
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName Pair
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["{","T"," ","Pair"," ","T","}"]
+​ Evaling l=Seq r={T Pair T}
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ viewing.tokens.push builtInName T
 ​ { pushed space
 ​ viewing.tokens.push builtInName Pair
 ​ { pushed space
 ​ viewing.tokens.push builtInName T
 ​ tokens: ["_","{","T"," ","Pair"," ","T","}"]
 ​ Evaling l=T r=_{T Pair T}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: [",","_","{","T"," ","Pair"," ","T","}"]
-Wikibinator203VM.js:4124 Evaling l=T r=,_{T Pair T}
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4595 { pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: [",",",","_","{","T"," ","Pair"," ","T","}"]
-testWikibinator203VM.html:45 
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName Pair
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: [",","_","{","T"," ","Pair"," ","T","}"]
+​ Evaling l=T r=,_{T Pair T}
+​ viewing.tokens.push builtInName T
+​ { pushed space
+​ viewing.tokens.push builtInName Pair
+​ { pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: [",",",","_","{","T"," ","Pair"," ","T","}"]
+​ 
 
 
 
@@ -876,49 +876,49 @@ T(T(Seq(S(S(T)(Pair))(T)))) = ,,_{T Pair T}
 
 
 
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["Pair"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4124 Evaling l=Pair r=S
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["(","Pair"," ","S",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["S"]
-Wikibinator203VM.js:4124 Evaling l=(Pair S) r=S
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["Pair"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["(","Pair"," ","S"," ","S",")"]
-Wikibinator203VM.js:4124 Evaling l=Pair r=(Pair S S)
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4500 tokens: ["(","Pair"," ","(","Pair"," ","S"," ","S",")",")"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["R"]
-Wikibinator203VM.js:4124 Evaling l=(Pair (Pair S S)) r=R
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName S
-Wikibinator203VM.js:4621 ( pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["(","Pair"," ","(","Pair"," ","S"," ","S",")"," ","R",")"]
-testWikibinator203VM.html:47 
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["Pair"]
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ Evaling l=Pair r=S
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ tokens: ["(","Pair"," ","S",")"]
+​ viewing.tokens.push builtInName S
+​ tokens: ["S"]
+​ Evaling l=(Pair S) r=S
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["Pair"]
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ tokens: ["(","Pair"," ","S"," ","S",")"]
+​ Evaling l=Pair r=(Pair S S)
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ tokens: ["(","Pair"," ","(","Pair"," ","S"," ","S",")",")"]
+​ viewing.tokens.push builtInName R
+​ tokens: ["R"]
+​ Evaling l=(Pair (Pair S S)) r=R
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName Pair
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName S
+​ ( pushed space
+​ viewing.tokens.push builtInName R
+​ tokens: ["(","Pair"," ","(","Pair"," ","S"," ","S",")"," ","R",")"]
+​ 
 
 
 
@@ -929,33 +929,33 @@ Pair(Pair(S)(S))(R) = (Pair (Pair S S) R)
 
 
 
-Wikibinator203VM.js:4500 tokens: ["[]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=[] r=U
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["[","U","]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["U"]
-Wikibinator203VM.js:4124 Evaling l=[U] r=U
-Wikibinator203VM.js:4500 tokens: ["[]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4124 Evaling l=[] r=T
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4500 tokens: ["[","U"," ","U","]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["[","T","]"]
-Wikibinator203VM.js:4124 Evaling l=[U U] r=[T]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName U
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["[","U"," ","U"," ","[","T","]","]"]
-testWikibinator203VM.html:49 
+​ tokens: ["[]"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=[] r=U
+​ viewing.tokens.push builtInName U
+​ tokens: ["[","U","]"]
+​ viewing.tokens.push builtInName U
+​ tokens: ["U"]
+​ Evaling l=[U] r=U
+​ tokens: ["[]"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["T"]
+​ Evaling l=[] r=T
+​ viewing.tokens.push builtInName U
+​ [ pushed space
+​ viewing.tokens.push builtInName U
+​ tokens: ["[","U"," ","U","]"]
+​ viewing.tokens.push builtInName T
+​ tokens: ["[","T","]"]
+​ Evaling l=[U U] r=[T]
+​ viewing.tokens.push builtInName U
+​ [ pushed space
+​ viewing.tokens.push builtInName U
+​ [ pushed space
+​ viewing.tokens.push builtInName T
+​ tokens: ["[","U"," ","U"," ","[","T","]","]"]
+​ 
 
 
 
@@ -966,53 +966,53 @@ Infcur(U)(U)(Infcur(T)) = [U U [T]]
 
 
 
-Wikibinator203VM.js:4500 tokens: ["[]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4500 tokens: ["L"]
-Wikibinator203VM.js:4124 Evaling l=[] r=L
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4500 tokens: ["[","L","]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["R"]
-Wikibinator203VM.js:4124 Evaling l=[L] r=R
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
-Wikibinator203VM.js:4500 tokens: ["Seq"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["Pair"]
-Wikibinator203VM.js:4124 Evaling l=Seq r=Pair
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName T
-Wikibinator203VM.js:4500 tokens: ["T"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["_","Pair"]
-Wikibinator203VM.js:4124 Evaling l=T r=_Pair
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
-Wikibinator203VM.js:4500 tokens: ["Seq"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: [",","_","Pair"]
-Wikibinator203VM.js:4124 Evaling l=Seq r=,_Pair
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4500 tokens: ["[","L"," ","R","]"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["_",",","_","Pair"]
-Wikibinator203VM.js:4124 Evaling l=[L R] r=_,_Pair
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Seq
-Wikibinator203VM.js:4500 tokens: ["Seq"]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["[","L"," ","R"," ","_",",","_","Pair","]"]
-Wikibinator203VM.js:4124 Evaling l=Seq r=[L R _,_Pair]
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName L
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName R
-Wikibinator203VM.js:4554 [ pushed space
-Wikibinator203VM.js:4511 viewing.tokens.push builtInName Pair
-Wikibinator203VM.js:4500 tokens: ["_","[","L"," ","R"," ","_",",","_","Pair","]"]
-testWikibinator203VM.html:51 
+​ tokens: ["[]"]
+​ viewing.tokens.push builtInName L
+​ tokens: ["L"]
+​ Evaling l=[] r=L
+​ viewing.tokens.push builtInName L
+​ tokens: ["[","L","]"]
+​ viewing.tokens.push builtInName R
+​ tokens: ["R"]
+​ Evaling l=[L] r=R
+​ viewing.tokens.push builtInName Seq
+​ tokens: ["Seq"]
+​ viewing.tokens.push builtInName Pair
+​ tokens: ["Pair"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName T
+Wikibinator203VM.js:4736 tokens: ["T"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=T r=_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4736 tokens: ["Seq"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: [",","_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=,_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4736 tokens: ["[","L"," ","R","]"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["_",",","_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=[L R] r=_,_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4736 tokens: ["Seq"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["[","L"," ","R"," ","_",",","_","Pair","]"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=[L R _,_Pair]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["_","[","L"," ","R"," ","_",",","_","Pair","]"]
+TestWikibinator203VM.html:51 
 
 
 
@@ -1023,10 +1023,51 @@ Seq(Infcur(L)(R)(Seq(T(Seq(Pair))))) aka _[L R _,_Pair] = _[L R _,_Pair]
 
 
 
-testWikibinator203VM.html:53 starting basic tests of vm.eval:
-Wikibinator203VM.js:4902 TOKENS: _ .. [L .. R .. _ .. , .. _Pair .. ]
-Wikibinator203VM.js:4921 Uncaught TODO
-vm.Viewer.parse @ Wikibinator203VM.js:4921
-vm.Viewer.eval @ Wikibinator203VM.js:4904
-vm.eval @ Wikibinator203VM.js:4493
-(anonymous) @ testWikibinator203VM.html:56
+TestWikibinator203VM.html:53 starting basic tests of vm.eval:
+Wikibinator203VM.js:5169 TOKENS: _ .. [ .. L ..   .. R ..   .. _ .. , .. _ .. Pair .. ]
+Wikibinator203VM.js:5174 eval starting, maxParseSteps=38
+Wikibinator203VM.js:5214 MOVEDTOINWHILE: PARSING====fromTok=_
+Wikibinator203VM.js:5234     parsingA, is lone token: _
+Wikibinator203VM.js:5327 PARSEEND
+Wikibinator203VM.js:4736 tokens: ["[]"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4736 tokens: ["L"]
+Wikibinator203VM.js:4341 Evaling l=[] r=L
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4736 tokens: ["[","L","]"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4736 tokens: ["R"]
+Wikibinator203VM.js:4341 Evaling l=[L] r=R
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4736 tokens: ["Seq"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["Pair"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName T
+Wikibinator203VM.js:4736 tokens: ["T"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=T r=_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4736 tokens: ["Seq"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: [",","_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=,_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4736 tokens: ["[","L"," ","R","]"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["_",",","_","Pair"]
+Wikibinator203VM.js:4341 Evaling l=[L R] r=_,_Pair
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Seq
+Wikibinator203VM.js:4736 tokens: ["Seq"]
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName L
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName R
+Wikibinator203VM.js:4791 [ pushed space
+Wikibinator203VM.js:4748 viewing.tokens.push builtInName Pair
+Wikibinator203VM.js:4736 tokens: ["[","L"," ","R"," ","_",",","_","Pair","]"]
+Wikibinator203VM.js:4341 Evaling l=Seq r=[L R _,_Pair]
+TestWikibinator203VM.html:57 Uncaught Eval failed
+(anonymous) @ TestWikibinator203VM.html:57
