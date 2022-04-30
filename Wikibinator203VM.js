@@ -1,3 +1,5 @@
+alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
+
 /*TODOS...
 
 TODO todoWrite30VariedUsecases.wikibinator203 first.
@@ -3948,15 +3950,26 @@ const Wikibinator203 = (()=>{
 			return vm.viewer;
 		};
 
-		//the this is a Node, not vm
+		//vm.lambdaToString is used as toString field in every [function(fn){...} that lambdize makes (which is a fn)].
+		//Example, in js, ''+S(T)(T) returns '(S T T)' or something like that (TODO finish the default syntax).
 		vm.lambdaToString = function(){
 			if(vm.booted){
 				return vm.getViewer().fnToString(this); //recursive code string
 			}else{
 				//display simpler way
 				if(this.localName) return this.localName; //starts as the op names, and can name other lambdas (which are all constants), but it doesnt affect ids since its contentAddressable.
-				if(this().isLeaf()) return 'U';
-				else return this().l+'('+this().r+')';
+				if(this().isLeaf()) return 'U'; //TODO remove this line since .localName will find 'U', but verify that while its working better.
+				
+				//what is this()? In vm.lambdaToString, this is a fn (output of lambdize). anyFn()==anyFn.n==theNodeOfThatFn.
+				//lambdize puts it there, since Object.setPrototypeOf((new function(x){...}), ...) doesnt work for
+				//functions BEFORE they're called. You can only use prototype after a js function is called,
+				//especially when called by the new keyword.
+				//Thats why every fn has 2 main objects, the js function (of 1 param) form, and as a vm.Node instance.
+				//aNode.lam.n.lam.n.lam.n===aNode. aFn.n.lam===aFn. aFn()==aFn.n,
+				//but might replace aFn() with just aFn.n depending on speed tests.
+				//
+				//TODO replace all fn() with fn.n for speed, but make sure to test which is faster.
+				else return this().l+'('+this().r+')'; //as js code. but a similar syntax (used after vm.booted) is '(myL myR)' etc.
 				//TODO? return this().slowLocalId(); //FIXME return a 45 char 256 bit globalId similar to (this one is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj
 			}
 		};
@@ -4338,7 +4351,7 @@ const Wikibinator203 = (()=>{
 			
 			//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
 			
-			console.log('Evaling l='+l+' r='+r);
+			console.log('vm.rootEvaler l='+l+' r='+r);
 			//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
 			//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
 			//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
@@ -4655,6 +4668,18 @@ const Wikibinator203 = (()=>{
 		};
 		
 		
+		//see vm.eval(string)->fn and ''+fn aka fn.toString() which is defined in lambdize function.
+		
+		vm.ParseTree = function(){
+			//todo from and toExcl?
+			//is '{' or '[' or '(' or '<' or [loneTok where isLoneToken(loneTok) such as 'S' or '#AName' or '3.2'
+			//or "'hello world'" or hello or world since starting with lowercase without whitespace means string literal]
+			this.firstToken = null;
+			this.childs = [];
+		};
+		//vm.Tree.prototype.parseToMakeChilds = function(){
+		
+		
 		//new Viewer().fnToString(anyFn) -> code string. TODO hook that into toString of fn (aka of what lambdize returns).
 		//
 		//Start here for parse and tostring of combos of fns. View and Viewing are used inside it.
@@ -4672,6 +4697,7 @@ const Wikibinator203 = (()=>{
 			
 			this.syntaxTypeIsLeaf = {'U':true, '0':true, '_':true, ',':true};
 		};
+		
 		
 		vm.View = function(viewer, fn){
 			this.viewer = viewer; //what makes these View objects
@@ -4696,6 +4722,7 @@ const Wikibinator203 = (()=>{
 			//map of View to number, only counting refs (incoming pointer) that are displayed, not counting those inside double literals etc.
 			this.refCount = new Map();
 			this.indentString = '\t';
+			this.pt = null; //a vm.ParseTree
 		};
 		
 		vm.Viewer.prototype.newViewing = function(){
@@ -4886,9 +4913,9 @@ const Wikibinator203 = (()=>{
 			}else if(fn == ops.Infcur){
 				this.syntaxType = 'IC0';
 			}else if(fn == ops.Seq){
-				this.syntaxType = '_0';
+				this.syntaxType = '_0'; //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 			}else if(fn == ops.T){
-				this.syntaxType = 'T0';
+				this.syntaxType = 'T0'; //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 			}else{
 				let lsyty = this.lsyty();
 				let rsyty = this.rsyty();
@@ -4899,9 +4926,9 @@ const Wikibinator203 = (()=>{
 					this.syntaxType = 'S2';
 				}else if(lsyty == 'IC0' || lsyty == 'IC+'){
 					this.syntaxType = 'IC+';
-				}else if(lsyty == '_0'){
+				}else if(lsyty == '_0'){ //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 					this.syntaxType = '_1';
-				}else if(lsyty == 'T0'){
+				}else if(lsyty == 'T0'){ //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 					this.syntaxType = 'T1';
 				}else{
 					this.syntaxType = 'C'; //normal call (a b c d e) aka ((((a b) c) d) e)
@@ -5053,6 +5080,9 @@ const Wikibinator203 = (()=>{
 			return tokens;
 		}
 		
+		vm.strIsAllWhitespace = s=>(s==0);
+		//unlike FnIsAllWhitespace which would better be made of combos of U (and maybe optimized using an Evaler) than part of vm.
+		
 		//used by Viewer.eval and Viewer.parse
 		vm.Parsing = function(tokens){
 			//tokens[from] is first token to eval. returns when that opening token (or it might be just 1 token by itself) is closed
@@ -5067,8 +5097,20 @@ const Wikibinator203 = (()=>{
 			this.stack = [vm.identityFunc]; //of fns. When parsing finishes, there is 1 thing on the stack, the fn the wikibinator203 code evaled to.
 		};
 		
+		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		vm.Parsing.prototype.isUnaryToken = function(token){
 			return token=='_' || token=='?' || token==',';
+		};
+		
+		vm.Parsing.prototype.stackToString = function(){
+			let st = '';
+			let count = 0;
+			for(let fn of this.stack){
+				if(st) st += ' .... ';
+				st += fn+'@'+(count++);
+			}
+			//fromTok+'@'+parsing.from+toTok+'@'+(parsing.toExcl-1)
+			return st;
 		};
 		
 		vm.Parsing.prototype.onParsedFn = function(fn){
@@ -5077,6 +5119,11 @@ const Wikibinator203 = (()=>{
 		};
 		
 		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
+		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
+		//The unaryTokens include '_' (aka Seq) and ',' (aka T)
+		//and maybe '?' but that might be more similar to # syntax and related to <...>.
+		//See vm.opInfo for those strings.
+		//
 		vm.Parsing.prototype.isLoneToken = function(token){
 			//include whitespace (FIXME theres lots of kinds of unicode whitespace, but those 4 '\t\r\n ' are usually enough. Default: \n instead of \r or \r\n.
 			
@@ -5086,7 +5133,9 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.Parsing.prototype.isPushToken = function(token){
-			return this.isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
+			//return this.isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
+			//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
+			return token=='(' || token=='{' || token=='[' || token == '<';
 		};
 		
 		//Examples: 'S', 'Pair' (which are builtInName), or TODO if its a localName.
@@ -5144,7 +5193,12 @@ const Wikibinator203 = (()=>{
 			return undefined;
 		};
 		
-		//pops 2. pushes 1.
+		vm.Parsing.prototype.popFn = function(){
+			if(this.stack.length < 2) throw 'About to popFn, and parsing.stack.length=='+this.stack.length+' but must always be at least 1.';
+			return this.stack.pop();
+		};
+		
+		//pops 2 fns. pushes 1 fn, by func(param)->ret, 3 fns.
 		vm.Parsing.prototype.popPopPushFnByCall = function(){
 			console.log('popPopPushFnByCallSTART stackSize='+this.stack.length);
 			if(this.stack.length < 2) throw 'stack.length='+stack.length+' and cant pop last thing on stack';
@@ -5165,7 +5219,12 @@ const Wikibinator203 = (()=>{
 		//string -> fn.
 		vm.Viewer.prototype.eval = function(wikibinator203CodeString){
 			let code = wikibinator203CodeString;
-			let tokens = this.tokenize(code);
+			let tokensStartAs = this.tokenize(code);
+			if(!tokensStartAs.length) return Ident; //this should happen automatically? can this line be commentedout?
+			tokens = ['(']; //Parser.parse needs this
+			tokens.push(...tokensStartAs);
+			tokens.push(')'); //Parser.parse needs this
+			
 			console.log('TOKENS: '+tokens.join(' .. '));
 			let parsing = new vm.Parsing(tokens);
 			//maxParseSteps is for things that dont parse at runtime in user code,
@@ -5196,6 +5255,10 @@ const Wikibinator203 = (()=>{
 		//and returns it (whatevers at top parsing.stack[parsing.stack.length-1] at end of this parse call,
 		//including calling itself recursively while modifying fields in the Parsing.
 		//
+		//FIXME??? Might need to have '(' and ')' as first and last tokens, in this.tok for the outermost call,
+		//so if its a lone token such as 'S' or 'Pair', theres a parent parse call to popPopPushFnByCall it at the end?
+		//All parse calls other than an outermost call are a smaller range in this.tok.
+		//
 		//If all those lambdas dont have enough params yet then evaling them halts instantly
 		//by creating a halted call pair (see Node.evaler such as vm.rootEvaler) so just normal evaling.
 		//Reads parse.tokens and parse.from. Writes parse.to when whatever parse.tokens[parse.from] opens is closed, such as ( and ) or { and },
@@ -5208,13 +5271,19 @@ const Wikibinator203 = (()=>{
 			*/
 			parsing.toExcl = parsing.from+1;
 			let nextFn = null;
+			let toTok;
 			do{
+				console.log('parse top of loop, stack: '+parsing.stackToString());
 				let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
 				if(fromTok === undefined) throw 'MOVEDTOINWHILE: parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
 				console.log('MOVEDTOINWHILE: PARSING====fromTok='+fromTok);
+				toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
+				if(toTok === undefined){
+					throw 'toTok is undefined. maybe reached the end of parsing the wrong way?';
+				}
 			
 				parsing.pay1ParseStep();
-				if(fromTok == 0){ //fromTok is all whitespace
+				if(vm.strIsAllWhitespace(fromTok)){
 					//TODO Any 2 fns with no whitespace or { [ ( < between eachother,
 					//like a[b c], means (a [b c]). means call one on another left to right.
 					//
@@ -5228,13 +5297,22 @@ const Wikibinator203 = (()=>{
 					console.log('increased from['+parsing.from+'], toExcl['+parsing.toExcl+']');
 					
 					//FIXME more code to write
-					
-				}else if(parsing.isLoneToken(fromTok)){ //this token alone
+				}else if(parsing.isLoneToken(toTok)){ //this token alone
+					//lone token might be #SomeName or ( or ) or { etc.
+					console.log('    parsingA, is lone token, toTok='+toTok);
+					//FIXME also handle stringliterals, #Names, numberliterals, etc here.
+					nextFn = parsing.loneTokenToFn(toTok);	
+					console.log('parsing.pushFn of fn, loneToken, toTok='+toTok);
+					parsing.pushFn(nextFn);
+				/*}else if(parsing.isLoneToken(fromTok)){ //this token alone
 					//lone token might be #SomeName or ( or ) or { etc.
 					console.log('    parsingA, is lone token: '+fromTok);
 					//FIXME also handle stringliterals, #Names, numberliterals, etc here.
 					nextFn = parsing.loneTokenToFn(fromTok);	
-				}else if(parsing.isUnaryToken(fromTok)){ //this token and recurse on next objects
+					console.log('parsing.pushFn of fn, loneToken='+fromTok);
+					parsing.pushFn(nextFn);
+				/*}else if(parsing.isUnaryToken(fromTok)){ //this token and recurse on next objects
+					//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 					//unaryToken parses like __x is (_ (_ x)).
 					console.log('parsing, isUnaryToken fromTok='+fromTok);
 					//throw 'TODO';
@@ -5244,19 +5322,21 @@ const Wikibinator203 = (()=>{
 					this.parse(parsing);
 					parsing.from = rememberFrom;
 					//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
-					parsing.toExcl++; //FIXME remove this line?
+					//parsing.toExcl++; //FIXME remove this line?
+				*/
 				}else{ //this token and recurse on variable number of next objects: {...}, [...], (...), or <...>.
 					//while(parsing.toExcl < tok.length && !parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1])){
 					let isPop;
 					let listOfFns = []; //whats between { and }, [ and ], ( and ), or < and >, similar to sexp/s-expression.
 					while(
 						parsing.toExcl < tok.length
-						&& !(isPop=parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1]))
+						&& !(isPop=parsing.isMatchingPushAndPopTokens(fromTok,toTok=tok[parsing.toExcl-1]))
 					){
 						parsing.pay1ParseStep();
-						let tk = tok[parsing.toExcl-1];
-						if(parsing.isPushToken(tk)){
-							console.log('parsingB, is push token: '+tk);
+						//let tk = tok[parsing.toExcl-1];
+						toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
+						if(parsing.isPushToken(toTok)){
+							console.log('parsingB, is push token, toTok='+toTok);
 							//Example: tok[fromTok] is '(' and toExcl has found another '(' or a '{' etc, so recurse.
 							let rememberFrom = parsing.from;
 							parsing.from = parsing.toExcl;
@@ -5265,20 +5345,22 @@ const Wikibinator203 = (()=>{
 							//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
 							parsing.toExcl++; //FIXME remove this line?
 						}else if(isPop){
-							console.log('parse, about to pop');
+							console.log('parse, about to pop, fromTok='+fromTok+' toTok='+toTok);
 							break;
 						}else{
 							console.log('parsing, its not push or pop. is literal or look up by #Name or .abc.def etc. tk='+tk);
 							let rememberFrom = parsing.from;
 							parsing.from = parsing.toExcl;
-							let fn = this.parse(parsing); //like U in [U U U] or (U U U) or for <> or {}
+							//let fn = this.parse(parsing); //like U in [U U U] or (U U U) or for <> or {}
+							this.parse(parsing); //like U in [U U U] or (U U U) or for <> or {}
+							let fn = this.popFn(); //this.parse(parsing) also returns it, but popFn removes it from this.stack
 							listOfFns.push(fn);
 							//FIXME also pop here (from parsing.stack)?
 							parsing.from = rememberFrom;
 							//throw 'TODO its not push or pop. is literal or look up by #Name or .abc.def etc.';
 						}
 					}
-					let toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
+					toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
 					if(toTok === undefined){
 						//throw 'toTok===undefined';
 						console.log('toTok===undefined so past the end (todo use from and toExcl and tok.length instead');
@@ -5307,7 +5389,8 @@ const Wikibinator203 = (()=>{
 						break;default:
 							throw 'Unknown pop token: '+toTok;
 					}
-					//TODO nextFn = some interpretation of the range tok[parsing.from .. parsing.toExcl-1]
+					
+					//nextFn = some interpretation of the range tok[parsing.from .. parsing.toExcl-1]
 					parsing.pushFn(nextFn);
 					parsing.popPopPushFnByCall();
 					//TODO parsing.pushFn(nextFn); parsing.popPopPushFnByCall(); depending on if is push, pop, or loneToken etc above.
@@ -5555,22 +5638,45 @@ const Wikibinator203 = (()=>{
 		//vm.t = TODO;
 		//vm.f = TODO;
 		
-		let l = vm.ops.L;
+		let U = u;
 		
 		//if(l != L) throw 'with(ops) isnt working for L';
 		//console.log('testing with(ops): L='+L+' l='+l);	
 		
-		let r = vm.ops.R;
-		let s = vm.ops.S;
-		let t = vm.ops.T;
-		let f = vm.ops.F;
-		let pair = vm.ops.Pair;
-		let ident = f(u);
+		//FIXME rename s to S, r to R, t to T, etc, in vm "let" vars, since in the default wikibinator203 syntax
+		//starting with a capital letter means #Name of a fn,
+		//and starting with lowercase (if no whitespace) means string literal.
+		//but it will take time to find single letter like that, or a good regex.
+		//For now I'm making both vars, s and S, t and T, so I can at least stop using the lowercase one in new code.
+		let s = ops.S;
+		let S = ops.S;
+		let l = ops.L;
+		let L = ops.L;
+		let r = ops.R;
+		let R = ops.R;
+		let t = ops.T;
+		let T = ops.T;
+		let f = ops.F;
+		let F = ops.F;
+		let pair = ops.Pair;
+		let Pair = ops.Pair;
+		let ident = F(U);
+		let Ident = ident;
+		
+		//let E = vm.eval; //lambda eval, string->fn
 		
 		vm.test = (testName, a, b)=>{
 			if(a === b) console.log('Test pass: '+testName+', both equal '+a);
 			else throw ('Test '+testName+' failed cuz '+a+' != '+b);
 		};
+		
+		vm.testEval = (wikibinator203Code, shouldReturnThis)=>{
+			vm.test('testEval '+wikibinator203Code, vm.eval(wikibinator203Code), shouldReturnThis);
+		};
+		
+		vm.temp = {};
+		vm.temp.breakpointOn = false; //used in some browser debugger conditional breakpoints
+		vm.temp.skipTestEval = true; //FIXME
 		
 		//a few basic tests...
 		vm.test('tie the quine knot', vm.identityFunc, l(u));
@@ -5602,6 +5708,26 @@ const Wikibinator203 = (()=>{
 		vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
 		vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
 		
+		console.log('Starting very basic vm.eval tests');
+		
+		vm.temp.breakpointOn = true;
+
+		if(!vm.temp.skipTestEval){		
+			vm.testEval('U',U);
+			vm.testEval('S',S);
+			vm.testEval('T',T);
+			vm.testEval('L',L);
+			vm.testEval('R',R);
+			vm.testEval('Pair',Pair);
+			
+			vm.testEval('(S T)',S(T));
+		}
+		
+		vm.temp.breakpointOn = false;
+		
+		console.log('Passed very basic vm.eval tests');
+		
+		
 		/*
 		if(vm.identityFunc != l(u)) throw 'Failed to tie the quine knot. identityFunc != l(u)';
 		if(l(s)(r(s)) != s) throw 'Failed l(x)(r(x)) equals x, for any x (in this case x is s)';
@@ -5623,6 +5749,8 @@ const Wikibinator203 = (()=>{
 		//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
 		//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
 		//TODO pushEvaler for isleaf etc
+		
+		console.log('TODO run a few more tests after these pushEvaler optimizations since in some fns (aNode.evaler) they replace vm.rootEvaler (which becomes aNode.evaler.prev, but you can still use rootEvaler there by setting aNode.evaler.on=false; and would still use whichever evaler, per node, has evaler.on==true, which is designed that way to make testing of combos of evalers easy at runtime.');
 		
 
 		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
