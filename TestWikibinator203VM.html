@@ -1,18 +1,43 @@
 <!DOCTYPE html><html><head>
 <script src=Wikibinator203VM.js></script>
 <script>
+
+let U = Wikibinator203; //the universal function
+
+let vm = Wikibinator203().vm;
+
 var dom = id=>document.getElementById(id);
 
 var h = '';
 
 h += 'Wikibinator203='+Wikibinator203+' Push F12 to see some tests in browser console.';
+h += '\n\n<br><br>In the ops list below, from vm.opInfo, you can use op name, such as S, T, Pair, (F U) is identityFunc, etc. Some ops arent working yet. More ops will be filled in later. This is early into the wikibinator203 prototype. Try it in the textareas. When you change text in the top textarea, it evals and puts the output into the bottom textarea, which you should be able to copy into the top textarea and edit more. This will be easier once these low level basics are worked out and you can do everything (TODO) by drag and drop across the internet with your friends in realtime.';
+for(let op of vm.opInfo){
+	 h += '\n\n<br><br>'+JSON.stringify(op);
+}
 
 window.onload = ()=>{
 	dom('mainDiv').innerHTML = h;
+	dom('codeIn').value = '(S (F U) (F U) Pair)';
+	evalTextAreas();
+};
+
+var evalTextAreas = ()=>{
+	let textOut = 'ERROR';
+	try{
+		let wikibinator202CodeIn = dom('codeIn').value;
+		let fnOut = Eval(wikibinator202CodeIn);
+		textOut = ''+fnOut;
+	}catch(e){
+		textOut = 'ERROR: '+e;
+	}
+	dom('codeOut').value = textOut;
 };
 
 
-//TODO move this to a separate js file or the html file...
+var Eval = vm.eval; //of wikibinator203 code string -> fn. fn means a wikibinator203 lambda that is a javascript function of 1 param.
+
+/*//TODO move this to a separate js file or the html file...
 
 console.log('Script (near) ending. Wikibinator203 = '+Wikibinator203);
 for(let i=0; i<8; i++) console.log('');
@@ -61,8 +86,35 @@ evaledTo = vm.eval(wikibinator203Code);
 if(evaledTo != S(S(T)(S(L)(R)))(T)) throw 'Eval failed';
 
 console.log('vm.eval passed basic tests.');
+*/
 	
 </script>
 </head><body>
+	<center>
+		<h2>Test Wikibinator203 prototype (incomplete but works a little)</h2>
+		Wikibinator203 code in. It evals while you type,<br> but until vm.stackTime and vm.stackMem are working,<br> you might have to close and reopen browser tab if you write an infinite loop).
+		Example: (Pair (F U) S F) -> S<br>
+		Example: (Pair (F U) S T) -> (F U)<br>
+		Example: Pair -> Pair<br>
+		Example: ([L R L R] Pair Pair L S R) -> [L R L R Pair Pair L S R]<br>
+		Example: (L ([L R L R] Pair Pair L S R)) -> [L R L R Pair Pair L S]<br>
+		Example: (R ([L R L R] Pair Pair L S R)) -> R<br>
+		Example: (L U (R U)) -> U<br>
+		Example: (L L (R L)) -> L<br>
+		Example: (L R (R R)) -> R<br>
+		Example: (L S (R S)) -> S<br>
+		Example: (L (Pair S T) (R (Pair S T))) -> (Pair S T) - aka (Pair S T) is the iota lambda<br>
+		Example: ((Pair S T) (Pair S T) [L R L R S]) -> [L R L R S] - cuz iota called on itself is an identityFunc.<br>
+		Example: ((Pair S T) (Pair S T) (Pair S T)) -> (Pair S T) - cuz iota called on itself is an identityFunc.<br>
+		Example: ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T)))) -> T<br> - as in <a href=https://en.wikipedia.org/wiki/Iota_and_Jot>https://en.wikipedia.org/wiki/Iota_and_Jot</a> cuz T is the K of SKI-Calculus.<br>
+		Example: ((Pair S T) ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T))))) -> S<br> - as in <a href=https://en.wikipedia.org/wiki/Iota_and_Jot>https://en.wikipedia.org/wiki/Iota_and_Jot</a> cuz T is the K of SKI-Calculus.<br>
+		This is an infinite loop (though runs out of javascript stack: (S (F U) (F U) (S (F U) (F U)))<br>
+		<b>It will be much easier use when Names#(...) and drag-and-drop and 1024x1024 per pixel graphics are working.</b><br>
+		<br>
+		Wikibinator203 code in.<br>
+		<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea><br>
+		Eval of the above code, out:<br>
+		<textarea id=codeOut rows="5" cols="100" readonly></textarea><br>
+	</center>
 	<div id="mainDiv"></div>
 </body></html>
