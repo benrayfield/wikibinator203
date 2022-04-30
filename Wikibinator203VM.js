@@ -1,4 +1,4 @@
-alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
+//alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
 
 /*TODOS...
 
@@ -3032,7 +3032,7 @@ const Wikibinator203 = (()=>{
 		
 		vm.nodeToString = function(node){
 			if(vm.nodeToStringIncludesChilds === undefined) throw 'FIXME bind or what? this is getting disorganized for some funcs to be in vm and some in vm.Node.prototype';
-			if(nodeToStringIncludesChilds) return vm.nodeToStringOne(node);
+			if(vm.nodeToStringIncludesChilds) return vm.nodeToStringOne(node);
 			else return vm.nodeToStringOne(node)+vm.nodeToStringOne(node.L())+vm.nodeToStringOne(node.R());
 		};
 		
@@ -4670,16 +4670,9 @@ const Wikibinator203 = (()=>{
 		
 		//see vm.eval(string)->fn and ''+fn aka fn.toString() which is defined in lambdize function.
 		
-		vm.ParseTree = function(){
-			//todo from and toExcl?
-			//is '{' or '[' or '(' or '<' or [loneTok where isLoneToken(loneTok) such as 'S' or '#AName' or '3.2'
-			//or "'hello world'" or hello or world since starting with lowercase without whitespace means string literal]
-			this.firstToken = null;
-			this.childs = [];
-		};
-		//vm.Tree.prototype.parseToMakeChilds = function(){
 		
-		
+		//Start here for parse and tostring of combos of fns. View and Viewing are used inside it.
+		//
 		//new Viewer().fnToString(anyFn) -> code string. TODO hook that into toString of fn (aka of what lambdize returns).
 		//
 		//Start here for parse and tostring of combos of fns. View and Viewing are used inside it.
@@ -4695,10 +4688,14 @@ const Wikibinator203 = (()=>{
 			
 			this.localNameToView = {};
 			
+			//FIXME those seem old design. see syty and < [ { ( : etc.
 			this.syntaxTypeIsLeaf = {'U':true, '0':true, '_':true, ',':true};
 		};
 		
-		
+		//internal datastruct of Viewer.
+		//
+		//wrapper of a fn, in context of a Viewer that remembers which branches are open/closed
+		//and maybe the #Names of fns for where they occur more than once.
 		vm.View = function(viewer, fn){
 			this.viewer = viewer; //what makes these View objects
 			this.fn = fn; //the fn its a View of		
@@ -4711,6 +4708,8 @@ const Wikibinator203 = (()=>{
 			this.syntaxType = null;
 		};
 		
+		//internal datastruct of Viewer.
+		//
 		//during a tostring from a fn recursively into its childs, accumulate strings in this.tokens.
 		//A Viewing is a param of fnToStringRecurse.
 		//You normally use 2 Viewing per fnToStringRecurse,
@@ -4722,7 +4721,7 @@ const Wikibinator203 = (()=>{
 			//map of View to number, only counting refs (incoming pointer) that are displayed, not counting those inside double literals etc.
 			this.refCount = new Map();
 			this.indentString = '\t';
-			this.pt = null; //a vm.ParseTree
+			this.pt = null; //a vm.ParseTree. TODO use this?
 		};
 		
 		vm.Viewer.prototype.newViewing = function(){
@@ -4749,11 +4748,26 @@ const Wikibinator203 = (()=>{
 			return this.tokens.join('');
 		};
 		
+		//FIXME dont include any names by default. But for now, including all the op names (in vm.ops),
+		//cuz the Name# system isnt working yet.
+		vm.newDefaultNamespace = function(){
+			let ret = {};
+			for(let opName in vm.ops) ret[opName] = vm.ops[opName];
+			return ret;
+		};
+		
+		
 		//string -> fn
 		//
 		//Normally implemented in vm.Viewer.prototype.eval
-		vm.eval = function(wikibinator203CodeString){
-			return vm.getViewer().eval(wikibinator203CodeString);
+		vm.eval = function(wikibinator203CodeString,optionalNamespace){
+			//return vm.getViewer().eval(wikibinator203CodeString);
+			let v = vm.getViewer();
+			let tokens = v.tokenize(wikibinator203CodeString);
+			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
+			let parseTree = v.tokensToParseTree(parsing);
+			let namespace = optionalNamespace || vm.newDefaultNamespace(); //is modified by parseTree.eval if that defines names, and is read.
+			return parseTree.eval(namespace);
 		};
 		
 		vm.Viewer.prototype.fnToString = function(fn){
@@ -5039,7 +5053,7 @@ const Wikibinator203 = (()=>{
 		
 		//key is char. val is true. these are not for splitting in string literals, just for the parts of code between them.
 		vm.Viewer.prototype.simpleSplitCharsSet = {};
-		for(let ch of '_,()[]{}<>? \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
+		for(let ch of '#:_,()[]{}<>? \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
 		//FIXME maybe . shouldnt be a splitChar like in .varA.b.cde if its also going to be used in number literals like 3.4 .
 		
 		//code thats before, between, or after string literals -> list of tokens.
@@ -5060,7 +5074,18 @@ const Wikibinator203 = (()=>{
 			}
 			let startIndex = tokens[0]==' ' ? 1 : 0;
 			let endIndexExcl = tokens[tokens.length-1]==' ' ? tokens.length-1 : tokens.length;
-			return tokens.slice(startIndex,endIndexExcl);
+			let tokensButSomeNeedMerge = tokens.slice(startIndex,endIndexExcl);
+			//next, merge # onto the end of whatever token came just before it, like AName#(...) or A#a:B#b:C#c
+			tokens = [];
+			for(let token of tokensButSomeNeedMerge){
+				if(token == '#'){
+					if(!tokens.length) throw 'cant start with #. It goes after a Name# or for CommentedFunc (or what was that op called) its Name##(...).';
+					tokens[tokens.length-1] += token;
+				}else{
+					tokens.push(token);
+				}
+			}
+			return tokens;
 		}
 		
 		//returns list of strings. string literals start with ' such as returns js list ["(", "Concat", "'hello wor'", "'ld'"].
@@ -5078,7 +5103,7 @@ const Wikibinator203 = (()=>{
 				}
 			}
 			return tokens;
-		}
+		};
 		
 		vm.strIsAllWhitespace = s=>(s==0);
 		//unlike FnIsAllWhitespace which would better be made of combos of U (and maybe optimized using an Evaler) than part of vm.
@@ -5096,6 +5121,7 @@ const Wikibinator203 = (()=>{
 			//this.fn = vm.identityFunc;
 			this.stack = [vm.identityFunc]; //of fns. When parsing finishes, there is 1 thing on the stack, the fn the wikibinator203 code evaled to.
 		};
+		
 		
 		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		vm.Parsing.prototype.isUnaryToken = function(token){
@@ -5170,6 +5196,21 @@ const Wikibinator203 = (()=>{
 			if(this.maxParseSteps <= 0) throw 'Parser is broken. Ran out of parsing.maxParseSteps. If this isnt a call of vm.eval/vm.viewer.eval then caller should set maxParseSteps to vm.viewer.maxParseStepsForNumTokens(yourTokens.length). parsing='+this;
 			this.maxParseSteps--;
 		};
+		
+		vm.pushTokenToPopToken = {
+			'(': ')',
+			'{': '}',
+			'[': ']',
+			'<': '>',
+		};
+		
+		vm.isListBorderToken = {};
+		for(let token in vm.pushTokenToPopToken){
+			vm.isListBorderToken[token] = true;
+			vm.isListBorderToken[vm.pushTokenToPopToken[token]] = true;
+		}
+		
+		vm.syntaxNeedsColorBetween2Chars = (charA,charB)=>(!isListBorderToken[charA]&&!isListBorderToken[charB]);
 		
 		vm.Parsing.prototype.isMatchingPushAndPopTokens = function(pushToken, popToken){
 			switch(pushToken){
@@ -5250,6 +5291,201 @@ const Wikibinator203 = (()=>{
 		
 		//TODO move this func to Parsing class?
 		vm.Viewer.prototype.maxParseStepsForNumTokens = function(numTokens){ return 5+3*numTokens; };
+		
+		//FIXME what about λ (lowercase lambda) vs Λ (capital lambda) and other codepoints?
+		vm.isCapitalLetter = x=>/^([A-Z]|Λ)$/.test(x);
+		//vm.isCapitalLetter = x=>/^[A-Z]$/.test(x);
+		
+		/*
+		//such as 'Aname#' in 'AName#(S T T)'. It used to be #Aname, but cuz of the order of parsing in : syntax,
+		//I'm putting name first, so can A#a:B#b:C#c, and in that case A means (a:b:c) and B means (b:c) and C means c.
+		vm.numberOf
+		vm.isDefineNameToken
+		*/
+		
+		//returns a vm.Parsing or null. Returns null if its all whitespace from current position, so dont add that to childs list.
+		//This is a redesign of parse function, to split it into 2 steps, parsing into tree, then evaling.
+		//This is thue "parsing into tree" step. Param is list of string such as:
+		//'{' or '[' or '(' or '<' or [loneTok where isLoneToken(loneTok) such as 'S' or '#AName' or '3.2'
+		//or "'hello world'" or hello or world since starting with lowercase without whitespace means string literal.
+		//
+		//TODO??? Takes vm.Parsing as param.
+		//OLD: 0 <= from && from < tokens.length.
+		//returns a vm.ParseTree. Calls itself recursively.
+		vm.Viewer.prototype.tokensToParseTree = function(parsing){
+			//FIXME handle ':'/'' syntax.
+			
+			let firstToken = parsing.tokens[parsing.from];
+			while(vm.strIsAllWhitespace(firstToken)){
+				firstToken  = parsing.tokens[++parsing.from]; //skip whitespace
+			}
+			if(parsing.from >= parsing.tokens.length){
+				//throw 'cant parse all whitespace at end. shouldnt have called tokensToParseTree that last time.';
+				return null;
+			}
+			let ret = new vm.ParseTree();
+			if(firstToken.endsWith('#')){ //AName#
+				if(firstToken.endsWith('##')){ //OpCommentedFuncOfOneParam and AName#
+					//FIXME update comments in vm.Parsing cuz not including ## at end
+					ret.defineCommentAndNameToken = firstToken.substring(0,firstToken.length-2);
+				}else{
+					//FIXME update comments in vm.Parsing cuz not including # at end
+					ret.defineNameToken = firstToken.substring(0,firstToken.length-1);
+				}
+				firstToken = parsing.tokens[++parsing.from]; //after the AName# or AName## is whatever its the name of.
+			}
+			if(parsing.isLoneToken(firstToken)){ //FIXME isLoneToken, should it match whitespace? if so, its only matching ' ' but not '\n' or '\t' etc.
+				if(vm.isCapitalLetter(firstToken[0])){
+					ret.useExistingNameToken = firstToken;
+				}else{
+					ret.literalToken = firstToken;
+				}
+			}else if(parsing.isPushToken(firstToken)){ //One of '{', '[', '(', '<', but doesnt handle ':'/'' here despite its also a listType.
+				//pushToken. but ':' is not a push or pop token, despite its still a listType, so not doing that here.
+				ret.listType = firstToken;
+				let popToken = vm.pushTokenToPopToken[firstToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
+				parsing.from++; //dont need parsing.toExcl in tokensToParseTree but may have needed it in the old design.
+				while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
+					let childParseTree = this.tokensToParseTree(parsing); //does parsing.from++ at end, so is just past what it parsed
+					if(childParseTree){ //would be null if its all whitespace at end
+						ret.childs.push(childParseTree);
+					}
+				}
+				parsing.tokens[++parsing.from];
+			}
+			parsing.from++; //does parsing.from++ at end, so is just past what it parsed
+			if(!ret.defineCommentAndNameToken && !ret.defineNameToken && !ret.listType && !ret.literalToken && !ret.useExistingNameToken){
+				throw 'Didnt set any of the fields, retParsing='+ret;
+			}
+			return ret;
+		};
+		
+		//internal datastruct of Viewer.
+		//
+		//alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs,
+		//before evaling anything, which means it wont merge duplicate fns in code string at this level
+		//(and at lazyDedup level it will mostly except for some blobs, and at globalId256 level
+		//everything is deduped). Make that tree so can look at it in browser debugger to make sure
+		//it parsed right before evaling its parts, since thats unnecessary extra work to do at
+		//once when tracking down bugs. Eventually the eval func will be derived from combos of
+		//U/TheUniversalLambda, so you can make new syntaxes at the same level as the default
+		//syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\'
+		//where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind,
+		//< [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
+		vm.ParseTree = function(){
+			//todo from and toExcl?
+			//is '{' or '[' or '(' or '<' or [loneTok where isLoneToken(loneTok) such as 'S' or '#AName' or '3.2'
+			//or "'hello world'" or hello or world since starting with lowercase without whitespace means string literal]
+			//this.defineNameToken = null; //like 'AName#' or 'AName##', or null.
+			this.defineNameToken = null; //like 'AName' of 'AName#', or null. null if defineCommentAndNameToken is not null, etc.
+			this.defineCommentAndNameToken = null; //'AName' of 'AName##', or null. OpCommentedFuncOfOneParam.
+			this.useExistingNameToken = null; //like 'AName', or null.
+			//like '2.34e-5' or '12' or '\'hello world\'' or '\'hello\'' or 'hello', since if it doesnt start with capital letter
+			//and has no whitespace and is small enough, you dont need the quotes.
+			//If its like that but starts with capital letter, its a useExistingNameToken.
+			this.literalToken = null;
+			this.listType = null; //One of '{', '[', '(', '<', ':', or null.
+			this.childs = [];
+		};
+		//vm.Tree.prototype.parseToMakeChilds = function(){
+
+			
+		vm.ParseTree.prototype.toString = function(){
+			let s = '';
+			if(this.defineNameToken){
+				s += this.defineNameToken+'#';
+			}else if(this.defineCommentAndNameToken){
+				s += this.defineNameToken+'##';
+			}else if(this.useExistingNameToken){
+				s += this.useExistingNameToken;
+			}else if(this.literalToken){
+				s += this.literalToken;
+			}else if(this.listType){
+				if(this.listType == ':'){
+					for(let i=0; i<this.childs.length; i++){
+						let nextChildStr = this.childs[i].toString(); //aka child+'', but avoid extra concat
+						if(i && vm.syntaxNeedsColorBetween2Chars(s[s.length-1],nextChildStr[0])){
+							//Example that needs colon: a:b
+							//Example that doesnt need colon: (S T T)b(hello world)
+							//Example that doesnt need colon: {T T}b(hello world)
+							//Example that doesnt need colon: M[hello world]
+							s += ':';
+						}
+						s += nextChildStr;
+					}
+				}else{
+					s += this.listType; //{ [ ( <
+					for(let i=0; i<this.childs.length; i++){
+						if(i) s += ' ';
+						s += this.childs[i];
+					}
+					s += vm.pushTokenToPopToken[this.listType]; //} ] ) >
+				}
+			}
+			return s;
+		};
+		
+		//TODO hook into Viewer or Viewing or parsing.loneTokenToFn, for AName#/AName##.
+		//Skip names for now. FIXME
+		//TODO using Name# Fills optionalMapOfStringToFn as mutable {}. Creates optionalMapOfStringToFn if one isnt given.
+		//If you want names like 'S' and 'U' and 'Pair' to work, put them in that param.
+		vm.ParseTree.prototype.eval = function(optionalMapOfStringToFn){
+			//FIXME use vm.stackTime and vm.stackMem etc, in case parsing costs too much compute resources (such as infinite loop cuz of parser bug, or if it looks things up that somehow (maybe in future version)
+			//causes looking them up on harddrive or internet (constants only by merkle hash id, not something that changes,
+			//except MutableWrapperLambda isnt strongly enforced that it doesnt change and is an incomplete design as of 2022-4.
+			if(!this.fn){
+				let map = optionalMapOfStringToFn || {};
+				let ret;
+				if(this.useExistingNameToken){
+					ret = map[this.useExistingNameToken];
+					if(!ret) throw 'Name not found: '+this.useExistingNameToken;
+				}else if(this.literalToken){
+					throw 'TODO literalToken='+this.literalToken;
+				}else if(this.listType){
+					if(this.listType == '('){ //curryList, just call them left to right. (a b c d) means (((a b) c) d).
+						ret = Ident;
+						for(let childParseTree of this.childs){
+							ret = ret(childParseTree.eval(map));
+						}
+					}else if(this.listType == ':'){ //a:b:c:d means (a (b (c d)))
+						if(this.childs.length < 2) throw 'The : syntax (which also occurs when theres no space between some things) requires at least 2 childs but found '+this.childs.length;
+						ret = this.childs[this.childs.length-1].eval(map);
+						for(let c=this.childs.length-2; c>=0; c--){ //eval in reverse order than (...).
+							ret = childParseTree.eval(map)(ret);
+						}
+					}else if(this.listType == '{'){ //sCurryList. {a b c d} means (S (S (S a b) c) d)
+						if(!this.childs.length) return Ident; //FIXME is that what empty {} means?
+						ret = this.childs[0].eval(map);
+						for(let c=1; c<this.childs.length; c++){
+							ret = S(ret)(this.childs[c].eval(map));
+						}
+					}else if(this.listType == '['){ //incur list. [a b c d] means (Infcur a b c d).
+						ret = ops.Infcur;
+						for(let childParseTree of this.childs){
+							ret = ret(childParseTree.eval(map));
+						}
+					}else if(this.listType == '<'){ //TODO to find comments about this search for ?2
+						throw 'TODO <...>/?GetVarDeep syntax, this='+this;
+					}else{
+						throw 'Unknown listType='+this.listType;
+					}
+				}
+				if(this.defineNameToken){
+					map[this.defineNameToken] = ret;
+				}else if(this.defineCommentAndNameToken){
+					throw 'TODO defineCommentAndNameToken OpCommentedFuncOfOneParam, this='+this;
+					//let defineCommentAndNameToken_asFn = TODO
+					//ret = ops.OpCommentedFuncOfOneParam(defineCommentAndNameToken_asFn)(ret);
+					//map[this.defineCommentAndNameToken] = ret;
+				}
+				if(!ret){
+					throw 'No ret. I saw ret===undefined here 2022-4-30. What caused it?';
+				}
+				this.fn = ret;
+				//loneTokenToFn
+			}
+			return this.fn;
+		};
 
 		//reads a list of js strings (parse.tokens) and evals the combo of lambdas it means,
 		//and returns it (whatevers at top parsing.stack[parsing.stack.length-1] at end of this parse call,
@@ -5264,6 +5500,9 @@ const Wikibinator203 = (()=>{
 		//Reads parse.tokens and parse.from. Writes parse.to when whatever parse.tokens[parse.from] opens is closed, such as ( and ) or { and },
 		//or a lone token may be its own open and close such as hello or 'hello'.
 		vm.Viewer.prototype.parse = function(parsing){
+			//FIXME replace this with 2 steps, as explained in tokensToParseTree which is the first of 2 steps.
+			
+			
 			let tok = parsing.tokens;
 			/*let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
 			if(fromTok === undefined) throw 'parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
@@ -5410,6 +5649,7 @@ const Wikibinator203 = (()=>{
 			console.log('PARSEEND');
 			return parsing.stack[parsing.stack.length-1]; //Parsing.parse returns return whatever on top of Parsing.stack at end
 		};
+		
 		
 		
 		
