@@ -2,6 +2,8 @@
 
 Some basic parts work, or use earlier wikibinator106. (TODO custom opensource license) For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/TestWikibinator203VM.html.png>
+
 To see it working, look at this browser console output (from the html file) <a href=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt>https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt</a>
 
 Working on the programming language syntax.
