@@ -18,16 +18,28 @@ for(let op of vm.opInfo){
 
 window.onload = ()=>{
 	dom('mainDiv').innerHTML = h;
-	dom('codeIn').value = '(S (F U) (F U) Pair)';
+	
+	//let firstCode = '(S (F U) (F U) Pair)';
+	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
+	let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
+	dom('codeIn').value = firstCode;
 	evalTextAreas();
 };
 
 var evalTextAreas = ()=>{
+	vm.refill();
 	let textOut = 'ERROR';
 	try{
-		let wikibinator202CodeIn = dom('codeIn').value;
-		let fnOut = Eval(wikibinator202CodeIn);
-		textOut = ''+fnOut;
+		let wikibinator203CodeIn = dom('codeIn').value;
+		if(dom('isEvalElseOnlyParse').checked){
+			console.log('Eval');
+			let fnOut = Eval(wikibinator203CodeIn);
+			textOut = ''+fnOut;
+		}else{
+			console.log('Parse');
+			let parseTree = Parse(wikibinator203CodeIn)
+			textOut = ''+parseTree;
+		}
 	}catch(e){
 		textOut = 'ERROR: '+e;
 	}
@@ -36,6 +48,10 @@ var evalTextAreas = ()=>{
 
 
 var Eval = vm.eval; //of wikibinator203 code string -> fn. fn means a wikibinator203 lambda that is a javascript function of 1 param.
+
+var lastParseTree = null;
+
+var Parse = code=>(lastParseTree=vm.parse(code));
 
 /*//TODO move this to a separate js file or the html file...
 
@@ -109,12 +125,19 @@ console.log('vm.eval passed basic tests.');
 		Example: ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T)))) -> T<br> - as in <a href=https://en.wikipedia.org/wiki/Iota_and_Jot>https://en.wikipedia.org/wiki/Iota_and_Jot</a> cuz T is the K of SKI-Calculus.<br>
 		Example: ((Pair S T) ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T))))) -> S<br> - as in <a href=https://en.wikipedia.org/wiki/Iota_and_Jot>https://en.wikipedia.org/wiki/Iota_and_Jot</a> cuz T is the K of SKI-Calculus.<br>
 		This is an infinite loop (though runs out of javascript stack: (S (F U) (F U) (S (F U) (F U)))<br>
+		[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)] -> [(Pair Pair) (F F)] //TODO keep the Names#.<br>
 		<b>It will be much easier use when Names#(...) and drag-and-drop and 1024x1024 per pixel graphics are working.</b><br>
 		<br>
 		Wikibinator203 code in.<br>
 		<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea><br>
 		Eval of the above code, out:<br>
 		<textarea id=codeOut rows="5" cols="100" readonly></textarea><br>
+		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
 	</center>
+	
+	<a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a><br>
+	<a href=https://twitter.com/wikibinator>https://twitter.com/wikibinator</a><br>
+	<br>
+	
 	<div id="mainDiv"></div>
 </body></html>

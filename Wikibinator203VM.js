@@ -3081,6 +3081,7 @@ const Wikibinator203 = (()=>{
 		
 		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
 		vm.stackMem = 1000000;
+		vm.stackDeep = 100; //TODO should probably be higher, but might need to not use js stack if too deep.
 
 		vm.gasErr = 'gasErr';
 
@@ -3999,7 +4000,16 @@ const Wikibinator203 = (()=>{
 				//TODO optimize: maybe it should be aLambda.n to get the Node?
 				//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
 				if(param === undefined) return NODE;
-				return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka prepay(number,number)
+				try{
+					if(--VM.stackDeep <= 0){
+						console.log('stackDeep ran out. TODO remove this message since its not an error exactly, is something that opSpend should try/else.');
+						throw VM.gasErr;
+					}
+					return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka
+					prepay(number,number)
+				}finally{
+					++VM.stackDeep;
+				}
 			};
 			lambda.n = NODE; //so you can get node by aLambda.n or by aLambda(). TODO optimize by removing the aLambda() way cuz its slower.
 			//causes vm.isLambda(lambda)->true but vm.isLambda({isWikibinator203Lambda:true})->false
@@ -4260,19 +4270,32 @@ const Wikibinator203 = (()=>{
 		//until the first call returns, then can start with any StackStuff you and stackTime stackMem etc you want.
 		vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
 		
+		//FIXME these amounts to refill it to should very, depending on stats and amount of compute resources of caller,
+		//but its just a small amount of compute resources to get started with,
+		//or maybe its too much for small tests. Will need to play with these numbers to find what works.
+		vm.refill = function(){
+			//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
+			vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+			vm.stackMem = 1000000;
+			
+			//In theory this prevents js stack from running out, by failing earlier, in a way opSpend can try/else.
+			//This counts down per fn call (in a js function made by lambdize that does NODE.getEvaler()) deeper,
+			//throws vm.gasErr if it runs out, then is incremented back to where it was.
+			//
+			//FIXME this is a way to prevent stackoverflowerrors in the outer system the VM is built in, such as on javascript python java or c++ stack, BUT FIXME what units to measure it in, stackframes? no, cuz they are variable size. ints or bytes or sizeof(pointer)? seems better but might be hard to count those. Figure it out.
+			vm.stackDeep = 100;
+			
+			//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
+			vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
+			vm.stackCpuCompile = 1000000; //TODO
+			vm.stackNetworkUpload = 1000000; //TODO
+			vm.stackNetworkDownload = 1000000; //TODO
+			vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
+			vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
+			vm.stackStuff = vm.defaultStackStuff;
+		};
 		
-		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
-		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-		vm.stackMem = 1000000;
-		vm.stackDeep = 300; //FIXME this is a way to prevent stackoverflowerrors in the outer system the VM is built in, such as on javascript python java or c++ stack, BUT FIXME what units to measure it in, stackframes? no, cuz they are variable size. ints or bytes or sizeof(pointer)? seems better but might be hard to count those. Figure it out.
-		//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
-		vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
-		vm.stackCpuCompile = 1000000; //TODO
-		vm.stackNetworkUpload = 1000000; //TODO
-		vm.stackNetworkDownload = 1000000; //TODO
-		vm.stackDriveRead = 1000000; //TODO. this may be window.localStorage or in other VMs they might support harddrive/SSD but only for storage of nodes and blobs not executing.
-		vm.stackDriveWrite = 1000000; //TODO. see stackDriveRead.
-		vm.stackStuff = vm.defaultStackStuff;
+		vm.refill();
 		
 		
 		/*
@@ -4756,16 +4779,23 @@ const Wikibinator203 = (()=>{
 			return ret;
 		};
 		
+		//returns a vm.ParseTree
+		vm.parse = function(wikibinator203CodeString){
+			//return vm.getViewer().eval(wikibinator203CodeString);
+			let v = vm.getViewer();
+			let tokens = v.tokenize(wikibinator203CodeString);
+			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
+			return v.tokensToParseTree(parsing);
+		};
+		
+		//vm.afterParse(vm.parse(wikibinator203CodeString,optionalNamespace)) is same as 
+		//vm.afterParse = function(wikibinator203CodeString){
 		
 		//string -> fn
 		//
 		//Normally implemented in vm.Viewer.prototype.eval
 		vm.eval = function(wikibinator203CodeString,optionalNamespace){
-			//return vm.getViewer().eval(wikibinator203CodeString);
-			let v = vm.getViewer();
-			let tokens = v.tokenize(wikibinator203CodeString);
-			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
-			let parseTree = v.tokensToParseTree(parsing);
+			let parseTree = vm.parse(wikibinator203CodeString);
 			let namespace = optionalNamespace || vm.newDefaultNamespace(); //is modified by parseTree.eval if that defines names, and is read.
 			return parseTree.eval(namespace);
 		};
@@ -4782,11 +4812,15 @@ const Wikibinator203 = (()=>{
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
 			
-			if(view.builtInName && view.fn != ops.Infcur){ //FIXME
+			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
+			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
+			if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
 				//includes U (or FIXME is it still lowercase u? cuz Names cant start with lowercase
 				//cuz thats automatic string literal if it has no spaces.)
-				viewing.tokens.push(view.builtInName);
-				console.log('viewing.tokens.push builtInName '+view.builtInName);
+				//viewing.tokens.push(view.builtInName);
+				viewing.tokens.push(view.fn.localName);
+				//console.log('viewing.tokens.push builtInName '+view.builtInName);
+				console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
 			}else{
 				//FIXME where to put the info that something is a (S Thing)? cuz (S (S A B) C) is {A B C} aka {{A B} C}.
 				//Should that be syntaxtype 'S' or '(S' etc?
@@ -5154,7 +5188,9 @@ const Wikibinator203 = (()=>{
 			//include whitespace (FIXME theres lots of kinds of unicode whitespace, but those 4 '\t\r\n ' are usually enough. Default: \n instead of \r or \r\n.
 			
 			//Example: vm.ops.S and vm.opAbbrevs._->ops.Seq and vm.opAbbrevs[',']->ops.T
-			return token.length != 1 || '\t\r\n _?,'.includes(token) || vm.ops[token] || vm.opAbbrevs[token]; //TODO get these from vm.opInfo.prefix
+			//return token.length != 1 || '\t\r\n _?,'.includes(token) || vm.ops[token] || vm.opAbbrevs[token] || token.endsWith('#'); //TODO get these from vm.opInfo.prefix
+			//return token.length != 1 || '\t\r\n _?,'.includes(token) || vm.ops[token] || vm.opAbbrevs[token] || token.endsWith('#'); //TODO get these from vm.opInfo.prefix
+			return !vm.strIsAllWhitespace(token) && !vm.isListBorderToken[token];
 			//return token.length != 1 || '_?,(){}[]<>'.includes(token);
 		};
 		
@@ -5162,6 +5198,10 @@ const Wikibinator203 = (()=>{
 			//return this.isUnaryToken(token) || token=='(' || token=='{' || token=='[' || token == '<';
 			//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 			return token=='(' || token=='{' || token=='[' || token == '<';
+		};
+		
+		vm.Parsing.prototype.isPopToken = function(token){
+			return token==')' || token=='}' || token==']' || token == '>';
 		};
 		
 		//Examples: 'S', 'Pair' (which are builtInName), or TODO if its a localName.
@@ -5342,15 +5382,19 @@ const Wikibinator203 = (()=>{
 				}
 			}else if(parsing.isPushToken(firstToken)){ //One of '{', '[', '(', '<', but doesnt handle ':'/'' here despite its also a listType.
 				//pushToken. but ':' is not a push or pop token, despite its still a listType, so not doing that here.
-				ret.listType = firstToken;
-				let popToken = vm.pushTokenToPopToken[firstToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
+				let pushToken = firstToken;
+				ret.listType = pushToken;
+				let popToken = vm.pushTokenToPopToken[pushToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
 				parsing.from++; //dont need parsing.toExcl in tokensToParseTree but may have needed it in the old design.
-				while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
+				//while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
+				let observedPopToken = null;
+				while(parsing.from < parsing.tokens.length && !parsing.isPopToken(observedPopToken=parsing.tokens[parsing.from])){
 					let childParseTree = this.tokensToParseTree(parsing); //does parsing.from++ at end, so is just past what it parsed
 					if(childParseTree){ //would be null if its all whitespace at end
 						ret.childs.push(childParseTree);
 					}
 				}
+				if(parsing.isPopToken(observedPopToken) && popToken != observedPopToken) throw pushToken+' doesnt match '+observedPopToken+', expected '+popToken+', parsedSoFar='+ret;
 				parsing.tokens[++parsing.from];
 			}
 			parsing.from++; //does parsing.from++ at end, so is just past what it parsed
@@ -5396,7 +5440,9 @@ const Wikibinator203 = (()=>{
 				s += this.defineNameToken+'#';
 			}else if(this.defineCommentAndNameToken){
 				s += this.defineNameToken+'##';
-			}else if(this.useExistingNameToken){
+			}
+			//if it defines a name, the (...) etc comes after it.
+			if(this.useExistingNameToken){
 				s += this.useExistingNameToken;
 			}else if(this.literalToken){
 				s += this.literalToken;
@@ -5473,7 +5519,7 @@ const Wikibinator203 = (()=>{
 				if(this.defineNameToken){
 					map[this.defineNameToken] = ret;
 				}else if(this.defineCommentAndNameToken){
-					throw 'TODO defineCommentAndNameToken OpCommentedFuncOfOneParam, this='+this;
+					throw 'TODO defineCommentAndNameToken OpCommentedFuncOfOneParam, must get strings (use Node.blob) working first, this='+this;
 					//let defineCommentAndNameToken_asFn = TODO
 					//ret = ops.OpCommentedFuncOfOneParam(defineCommentAndNameToken_asFn)(ret);
 					//map[this.defineCommentAndNameToken] = ret;
@@ -5482,6 +5528,14 @@ const Wikibinator203 = (()=>{
 					throw 'No ret. I saw ret===undefined here 2022-4-30. What caused it?';
 				}
 				this.fn = ret;
+				
+				
+				//FIXME should Node.localName be modified? Or keep it in ParseTree andOr View Viewing Viewer etc?
+				//ignore this.useExistingNameToken cuz that would have been defined earlier
+				let name = this.defineNameToken || this.defineCommentAndNameToken || null;
+				if(name) this.fn.localName = name;
+				
+				
 				//loneTokenToFn
 			}
 			return this.fn;
