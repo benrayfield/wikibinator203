@@ -449,7 +449,7 @@ freeze the above few default vals somehow.
 
 
 
-It appears that if the first 13 bits are 1, then thats never used (a subrange of nonnormed negative infinity), leaving me 51 bits for ids.
+It appears that if the first 13 bits are 1 (UPDATE: 14?), then thats never used (a subrange of nonnormed negative infinity), leaving me 51 bits for ids.
 Anything that doesnt start with 13 1s is viewed as a double.
 Use the first 3 of those 51 bits to choose between 8 kinds of things, of up to 2^48 possible ids each?
 Those 8 things: split on deduped/dup, so 4 things left: literalBitsThatFitInId64, fn, other(prefixByteOfOther_*), reservedForFutureExpansion.
@@ -2170,7 +2170,7 @@ stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on
 stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
 stackIsAllowMutableWrapperLambda
 stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
-varargAxCall //(varargAxCall constraint ...params...) ... (varargAxCall constraint a) is halted if (constraint a)->u, and evals to v if (constraint a)->(u v), so varargAxCall chooses at each next param that it has enough params or not (vararg) and if not then what the return val is. These ax (axiom-like) constraints are a turing-complete-type-system that could for example make a list that can only contain prime numbers, or a tree that can only have a certain type of nodes in it. It takes finite time to compute, just normal forward computing, but cuz of haltingProblem, it takes on average infinity time and memory to verify, so theres a containsAxConstraint bit in header int and a stackIsAllowAx bit on stack thats also in that header int for nonhalted calls/nodes. varargAxCall tightens cleanvsdirty (higher on stack) to be deterministic (ax is deterministic, but so is not allowing ax), so you cant for example have an ax constraint about nondeterministic roundoff or about mutableWrapperLambda.
+varargAxCall //(varargAxCall constraint ...params...) ... (varargAxCall constraint a) is halted if (constraint [(varargAxCall constraint ...paramsExceptLast...) lastParamSoFar])->u, and evals to v if that -> (u v), so varargAxCall chooses at each next param that it has enough params or not (vararg) and if not then what the return val is. These ax (axiom-like) constraints are a turing-complete-type-system that could for example make a list that can only contain prime numbers, or a tree that can only have a certain type of nodes in it. It takes finite time to compute, just normal forward computing, but cuz of haltingProblem, it takes on average infinity time and memory to verify, so theres a containsAxConstraint bit in header int and a stackIsAllowAx bit on stack thats also in that header int for nonhalted calls/nodes. varargAxCall tightens cleanvsdirty (higher on stack) to be deterministic (ax is deterministic, but so is not allowing ax), so you cant for example have an ax constraint about nondeterministic roundoff or about mutableWrapperLambda.
 lambda //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
 getnamedparam //ddee? would be a syntax for '(getnamedparam "ddee")', and appears like 'ddee?' .
 opOneMoreParam //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
@@ -2661,7 +2661,7 @@ const Wikibinator203 = (()=>{
 		//how they are to interact with eachother.
 		//To avoid accidentally defining something as "certainly good", I'm just making all the evilBits be true for now or when they are generated,
 		//and users andOr whatever tools they want, can flip the evilBit to good/false in lambdas they choose when sharing them online, if they want to.
-		//UPDATE: I'm adding another bit on the stack to limit the use of the import op to "any lambda" vs "only good lambdas": vm.mask_stackIsAllowImportEvilIds.
+		//NEVERMIND ABOUT COULDNT MAKE THIS PART CONSISTENT[[[ UPDATE: I'm adding another bit on the stack to limit the use of the import op to "any lambda" vs "only good lambdas": vm.mask_stackIsAllowImportEvilIds. ]]]
 		vm.evilBit = true;
 		
 		
@@ -2681,9 +2681,8 @@ const Wikibinator203 = (()=>{
 		//FIXME do they overlap as bigEndian or littleEndian, and is it per int or per byte or what? Make it consistent across all systems,
 		//and I would prefer bigEndian unless most or all systems already do littleEndian in browser.
 		
+		//is it a wikibinator203 lambda (which is also a javascript lambda, in this VM, but may be implemented other ways in other wikibinator203 VM's)?
 		vm.isLambda = function(thing){
-			//FIXME some rare times there could be false positive. Maybe lambdize should put in a isLambda:true field.
-			//return thing.n && typeof(thing)=='function';
 			return thing.isWikibinator203Lambda && typeof(thing)=='function';
 		};
 		
@@ -2731,7 +2730,7 @@ const Wikibinator203 = (()=>{
 			
 			//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
 			//evalers take 3 params: vm func param, instead of making a node of func and param together.
-			//In case other implementations want to have nodes that are evaling (maybe to display them on screen as a directed graphics
+			//In case other implementations want to have nodes that are evaling (maybe to display them on screen as a directedgraph
 			//with green arrow pointing at left child, blue arrow pointing at right child, and red arrow pointing at what it evals to (itself if is halted, or another lambda,
 			//or to (s i i (s i i)) if its known that it doesnt halt, for example.
 			//if(isEvaling) throw 'Dont eval here, use aLambda().getEvaler() aka aNode.getEvaler()';
@@ -2797,6 +2796,7 @@ const Wikibinator203 = (()=>{
 						if(lambdaNumCurries < vm.maxCurries){ //(opOneMoreParam varNameOrComment (lambda...)) as usual, and later (opOneMoreParam varNameOrComment (lambda...) ...put more params here...).
 							curriesLeft = lambdaNumCurries+1; //if curriesLeft==vm.maxCurries, then it will never eval, similar to infcur
 						}else{
+							//UPDATE: theres no opOneMoreParam, and use Lambda or MutLam for vararg (up to around 250 params) instead.
 							//(opOneMoreParam varNameOrComment (lambda...)) but cant add another param cuz is already at max params.
 							//also cant infloop or throw like running out of gas, cuz the number of params is always known at the 7th param,
 							//and in that case (lambda...) is the 7th param, and varNameOrComment is the 6th param.
@@ -2881,7 +2881,20 @@ const Wikibinator203 = (()=>{
 			
 			//this.idString;
 			
-			this.evaler = l ? l().evaler : vm.rootEvaler; //u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+			//u/theUniversalFunction's evaler is vm.rootEvaler, but everything else copies its evaler from its l child, which may be optimized evalers added later.
+			//
+			//quote from farther below...
+			//
+			/*//This optimization makes it fast enough to use l(lambda) and r(lambda) instead of lambda().l and lambda().r.
+			//dont FuncallCache things that instantly return and cant make an infinite loop.
+			l().pushEvaler((vm,func,param)=>(param().l));
+			r().pushEvaler((vm,func,param)=>(param().r));
+			vm.identityFunc().pushEvaler((vm,func,param)=>param);
+			//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
+			//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
+			//TODO pushEvaler for isleaf etc
+			*/
+			this.evaler = l ? l().evaler : vm.rootEvaler;
 			
 			//this.prototype.prototype = vm;
 
@@ -3050,7 +3063,12 @@ const Wikibinator203 = (()=>{
 			//and if it doesnt match those first 5 bits
 			//then its neutral (doesnt have a header so doesnt have an evilBit being true or false)
 			//and is small enough its a literal that fits in an id.
-			return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
+			
+			let x = (headerInt>>24)&0xff;
+			return x==prefixByteOfOther_evilBitOn || x==callPairPrefixByte_evilBitOn; //FIXME theres faster way to do that, without 2 of ==, but might need to swap some of the constants in first byte.
+			//return (headerInt>>24)&0xff == vm.callPairPrefixByte_evilBitOn; //a certain value of first byte. literal256thatfitinid or callPairPrefixByte_evilBitOff return false.
+			
+			
 			/*vm.callPairPrefixByte_evilBitOn =  0b11110100; //FIXME might need to rearrange these bits so its easier to write as text in base64 or base58
 			vm.callPairPrefixByte_evilBitOff = 0b11110000; //FIXME
 			return (this.evilBitMaskOfHeaderInt&headerInt)?true:false;
@@ -3794,7 +3812,7 @@ const Wikibinator203 = (()=>{
 			//FIXME verify a is identityfunc and b is u.
 			
 			
-			if(!a || (!b.idA && !b.idB)) return 1; //u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
+			if(!a || (!b.idA && !b.idB)) return 1; //overly complex???... u doesnt have l and r childs when its created. those are added soon after, but hashtable is used first. TODO optimize by just setting u.hashInt andOr u().hashInt. the 2 childs of u will be identityFunc and u.
 			hashingInts[0] = a.idA;
 			hashingInts[1] = a.idB;
 			hashingInts[2] = a.blobFrom;
@@ -3823,14 +3841,16 @@ const Wikibinator203 = (()=>{
 			a*vm.hashIntSaltA + b*vm.hashIntSaltB + c*vm.hashIntSaltC
 		);*/
 
-		//TODO use Node.lazyReturn, as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
+		//TODO use Node.lazyReturn (UPDATE: 2022-6 I dont remember what that is? did i remove it? TODO),
+		//as a different way of funcall caching, but this way with the touch uses less memory and is a little faster.
 		//but as a demo of the math, make both ways work. it can be done without this kind of FuncallCache at all.
 		vm.FuncallCache = function(func,param,optionalStackStuff){
 			this.func = func;
 			this.param = param;
 			this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
 			this.ret = null; //func, param, and ret, are all what lambdize returns.
-			this.touch = ++this.touchCounter; //for garbcol of old funcallcaches
+			//should it be this? //this.touch = ++vm.touchCounter;
+			this.touch = ++this.touchCounter; //for garbcol of old funcallcaches. FIXME this.touchCounter? or vm.touchCounter? why was i thinking that vm==this? doesnt seem like that would be true.
 			this.hashInt = vm.hash3Ints(func.hashInt,param.hashInt,this.stackStuff.hashInt);
 		};
 		
@@ -3874,7 +3894,7 @@ const Wikibinator203 = (()=>{
 				case 2:
 					let func = arguments[0];
 					let param = arguments[1];
-					if(param().o8()==1 && func().o8() == this.o8OfIdentityFunc){
+					if(param().o8()==1 && func().o8() == this.o8OfIdentityFunc){ //"tie the quine knot" (see test cases about that)
 						vm.prepay1Time();
 						return this.u; //the only node whose o8 is 1, but I'm making a point by implementing it without using == on nodes, just on bytes.
 					}else{
@@ -3979,11 +3999,12 @@ const Wikibinator203 = (()=>{
 		//The output of lambdize is a fn (a wikibinator203 lambda). fnA(fnB)->fnC.
 		//This allows using .prototype for object-oriented implementation of the lambdas
 		//while they're still javascript lambdas.
-		//lambdize(nodeA).n==nodeA.
-		//lambdize(nodeA)()==nodeA.
-		//lambdize(nodeA)().idA or .otherFieldsOfNode .
-		//lambdize(nodeA).n.idA or .otherFieldsOfNode .
-		//lambdize(nodeA).n.lam==lambdize(nodeA).
+		//vm.lambdize(nodeA).n===nodeA.
+		//vm.lambdize(nodeA)()===nodeA.
+		//vm.lambdize(nodeA)().idA or .otherFieldsOfNode .
+		//vm.lambdize(nodeA).n.idA or .otherFieldsOfNode .
+		//vm.lambdize(nodeA).n.lam===vm.lambdize(nodeA).
+		//vm.lambdize(nodeA)===vm.lambdize(nodeA)
 		vm.lambdize = function(node){
 			if(node.lam) return node.lam;
 			const NODE = node;
@@ -4006,7 +4027,7 @@ const Wikibinator203 = (()=>{
 						throw VM.gasErr;
 					}
 					return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka
-					prepay(number,number)
+					//FIXME what is this here for?: prepay(number,number)
 				}finally{
 					++VM.stackDeep;
 				}
@@ -4042,8 +4063,8 @@ const Wikibinator203 = (()=>{
 			console.log('Add op '+name+' o8='+o8+' curriesLeft='+curriesLeft+' description: '+description);
 			return o8;
 		};
-		vm.addOp('Evaling',null,true,0,'This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
-		vm.addOp('U',null,true,7,'the universal lambda aka wikibinator203. There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.');
+		vm.addOp('Evaling',null,true,0,' opcode 0 (of 0-255). This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.');
+		vm.addOp('U',null,true,7,'the universal lambda aka wikibinator203. opcode 1 (of 0-255). There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.');
 		for(let o8=2; o8<128; o8++){
 			//TODO 'op' + 2 hex digits?
 			let numLeadingZeros = Math.clz32(o8);
@@ -4059,23 +4080,23 @@ const Wikibinator203 = (()=>{
 		vm.o8OfL = vm.addOp('L',null,false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
-		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean?');
+		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
 		vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
 		vm.o8OfLambda = vm.addOp('Lambda',null,true,2,'FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
-		vm.addOp('GetVarFn',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-		vm.addOp('GetVarDouble',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-		vm.addOp('GetVarDoubles',null,false,2,'theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
+		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
-		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,2,'FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
-		vm.addOp('S',null,false,3,'For control-flow. the s lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
+		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
+		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy');
-		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka (Infcur) is []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs. just keep calling it on more params and it will be instantly halted.');
+		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
 		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
 		//vm.addOp('Mut',null,false,6,'Used with opmut* and lambdaParams*. This is a snapshot of a key/fourVals, normally used in a [...] stream/Infcur. (Mut cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped) is halted, and add 1 more param and it infloops). FIXME should Mut be a little varargAx-like as it could verify its params are those types (but unlike varargAx, guarantees it verifies fast)?');
-		vm.addOp('OpmutOuter',null,false,2,'(opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
-		vm.addOp('OpmutInner',null,false,2,'See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
+		vm.addOp('OpmutOuter',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler. (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
+		vm.addOp('OpmutInner',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler.  See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
 		
 		
 		vm.addOp('StackIsAllowstackTimestackMem',null,false,1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
@@ -4113,7 +4134,13 @@ const Wikibinator203 = (()=>{
 		*/
 		vm.addOp('Seq','_',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].');
 		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.');
-		vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params?');
+		vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? UPDATE: that syntax puts the #Name on the left instead of the right, but no syntax is part of the spec, and all possible syntaxes can be made from the universal lambda.');
+		//(name,prefix,isStrange,curriesLeft,description)
+		//vm.addOp('AvlTree',null,false,?,'(AvlTree KeyComparator)');
+		//TODO just use [ [a b c d e] f [g h] i] (Infcur is []) instead? Or maybe a max branching factor of 2 (or some small constant) is better? vm.addOp('Sortree',null,false,?,'A sortable tree, that can be ordered a variety of ways. (Sortree Comparator ) (((A sortable tree, though it doesnt (like ax could) enforce being sorted. Ax could enforce being sorted, but ax constraints may take infinite time and memory to disprove a false claim, while taking finite time to prove a true claim.)))');
+		//vm.addOp('DDToD',null,false,?,'any (double,double)->double op, such as * + / pow etc.');
+		//vm.addOp('Cbt128To64',null,false,?,'(Cbt128To64 Func ) . Any 128 bits to 64 bits, such as (double,double)->double op or (double,long)->long etc, such as * + / pow etc. It takes an extra param that defines the logic, and this is more of a casting wrapper, that truncates its inputs and outputs to that, to make proofs easier, though nonhalting or allocation of memory might be a problem, in which case it might just call that func directly and wrap it literally, if it halts at all. Its meant to be a place to put an Evaler aka fn().pushEvaler((vm,func,param)->ret) or maybe another kind of evaler-like-thing thats specialized in (double,double)->double etc.');
+		
 		
 		/* todo these ops too...
 		TODO...
@@ -4236,7 +4263,7 @@ const Wikibinator203 = (()=>{
 		
 		vm.bit = function(bit){ return bit ? this.t : this.f };
 		
-		//In abstract math, evals to (s s s s) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
+		//In abstract math, evals to (S I I (S I I)) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
 		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
 		//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
 		vm.infloop = ()=>{ throw this.gasErr; }
@@ -4260,6 +4287,21 @@ const Wikibinator203 = (()=>{
 			this.saltB = saltB;
 			this.saltC = saltC;
 			this.saltD = saltD;
+		};
+		vm.StackStuff.prototype.stackIsAllowNondetRoundoff = function(){
+			return this.mask&vm.mask_stackIsAllowNondetRoundoff;
+		};
+		vm.StackStuff.prototype.stackAllowReadLocalIds = function(){
+			return this.mask&vm.mask_stackAllowReadLocalIds;
+		};
+		vm.StackStuff.prototype.stackIsAllowMutableWrapperLambdaAndSolve = function(){
+			return this.mask&vm.mask_stackIsAllowMutableWrapperLambdaAndSolve;
+		};
+		vm.StackStuff.prototype.stackIsAllowAx = function(){
+			return this.mask&vm.mask_stackIsAllowAx;
+		};
+		vm.StackStuff.prototype.stackIsAllowstackTimestackMem = function(){
+			return this.mask&vm.mask_stackIsAllowstackTimestackMem;
 		};
 
 		
@@ -4364,27 +4406,30 @@ const Wikibinator203 = (()=>{
 		};*/
 		
 		
-		/* very slow interpreted mode. add optimizations as recursive evalers whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
-		u.evaler is this rootEvaler. All other evalers are hooked in by aLambda.pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda.evaler before setting aLambda.evaler to the new one,
+		/* very slow interpreted mode. add optimizations, as a linked list of evalers of whatever lambda,
+		as recursive (of whatever evaler is in relevant fns/lambdas called on eachother) evalers,
+		whose .prev is this or eachother leading to this, that when !evaler.on then evaler.prev is used instead.
+		U().evaler is this rootEvaler. All other evalers are hooked in by aLambda().pushEvaler((vm,l,r)=>{...}), which sets its evaler.prev to aLambda().evaler before setting aLambda().evaler to the new one,
 		and if the evaler doesnt have an evaler.on field, creates it as true.
 		*/
 		vm.rootEvaler = (vm,l,r)=>{
+			//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
+			//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
+			//which it has 2^4=16 (update: 5^ see vm.mask_*) kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
+			//The strictest is pure determinism and will compute the exact same bits in every wikibinator203 VM. All halted lambdas are that strictest way,
+			//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
+			//similar to vm.stackTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
+			"use strict";
 			
 			//TODO rename l to myL and r to myR, cuz l and r are ops.
 			
 			//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
 			
 			console.log('vm.rootEvaler l='+l+' r='+r);
-			//"use strict" is good, but not strict enough since some implementations of Math.sqrt, Math.pow, Math.sin, etc might differ
-			//in the low few bits, and for that it only calls Math.sqrt (for example) if vm.stackIsAllowNondetRoundoff. Its counted as nonstrict mode in wikibinator203,
-			//which it has 2^4=16 kinds of strict vs nonstrict that can be tightened in any of 4 ways on stack so stays tight higher on stack until pop back from there.
-			//The strictest is pure determinism and will compute the exact same bits in every wikibinator203 VM. All halted lambdas are that strictest way,
-			//and only during evaling 2 strictest lambdas to return at most 1 strictest lambda, between that you can use any of the 16 kinds of strict vs loose, and recursively tighten,
-			//similar to vm.stackTime and vm.gasFastMem can be tightened to have less compute cycles and memory available higher on stack, but cant be increased after a call starts.
-			"use strict";
+			
 			//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 			vm.prepay(1,0);
-			l = vm.wrap(l); //If is already a fn (vm.isWikibinator203Lambda), leaves it as it is
+			l = vm.wrap(l); //If is already a fn (vm.isWikibinator203Lambda and its type is 'function'), leaves it as it is
 			r = vm.wrap(r);
 			
 			let cache = vm.funcallCache(l,r);
@@ -4455,12 +4500,14 @@ const Wikibinator203 = (()=>{
 						TODO
 					*/
 					break;case o.OpmutOuter:
+						//FIXME todo remove opmut* and have it automatically start whenever the optimization would likely make things faster?
 						//TODO merge opmutOuter and opmutInner?
 						let mut = new Mut(0);
 						mut.m.func = l; //(... opmut treeOfJavascriptlikeCode). it can use this to call itself recursively.
 						mut.m.param = r; //param as in (... opmut treeOfJavascriptlikeCode param)
 						ret = vm.opmut(m);
 					break;case o.OpmutInner:
+						//FIXME todo remove opmut* and have it automatically start whenever the optimization would likely make things faster?
 						//TODO merge opmutOuter and opmutInner?
 						vm.infloop();
 						//throw 'TODO this is not normally called outside opmutOuter. What should it do? just act like an opmutOuter? Or infloop?';
@@ -4477,9 +4524,9 @@ const Wikibinator203 = (()=>{
 						*/
 
 					break;case o.S:
-						ret = x(z)(y(z));
+						ret = x(z)(y(z)); //the S lambda of SKI-Calculus
 					break;case o.T:
-						ret = y;
+						ret = y; //the K lambda of SKI-Calculus, but here we call it T (all namespaces are optional and TODO all should be derived at runtime, see the "localName" field etc).
 					break;case o.F:
 						ret = z;
 					break;case o.L:
@@ -4487,9 +4534,9 @@ const Wikibinator203 = (()=>{
 					break;case o.R:
 						ret = z().r;
 					break;case o.IsLeaf:
-						ret = Bit(z.o8==1);
+						ret = Bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
 					break;case o.Pair:case o.Typeval:
-						ret = z(x)(y);
+						ret = z(x)(y); //the church-pair lambda
 					break;case o.VarargAx:
 						if(vm.stackIsAllowAx){
 							//throw 'TODO ax';
@@ -4527,6 +4574,24 @@ const Wikibinator203 = (()=>{
 							//let nextParam = z;
 							//vm.stackIsAllowAx
 							
+							throw 'FIXME use vm.stackStuff.stackIsAllow* etc, since vm.stackIsAllow* were moved to that.';
+							/*vm.StackStuff.prototype.stackIsAllowNondetRoundoff = function(){
+								return this.mask&vm.mask_stackIsAllowNondetRoundoff;
+							};
+							vm.StackStuff.prototype.stackAllowReadLocalIds = function(){
+								return this.mask&vm.mask_stackAllowReadLocalIds;
+							};
+							vm.StackStuff.prototype.stackIsAllowMutableWrapperLambdaAndSolve = function(){
+								return this.mask&vm.mask_stackIsAllowMutableWrapperLambdaAndSolve;
+							};
+							vm.StackStuff.prototype.stackIsAllowAx = function(){
+								return this.mask&vm.mask_stackIsAllowAx;
+							};
+							vm.StackStuff.prototype.stackIsAllowstackTimestackMem = function(){
+								return this.mask&vm.mask_stackIsAllowstackTimestackMem;
+							};
+							*/
+							
 							//tighten clean/dirty higher in stack during verifying ax constraint so its deterministic.
 							let prev_stackIsAllowstackTimestackMem = vm.stackIsAllowstackTimestackMem;
 							let prev_stackIsAllowMutableWrapperLambda = vm.stackIsAllowMutableWrapperLambda;
@@ -4540,7 +4605,7 @@ const Wikibinator203 = (()=>{
 								vm.stackIsAllowMutableWrapperLambda = false;
 								vm.stackIsAllowNondetRoundoff = false;
 								
-								axEval = funcBodyAndVarargChooser((vm.pair)(l)(r)); //evals to u/theUniversalFunction to define l(r) as halted, else evals to u(theReturnVal)
+								axEval = funcBodyAndVarargChooser(ops.Infcur(l)(r)); //evals to u/theUniversalFunction to define l(r) as halted, else evals to u(theReturnVal)
 							}finally{ //in case throws vm.gasErr
 								//put clean/dirty back on stack the way it was
 								vm.stackIsAllowstackTimestackMem = prev_stackIsAllowstackTimestackMem;
@@ -4559,7 +4624,7 @@ const Wikibinator203 = (()=>{
 							//They wont be verified while !vm.stackIsAllowAx, so during that, verify says fail.
 							vm.infloop();
 						}
-						//FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
+						//OLD, cuz opOneMoreParam is replaced by op Lambda and op MutLam: FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
 						//so update comments and maybe code depends on that?
 					break; case o.OpCommentedFuncOfOneParam:
 						//(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param)
@@ -4638,7 +4703,7 @@ const Wikibinator203 = (()=>{
 				return cache.ret = ret;
 			}
 		};
-		vm.rootEvaler.on = true; //vm.rootEvaler.on must always be true, and vm.rootEvaler.prev must always be null.
+		vm.rootEvaler.on = true; //vm.rootEvaler.on must always be true, and vm.rootEvaler.prev must always be null, cuz its deepest in linkedlists of evalers.
 		vm.rootEvaler.prev = null;
 		
 		
@@ -5867,6 +5932,7 @@ const Wikibinator203 = (()=>{
 			}*/
 		};
 		
+		//UPDATE: this is the old [key val key val...] way, which instead would be [(ObVal keyA valA) (ObVal keyB valB)] etc. Also see ObKeyVal and ObCbt etc.
 		//reverses an infcur-like thing (normally just an infcur), 2 curries at a time,
 		//like [x xval y yval z zval] vs [z zval y yval x xval].
 		//FIXME what if it has even/odd the wrong number of params for key/val pairs?
@@ -5961,7 +6027,7 @@ const Wikibinator203 = (()=>{
 		
 		vm.test = (testName, a, b)=>{
 			if(a === b) console.log('Test pass: '+testName+', both equal '+a);
-			else throw ('Test '+testName+' failed cuz '+a+' != '+b);
+			else throw ('Test '+testName+' failed cuz '+a+' !== '+b);
 		};
 		
 		vm.testEval = (wikibinator203Code, shouldReturnThis)=>{
@@ -6017,6 +6083,7 @@ const Wikibinator203 = (()=>{
 			vm.testEval('(S T)',S(T));
 		}
 		
+		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
 		
 		console.log('Passed very basic vm.eval tests');
@@ -6044,6 +6111,10 @@ const Wikibinator203 = (()=>{
 		//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
 		//TODO pushEvaler for isleaf etc
 		
+		
+		
+		//'TODO TDD for Names# etc, but get the basics of parsing, eval, (Lambda [x y z] ...) MutLam, etc, working first.'()
+		
 		console.log('TODO run a few more tests after these pushEvaler optimizations since in some fns (aNode.evaler) they replace vm.rootEvaler (which becomes aNode.evaler.prev, but you can still use rootEvaler there by setting aNode.evaler.on=false; and would still use whichever evaler, per node, has evaler.on==true, which is designed that way to make testing of combos of evalers easy at runtime.');
 		
 
@@ -6064,7 +6135,7 @@ const Wikibinator203 = (()=>{
 		console.log('this='+this);
 		
 		return u; //the universal function
-	//} //end with(ops)	
+	//} //end with(ops)	//dont do this cuz with(...) makes things very slow.
 })();
 console.log('Script ended. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".');     
 

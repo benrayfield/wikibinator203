@@ -6,6 +6,7 @@ Made for everyone, but for now its hard to use... Programmers and mathematicians
 
 LICENSE: TODO write custom opensource license. It will basically be do whatever you want but nobody owns the lambdas, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. But I'll have to write the details of that.
 
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/wikibinator203_2022-6-24-305p_mouseDraggedToLookBetter.png>
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/TestWikibinator203VM.html.png>
 
 To see it working, look at this browser console output (from the html file) <a href=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt>https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt</a>

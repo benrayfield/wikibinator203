@@ -1,0 +1,391 @@
+<!DOCTYPE html><html><head>
+<script src=Wikibinator203VM.js></script>
+<script>
+//directed graph ui...
+
+let U = Wikibinator203; //the universal function
+let vm = Wikibinator203().vm;
+if(!vm) throw 'No vm';
+
+var cssPositionType = 'absolute';
+
+var randInt = n=>Math.floor(Math.random()*n);
+
+var between = (min, val, max)=>Math.max(min, Math.min(val, max));
+
+var betweenInt = (min, val, max)=>Math.floor(Math.max(min, Math.min(val, max)));
+
+var asByte = num=>betweenInt(0,num,255);
+
+var colorStr = function(redFraction, greenFraction, blueFraction){
+	let r = asByte(redFraction*256);
+	let g = asByte(greenFraction*256);
+	let b = asByte(blueFraction*256);
+	let s = '000000'+(r*65536+g*256+b).toString(16);
+	return '#'+s.substring(s.length-6);
+};
+
+var randColorStr = ()=>colorStr(.45+.55*Math.random(), .45+.55*Math.random(), .45+.55*Math.random());
+
+var Dob = (parentDob,tag,optionalInnerHtml)=>{
+	let ret = document.createElement(tag);
+	if(parentDob) parentDob.appendChild(ret);
+	if(optionalInnerHtml) ret.innerHTML = optionalInnerHtml;
+	return ret;
+};
+
+var typeToPic = {
+	l: 'greenSawTooth.png', //left child
+	r: 'blueSawTooth.png', //right child
+	e: 'redSawTooth.png', //evalsto
+};
+
+//from and to are UINOdes. type is (TODO choose an edge
+var UIEdge = function(from, type, to){
+	
+	//dom object, a div whose background shows direction like saw teeth, and css is used to make it a line at an angle between 2 UINodes.
+	this.dob = null;
+
+	this.from = from;
+	this.type = type;
+	this.from.outs[type] = this;
+	this.to = to;
+	this.display();
+};
+
+var angle = 0;
+
+var edgeBackgroundOffset = 0;
+
+UIEdge.prototype.display = function(){
+	if(!this.dob){
+		let parentDob = mainDiv;
+		//let parentDob = document.body;
+		//let parentDob = this.from.dob;
+		//if(!parentDob) throw 'UINode hasnt displayed yet so cant display edge from it, this='+this;
+	
+		//this.dob = Dob(parentDob,'div'); //put edge's div it in the div of the UINode its from.
+		this.dob = Dob(parentDob,'div');
+		this.dob.style.position = cssPositionType;
+		//this.dob.style.height = '50px';
+		//this.dob.style.width = '13px';
+		//this.dob.style.width = '5px';
+		//this.dob.style.width = '2px';
+		//this.dob.style.height = '154px';
+		//TODO css for angle
+		//this.dob.style['background-color'] = randColorStr();
+		this.dob.style.background = 'url('+typeToPic[this.type]+')';
+		this.dob.style['z-index'] = -1;
+	}
+	
+
+	
+	//https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix
+	let diffY = this.to.pos[0]-this.from.pos[0];
+	let diffX = this.to.pos[1]-this.from.pos[1];
+	let diffLen = Math.hypot(diffY,diffX);
+	this.dob.style.height = '2px';
+	this.dob.style.width = Math.ceil(diffLen)+'px';
+	let normY = between(-1,diffY/diffLen,1);
+	let normX = between(-1,diffX/diffLen,1);
+	//let angle = Math.asin(normY);
+	
+	
+	let a = normX;
+	let b = normY;
+	let c = -normY;
+	let d = normX;
+	
+	
+	//let a = 1/Math.sqrt(2), b = 0, c = 0, d = 1/Math.sqrt(2);
+	//let a = 1, b = 0, c = 0, d = 1;
+	//let a = Math.sin(angle), b = Math.cos(angle), c = -Math.cos(angle), d = Math.sin(angle);
+	//this.dob.style.width = '90px';
+	//let a = -1, b = 0, c = 0, d = -1;
+	//let a = 5, b = 0, c = 0, d = 5;
+	
+	/*let a = 1;
+	let b = 2.1;//let b = .3;
+	let c = 0; //let c = -.1;
+	let d = 1;
+	*/
+	//let tx = 0;
+	//let ty = 0;
+	
+	//midpoint cuz [style.transform matrix or matrix3d] uses center of dob as (0,0,0) instead of top left corner as usual in html and as usual in opengl and other 3d frameworks.
+	//let ty = this.from.pos[0]+diffY/2;
+	//let tx = this.from.pos[1]+diffX/2;
+	let ty = (this.from.pos[0]+this.to.pos[0])/2;
+	let tx = (this.from.pos[1]+this.to.pos[1])/2;
+	//let ty = this.from.pos[0];
+	//let tx = this.from.pos[1];
+	//let ty = this.to.pos[0];
+	//let tx = this.to.pos[1];
+	tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+	
+	
+	//a = diffY*.01;
+	//d = diffX*.01;
+	
+	//if(this.type == 'l'){ ty += 20; tx += 20; }
+	//if(this.type == 'r'){ ty += 35; tx += 35; }
+	//if(this.type == 'e'){ ty += 50; tx += 50; }
+	this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+	//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
+	
+	this.dob.style['background-position'] = edgeBackgroundOffset+'px';
+	
+};
+
+var Rnd = ()=>Math.random();
+
+//var countTemp = 0;
+
+let countUINodes = 0;
+
+//fn is a wikibinator203 lambda.
+var UINode = function(fn){
+
+	countUINodes++;
+
+	//dom object, maybe a div.
+	this.dob = null;
+
+	this.type = 'TODO theres less than 20 node types, including leaf, float64, evaling, etc';
+	this.pos = [Rnd()*600, Rnd()*900]; //screen position
+	//this.pos = [Rnd()*500, Rnd()*500]; //screen position
+	//this.pos = [100, Rnd()*500]; //screen position
+	
+	//this.pos = [100, 100]; //screen position
+	//this.pos = [100, countUINodes*400-300]; //screen position
+	//this.pos = [100+countUINodes*50, countUINodes*400-300]; //screen position
+	//this.pos = [countTemp+=100,0]; //FIXME
+	this.vel = [0, 0]; //screen velocity
+	this.fn = fn; //display this.fn.localName or vm.eval(...) but modified to limit how big a code string it can generate and leave some branches closed.
+	
+	//this.edges = {};
+	this.outs = {}; //edges out. theres less than 10 edge types, and at most 1 of each kind, from fns anyways, but mindmap nodes (if i add those later) might have weighted edges and many of the same kind outward.
+	//this.ins =  //can have many incoming edges.
+	
+	fn.ui = this;
+	this.display();
+	
+	if(!fn().isLeaf()){
+		//recurse to create UINodes in left and right childs. FIXME if theres alot of nodes, or if theres big bigstrings,
+		//this should be done sparsely instead, to only display parts that open/close when look deeper.
+		let lUI = uiOf(fn().l);
+		let rUI = uiOf(fn().r);
+		//FIXME display overlapping edges (from and to the same node) different by a few pixels side by side so one isnt hidden by the other.
+		new UIEdge(this,'l',lUI); //sets this.outs.l = lUI
+		new UIEdge(this,'r',rUI); //sets this.outs.r = rUI
+	}
+	
+	nodes.push(this);
+};
+
+UINode.prototype.width = function(){
+	if(!this.dob) return 1;
+	return this.dob.clientWidth;
+};
+
+UINode.prototype.height = function(){
+	if(!this.dob) return 1;
+	return this.dob.clientHeight;
+};
+
+UINode.prototype.display = function(){
+	if(!this.dob){
+		this.dob = Dob(mainDiv,'div',''+this.fn);
+		//this.dob = Dob(document.body,'div',''+this.fn);
+		this.dob.style.position = cssPositionType; //relative to mainDiv?
+		this.dob.style['background-color'] = randColorStr();
+		this.dob.style.height = '50px';
+		//this.dob.style.width = '200px';
+		//this.dob.style.width = '10px';
+		//this.dob.style.background = 'url(redSawTooth.png)';
+	}
+	//this.dob.style.top = Math.floor(this.pos[0])+'px';
+	//this.dob.style.left = Math.floor(this.pos[1])+'px';
+	
+	let a = 1, b = 0, c = 0, d = 1;
+	let ty = this.pos[0];
+	let tx = this.pos[1];
+	this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+	//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
+	
+	for(key in this.outs){
+		this.outs[key].display(); //display edge from this UINode
+	}
+};
+
+var nodes = [];
+
+
+var uiOf = function(fn){
+	if(fn.ui) return fn.ui; //store it in field in the lambda (or whatever it is).
+	if(vm.isLambda(fn)){
+		return new UINode(fn); //sets fn.ui to that
+	}else{
+		throw 'TODO wrap other kind of object, thats not a wikibinator203 lambda';
+	}
+};
+
+var edgeBackgroundOffset_speed = .4;
+
+var nextState = ()=>{
+	angle += .01;
+	//edgeBackgroundOffset = (edgeBackgroundOffset+1)%32; //cuz pics are 1x32
+	edgeBackgroundOffset = (edgeBackgroundOffset+edgeBackgroundOffset_speed)%32; //cuz pics are 1x32
+	//uuUI.display(); //test
+	for(let node of nodes){
+		node.display();
+	}
+	requestAnimationFrame(nextState);
+};
+
+//On-screen icon of the universal lambda, which you can dragAndDrop to make all possible lambdas,
+//but will also make lambdas by evaling textarea and wrapping Float64Array etc.
+var rootUI = null;
+var mainDiv = null;
+var uuUI = null;
+window.onload = ()=>{
+	//mainDiv = Dob(document.body,'div');
+	mainDiv = document.getElementById('mainDiv');
+	mainDiv.style['background-color'] = 'gray';
+	rootUI = uiOf(U);
+	uuUI = uiOf(U(U));
+	//uiOf(U(U(U)));
+	console.log('rootUI = '+rootUI);
+	nextState();
+};
+
+///////end directed graph ui///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+</script>
+<script>
+
+var dom = id=>document.getElementById(id);
+
+//var h = '';
+
+/*
+h += 'Wikibinator203='+Wikibinator203+' Push F12 to see some tests in browser console.';
+h += '\n\n<br><br>In the ops list below, from vm.opInfo, you can use op name, such as S, T, Pair, (F U) is identityFunc, etc. Some ops arent working yet. More ops will be filled in later. This is early into the wikibinator203 prototype. Try it in the textareas. When you change text in the top textarea, it evals and puts the output into the bottom textarea, which you should be able to copy into the top textarea and edit more. This will be easier once these low level basics are worked out and you can do everything (TODO) by drag and drop across the internet with your friends in realtime.';
+for(let op of vm.opInfo){
+	 h += '\n\n<br><br>'+JSON.stringify(op);
+}
+*/
+
+let prevOnload = window.onload;
+window.onload = ()=>{
+	prevOnload();
+	//dom('mainDiv').innerHTML = h;
+	
+	//let firstCode = '(S (F U) (F U) Pair)';
+	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
+	let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
+	dom('codeIn').value = firstCode;
+	evalTextAreas();
+};
+
+//var displayDirectedGraphOfCodeInTextarea = false;
+var displayDirectedGraphOfCodeInTextarea = true;
+
+var evalTextAreas = ()=>{
+	vm.refill();
+	let textOut = 'ERROR';
+	try{
+		let wikibinator203CodeIn = dom('codeIn').value;
+		if(dom('isEvalElseOnlyParse').checked){
+			console.log('Eval');
+			let fnOut = Eval(wikibinator203CodeIn);
+			textOut = ''+fnOut;
+			if(displayDirectedGraphOfCodeInTextarea) uiOf(fnOut); //create it on screen, deeply all its l and r childs
+		}else{
+			console.log('Parse');
+			let parseTree = Parse(wikibinator203CodeIn)
+			textOut = ''+parseTree;
+		}
+	}catch(e){
+		textOut = 'ERROR: '+e;
+	}
+	dom('codeOut').value = textOut;
+};
+
+
+var Eval = vm.eval; //of wikibinator203 code string -> fn. fn means a wikibinator203 lambda that is a javascript function of 1 param.
+
+var lastParseTree = null;
+
+var Parse = code=>(lastParseTree=vm.parse(code));
+
+var mouseY = 0;
+var mouseX = 0;
+
+var dragOffsetY = 0;
+var dragOffsetX = 0;
+var draggingNode = null;
+
+var nodeAtYXOrNull = (y,x)=>{
+	for(let node of nodes){
+		if(
+			node.pos[0] <= y
+			&& y < node.pos[0]+node.height()
+			&& node.pos[1] <= x
+			&& x < node.pos[1]+node.width()
+		){
+			console.log('nodeAtYXOrNull found '+node+' at y'+y+' x'+x);
+			return node;
+		}
+	}
+	return null;
+};
+
+var onMouseMove = event=>{
+	mouseY = event.clientY-mainDiv.offsetTop;
+	mouseX = event.clientX-mainDiv.offsetLeft;
+	//mouseY = event.offsetY-mainDiv.offsetTop;
+	//mouseX = event.offsetX-mainDiv.offsetLeft;
+	logMouseAndButtonsEtc();
+	if(draggingNode){
+		console.log('dragging '+draggingNode);
+		draggingNode.pos[0] = mouseY+dragOffsetY;
+		draggingNode.pos[1] = mouseX+dragOffsetX;
+	}
+	/*if(rootUI){
+		rootUI.pos[0] = mouseY; //just testing. fixme remove this
+		rootUI.pos[1] = mouseX;
+	}*/
+};
+
+var onMouseUp = event=>{
+	delete buttons[event.button];
+	//logMouseAndButtonsEtc();
+	draggingNode = null;
+};
+
+var onMouseDown = event=>{
+	buttons[event.button] = 1;
+	//logMouseAndButtonsEtc();
+	draggingNode = nodeAtYXOrNull(mouseY,mouseX);
+};
+
+var logMouseAndButtonsEtc = ()=>{
+	console.log('y'+mouseY+' x'+mouseX+' buttons='+JSON.stringify(buttons));
+};
+
+
+
+var buttons = {};
+
+</script>
+</head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);">
+	<center>
+		<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea><br>
+		Eval of the above code, out:<br>
+		<textarea id=codeOut rows="5" cols="100" readonly></textarea><br>
+		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
+	</center>
+	<br>
+	<div id="mainDiv">>mainDiv</div>
+	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+</body></html>
