@@ -14,8 +14,8 @@ SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
 Nobody owns wikibs. They are shared facts of maths many people and software
 can use together. A wikib is a kind of number, stateless and immutable
 (or approximations of it in some ways of using it)
-universal lambda function, pattern-calculus function, a fact of math, a
-pure function, and a data structure that is defined completely as a forest
+universal lambda function, combinator, pattern-calculus function, fact of math,
+a pure function, and a data structure that is defined completely as a forest
 node with 2 child wikibs down to leaf (leaf also has 2 childs (identity
 function and leaf)). Leaf (aka U aka Wikibinator203) is the universal
 function, from which all turing-complete patterns of finite amount of
