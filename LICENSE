@@ -72,7 +72,9 @@ facts of math together with other Humans and AIs, is part of the sandbox,
 as a wikib can exist inside a Human mind (which is turing-complete),
 but believing or obeying it in the Human mind is outside the sandbox.
 A wikib being a "fact of math" is inside the sandbox,
-and can derive its own ids which are similar to godel-numbers.
+and can derive its own ids which are similar to godel-numbers,
+and in the pure deterministic (not "approximations") way of using it,
+it can not lie about anything inside the sandbox.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
