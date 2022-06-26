@@ -4,7 +4,7 @@ A kind of number. Build anything by drag-and-drop of a universal combinator (lam
 
 Made for everyone, but for now its hard to use... Programmers and mathematicians, try Wikibinator203 at https://humanai.net/wikibinator/ The universal function works. Over the next few years I plan to turn this into an endless infinite dimensional space where many people build and play together, sharing lambdas by 256 bit ID or QRCode.
 
-LICENSE: TODO write custom opensource license. It will basically be do whatever you want but nobody owns the lambdas, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. But I'll have to write the details of that.
+LICENSE SUMMARY: Its basically, do whatever you want but nobody owns the lambdas, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. DETAILS: <a href=https://github.com/benrayfield/wikibinator203/blob/main/LICENSE>LICENSE</a>
 
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/wikibinator203_2022-6-24-305p_mouseDraggedToLookBetter.png>
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/TestWikibinator203VM.html.png>
@@ -185,7 +185,6 @@ This system is neutral about everything except that all interactions through it 
 
 
 
-Custom opensource copyleft license to be written, basically similar to the MIT license except that nobody owns the lambdas (which are all (like?) derivative-works of the universal lambda, which all paths along 2 child edges lead to, and every such lambda is a fact of math) and that the evil_bit being on or off in each 256 bit id means 1 of 2 namespaces, one where things work as normal and the other where "anything goes" as its an "antivirus quarantine" and uncensored area, but be warned that in the "normal" area people might tend to remove lambdas while incoming pointers exist which could break things in the normal area while the evil_bit=true area will not remove anything while incoming pointers exist (and even then might still not), because of merkle garbage collection as a technical reason, and because of free speech. There is no central control of this, as its just a data format and way people might share lambdas with eachother in realtime, so I'm just another user, like you, of lambdas. Even though where "anything goes" there will be viruses and worse, if someone sneaks that in, since its easy to enter the "antivirus quarantine" but not to leave, one way safe border, where people choose not to [copy outside and execute, obey, or believe] whats inside it which would be their own fault since they were told its an antivirus quarantine so have no reasonable expectation to believe thats safe, but it is safe inside the wikibinator203 VM used thru canvas webAudioAPI textareas checkboxes gamepads etc, since all lambdas only generate more lambdas and dont need execute permission. Both namespaces exist across many computers at once.
 
 Code will be like this, or see wikibinator106 log output for real example of earlier version.
 
