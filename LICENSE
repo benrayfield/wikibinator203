@@ -64,6 +64,13 @@ evilbit=true or evilbit=false (which happens in the first byte of a
 256 bit id for example) is just a word that people or computers can
 say about a wikib, that they believe it to be safe or not.
 If in doubt, use evilbit=true aka antivirus quarantine.
+The 256 (or 512) bit ids can safely be shared in public as #hashtags.
+The sending and receiving of this data structure across a network
+does not count that network as an "external system"
+and is part of the sandbox. Similarly, a Human just using the
+facts of math together with other Humans and AIs, is part of the sandbox,
+as a wikib can exist inside a Human mind (which is turing-complete),
+but believing or obeying it in the Human mind is outside the sandbox.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
