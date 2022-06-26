@@ -1,9 +1,17 @@
 Ben F Rayfield offers the wikibinator203 VM prototype under this license (which he may make small changes to soon, as some sentences are too long and confusing):
 
+[THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+
 Nobody owns wikibs. They are shared facts of maths many people and software can use together. A wikib is a kind of number, stateless and immutable universal lambda function, pattern-calculus function, a fact of math, a pure function, and a data structure that is defined completely as a forest node with 2 child wikibs down to leaf (leaf also has 2 childs (identity function and leaf)). Leaf (aka U aka Wikibinator203) is the universal function, from which all turing-complete patterns of finite amount of information can be built, used, and shared. Forall wikib x, forall wikib y, x called on y is a wikib, which may be halted or evaling (to a halted wikib or never halts). Every wikib is a derivative-work of leaf, which can be proven by calling leaf on itself in various combinations, to make any wikib. While obeying this license and using a wikibinator203 VM that correctly implements the spec, it is safe to call any wikib on any wikib since all it does is find or create wikibs, but if its used to control external systems (such as robots, buying and selling things, or telling people what to believe or what to do outside a simulated world, or copying a wikib to a new file, renaming that file x.exe, then double-clicking that file), it is entirely the responsibility of who hooks it to those systems to verify its safe, such as by math proofs, networks of digital signatures, or other evidence, especially considering that it can create all possible computer viruses and ransomware and other evil things (safely in a sandbox across 1 or many computers) and good things, and that in 1 of its 2 namespaces (evilbit=true), it is an antivirus quarantine and uncensored area, a sandbox across whichever computers opt into using this data structure together, where all possible wikibs are allowed. In the antivirus quarantine, you may share viruses like posts in a social network, turing-complete messages that others may, for example, say ["this is a virus" TheVirus] or use the virus in a meme-like piece of art (such as a satirical work making fun of viruses could literally contain such viruses) and do experiments, make games, musical instruments, tools, or anything of pure information. It would be very destructive to the system if there is any possible math statement which is not allowed, such as removing a virus or other "evil" wikibs while it has incoming pointers. It would be destructive to the wikib systems, because halting-oracles have been proven impossible, and a halting-oracle would be needed to determine if a certain wikib would generate, or would not generate, a certain other wikib, without waiting up to an infinite time to observe what it does (by the universal lambda math). The other namespace (evilbit=false) works like the normal internet, if those who opt in can find a way to do that without breaking the wikib math so much its unusable, a way to claim a certain wikib is safe, unlike in evilbit=true where there is no reasonable expectation that it is safe to give those wikibs execute permission, or to believe any information in them, or to obey anything they might tell you to do with a message on the screen. It would be negligence for someone to give execute permission to, believe, or obey, anything in an antivirus quarantine (which many apps may run inside across many computers) if that causes a problem, and similarly for the evilbit=false area, since saying its evilbit=true or evilbit=false (which happens in the first byte of a 256 bit id for example) is just a word that people or computers can say about a wikib, that they believe it to be safe or not. If in doubt, use evilbit=true aka antivirus quarantine.
 
-If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 3 paragraphs copied from MIT license,
-then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 3 paragraphs below,
+If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
+then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
 and if that is not legally possible to do then it is not legally possible to use this software at all.
 
 Except for the "Nobody owns wikibs" paragraph above, which in a copyleft way applies to every wikibinator203 VM,
@@ -16,11 +24,3 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
