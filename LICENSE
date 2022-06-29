@@ -121,6 +121,10 @@ The problem is, while the opcodes of that are hypercomputing-compatible,
 though probably very wrongly organized to do it efficiently (very very far from it),
 such calculations are usually infinitely too expensive, but there are a variety of possible upgrade paths
 to those kinds of possible math.
+In the ways that "This is a formal-verification system", this system should (TODO make sure its many places reachable from very few clicks)...
+offer to Human users both a basic tutorial AND auto translation of the axioms and data structures of this system,
+to any industry standard formal-verification methods, for every true statement this system claims,
+so long as such an other formal-verification system can prove its own self-consistency.
 
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
