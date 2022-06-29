@@ -91,6 +91,14 @@ to safely use it to operate time critical dangerous processes
 in the evilbit=true area, but due to the evilbit=false area
 "throwing a wrench into the machine" by removing pieces of math
 based on Human opinions etc, the antivirus quarantine is safest.
+The antivirus quarantine has already whitelisted an infinite set
+(of all of a certain kind of universal function, by calling it on itself in various combos)
+unlike the common practice of blacklisting "evil" things as they are
+observed or predicted over time. The only thing the antivirus quarantine blacklists
+is mutable state. A pure function can not infect a harddrive or RAM etc,
+since it can not call thePureFunction(mutableState)->next_mutableState,
+except to store cached function calls (including wrapping tiny and bigdata size bitstrings).
+A virus is only dangerous if it can modify some mutable state.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
