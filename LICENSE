@@ -113,7 +113,9 @@ has ever been agreed on which would in finite time be able to accept or reject s
 Alternatively, TODO (update this license text when done), include some of the hyperquasicrystal opcodes
 for hypercomputing up to the level of having a binary forest node that represents, for example,
 [IF (doesPEqualNP() XOR areThereAnInfiniteNumberOfTwinPrimes()
-XOR isCollatzConjectureTrue() ([This (godel) is the only one in this "IF..." that I am unsure if I could write on a T-shirt, or that I could write it at all)] ... XOR isGodelIncompletenessTrue())
+XOR isCollatzConjectureTrue() ([This (godel) is the only one in this "IF..." that I am unsure if I could write on a T-shirt, or that I could write it at all),
+and similarly differential equations (diffeq) such as chuas-circuit, 3body, elliptic-curves,
+r continuous_LSTM_after_nonzero_time, seem to be unknown cardinalities beyond my (Ben F Rayfield) ability to imagine as of 2022-6] ... XOR isGodelIncompletenessTrue())
 XOR doHaltingOraclesExist()) THEN....]
 The problem is, while the opcodes of that are hypercomputing-compatible,
 though probably very wrongly organized to do it efficiently (very very far from it),
