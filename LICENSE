@@ -76,6 +76,15 @@ and can derive its own ids which are similar to godel-numbers,
 and in the pure deterministic (not "approximations") way of using it,
 it can not lie about anything inside the sandbox,
 but if its viewed as statements about outside the sandbox those can be lies.
+For example, the wikib "this sentence is false", and "two plus two equals five",
+are both true, since those are just utf8 bytes, and it is true that
+they do not break any rules of the universal lambda,
+but if you view them as statements about natural-language
+then that refers to patterns of thoughts outside the sandbox.
+If instead you derive numbers and use the Ax opcode to prove
+a function called on a param gives a certain return value,
+then it will not halt if you try to eval either of those in pure math form.
+All halted wikibs are true. All wikibs which will never halt are false.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
