@@ -85,6 +85,9 @@ If instead you derive numbers and use the Ax opcode to prove
 a function called on a param gives a certain return value,
 then it will not halt if you try to eval either of those in pure math form.
 All halted wikibs are true. All wikibs which will never halt are false.
+Approximations of wikibs can guarantee halting by recursively limiting
+compute time and memory etc, so in theory there should be some way
+to safely use it to operate time critical dangerous processes.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
