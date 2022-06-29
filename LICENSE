@@ -99,6 +99,7 @@ is mutable state. A pure function can not infect a harddrive or RAM etc,
 since it can not call thePureFunction(mutableState)->next_mutableState,
 except to store cached function calls (including wrapping tiny and bigdata size bitstrings).
 A virus is only dangerous if it can modify some mutable state.
+This is a formal-verification system. This is also a low-latency number-crunching turing-complete system.
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
