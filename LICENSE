@@ -113,7 +113,7 @@ has ever been agreed on which would in finite time be able to accept or reject s
 Alternatively, TODO (update this license text when done), include some of the hyperquasicrystal opcodes
 for hypercomputing up to the level of having a binary forest node that represents, for example,
 [IF (doesPEqualNP() XOR areThereAnInfiniteNumberOfTwinPrimes()
-XOR isCollatzConjectureTrue() XOR isGodelIncompletenessTrue() XOR doHaltingOraclesExist()) THEN....]
+XOR isCollatzConjectureTrue() ([This is the only one in this "IF..." that I am unsure if I could write on a T-shirt, or that I could write it at all)] ... XOR isGodelIncompletenessTrue()) XOR doHaltingOraclesExist()) THEN....]
 The problem is, while the opcodes of that are hypercomputing-compatible,
 though probably very wrongly organized to do it efficiently (very very far from it),
 such calculations are usually infinitely too expensive, but there are a variety of possible upgrade paths
