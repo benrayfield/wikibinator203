@@ -143,6 +143,96 @@ var Rnd = ()=>Math.random();
 
 let countUINodes = 0;
 
+var repelMult = 3;
+var farAttractMult = 5;
+var speedDecay = .35;
+
+var getEdges = function(){
+	let ret = [];
+	for(let node of nodes){
+		for(let edgeType in node.outs){
+			let edge = node.outs[edgeType];
+			ret.push(edge);
+		}
+	}
+	return ret;
+};
+
+/** This is used for spring-like positioning of uinodes on screen.
+y and x are screen positions. nodeTypes are what kind of icon it is, such as evaling vs this kind of list [...] etc.
+edgeType is 'l' for left child, 'r' for right child, 'e' for evals to what, etc.
+Sizes are approx radius, even though radius doesnt describe a rectangle well, it will tend to give things more or less space on screen.
+FIXME should this be called even if there is no edge? cuz they could overlap otherwise.
+*/
+var potentialEnergyOfEdge = (yFrom, xFrom, sizeFrom, fromType, edgeType, toType, yTo, xTo, sizeTo)=>{
+	let en = 0;
+	let dy = yTo-yFrom;
+	let dx = xTo-xFrom;
+	//let distSq = dy*dy + dx*dx;
+	//let dist = Math.sqrt(distSq);
+	let dist = Math.hypot(dy,dx);
+	let repelDist = sizeFrom+sizeTo;
+	if(dist < repelDist){
+		let diff = repelDist-dist;
+		en += diff*diff*repelMult;
+	}
+	//TODO optimize, only do this part if edgeType is a kind that exists (have 1 kind that means "noEdge", but use a shorter name?)
+	en += dist*farAttractMult; //attract, but weaker than repelDist
+	//en += dist*dist*farAttractMult; //attract, but weaker than repelDist
+	return en;
+};
+
+const dims = 2;
+
+var doPhysics = dt=>{
+	let edges = getEdges();
+	for(let edge of edges){
+		updateUinodeAccelsForEdge(dt,edge);
+	}
+	let speedMul = between(0,1-dt*speedDecay,1);
+	for(let node of nodes){
+		for(let d=0; d<dims; d++){
+			node.vel[d] += node.accel[d]; //FIXME if put *dt here then dont *dt in updateUinodeAccelsForEdge.
+			node.accel[d] = 0;
+			node.vel[d] *= speedMul;
+			node.pos[d] += dt*node.vel[d];
+		}
+	}
+};
+
+/*
+//potential-energy, to be measured +dy +dx and +0, for each end, and take derivatives so know which direction to accelerate,
+//then put the x and y positions back.
+var edgeEnergyFunc = edge=>{
+	return Math.random(); //FIXME
+};
+
+var updateUinodeAccels = function(){
+	TODO loop over all edges
+};
+*/
+
+const epsilon = .000001;
+
+//dt is change in time (seconds).
+var updateUinodeAccelsForEdge = function(dt, edge){
+	let halfEpsilon = epsilon/2;
+	let fr = edge.from;
+	let to = edge.to;
+	//var potentialEnergyOfEdge = (yFrom, xFrom, sizeFrom, fromType, edgeType, toType, yTo, xTo, sizeTo)=>{
+	let enAtHere = potentialEnergyOfEdge(fr.pos[0], fr.pos[1], fr.size, fr.type, edge.type, to.type, to.pos[0], to.pos[1], to.size);
+	let enAtHerePlusDy = potentialEnergyOfEdge(fr.pos[0]+halfEpsilon, fr.pos[1], fr.size, fr.type, edge.type, to.type, to.pos[0]-halfEpsilon, to.pos[1], to.size);
+	let enAtHerePlusDx = potentialEnergyOfEdge(fr.pos[0], fr.pos[1]+halfEpsilon, fr.size, fr.type, edge.type, to.type, to.pos[0], to.pos[1]-halfEpsilon, to.size);
+	let dEnergyOverDy = (enAtHerePlusDy-enAtHere)/epsilon;
+	let dEnergyOverDx = (enAtHerePlusDx-enAtHere)/epsilon;
+	let ay = dt*dEnergyOverDy/2; //FIXME is /2 right?
+	let ax = dt*dEnergyOverDx/2;
+	fr.accel[0] -= ay;
+	fr.accel[1] -= ax;
+	to.accel[0] += ay; //FIXME did i get the += and -= backward?
+	to.accel[1] += ax;
+};
+
 //fn is a wikibinator203 lambda.
 var UINode = function(fn){
 
@@ -152,6 +242,10 @@ var UINode = function(fn){
 	this.dob = null;
 
 	this.type = 'TODO theres less than 20 node types, including leaf, float64, evaling, etc';
+	
+	this.size = 100; //similar to radius, but its actually a rectangle so that doesnt exactly describe it.
+	//this.size = 30;
+	
 	this.pos = [Rnd()*600, Rnd()*900]; //screen position
 	//this.pos = [Rnd()*500, Rnd()*500]; //screen position
 	//this.pos = [100, Rnd()*500]; //screen position
@@ -160,7 +254,12 @@ var UINode = function(fn){
 	//this.pos = [100, countUINodes*400-300]; //screen position
 	//this.pos = [100+countUINodes*50, countUINodes*400-300]; //screen position
 	//this.pos = [countTemp+=100,0]; //FIXME
-	this.vel = [0, 0]; //screen velocity
+	
+	this.vel = [0, 0]; //change of this.pos per second
+	
+	this.accel = [0, 0]; //change of this.vel per second. this is set by TODO some code that calls edgeEnergyFunc
+	
+	
 	this.fn = fn; //display this.fn.localName or vm.eval(...) but modified to limit how big a code string it can generate and leave some branches closed.
 	
 	//this.edges = {};
@@ -237,6 +336,8 @@ var nextState = ()=>{
 	//edgeBackgroundOffset = (edgeBackgroundOffset+1)%32; //cuz pics are 1x32
 	edgeBackgroundOffset = (edgeBackgroundOffset+edgeBackgroundOffset_speed)%32; //cuz pics are 1x32
 	//uuUI.display(); //test
+	let dt = 1/60; //FIXME measure time instead of hardcoding this
+	doPhysics(1e-1);
 	for(let node of nodes){
 		node.display();
 	}
