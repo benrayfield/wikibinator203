@@ -106,21 +106,6 @@ that when called on [church-pair of themself and themself] evals to one of the r
 and if you tried to insert into that linked-list a value not matching that, it would never halt,
 and if you tried to insert, in parallel a million values matching that,
 you would in each of those million wikib_called_on_wikib get a linked-list with 1 more thing in it.
-Similarly, the turing-complete-type-system could act as a recognizer-function of valid proofs of any kind
-that takes finite number of compute cycles, such as compiler optimization, checking if a float64 multiply is correct IEEE754,
-or accepting or rejecting a proof that P does not equal NP, EXCEPT if no such set of math operators
-has ever been agreed on which would in finite time be able to accept or reject such a proof.
-Alternatively, TODO (update this license text when done), include some of the hyperquasicrystal opcodes
-for hypercomputing up to the level of having a binary forest node that represents, for example,
-[IF (doesPEqualNP() XOR areThereAnInfiniteNumberOfTwinPrimes()
-XOR isCollatzConjectureTrue() ([This (godel) is the only one in this "IF..." that I am unsure if I could write on a T-shirt, or that I could write it at all),
-and similarly differential equations (diffeq) such as chuas-circuit, 3body, elliptic-curves,
-r continuous_LSTM_after_nonzero_time, seem to be unknown cardinalities beyond my (Ben F Rayfield) ability to imagine as of 2022-6] ... XOR isGodelIncompletenessTrue())
-XOR doHaltingOraclesExist()) THEN....]
-The problem is, while the opcodes of that are hypercomputing-compatible,
-though probably very wrongly organized to do it efficiently (very very far from it),
-such calculations are usually infinitely too expensive, but there are a variety of possible upgrade paths
-to those kinds of possible math.
 
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
