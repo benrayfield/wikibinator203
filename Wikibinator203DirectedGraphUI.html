@@ -35,6 +35,8 @@ var Dob = (parentDob,tag,optionalInnerHtml)=>{
 };
 
 var typeToPic = {
+	//TODO ls: which is oftel (R (L x)) for any x, and is other times just (L x),
+	//depending how it would normally e displayed in code strings (see "syntax type" syty etc).
 	l: 'greenSawTooth.png', //left child
 	r: 'blueSawTooth.png', //right child
 	e: 'redSawTooth.png', //evalsto
@@ -144,8 +146,9 @@ var Rnd = ()=>Math.random();
 let countUINodes = 0;
 
 var repelMult = 3;
-var farAttractMult = 5;
+var farAttractMult = 125;
 var speedDecay = .35;
+var pushParentAboveChild = 22.3;
 
 var getEdges = function(){
 	let ret = [];
@@ -156,6 +159,21 @@ var getEdges = function(){
 		}
 	}
 	return ret;
+};
+
+var potentialEnergyOfPairOfNodesForRepel = (yFrom, xFrom, sizeFrom, yTo, xTo, sizeTo)=>{
+	let en = 0;
+	let dy = yTo-yFrom;
+	let dx = xTo-xFrom;
+	//let distSq = dy*dy + dx*dx;
+	//let dist = Math.sqrt(distSq);
+	let dist = Math.hypot(dy,dx);
+	let repelDist = sizeFrom+sizeTo;
+	if(dist < repelDist){
+		let diff = repelDist-dist;
+		en += diff*diff*repelMult;
+	}
+	return en;
 };
 
 /** This is used for spring-like positioning of uinodes on screen.
@@ -172,9 +190,18 @@ var potentialEnergyOfEdge = (yFrom, xFrom, sizeFrom, fromType, edgeType, toType,
 	//let dist = Math.sqrt(distSq);
 	let dist = Math.hypot(dy,dx);
 	let repelDist = sizeFrom+sizeTo;
+	/*do this in potentialEnergyOfPairOfNodesForRepel instead...
 	if(dist < repelDist){
 		let diff = repelDist-dist;
 		en += diff*diff*repelMult;
+	}*/
+	if(pushParentAboveChild){ //can set pushParentAboveChild to 0 as an optimiziation to not do this code
+		let diff = dy-repelDist;
+		if(diff < 0){
+			//child is near same height as parent or above parent.
+			//move child down and parent up, so the forest shape is more intuitively displayed.
+			en += diff*diff*pushParentAboveChild;
+		}
 	}
 	//TODO optimize, only do this part if edgeType is a kind that exists (have 1 kind that means "noEdge", but use a shorter name?)
 	en += dist*farAttractMult; //attract, but weaker than repelDist
@@ -186,9 +213,18 @@ const dims = 2;
 
 var doPhysics = dt=>{
 	let edges = getEdges();
-	for(let edge of edges){
+	for(let edge of edges){ //edges attract and in some cases TODO try to be at certain angles and distances relative to eachother.
 		updateUinodeAccelsForEdge(dt,edge);
 	}
+	for(let i=1; i<nodes.length; i++){ //repel all pairs of nodes if closer than sum of their nodeA.size+nodeB.size
+		let ni = nodes[i];
+		for(let j=0; j<i; j++){ //all pairs of nodes, excluding self and self, and not again for the reverse pair
+			let nj = nodes[j];
+			updateUinodeAccelsForRepelPairIfTooClose(dt, ni, nj);
+			//updateUinodeAccelsForRepelPairIfTooClose(ni.pos[0], ni.pos[1], ni.size, nj.pos[0], nj.pos[1], nj.size);
+		}
+	}
+	
 	let speedMul = between(0,1-dt*speedDecay,1);
 	for(let node of nodes){
 		for(let d=0; d<dims; d++){
@@ -213,6 +249,39 @@ var updateUinodeAccels = function(){
 */
 
 const epsilon = .000001;
+
+var updateUinodeAccelsForRepelPairIfTooClose = function(dt, nodeA, nodeB){
+	let halfEpsilon = epsilon/2;
+	let fr = nodeA;
+	let to = nodeB;
+	let enAtHere = potentialEnergyOfPairOfNodesForRepel(fr.pos[0], fr.pos[1], fr.size, to.pos[0], to.pos[1], to.size);
+	let enAtHerePlusDy = potentialEnergyOfPairOfNodesForRepel(fr.pos[0]+halfEpsilon, fr.pos[1], fr.size, to.pos[0]-halfEpsilon, to.pos[1], to.size);
+	let enAtHerePlusDx = potentialEnergyOfPairOfNodesForRepel(fr.pos[0], fr.pos[1]+halfEpsilon, fr.size, to.pos[0], to.pos[1]-halfEpsilon, to.size);
+	let dEnergyOverDy = (enAtHerePlusDy-enAtHere)/epsilon;
+	let dEnergyOverDx = (enAtHerePlusDx-enAtHere)/epsilon;
+	let ay = dt*dEnergyOverDy/2; //FIXME is /2 right?
+	let ax = dt*dEnergyOverDx/2;
+	fr.accel[0] -= ay;
+	fr.accel[1] -= ax;
+	to.accel[0] += ay; //FIXME did i get the += and -= backward?
+	to.accel[1] += ax;
+
+
+	/*
+	let dy = nodeB.pos[0]-nodeA.pos[0];
+	let dx = nodeB.pos[1]-nodeA.pos[1];
+	let distSq = dy*dy+dx*dx;
+	let maxDistToRepel = nodeA.size+nodeB.size;
+	let maxDistSqToRepel = maxDistToRepel*maxDistToRepel;
+	if(distSq < maxDistToRepel){
+		let dist = Math.sqrt(distSq);
+		let diff = maxDistToRepel-dist;
+		
+	}
+
+	let halfEpsilon = epsilon/2;
+	*/
+};
 
 //dt is change in time (seconds).
 var updateUinodeAccelsForEdge = function(dt, edge){
@@ -243,8 +312,9 @@ var UINode = function(fn){
 
 	this.type = 'TODO theres less than 20 node types, including leaf, float64, evaling, etc';
 	
-	this.size = 100; //similar to radius, but its actually a rectangle so that doesnt exactly describe it.
+	//this.size = 100; //similar to radius, but its actually a rectangle so that doesnt exactly describe it.
 	//this.size = 30;
+	this.size = 50;
 	
 	this.pos = [Rnd()*600, Rnd()*900]; //screen position
 	//this.pos = [Rnd()*500, Rnd()*500]; //screen position
@@ -310,6 +380,7 @@ UINode.prototype.display = function(){
 	let ty = this.pos[0];
 	let tx = this.pos[1];
 	this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+
 	//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
 	
 	for(key in this.outs){
@@ -338,6 +409,7 @@ var nextState = ()=>{
 	//uuUI.display(); //test
 	let dt = 1/60; //FIXME measure time instead of hardcoding this
 	doPhysics(1e-1);
+
 	for(let node of nodes){
 		node.display();
 	}
