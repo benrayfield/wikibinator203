@@ -147,8 +147,9 @@ let countUINodes = 0;
 
 var repelMult = 3;
 var farAttractMult = 125;
-var speedDecay = .35;
+var speedDecay = .85;
 var pushParentAboveChild = 22.3;
+var pushLToBeLeftOfRRegardlessOfHeight = 30;
 
 var getEdges = function(){
 	let ret = [];
@@ -159,6 +160,21 @@ var getEdges = function(){
 		}
 	}
 	return ret;
+};
+
+//from is l. to is r. todo rename those vars.
+var potentialEnergyOfLR = (yFrom, xFrom, sizeFrom, yTo, xTo, sizeTo)=>{
+	let en = 0;
+	//let dy = yTo-yFrom;
+	let dx = xTo-xFrom;
+	let repelDist = sizeFrom+sizeTo;
+	//let distSq = dy*dy + dx*dx;
+	//let dist = Math.sqrt(distSq);
+	if(dx < repelDist){
+		let diff = repelDist-dx;
+		en += diff*diff*pushLToBeLeftOfRRegardlessOfHeight;
+	}
+	return en;
 };
 
 var potentialEnergyOfPairOfNodesForRepel = (yFrom, xFrom, sizeFrom, yTo, xTo, sizeTo)=>{
@@ -224,7 +240,24 @@ var doPhysics = dt=>{
 			//updateUinodeAccelsForRepelPairIfTooClose(ni.pos[0], ni.pos[1], ni.size, nj.pos[0], nj.pos[1], nj.size);
 		}
 	}
-	
+	for(let node of nodes){
+		//forces between childs of each node (all edge types) such as node.l and node.r
+		//but TODO also the other edge types
+		updateUinodeAccelsBetweenChildsOfNode(dt,node);
+	}
+	let minY = 0; //FIXME leave some room at top for textareas of code, buttons, etc.
+	let maxY = 700; //FIXME what should this be?
+	let minX = 0;
+	let maxX = 900; //FIXME get from screen
+	for(let node of nodes){ //dont let nodes get too far from main area of screen.
+		let newY = between(minY, node.pos[0], maxY);
+		let newX = between(minX, node.pos[1], maxX);
+		if(node.pos[0] != newY || node.pos[1] != newX){
+			node.pos[0] = newY;
+			node.pos[1] = newX;
+			node.vel[0] = node.vel[1] = 0; //if hit a wall, set velocity to 0
+		}
+	}
 	let speedMul = between(0,1-dt*speedDecay,1);
 	for(let node of nodes){
 		for(let d=0; d<dims; d++){
@@ -249,6 +282,27 @@ var updateUinodeAccels = function(){
 */
 
 const epsilon = .000001;
+
+var updateUinodeAccelsBetweenChildsOfNode = function(dt,node){
+	let halfEpsilon = epsilon/2;
+	let l = node.outs.l;
+	let r = node.outs.r;
+	if(l && r){
+		l = l.to; //change from edge to node
+		r = r.to;
+		let enAtHere = potentialEnergyOfLR(l.pos[0], l.pos[1], l.size, r.pos[0], r.pos[1], r.size);
+		let enAtHerePlusDy = potentialEnergyOfLR(l.pos[1]+halfEpsilon, l.pos[1], l.size, r.pos[0]-halfEpsilon, r.pos[1], r.size);
+		let enAtHerePlusDx = potentialEnergyOfLR(l.pos[0], l.pos[1]+halfEpsilon, l.size, r.pos[0], r.pos[1]-halfEpsilon, r.size);
+		let dEnergyOverDy = (enAtHerePlusDy-enAtHere)/epsilon;
+		let dEnergyOverDx = (enAtHerePlusDx-enAtHere)/epsilon;
+		let ay = dt*dEnergyOverDy/2; //FIXME is /2 right?
+		let ax = dt*dEnergyOverDx/2;
+		l.accel[0] -= ay;
+		l.accel[1] -= ax;
+		r.accel[0] += ay; //FIXME did i get the += and -= backward?
+		r.accel[1] += ax;
+	}
+};
 
 var updateUinodeAccelsForRepelPairIfTooClose = function(dt, nodeA, nodeB){
 	let halfEpsilon = epsilon/2;
@@ -302,6 +356,13 @@ var updateUinodeAccelsForEdge = function(dt, edge){
 	to.accel[1] += ax;
 };
 
+/*
+var worldCenterY = 400;
+let worldCenterX = 400;
+let worldSoftRadius = 300; //how far from center nodes can be before they start being attracted to the center.
+let worldSoftRadiusForce = 70; //tries to keep nodes in worldSoftRadius or not too far past it
+*/
+
 //fn is a wikibinator203 lambda.
 var UINode = function(fn){
 
@@ -314,7 +375,8 @@ var UINode = function(fn){
 	
 	//this.size = 100; //similar to radius, but its actually a rectangle so that doesnt exactly describe it.
 	//this.size = 30;
-	this.size = 50;
+	//this.size = 50;
+	this.size = 45;
 	
 	this.pos = [Rnd()*600, Rnd()*900]; //screen position
 	//this.pos = [Rnd()*500, Rnd()*500]; //screen position
@@ -560,5 +622,7 @@ var buttons = {};
 	</center>
 	<br>
 	<div id="mainDiv">>mainDiv</div>
+	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 </body></html>
