@@ -5,6 +5,10 @@
 
 let U = Wikibinator203; //the universal function
 let vm = Wikibinator203().vm;
+let S = vm.ops.S;
+let T = vm.ops.T;
+let F = vm.ops.F;
+let Pair = vm.ops.Pair;
 if(!vm) throw 'No vm';
 
 var cssPositionType = 'absolute';
@@ -39,6 +43,7 @@ var typeToPic = {
 	//depending how it would normally e displayed in code strings (see "syntax type" syty etc).
 	l: 'greenSawTooth.png', //left child
 	r: 'blueSawTooth.png', //right child
+	s: 'sSawTooth.png', //sCurryList aka {...} syntax. {a b c} means (S (S a b) c) aka {{a b} c}.
 	e: 'redSawTooth.png', //evalsto
 };
 
@@ -367,6 +372,9 @@ let worldSoftRadiusForce = 70; //tries to keep nodes in worldSoftRadius or not t
 */
 
 //fn is a wikibinator203 lambda.
+//TODO this might instead be a "pointer into a Human mind", like a temporary mutable variable that sometimes generates fns (which are immutable),
+//since Humans seem to need the ability to edit inside a code string without replacing their own thoughts about code outside that {...} or (...) or [...] block.
+//Mutable stuff would be in UI only, not part of Wikibinator203 spec.
 var UINode = function(fn){
 
 	countUINodes++;
@@ -412,6 +420,11 @@ var UINode = function(fn){
 		//FIXME display overlapping edges (from and to the same node) different by a few pixels side by side so one isnt hidden by the other.
 		new UIEdge(this,'l',lUI); //sets this.outs.l = lUI
 		new UIEdge(this,'r',rUI); //sets this.outs.r = rUI
+		if(fn().l().l == S){ //uses {...} syntax, the sCurryList syntax.
+			let to = fn().l().r;
+			let sUI = uiOf(to);
+			new UIEdge(this,'s',sUI); //sets this.outs.s = sUI
+		}
 	}
 	
 	nodes.push(this);
@@ -622,6 +635,7 @@ var buttons = {};
 </script>
 </head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);">
 	<center>
+		TODO: Right click any node to edit it as a string of code, in its dom node (dob), which as you type creates/finds new nodes below it (or only if you push a certain button since that might be confusing to have stuff change so fast), and while editing you can choose a subset of the nodes on screen that can reach it by l and r edges (easiest way is edit nodeA as viewed from nodeB which can reach nodeA, and a button to save a snapshot of it into the nodes directed graph), and that subset can be copied then modified or just modified, and such modifying/editing does not affect the 256 bit ids (TODO ids) of the nodes, just is different lambdas.
 		<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea><br>
 		Eval of the above code, out:<br>
 		<textarea id=codeOut rows="5" cols="100" readonly></textarea><br>
