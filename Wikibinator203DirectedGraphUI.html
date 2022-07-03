@@ -264,6 +264,9 @@ var doPhysics = dt=>{
 			node.vel[d] += node.accel[d]; //FIXME if put *dt here then dont *dt in updateUinodeAccelsForEdge.
 			node.accel[d] = 0;
 			node.vel[d] *= speedMul;
+			if(draggingNode == node){
+				node.vel[d] = 0; //dont move node by physics while mouse is dragging it
+			}
 			node.pos[d] += dt*node.vel[d];
 		}
 	}
@@ -427,10 +430,12 @@ UINode.prototype.height = function(){
 UINode.prototype.display = function(){
 	if(!this.dob){
 		this.dob = Dob(mainDiv,'div',''+this.fn);
+		this.dob.style['user-select'] = 'none'; //prevent selecting node since selecting text in it interferes with dragging node
 		//this.dob = Dob(document.body,'div',''+this.fn);
 		this.dob.style.position = cssPositionType; //relative to mainDiv?
 		this.dob.style['background-color'] = randColorStr();
-		this.dob.style.height = '50px';
+		//this.dob.style.height = '30px';
+		//this.dob.style.height = '50px';
 		//this.dob.style.width = '200px';
 		//this.dob.style.width = '10px';
 		//this.dob.style.background = 'url(redSawTooth.png)';
@@ -576,8 +581,10 @@ var nodeAtYXOrNull = (y,x)=>{
 };
 
 var onMouseMove = event=>{
-	mouseY = event.clientY-mainDiv.offsetTop;
-	mouseX = event.clientX-mainDiv.offsetLeft;
+	mouseY = event.pageY-(mainDiv.offsetTop+mainDiv.clientHeight);
+	mouseX = event.pageX-mainDiv.offsetLeft;
+	//mouseY = event.clientY-mainDiv.offsetTop;
+	//mouseX = event.clientX-mainDiv.offsetLeft;
 	//mouseY = event.offsetY-mainDiv.offsetTop;
 	//mouseX = event.offsetX-mainDiv.offsetLeft;
 	logMouseAndButtonsEtc();
