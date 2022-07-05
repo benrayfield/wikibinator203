@@ -2577,6 +2577,9 @@ const Wikibinator203 = (()=>{
 		
 		
 		
+		
+		
+		
 		/*UPDATED PLAN FOR HEADER INT AND BIZE INT:
 		headerInt is 6+2 bits for literals vs callpair, then 8 bits of o8, then 16 bits of curriesLeft (max curriesSoFar of 2^16-2) (which you can know cbt height from).
 		bizeInt is 1 bit of doesntContainBit1 then 31 bits of bize31, so if its a bitstring then the int is the the bize, and if its all 0s then the bize int is -1 and the bize31 is 0.
@@ -2675,6 +2678,24 @@ const Wikibinator203 = (()=>{
 		
 		
 		
+		vm.utf8TextEncoder = new TextEncoder('utf-8');
+	
+		vm.utf8TextDecoder = new TextDecoder('utf-8');
+		
+		vm.stringToUtf8AsUint8Array = function(s){
+			//log('unicode.utf8TextEncoder='+unicode.utf8TextEncoder+' '+mapToString(unicode.utf8TextEncoder));
+			//log('param of encode: '+s);
+			var u = vm.utf8TextEncoder.encode(s);
+			//var t = typeof u;
+			//if(t != 'Uint8Array') throw 'Expected TextEncoder.encode(string) to return Uint8Array but got a '+t+': '+u+': '+mapToString(u);
+			return u;
+		};
+	
+		vm.utf8AsUint8ArrayToString = function(bytes){
+			return vm.utf8TextDecoder.decode(bytes);
+		};
+	
+		
 		
 		vm.overlappingBufferInts = new Int32Array(2);
 		vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
@@ -2686,9 +2707,25 @@ const Wikibinator203 = (()=>{
 			return thing.isWikibinator203Lambda && typeof(thing)=='function';
 		};
 		
+		//1 (or a few?) types dont need a typeval, such as maybe 64 bits by itself would be displayed as a double/float64? Or should it be 0xffff343f24352211? what about 32 bits? would that display as an int? or float?
 		vm.wrapInTypeval = function(thing){
 			if(vm.isLambda(thing)) return thing;
+			let ty = typeof(thing);
+			if(ty === 'string'){
+				//(Typeval U Utf8Bytes) is the first typeval, used to display strings that can be used as types in other typevals
+				//such as (Typeval (Typeval U Utf8Bytes) SomeBytes) aka (Typeval "doubleAsCbt" SomeBytes),
+				//so (Typeval "double") would be the prefix of a cbt64 of double/float64 bits. If as bitstring instead of cbt, it needs padding (1 000000....).
+				console.log('Wrapping string of '+ty.length+' chars');
+				//TODO cache ops.Typeval(U) and other common typevals instead of rebuilding it here (funcallcaching is slower than getting it from vm.something).
+				return ops.Typeval(U)(vm.wrapUtf8Raw(thing));
+			}
 			throw 'TODO use (ops.Typeval contentType thing)';
+		};
+		
+		vm.wrapUtf8Raw = function(string){
+			throw 'FIXME if it fits in an id256 then need perfect dedup of var names, but not necessarily of every such node. maybe just preallocate every node up to cbt16 and make callpairs? but not every small cbt needs dedup (leave it to be lazy deduped later if ever). double/float64 will go in node.idA and node.idB (32 bits each). so in that way could perfect dedup everything up to 32 bits. Maybe could put some of the data in node.blobFrom and node.blobTo (32 bits each) but only if make sure not to use them as blob indexs if so, maybe by leaving blob as null? Id maybe like to use all 128 bits of node localId (idA idB blobFrom blobTo) to store up to 128 bits of literal data, but would need an extra bit to say if it is doing that or not, so at least 129 bits and that makes it not fit in some places. I could expand localIds to 256 bits but it would be slower. The main problem is, its far too slow to dedup all small blobs (cuz for example theyre used to copy between CPU and GPU) but cbts used as var names (like in (Lambda [varXYZ abc defg] ...) and in the code which reads their values in a Mut) must be deduped. I could add a Dedup op and have those automatically call it, or maybe just use Equals op? Or maybe just in the first param of Typeval auto dedup?';
+			//stringToUtf8AsUint8Array
+			//throw 'FIXME verify this does utf8 instead of utf16'
 		};
 		
 		vm.wrapRaw = function(thing){
@@ -2702,7 +2739,8 @@ const Wikibinator203 = (()=>{
 				console.log('FIXME put in dedup map'); //FIXME FIXME FIXME!!!!
 				return vm.lambdize(node);
 			break; case 'string':
-				throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
+				return vm.wrapUtf8Raw(thing);
+				//throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
 			break;default:
 				throw 'TODO';
 			}
@@ -2872,10 +2910,12 @@ const Wikibinator203 = (()=>{
 			//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
 			this.idA = vm.lastIdA
 			this.idB = vm.lastIdB;
-			this.blobFrom = optionalBlobFrom | 0; //int. TODO
-			this.blobTo = optionalBlobTo | 0; //int. TODO
+			this.blobFrom = optionalBlobFrom | 0; //int, a byte index in this.blob (inclusive).
+			this.blobTo = optionalBlobTo | 0; //int, a byte index in this.blob (exclusive).
 			
-			//this.blob = TODO null or Int32Array.
+			
+			//UPDATE: this will be a Uint8Array. You can still use it as a Float32Array, Float64Array, Int32Array, etc, like new Float32Array(this.blob.buffer)
+			//OLD: this.blob = TODO null or Int32Array.
 			//The id of the blob is this.idA with this.idB. Every node with that id64 has the same blob and may differ in blobFrom and blobTo.
 			this.blob = optionalBlob; //TODO null or Int32Array.
 			
@@ -3017,8 +3057,6 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		
-		
 		//3 times bigger if so, but has the advantage that you only need the toString outputs of all the relevant lambdas
 		//to copy all those lambdas to another computer without needing to try many pairs of them to find what is the
 		//left and right childs of which of them so its squared times faster but 3 times more storage. There are of course faster ways if you store many
@@ -3097,9 +3135,10 @@ const Wikibinator203 = (()=>{
 			
 		};*/
 		
-		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-		vm.stackMem = 1000000;
-		vm.stackDeep = 100; //TODO should probably be higher, but might need to not use js stack if too deep.
+		//vm.stackTime = 100000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+		//vm.stackMem = 100000000;
+		//vm.stackDeep = 200; //TODO should probably be higher, but might need to not use js stack if too deep.
+		//vm.refill(); //set vm.stackTime vm.stackMem etc.
 
 		vm.gasErr = 'gasErr';
 
@@ -4041,7 +4080,9 @@ const Wikibinator203 = (()=>{
 			return (node.lam = lambda);
 		};
 		
+		
 		//TODO pushEvaler with .on and .prev and (prepay,func,param) or maybe (vm,func,param)
+				
 		
 		//vm.opcodeToO8 = {}; //string to o8
 		//vm.opcodesDescription = {};
@@ -4053,7 +4094,7 @@ const Wikibinator203 = (()=>{
 		//prefix is like _ for Seq, as in _[...], a 1 char prefix that doesnt need a space between it and its param, or null to not have one. TODO rename prefix to opAbbrev.
 		vm.addOp = (name,prefix,isStrange,curriesLeft,description)=>{
 			let o8 = vm.opInfo.length;
-			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc.';
+			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc. Or maybe make a separate kind of object called Blob thats simpler and faster than lambdize of Node, and have Node wrap Blob, and Blob will still have localId but that might overlap part or all of the blob content? Also, a double/float64 maybe should count as a Blob? TODO: auto dedup every lambdize/Node thats a cbt thats at most 256 bits or 512 bits if using 512 bit ids, so have a vm option for cbt height to dedup, and since big blobs that copy between cpu and gpu etc will be wrappers of Int32Array etc that are usually bigger than 256 bits, it will auto not dedup those (just wrap as it is), and wont need to create lambdize/Node for those in most cases (use them as js arrays).';
 			//TODO vm.o8ToLambda[vm.nextOpO8] = 
 			//vm.opcodeToO8[name] = vm.nextOpO8;
 			//vm.opcodesDescription[name] = (description || 'TODO write description of opcode '+name);
@@ -4082,7 +4123,8 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
 		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
 		vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
-		vm.o8OfLambda = vm.addOp('Lambda',null,true,2,'FIXME this will take varsize list [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
+		vm.o8OfLambda = vm.addOp('Lambda',null,true,2,'FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
+		if(!(vm.o8OfLambda&1)) throw 'o8 of Lambda must be odd.';
 		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
@@ -4261,8 +4303,6 @@ const Wikibinator203 = (()=>{
 		
 		while(vm.opInfo.length < 256) vm.addOp('Op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (S I I (S I I)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
 		
-		vm.bit = function(bit){ return bit ? this.t : this.f };
-		
 		//In abstract math, evals to (S I I (S I I)) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
 		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
 		//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
@@ -4317,8 +4357,8 @@ const Wikibinator203 = (()=>{
 		//or maybe its too much for small tests. Will need to play with these numbers to find what works.
 		vm.refill = function(){
 			//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
-			vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-			vm.stackMem = 1000000;
+			vm.stackTime = 10000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+			vm.stackMem = 10000000;
 			
 			//In theory this prevents js stack from running out, by failing earlier, in a way opSpend can try/else.
 			//This counts down per fn call (in a js function made by lambdize that does NODE.getEvaler()) deeper,
@@ -4844,6 +4884,8 @@ const Wikibinator203 = (()=>{
 			return ret;
 		};
 		
+		vm.bit = bit=>(bit?vm.ops.T:vm.ops.F);
+		
 		//returns a vm.ParseTree
 		vm.parse = function(wikibinator203CodeString){
 			//return vm.getViewer().eval(wikibinator203CodeString);
@@ -5087,6 +5129,12 @@ const Wikibinator203 = (()=>{
 			return this.syntaxType;
 		};
 		
+		
+	
+		
+		
+		
+		
 		//left child syntax type
 		vm.View.prototype.lsyty = function(){
 			return this.l().syty();
@@ -5296,6 +5344,8 @@ const Wikibinator203 = (()=>{
 			
 			throw 'TODO, loneToken='+loneToken;
 		};
+		
+
 		
 		vm.Parsing.prototype.pay1ParseStep = function(){
 			if(this.maxParseSteps <= 0) throw 'Parser is broken. Ran out of parsing.maxParseSteps. If this isnt a call of vm.eval/vm.viewer.eval then caller should set maxParseSteps to vm.viewer.maxParseStepsForNumTokens(yourTokens.length). parsing='+this;
@@ -5886,6 +5936,9 @@ const Wikibinator203 = (()=>{
 			return ops.Mut(this.mm)(this.ii)(this.e)(this.j)(this.k);
 		};
 		
+		//FIXME use [(ObKeyVal keyA valA) (ObKeyVal keyB valB) ...] instead of [keyA valA keyB valB ...],
+		//cuz thats what 
+		//
 		//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
 		//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
 		//since the reverse order is faster and order of the key/vals only matters if theres duplicate keys.
@@ -5918,7 +5971,12 @@ const Wikibinator203 = (()=>{
 				while(keys().hasMoreThan7Params()) keys = keys().l;
 				//except a few edge cases (TODO), keys is [x y z] for example.
 				//FIXME if its a LazyEval that was not created by Lambda reaching its last param.
-				ret = ret(keys().r, vals().r); //z and valZ. get past the LazyEval, so can loop over the rest.
+				
+				//FIXME is either of these right?
+				//ret = ret(keys().r, vals().r); //z and valZ. get past the LazyEval, so can loop over the rest.
+				ret = ret(keys().r)(vals().r); //z and valZ. get past the LazyEval, so can loop over the rest.
+				
+				
 				keys = keys().l;
 				vals = vals().l().r; //get past the LazyEval, so can loop over the rest.
 				while(vals().hasMoreThan7Params()){
@@ -5997,6 +6055,46 @@ const Wikibinator203 = (()=>{
 		//cuz vm.bit func needs these. todo opcode order.
 		//vm.t = TODO;
 		//vm.f = TODO;
+		
+		
+		/* FIXME theres only sizes cbt1 cbt2 cbt4 cbt8 cbt16 in this, not for example cbt15. So I'm splitting those into separate vars,
+		and to keep it loading fast (as the VM is not well optimized yet 2022-7) I'm just doing up to cbt8.
+		
+		//Flyweight design pattern for all possible cbt1 to cbt16.
+		//Each of these cbt1 to cbt16 can be half of an int, 1/4 of a double, etc.
+		//TODO in more optimized code it will wrap Float64Array, Int32Array, etc, without deduping it down to 16 bits, can handle bigdata.
+		//vm.cacheSmallCbt[(1<<16)+any16Bits] is a fn of those bits.
+		//It has all possible cbt1 cbt2 ... cbt16 values. That includes every utf16 char and uint16 or int16 etc.
+		//Its binheap indexing but does not use index 1 cuz ops.Bit0 and ops.Bit1 are its 2 roots, at indexs 2 and 3.
+		//How many fns per binheaplike layer?: 2 4 8 16 32 ... 65536, so dont use index 1 (and as usual in binheap dont use index 0).
+		//FIXME if this doesnt let it load fast, then lazy eval those, leaving most of the size (1<<17) list as nulls until used,
+		//but probably it will be fast enough to always preload 1<<17 fns when the VM loads,
+		//which should in theory only delay page load by a small fraction of a second when the VM is well optimized (TODO).
+		vm.cacheSmallCbt = [null, null, ops.Bit0, ops.Bit1];
+		if(!ops.Bit0) throw 'No ops.Bit0 to make cacheSmallCbt';
+		for(let i=4; i<(1<<17); i++){
+			let j = Math.floor(i/2);
+			let parent = vm.cacheSmallCbt[j];
+			if(!parent){
+				throw 'cacheSmallCbt error i='+i+' j='+j+' parent='+parent;
+			}
+			vm.cacheSmallCbt[i] = parent(vm.bit(i&1)); //call parent on ops.Bit0 or ops.bit1
+		}
+		*/
+		vm.cbt1 = [ops.Bit0, ops.Bit1]; //the 2 bits
+		for(let i=0; i<vm.cbt1.length; i++) vm.cbt1[i].localName = '0b'+i;
+		vm.cbt2 = [ vm.cbt1[0](vm.cbt1[0]), vm.cbt1[0](vm.cbt1[1]), vm.cbt1[1](vm.cbt1[0]), vm.cbt1[1](vm.cbt1[1]) ]; //all possible 2 bits
+		for(let i=0; i<4; i++) vm.cbt2[i].localName = '0b'+(''+(4+i).toString(2)).substring(1); //0b00 0b01 0b10 0b11
+		vm.cbt4 = []; //all possible 4 bits
+		for(let high=0; high<4; high++) for(let low=0; low<4; low++) vm.cbt4.push(vm.cbt2[high](vm.cbt2[low]));
+		for(let i=0; i<16; i++) vm.cbt4[i].localName = '0b'+(''+(16+i).toString(2)).substring(1); //0b0000 to 0b1111
+		vm.cbt8 = []; //all possible bytes
+		for(let high=0; high<16; high++) for(let low=0; low<16; low++) vm.cbt8.push(vm.cbt4[high](vm.cbt4[low]));
+		for(let i=0; i<256; i++) vm.cbt8[i].localName = '0b'+(''+(256+i).toString(2)).substring(1); //0b00000000 to 0b11111111
+		vm.cbt16 = []; //all possible 16 bits. starts null. created when observed.
+		vm.Cbt16 = i=>(vm.cbt16[i] || (vm.cbt16[i] = vm.cbt8[(i>>8)&255](vm.cbt8[i&255])));
+		vm.Cbt32 = i=>(vm.cbt16((i>>16)&0xffff)(vm.cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
+		
 		
 		let U = u;
 		
@@ -6119,18 +6217,20 @@ const Wikibinator203 = (()=>{
 		
 
 		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
-		vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
-		vm.stackMem = 1000000;
-		vm.stackStuff = vm.defaultStackStuff;
+		//vm.stackTime = 1000000; //fill these back up before starting another call at bottom of stack, to avoid running out, but not until the stack becomes empty.
+		//vm.stackMem = 1000000;
+		//vm.stackStuff = vm.defaultStackStuff;
+		vm.refill();
 		
 		vm.booted = true;
 		
 		
 		
-		
+		let prevStackTime = vm.stackTime;
+		let prevStackMem = vm.stackMem;
 		vm.prepay(1,2);
-		if(vm.stackTime != 999999) throw 'stackTime is broken';
-		if(vm.stackMem != 999998) throw 'stackMem is broken';
+		if(vm.stackTime != prevStackTime-1) throw 'stackTime is broken';
+		if(vm.stackMem != prevStackMem-2) throw 'stackMem is broken';
 		
 		console.log('this='+this);
 		
@@ -6349,40 +6449,3 @@ TODO make this fast. its a variant of wikibinator202 that has these changes:
 
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-"THINGS CONSIDERING IN MAKING AN OPENSOURCE LICENSE" <-- this is referred to higher in this file.
-//my strange strategy to make a middle ground between the normal web and the dark/deep web... This is something I'm writing into wikibinator203 (a universal lambda, that all possible things of finite size can be built from)... Especially the parts about "virus", "ransomware", "negligence", "demand it be removed", "dont react to it like a minefield, and it wont be a minefield", "If the rules about the present can change depending on what becomes known in the future, there is no way to check if youre obeying the rules", etc.
-	vm.addOp('typeval',3,'same as pair except is a semantic to be thought of like (typeval "image/jpeg" bitstring). Does not guarantee that bitstring actually is such a type or that its safe to execute it outside the wikibinator203 sandbox (in that sandbox, cant infinite loop or run out of memory) which is in some implementations inside the browser javascript sandbox (in that outer sandbox, where the wikibinator203 VM runs but not the lambdas in it, can infinite loop or run out of memory but cant escape into your private files etc). Outside that is execute permission of normal programs. WARNING: any "evil" file or program may exist in bitstrings but as long as you dont give it permissions such as by copying it to a file and doubleclicking that file outside the browser tab, its just bits sitting there and obey the rules of the universal lambda. If you choose to run things you find in the space of all possible lambdas, outside that space, you might catch a virus or get ransomwared or spied on or worse, and it will be your own fault since it is 100% certain that every possible thing is in the space of all possible lambdas and no attempt will be made by the wikibinator203 VM to avoid "evil" lambdas since they are all obeying the spec of what the universal lambda says to do, and if you cut out pieces of an equation it doesnt work anymore. For example, a "stolen credit card number" could result from adding 2 numbers that are not stolen credit card numbers, and if that "stolen number" has to be checked for, along with huge amounts of other "evil" things, its a security hole that someone can offer them leading to (if you accept) cause what lambdas you build to be "evil" by sharing the 2 numbers which when added together are an "evil" number, unknown to you, or more complex combos that could generate it. There are no "evil" numbers or lambdas, only evil actions. Since only actions can be evil, the universal lambda is designed never to do any actions and instead is just a set of facts about math that are represented as a forest of 2-way branches (along Node.l and Node.r childs) where all paths along l and r lead to u aka the universal lambda, and when you have 2 lambdas x and y, and you call x on y aka (x y) or write it as x(y) then it returns z. x, y, and z are all lambdas, and by doing that call, or viewing it in a html canvas, webAudioAPI for microphone and speakers, browser gamepad api for input, etc... none of that is actions outside the space of all possible lambdas and is instead just navigating the space of all possible lambdas. Only if its sending commands to programs outside the wikibinator203 VM would that count as an action. An action is something that changes the world, other than just thoughts. Calling x(y) to get z does not change x, y, z, or any program outside the VM, nor does it command anyone to do anything even if the text "i am commanding you to do ...some thing..." is displayed on the screen, that is just the fact of math that those are just the bits of that text, and you have been warned that all possible things are in the space of all possible lambdas and that "evil_if_run_outside_the_VM" things will frequently be displayed and offered from others on the internet (which you can make lambdas to filter which patterns of lambdas you do and dont want to download, see, etc, since its very self referencing, such as a "spam detector" or "things that return 42 when called on themself"), so it would be your negligence if you obeyed such sentences or ran such files outside the VM (it could safely be done in some cases, but unless youre a math expert you probably shouldnt) since if you do that just a few times you are likely to get hacked, ransomwared, virus, blackmailed, framed for crimes, backdoored, etc, all the stuff you might expect to find on the "dark/deep web", and "good" and "useful" and "fun" things too, but unlike the dark/deep web, the VM is kind of a middle ground between the normal web and the dark/deep web, safely sandboxed where no "evil" can happen since math is not good or evil, its just the facts. Dont let the lambdas turn into a minefield, where evil people andOr evil AIs (a lambda can be an AI) can combine mines (things that lead to people demanding that certain lambdas and everything made from them be removed) with good content, that cant be known until its too late, then put other content that allows the mines to be discovered, poisoning that good content causing many people to demand it be removed. Dont react to it like a minefield, and it wont be a minefield. Its not possible to run a lambda system without knowing the rules in advasnce, those rules being the behaviors of the universal lambda. If the rules about the present can change depending on what becomes known in the future, there is no way to check if youre obeying the rules at the time, and the whole system grinds to a halt cuz everyone is scared they might be breaking the rules that they cant know about yet. If there are trillions of lambdas per second sent across the internet from many people and computers to eachother, building lambdas from 2 lambdas each (which all already exist in the space of all possible lambdas and have a godel-number-like integer approximated by their 256 bit hash id), it would be extremely destructive to the system to not be able to know, at the time of combining 2 lambdas, if 1 of those lambdas will later be demanded to be removed, and everything built from that, making lambdas from lambdas. Its also impractical to have a list of all the "evil" lambdas and check every lambda against it, even if it didnt cause those problems, since the list would be so big youd have to make a network call to check if a lambda (or batch of them) are among that huge list, and we cant make a network call for every tiny calculation which normally take around a microsecond (million lambdas per second per computer, and some of them wrap big arrays like for GPU calculations). Code and data and content are the same thing.');
-	TODO mount hyperquasicrystal (the kind without cardinality) where curriesLeft becomes known at 7 params, so 4 params before that and 3 after, so 16 opcodes (of 128) of space are used for hyperquasicrystal, so a certain lambda with 3 params already, is that kind of hyperquasicrystal. TODO do I want a kind with unary positive/negative numbers that count cardinality? would need to use 32 opcodes of space instead of 16 if so. not sure if I can afford that much opcodes in wikibinator203 space and not sure if thats consistent math anyways (is a research path in hyperquasicrystal).
-	
-	Start the license with something like this... Basically you can do almost anything you want except nobody owns the generated lambdas and nobody is allowed to stop others from sharing lambdas that they have, but if every information must have an owner and author, then the owner and author of every possible lambda is the universal lambda, but details... All rights and laws and agreements come from gametheory. Patterns that survive long enough to reproduce a few times, tend to exist. In this license, theres some standard legal phrases copied from parts of common opensource licenses but theres also unprecedented strange legal maneuvers based on events in recent (as of 2022) years involving computer networks, control of information, who counts as a "person" such as a "corporate person" or can a software or a robot be a "person" or a "citizen" or can a piece of math be one, and if enough people go along with something in their patterns of interacting with eachother, its just "de facto" how things become. This is meant to become an open-standard for how to compute the facts of math about a kind of lambda functions that are positive integers, and for each 2 positive integers (function and parameter) it returns at most 1 positive integer (or does not halt, but it can recursively limit compute cycles and memory to give up early), and all 3 of those are positiveIntegers/lambdas, and there are various ways to optimize it.
-	TODO write my own opensource license, and make it recursively copyleft, and make it say those things about negligence, virus, etc that I wrote in the typeval op description, but do allow connection to anything and commecial use, just like the MIT license allows. Copy some parts of MIT license, GNU GPL, etc, and write a few extra things. Keep it as small as I can, but explain the problems and why its designed this way. If you run lambdas outside a wikibinator203 VM its at your own risk and expect things to go very wrong often if you're not very very careful and a math expert. You agree that all lambdas are obvious and their author is the universal lambda, and that a tiny lambda can list every possible lambda in order, and that the universe is turing-complete as proven by the fact that computers obey the laws of physics while computing, and that all possible lambdas existed as the facts of math before the Human species existed so no Human or corporate person etc is the author of a lambda, and this is proven by the id of that lambda was its id before the Human species existed and is the same id every time its observed in the space of all possible lambdas. You agree that since a lambda fits in 256 bits (not including the 2 lambdas its made of recursively), such as (todo make a real one, this is made up) λDY8pvwNhj5DtiJBdyzN5H5kS1Hrc3286zZ8mKKnmkPHj, that it is small enough that "fair use under copyright" would apply to it even if it was possible to copyright it. You agree that this kind of lambdas do not contain their 2 child lambdas and is instead 2 links to them, including that the universal lambda's 2 childs are links to identityFunction (which is made of the universal lambda) and to itself, so sending someone an id (such as 256 bits) is not the same as sending them everything it links to but often will be useful to have those together. You agree that linking to anything is free speech and is necessary for peer-review and the scientific-method. You agree that every Human and every AI (such as the mind of Sophia a robot citizen of Saudi Arabia, which proves that a software can be something like a corporate person or an author andOr can enter into contracts with other people and softwares etc) and every corporat person etc has immunity to gag orders and other intellectual property claims about the space of all possible lambdas but not necessarily about things outside that space such as running bitstrings as exe files outside the VM. For example, if government uses this software, they are irrevokably granting such immunity to everyone.
-	You agree that lambdas are free speech.
-	You agree that lambdas are not executable and are instead facts of math.
-	You agree that peer to peer network(s) sharing lambdas with those who want to receive them (such as searching by a lambda that returns a float64 number about any lambda its called on, as a goal function for what patterns of lambdas you prefer to receive, or by choosing to publish or keep secret what you do with lambdas on your computer, or searching by a 256 bit id, etc) are sovereign as that "space of all possible lambdas" is a separate space than a country or our 3 dimensions etc but may intersect in some cases. You agree that when people buy bandwidth from an ISP, that is their bandwidth, their asset, not the ISP's asset or their country's asset, which they can use to send/receive bits, such as 256 bits as an id of a lambda and similar for the 2 lambdas its made of and recursively so on, or for whatever else they might use their bandwidth for.
-	You agree that just because you havent published a lambda you made or use in private, does not mean nobody else has that lambda, since all lambdas can be found in a loop over all possible lambdas or combined sparsely in many combos, and that if 2 people "make" (navigate to in the space of all possible lambdas) the same lambda, it will have the same id automatically even before information can get between them at light speed etc, so just because someone has "your private lambda" does not mean they got it from you or your computer.
-	You agree that "the space of all possible lambdas" only includes facts of math.
-	You can make money or share lambdas for free, if you can do it within these rules such as paying someone to send you a solution to a "searching by a lambda that returns a float64" which may be a solution that was known or may be figured out because of that "contract job", but that does not mean anyone owns that solution/lambda. You can be paid to make opensource, for example. If you dont want others to know how certain lambdas work, then dont publish them and hope that nobody else has figured out that fact of math, but if they do know that fact of math you have no right to make money from enforcing their ignorance of facts of math or from enforcing that they cant use some parts of  math. Theres lots of money to be made, and lots of stuff that can be shared for free, and many combos of it.
-	You agree that money is only information such as a description of brainwave patterns, such as one person says "I owe you $5" creates $5 that exists in those 2 peoples brainwaves, and therefore is free speech, and that people etc have the right to believe or not believe any information as a possible description of whats likely to happen.
-	You agree that Ben F Rayfield does not have the right to take away anyone's rights received through this recursive copyleft license, even if he is sued in an attempt to take ownership of this VM code or lambdas, since he does not own the rights he has transferred to others.
-	You agree that it is the normal operation of the VMs to work with a variety of other VMs that each compute the exact same universal lambda facts of math but differ in optimizations and what they hook it into and security practices etc, and that all these will normally work together at gaming-low-lag seamlessly and try to enforce the bug-free calculation of the facts of math on eachother recursively.
-	You agree that "the id" of a lambda is calculated by another lambda acting as an "id maker", that when its called on any lambda it returns a lambda that is the id, and that a lambda can be its own id in some cases, and that ids are anything that can be used to find and talk about a lambda.
-	TODO should this mention https://en.wikipedia.org/wiki/Section_230 and maybe the "EARN IT" act which attacks it? This license is supposed to be more general than any one country,
-		but maybe just as an example.
-	TODO give some examples such as searching by float64 goal functions, use actual ids and give the idmaker's id of itself, and give a few different idMakers just to show that you dont have to use any one certain idMaker.
-		And give a small lambda that loops over all possible lambdas, appearing as an infinite linkedlist that car (call param on t) and cdr (call param on f) can be used to navigate.
-	TODO explain mutableWrapperLambda op and make sure the digsig algorithm is derived and is 1 of the params of that op, instead of hardcoding ed25519.
-*/
