@@ -64,7 +64,11 @@ var angle = 0;
 
 var edgeBackgroundOffset = 0;
 
+var displayUiedges = true;
+//var displayUiedges = false;
+
 UIEdge.prototype.display = function(){
+	if(!displayUiedges) return;
 	if(!this.dob){
 		let parentDob = mainDiv;
 		//let parentDob = document.body;
@@ -257,10 +261,13 @@ var doPhysics = dt=>{
 	for(let node of nodes){ //dont let nodes get too far from main area of screen.
 		let newY = between(minY, node.pos[0], maxY);
 		let newX = between(minX, node.pos[1], maxX);
-		if(node.pos[0] != newY || node.pos[1] != newX){
+		if(node.pos[0] != newY){
 			node.pos[0] = newY;
+			node.vel[0] = 0; //if hit a wall, set velocity to 0
+		}
+		if(node.pos[1] != newX){
 			node.pos[1] = newX;
-			node.vel[0] = node.vel[1] = 0; //if hit a wall, set velocity to 0
+			node.vel[1] = 0; //if hit a wall, set velocity to 0
 		}
 	}
 	let speedMul = between(0,1-dt*speedDecay,1);
@@ -428,6 +435,12 @@ var UINode = function(fn){
 	}
 	
 	nodes.push(this);
+	let fnStr = ''+fn;
+	console.log('Created uinode nodes['+(nodes.length-1)+'] for fn: '+fnStr);
+	if(!fnStr){
+		//let fnStr2 = ''+fn;
+		throw 'Empty fnStr at nodes['+(nodes.length-1)+']';
+	}
 };
 
 UINode.prototype.width = function(){
@@ -586,7 +599,7 @@ var nodeAtYXOrNull = (y,x)=>{
 			&& node.pos[1] <= x
 			&& x < node.pos[1]+node.width()
 		){
-			console.log('nodeAtYXOrNull found '+node+' at y'+y+' x'+x);
+			if(1<=vm.loglev)console.log('nodeAtYXOrNull found '+node+' at y'+y+' x'+x);
 			return node;
 		}
 	}
@@ -602,7 +615,7 @@ var onMouseMove = event=>{
 	//mouseX = event.offsetX-mainDiv.offsetLeft;
 	logMouseAndButtonsEtc();
 	if(draggingNode){
-		console.log('dragging '+draggingNode);
+		if(1<=vm.loglev)console.log('dragging '+draggingNode);
 		draggingNode.pos[0] = mouseY+dragOffsetY;
 		draggingNode.pos[1] = mouseX+dragOffsetX;
 	}
@@ -622,10 +635,19 @@ var onMouseDown = event=>{
 	buttons[event.button] = 1;
 	//logMouseAndButtonsEtc();
 	draggingNode = nodeAtYXOrNull(mouseY,mouseX);
+	if(draggingNode && dom('isEditCodeWhenClickGraphNodeBelow').checked){
+		console.log('Editing draggingNode='+draggingNode);
+		startEditingUinode(draggingNode);
+	}
+};
+
+var startEditingUinode = uinode=>{
+	dom('codeOut').value = '';
+	dom('codeIn').value = ''+uinode.fn;
 };
 
 var logMouseAndButtonsEtc = ()=>{
-	console.log('y'+mouseY+' x'+mouseX+' buttons='+JSON.stringify(buttons));
+	if(2<=vm.loglev)console.log('y'+mouseY+' x'+mouseX+' buttons='+JSON.stringify(buttons));
 };
 
 
@@ -635,15 +657,43 @@ var buttons = {};
 </script>
 </head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);">
 	<center>
-		TODO: Right click any node to edit it as a string of code, in its dom node (dob), which as you type creates/finds new nodes below it (or only if you push a certain button since that might be confusing to have stuff change so fast), and while editing you can choose a subset of the nodes on screen that can reach it by l and r edges (easiest way is edit nodeA as viewed from nodeB which can reach nodeA, and a button to save a snapshot of it into the nodes directed graph), and that subset can be copied then modified or just modified, and such modifying/editing does not affect the 256 bit ids (TODO ids) of the nodes, just is different lambdas.
-		<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea><br>
-		Eval of the above code, out:<br>
-		<textarea id=codeOut rows="5" cols="100" readonly></textarea><br>
+		<h2>Wikibinator203, a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest.</h2>
+		<nobr>OUT:<textarea id=codeOut rows="2" cols="100" readonly></textarea></nobr><br>
+		<nobr>IN:<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
 		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
+		<input type=checkbox id=isEditCodeWhenClickGraphNodeBelow checked></input><label for=isEditCodeWhenClickGraphNodeBelow>when click below, edit code here</label><br>
 	</center>
 	<br>
 	<div id="mainDiv">>mainDiv</div>
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+	<center>
+	Test Wikibinator203 prototype (incomplete but works a little)<br>
+Wikibinator203 code in. It evals while you type,<br>
+but until vm.stackTime and vm.stackMem are working,<br>
+you might have to close and reopen browser tab if you write an infinite loop). Example: (Pair (F U) S F) -> S<br>
+Example: (Pair (F U) S T) -> (F U)<br>
+Example: Pair -> Pair<br>
+Example: ([L R L R] Pair Pair L S R) -> [L R L R Pair Pair L S R]<br>
+Example: (L ([L R L R] Pair Pair L S R)) -> [L R L R Pair Pair L S]<br>
+Example: (R ([L R L R] Pair Pair L S R)) -> R<br>
+Example: (L U (R U)) -> U<br>
+Example: (L L (R L)) -> L<br>
+Example: (L R (R R)) -> R<br>
+Example: (L S (R S)) -> S<br>
+Example: (L (Pair S T) (R (Pair S T))) -> (Pair S T) - aka (Pair S T) is the iota lambda<br>
+Example: ((Pair S T) (Pair S T) [L R L R S]) -> [L R L R S] - cuz iota called on itself is an identityFunc.<br>
+Example: ((Pair S T) (Pair S T) (Pair S T)) -> (Pair S T) - cuz iota called on itself is an identityFunc.<br>
+Example: ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T)))) -> T<br>
+- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
+Example: ((Pair S T) ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T))))) -> S<br>
+- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
+This is an infinite loop (though runs out of javascript stack: (S (F U) (F U) (S (F U) (F U)))<br>
+It will be much easier use when Names#(...) and drag-and-drop and 1024x1024 per pixel graphics are working.<br>
+<br><br><br>
+TODO, something I'll build to improve the UI later... Right click any node to edit it as a string of code, in its dom node (dob), which as you type creates/finds new nodes below it (or only if you push a certain button since that might be confusing to have stuff change so fast), and while editing you can choose a subset of the nodes on screen that can reach it by l and r edges (easiest way is edit nodeA as viewed from nodeB which can reach nodeA, and a button to save a snapshot of it into the nodes directed graph), and that subset can be copied then modified or just modified, and such modifying/editing does not affect the 256 bit ids (TODO ids) of the nodes, just is different lambdas.<br>
+</center>
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 </body></html>

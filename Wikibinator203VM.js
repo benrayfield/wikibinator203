@@ -2908,8 +2908,8 @@ const Wikibinator203 = (()=>{
 			
 			vm.incIdAB(); //change vm.lastIdA and vm.lastIdB.
 			//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
-			this.idA = vm.lastIdA
-			this.idB = vm.lastIdB;
+			this.idA = vm.lastIdA|0; //|0 might make it easier for javascript JIT compiler to know its an int, even though vm.lastIdA always will be unless you make more than 2 pow 64 ids (or is it, more than 2 pow 53 or 2 pow 48, cuz some of that range is double values and i want an idA concat idB to contain every possible double.
+			this.idB = vm.lastIdB|0;
 			this.blobFrom = optionalBlobFrom | 0; //int, a byte index in this.blob (inclusive).
 			this.blobTo = optionalBlobTo | 0; //int, a byte index in this.blob (exclusive).
 			
@@ -4444,7 +4444,9 @@ const Wikibinator203 = (()=>{
 			this.stackMem = this.saveLoadStack.pop();
 			this.stackTime = this.saveLoadStack.pop();
 		};*/
-		
+	
+		//vm.loglev is 0 for no logging, and higher numbers for more logging.
+		vm.loglev = 1;
 		
 		/* very slow interpreted mode. add optimizations, as a linked list of evalers of whatever lambda,
 		as recursive (of whatever evaler is in relevant fns/lambdas called on eachother) evalers,
@@ -4465,9 +4467,9 @@ const Wikibinator203 = (()=>{
 			
 			//TODO vm.wrapInTypeval (and just rename that to wrap) of l and r, such as doubles or strings.
 			
-			console.log('vm.rootEvaler l='+l+' r='+r);
+			if(3<=vm.loglev)console.log('vm.rootEvaler l='+l+' r='+r);
 			
-			//console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
+			//if(3<=vm.loglev)console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 			vm.prepay(1,0);
 			l = vm.wrap(l); //If is already a fn (vm.isWikibinator203Lambda and its type is 'function'), leaves it as it is
 			r = vm.wrap(r);
@@ -4775,7 +4777,7 @@ const Wikibinator203 = (()=>{
 		vm.uu = vm.u(vm.u);
 		
 		vm.o8ToLambda = function(o8){
-			//console.log('vm.o8ToLambda '+o8);
+			//if(3<=vm.loglev)console.log('vm.o8ToLambda '+o8);
 			if(o8 > 255) throw 'o8='+o8;
 			if(o8 == 1) return vm.u;
 			let exceptLastParam = vm.o8ToLambda(o8>>1);
@@ -4814,7 +4816,7 @@ const Wikibinator203 = (()=>{
 		vm.Viewer = function(){
 			this.views = new Map();
 			
-			this.localNameToView = {};
+			this.localNameToView = {}; //FIXME it appears 2022-7-10 this is not being used or not every time it should be. is only this.views being used?
 			
 			//FIXME those seem old design. see syty and < [ { ( : etc.
 			this.syntaxTypeIsLeaf = {'U':true, '0':true, '_':true, ',':true};
@@ -4827,7 +4829,8 @@ const Wikibinator203 = (()=>{
 		vm.View = function(viewer, fn){
 			this.viewer = viewer; //what makes these View objects
 			this.fn = fn; //the fn its a View of		
-			this.localName = null;
+			this.localName = null; //FIXME ive been using view.fn.localName instead.
+			this.hasDefinedBeforeUsingName = false;
 			//Example: '_' for Seq, 'U' for theUniversalLambda, and maybe ',' for T but I tend to write T when its by itself.
 			this.builtInName = fn.builtInName || null; //replace undefined with null
 			//Examples: '(', '{', '[', '<', '0', '_', ',', '.'.
@@ -4909,26 +4912,71 @@ const Wikibinator203 = (()=>{
 		
 		vm.Viewer.prototype.fnToString = function(fn){
 			let viewing = this.newViewing();
+			
+			//FIXME, this sets view.fn.hasDefinedBeforeUsingName to false, instead of view.hasDefinedBeforeUsingName to false.
+			this.setAllToFalse_hasDefinedBeforeUsingName();
+			
+			//FIXME should this call viewing.setAllToFalse_hasDefinedBeforeUsingName() ? I was about to do that, but then saw its making a new viewing.
+			//Should that be in viewer instead of viewing? The viewer is reused (as of 2022-7-10).
+			
 			//this.viewToStringRecurse(this.view(fn), viewing, false);
 			this.viewToStringRecurse(this.view(fn), viewing, 'C', true);
-			console.log('tokens: '+JSON.stringify(viewing.tokens));
+			if(2<=vm.loglev)console.log('tokens: '+JSON.stringify(viewing.tokens));
 			return viewing.makeString();
+		};
+		
+		vm.Viewer.prototype.setAllToFalse_hasDefinedBeforeUsingName = function(){
+			//FIXME what if some arent included cuz they dont have a localName?
+			//for(let view in this.localNameToView){
+			//	view.hasDefinedBeforeUsingName = false;
+			//}
+			this.views.forEach((view,fn)=>{ //value,key
+				view.hasDefinedBeforeUsingName = false;
+			});
 		};
 		
 		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
 			
+			let doName = false;
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
-			if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
-				//includes U (or FIXME is it still lowercase u? cuz Names cant start with lowercase
-				//cuz thats automatic string literal if it has no spaces.)
-				//viewing.tokens.push(view.builtInName);
-				viewing.tokens.push(view.fn.localName);
-				//console.log('viewing.tokens.push builtInName '+view.builtInName);
-				console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
-			}else{
+			//if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
+			if(view.fn.localName){ //FIXME
+				if(view.fn != ops.Infcur){
+			
+					/*FIXME this is making it tostring the code wrong the second time its tostringed
+					since the first time, it defines_and_uses view.fn.localName,
+					but second and later times it only uses that so it doesnt get defined and all you see is the name in that part of code.
+					To fix that, need to track which fns (or views of them?) have been displayed so far.
+					I created view.hasDefinedBeforeUsingName to try to fix that, TODO...
+					*/
+				
+				
+					//includes U (or FIXME is it still lowercase u? cuz Names cant start with lowercase
+					//cuz thats automatic string literal if it has no spaces.)
+					//viewing.tokens.push(view.builtInName);
+					viewing.tokens.push(view.fn.localName);
+					if(view.fn().isLeaf()) view.hasDefinedBeforeUsingName = true; //dont define inside leaf, even though it wraps around ("tie the quine knot")
+					doName = true;
+					//console.log('viewing.tokens.push builtInName '+view.builtInName);
+					if(2<=vm.loglev)console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
+				}else{
+					viewing.tokens.push('[');
+					viewing.tokens.push(']');
+					if(2<=vm.loglev)console.log('viewing.tokens.push Infcur as []');
+				}
+			}
+			//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
+			//if((!doName || !view.fn.hasDefinedBeforeUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+			if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+				view.hasDefinedBeforeUsingName = true;
+				if(doName){
+					//# like in... [(Pair Pair) (F F) CallParamOnItself#{I#(F U) I}]
+					viewing.tokens.push('#');
+				}
+				
 				//FIXME where to put the info that something is a (S Thing)? cuz (S (S A B) C) is {A B C} aka {{A B} C}.
 				//Should that be syntaxtype 'S' or '(S' etc?
 				
@@ -4970,7 +5018,7 @@ const Wikibinator203 = (()=>{
 						if(view.lsyty() != 'IC0'){
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
 							viewing.tokens.push(' ');
-							console.log('[ pushed space');
+							if(2<=vm.loglev)console.log('[ pushed space');
 						}
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
 						if(isRightRecursion) viewing.tokens.push(']');
@@ -5011,7 +5059,7 @@ const Wikibinator203 = (()=>{
 						//this.viewToStringRecurse(view.l(), viewing);
 						this.viewToStringRecurse(view.l().r(), viewing, syty, false);
 						viewing.tokens.push(' ');
-						console.log('{ pushed space');
+						if(2<=vm.loglev)console.log('{ pushed space');
 						this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
 						if(isRightRecursion || callerSyty != 'S2') viewing.tokens.push('}'); //FIXME
 					/*break; case '{':
@@ -5037,14 +5085,16 @@ const Wikibinator203 = (()=>{
 							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push('(');
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
 							viewing.tokens.push(' ');
-							console.log('( pushed space');
+							if(2<=vm.loglev)console.log('( pushed space');
 							this.viewToStringRecurse(view.r(), viewing, syty, true);
 							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push(')');
 						}
 					break; default:
 						throw 'Unknown syntaxtype: '+syty;
 				}
-				
+				//so dont define it again, just use name, until the next tostring which should set
+				//all relevant hasDefinedBeforeUsingName to false so they get defined again.
+				//view.hasDefinedBeforeUsingName = true;
 			}
 			
 		};
@@ -5383,9 +5433,9 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.Parsing.prototype.pushFn = function(fn){
-			console.log('pushFnSTART stackSize='+this.stack.length);
+			if(2<=vm.loglev)console.log('pushFnSTART stackSize='+this.stack.length);
 			this.stack.push(fn);
-			console.log('pushFnEND stackSize='+this.stack.length);
+			if(2<=vm.loglev)console.log('pushFnEND stackSize='+this.stack.length);
 			return undefined;
 		};
 		
@@ -5396,15 +5446,15 @@ const Wikibinator203 = (()=>{
 		
 		//pops 2 fns. pushes 1 fn, by func(param)->ret, 3 fns.
 		vm.Parsing.prototype.popPopPushFnByCall = function(){
-			console.log('popPopPushFnByCallSTART stackSize='+this.stack.length);
+			if(2<=vm.loglev)console.log('popPopPushFnByCallSTART stackSize='+this.stack.length);
 			if(this.stack.length < 2) throw 'stack.length='+stack.length+' and cant pop last thing on stack';
 			let param = this.stack.pop();
 			let func = this.stack.pop();
 			//console.log('parsing, about to call (look for ENDCALL) '+func+' on '+param);
-			console.log('parsing, about to call (look for ENDCALL) func(param)');
+			if(2<=vm.loglev)console.log('parsing, about to call (look for ENDCALL) func(param)');
 			this.stack.push(func(param));
-			console.log('ENDCALL');
-			console.log('popPopPushFnByCallEND stackSize='+this.stack.length);
+			if(2<=vm.loglev)console.log('ENDCALL');
+			if(2<=vm.loglev)console.log('popPopPushFnByCallEND stackSize='+this.stack.length);
 			return undefined;
 		};
 		
@@ -5421,12 +5471,12 @@ const Wikibinator203 = (()=>{
 			tokens.push(...tokensStartAs);
 			tokens.push(')'); //Parser.parse needs this
 			
-			console.log('TOKENS: '+tokens.join(' .. '));
+			if(2<=vm.loglev)console.log('TOKENS: '+tokens.join(' .. '));
 			let parsing = new vm.Parsing(tokens);
 			//maxParseSteps is for things that dont parse at runtime in user code,
 			//or bugs in the parser while I'm still designing the parser.
 			parsing.maxParseSteps = this.maxParseStepsForNumTokens(tokens.length);
-			console.log('eval starting, maxParseSteps='+parsing.maxParseSteps);
+			if(2<=vm.loglev)console.log('eval starting, maxParseSteps='+parsing.maxParseSteps);
 			this.parse(parsing);
 			if(parsing.stack.length != 1) throw 'parsing.stack.length should be 1 but is '+parsing.stack.length;
 			//this part of stack started as vm.identityFunc (F U) but should have replaced it,
@@ -5681,10 +5731,10 @@ const Wikibinator203 = (()=>{
 			let nextFn = null;
 			let toTok;
 			do{
-				console.log('parse top of loop, stack: '+parsing.stackToString());
+				if(2<=vm.loglev)console.log('parse top of loop, stack: '+parsing.stackToString());
 				let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
 				if(fromTok === undefined) throw 'MOVEDTOINWHILE: parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
-				console.log('MOVEDTOINWHILE: PARSING====fromTok='+fromTok);
+				if(2<=vm.loglev)console.log('MOVEDTOINWHILE: PARSING====fromTok='+fromTok);
 				toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
 				if(toTok === undefined){
 					throw 'toTok is undefined. maybe reached the end of parsing the wrong way?';
@@ -5700,17 +5750,17 @@ const Wikibinator203 = (()=>{
 					//Or where should that be done instead?
 					//parsing.pushFn(nextFn);
 					//parsing.popPopPushFnByCall();
-					console.log('parsing, all whitespace, fromTok['+fromTok+'] from['+parsing.from+'] toExcl['+parsing.toExcl+'] typeof(fromTok)['+typeof(fromTok)+']');
+					if(2<=vm.loglev)console.log('parsing, all whitespace, fromTok['+fromTok+'] from['+parsing.from+'] toExcl['+parsing.toExcl+'] typeof(fromTok)['+typeof(fromTok)+']');
 					parsing.from++;
-					console.log('increased from['+parsing.from+'], toExcl['+parsing.toExcl+']');
+					if(2<=vm.loglev)console.log('increased from['+parsing.from+'], toExcl['+parsing.toExcl+']');
 					
 					//FIXME more code to write
 				}else if(parsing.isLoneToken(toTok)){ //this token alone
 					//lone token might be #SomeName or ( or ) or { etc.
-					console.log('    parsingA, is lone token, toTok='+toTok);
+					if(2<=vm.loglev)console.log('    parsingA, is lone token, toTok='+toTok);
 					//FIXME also handle stringliterals, #Names, numberliterals, etc here.
 					nextFn = parsing.loneTokenToFn(toTok);	
-					console.log('parsing.pushFn of fn, loneToken, toTok='+toTok);
+					if(2<=vm.loglev)console.log('parsing.pushFn of fn, loneToken, toTok='+toTok);
 					parsing.pushFn(nextFn);
 				/*}else if(parsing.isLoneToken(fromTok)){ //this token alone
 					//lone token might be #SomeName or ( or ) or { etc.
@@ -5744,7 +5794,7 @@ const Wikibinator203 = (()=>{
 						//let tk = tok[parsing.toExcl-1];
 						toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
 						if(parsing.isPushToken(toTok)){
-							console.log('parsingB, is push token, toTok='+toTok);
+							if(2<=vm.loglev)console.log('parsingB, is push token, toTok='+toTok);
 							//Example: tok[fromTok] is '(' and toExcl has found another '(' or a '{' etc, so recurse.
 							let rememberFrom = parsing.from;
 							parsing.from = parsing.toExcl;
@@ -5753,10 +5803,10 @@ const Wikibinator203 = (()=>{
 							//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
 							parsing.toExcl++; //FIXME remove this line?
 						}else if(isPop){
-							console.log('parse, about to pop, fromTok='+fromTok+' toTok='+toTok);
+							if(2<=vm.loglev)console.log('parse, about to pop, fromTok='+fromTok+' toTok='+toTok);
 							break;
 						}else{
-							console.log('parsing, its not push or pop. is literal or look up by #Name or .abc.def etc. tk='+tk);
+							if(2<=vm.loglev)console.log('parsing, its not push or pop. is literal or look up by #Name or .abc.def etc. tk='+tk);
 							let rememberFrom = parsing.from;
 							parsing.from = parsing.toExcl;
 							//let fn = this.parse(parsing); //like U in [U U U] or (U U U) or for <> or {}
@@ -5771,27 +5821,27 @@ const Wikibinator203 = (()=>{
 					toTok = tok[parsing.toExcl-1]; //-1 makes it inclusive, unless a range of 0 tokens (or less) is selected
 					if(toTok === undefined){
 						//throw 'toTok===undefined';
-						console.log('toTok===undefined so past the end (todo use from and toExcl and tok.length instead');
+						if(2<=vm.loglev)console.log('toTok===undefined so past the end (todo use from and toExcl and tok.length instead');
 						break;
 					}
-					console.log('fromTok switch [](){}<>, fromTok='+fromTok+' toTok='+toTok);
+					if(2<=vm.loglev)console.log('fromTok switch [](){}<>, fromTok='+fromTok+' toTok='+toTok);
 					switch(toTok){
 						case ']': //Infcur list
-							console.log('parse [...] aka infcur-list, size '+listOfFns.length);
+							if(2<=vm.loglev)console.log('parse [...] aka infcur-list, size '+listOfFns.length);
 							nextFn = ops.Infcur;
 							for(let fn of listOfFns)  nextFn = nextFn(fn);
 						break;case ')': //curry list
-							console.log('parse (...) aka curry-list');
+							if(2<=vm.loglev)console.log('parse (...) aka curry-list');
 							nextFn = vm.identityFunc; //(F U) aka I
 							for(let fn of listOfFns)  nextFn = nextFn(fn);
 						break;case '}': //sCurry list
-							console.log('parse {...} aka s-curry-list, size '+listOfFns.length);
+							if(2<=vm.loglev)console.log('parse {...} aka s-curry-list, size '+listOfFns.length);
 							//syntax {} means S. {x} means S(x). {x y} means s(x)(y). {x y z} means s(s(x)(y))(z). and so on.
 							if(!listOfFns.length) return ops.S;
 							nextFn = listOfFn[0];
 							for(let i=0; i<listOfFns.length; i++)  nextFn = ops.S(nextFn)(fn);
 						break;case '>': //opmut getter list
-							console.log('parse <...> aka opmut-getter-list, size '+listOfFns.length);
+							if(2<=vm.loglev)console.log('parse <...> aka opmut-getter-list, size '+listOfFns.length);
 							//nextFn = TODO
 							throw 'TODO what exactly does the < syntax do? look up that ?2 ?1 syntax (where did i put that?) - aka opmut getter list syntax. Normally only used to get from a [...] in an opmut.';
 						break;default:
@@ -5815,7 +5865,7 @@ const Wikibinator203 = (()=>{
 			//console.log('parsing, about to call '+parsing.fn+' on '+nextFn);
 			//parsing.fn = parsing.fn(nextFn);
 			if(!parsing.stack.length) throw 'parsing.stack is empty but should never have less than 1 fn in it';
-			console.log('PARSEEND');
+			if(2<=vm.loglev)console.log('PARSEEND');
 			return parsing.stack[parsing.stack.length-1]; //Parsing.parse returns return whatever on top of Parsing.stack at end
 		};
 		
@@ -6093,7 +6143,7 @@ const Wikibinator203 = (()=>{
 		for(let i=0; i<256; i++) vm.cbt8[i].localName = '0b'+(''+(256+i).toString(2)).substring(1); //0b00000000 to 0b11111111
 		vm.cbt16 = []; //all possible 16 bits. starts null. created when observed.
 		vm.Cbt16 = i=>(vm.cbt16[i] || (vm.cbt16[i] = vm.cbt8[(i>>8)&255](vm.cbt8[i&255])));
-		vm.Cbt32 = i=>(vm.cbt16((i>>16)&0xffff)(vm.cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
+		vm.Cbt32 = i=>(vm.Cbt16((i>>16)&0xffff)(vm.Cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
 		
 		
 		let U = u;
@@ -6124,7 +6174,7 @@ const Wikibinator203 = (()=>{
 		//let E = vm.eval; //lambda eval, string->fn
 		
 		vm.test = (testName, a, b)=>{
-			if(a === b) console.log('Test pass: '+testName+', both equal '+a);
+			if(a === b) if(1<=vm.loglev)console.log('Test pass: '+testName+', both equal '+a);
 			else throw ('Test '+testName+' failed cuz '+a+' !== '+b);
 		};
 		
@@ -6166,7 +6216,7 @@ const Wikibinator203 = (()=>{
 		vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
 		vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
 		
-		console.log('Starting very basic vm.eval tests');
+		if(1<=vm.loglev)console.log('Starting very basic vm.eval tests');
 		
 		vm.temp.breakpointOn = true;
 
@@ -6184,7 +6234,7 @@ const Wikibinator203 = (()=>{
 		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
 		
-		console.log('Passed very basic vm.eval tests');
+		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
 		
 		
 		/*
@@ -6213,7 +6263,7 @@ const Wikibinator203 = (()=>{
 		
 		//'TODO TDD for Names# etc, but get the basics of parsing, eval, (Lambda [x y z] ...) MutLam, etc, working first.'()
 		
-		console.log('TODO run a few more tests after these pushEvaler optimizations since in some fns (aNode.evaler) they replace vm.rootEvaler (which becomes aNode.evaler.prev, but you can still use rootEvaler there by setting aNode.evaler.on=false; and would still use whichever evaler, per node, has evaler.on==true, which is designed that way to make testing of combos of evalers easy at runtime.');
+		if(1<=vm.loglev)console.log('TODO run a few more tests after these pushEvaler optimizations since in some fns (aNode.evaler) they replace vm.rootEvaler (which becomes aNode.evaler.prev, but you can still use rootEvaler there by setting aNode.evaler.on=false; and would still use whichever evaler, per node, has evaler.on==true, which is designed that way to make testing of combos of evalers easy at runtime.');
 		
 
 		//vm.stack* (stackTime stackMem stackStuff) are "top of the stack", used during calling lambda on lambda to find/create lambda.
@@ -6232,7 +6282,7 @@ const Wikibinator203 = (()=>{
 		if(vm.stackTime != prevStackTime-1) throw 'stackTime is broken';
 		if(vm.stackMem != prevStackMem-2) throw 'stackMem is broken';
 		
-		console.log('this='+this);
+		if(1<=vm.loglev)console.log('this='+this);
 		
 		return u; //the universal function
 	//} //end with(ops)	//dont do this cuz with(...) makes things very slow.
