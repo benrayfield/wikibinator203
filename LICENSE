@@ -19,7 +19,8 @@ amount of information that take finite amount of compute time and memory,
 which is already near optimally compressed (near lowest kolmogorov complexity)
 in its natural form. These edges are Func, Param, and EvalsTo,
 where Func called on Param returns EvalsTo. Nobody owns that directed-graph
-nor any nodes or edges in it, nor the using of it as lambdas (nodes are lambdas).
+nor any nodes or edges in it,
+nor the using of it as lambdas/wikibs (nodes are lambdas/wikibs).
 Nobody owns wikibs. They are shared facts of maths many people and software
 can use together. A wikib is a kind of number, stateless and immutable
 (or approximations of it in some ways of using it)
