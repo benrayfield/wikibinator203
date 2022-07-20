@@ -13,6 +13,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
 
+This software uses a constant infinite size unweighted directed-graph
+with 3 edge-colors, that contains all possible patterns of finite
+amount of information that take finite amount of compute time and memory,
+which is already near optimally compressed (near lowest kolmogorov complexity)
+in its natural form. These edges are Func, Param, and EvalsTo,
+where Func called on Param returns EvalsTo. Nobody owns that undirected-graph.
 Nobody owns wikibs. They are shared facts of maths many people and software
 can use together. A wikib is a kind of number, stateless and immutable
 (or approximations of it in some ways of using it)
