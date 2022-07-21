@@ -1,5 +1,12 @@
 Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
-(which he may make small changes to soon, as some sentences are too long and confusing):
+
+I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
+divided into small paragraphs, move some parts to tutorials or other documents about the software,
+and only keep the parts that arent strongly implied by the other parts.
+Now that I've written about the "infinite size unweighted directed-graph with 3 edge-colors",
+that seems an easier way to explain why it would cause problems for
+specific people to own specific nodes and edges in that directed-graph,
+and that nodes could be dangerous if copied into executable files outside the system, etc.
 
 This license contains the 3 paragraphs of the MIT license and some extra copyleft stuff.
 
