@@ -2388,6 +2388,18 @@ const Wikibinator203 = (()=>{
 	vm.opAbbrevs = {}; //similar to vm.ops except its , instead of T, and _ instead of Seq
 	let ops = vm.ops; //Example: ops.S(ops.T)(ops.T)
 	let opAbbrevs = vm.opAbbrevs;
+
+	//vm.ops.Bit0 and vm.ops.Bit1 are at 7 params. Max cbt size happens at 254 params, since 255 means unlimited params like in vm.ops.Infcur.
+	//7+vm.log2OfMaxBits==254. Cbt size ranges 1 to 2 pow 247 bits.
+	//Bitstring size ranges 0 to (2 pow 247)-1 bits cuz the last 1 bit (then 0s until next powOf2 size) is padding.
+	//Normally only 31 bits of bitstring size is stored in a 256 bit id (maybe more in a 512 bit id),
+	//but thats just a cache of the bitstring size (if it is a bitstring), and either way it can have bigger bitstrings than that.
+	//2 pow 31 bits is 256mB. 2 pow 247 bits is enough to store every particle's position in a galaxy.
+	//It can be used sparsely. If you need more storage or sparse size, you can use [...] or other data structures containing many bitstrings.
+	vm.log2OfMaxBits = 247;
+	vm.maxBits = 2**vm.log2OfMaxBits;
+	if(Math.log2(vm.maxBits) != vm.log2OfMaxBits) throw 'Theres roundoff in the max bits per cbt, stored in a double.';
+
 	//with(ops){ //so vm can call its own ops by name, such as (Pair, L, R, S) to implement other ops
 		
 		vm.lastIdA = -1; //high 32 bits
@@ -2715,15 +2727,24 @@ const Wikibinator203 = (()=>{
 				//(Typeval U Utf8Bytes) is the first typeval, used to display strings that can be used as types in other typevals
 				//such as (Typeval (Typeval U Utf8Bytes) SomeBytes) aka (Typeval "doubleAsCbt" SomeBytes),
 				//so (Typeval "double") would be the prefix of a cbt64 of double/float64 bits. If as bitstring instead of cbt, it needs padding (1 000000....).
-				console.log('Wrapping string of '+ty.length+' chars');
+				console.log('Wrapping string of '+thing.length+' chars');
 				//TODO cache ops.Typeval(U) and other common typevals instead of rebuilding it here (funcallcaching is slower than getting it from vm.something).
-				return ops.Typeval(U)(vm.wrapUtf8Raw(thing));
+				return vm.ops.Typeval(U)(vm.wrapUtf8Raw(thing));
+			}else{
+				throw 'TODO use (ops.Typeval contentType thing)';
 			}
-			throw 'TODO use (ops.Typeval contentType thing)';
 		};
 		
 		vm.wrapUtf8Raw = function(string){
-			throw 'FIXME if it fits in an id256 then need perfect dedup of var names, but not necessarily of every such node. maybe just preallocate every node up to cbt16 and make callpairs? but not every small cbt needs dedup (leave it to be lazy deduped later if ever). double/float64 will go in node.idA and node.idB (32 bits each). so in that way could perfect dedup everything up to 32 bits. Maybe could put some of the data in node.blobFrom and node.blobTo (32 bits each) but only if make sure not to use them as blob indexs if so, maybe by leaving blob as null? Id maybe like to use all 128 bits of node localId (idA idB blobFrom blobTo) to store up to 128 bits of literal data, but would need an extra bit to say if it is doing that or not, so at least 129 bits and that makes it not fit in some places. I could expand localIds to 256 bits but it would be slower. The main problem is, its far too slow to dedup all small blobs (cuz for example theyre used to copy between CPU and GPU) but cbts used as var names (like in (Lambda [varXYZ abc defg] ...) and in the code which reads their values in a Mut) must be deduped. I could add a Dedup op and have those automatically call it, or maybe just use Equals op? Or maybe just in the first param of Typeval auto dedup?';
+			let ty = typeof(string);
+			if(ty == 'string'){
+				let bytes = vm.stringToUtf8AsUint8Array(string);
+				//let bytes = vm.utf8AsUint8ArrayToString(string);
+				return vm.CbtOfBytes(bytes);
+			}else{
+				throw 'TODO';
+			}
+			//throw 'FIXME if it fits in an id256 then need perfect dedup of var names, but not necessarily of every such node. maybe just preallocate every node up to cbt16 and make callpairs? but not every small cbt needs dedup (leave it to be lazy deduped later if ever). double/float64 will go in node.idA and node.idB (32 bits each). so in that way could perfect dedup everything up to 32 bits. Maybe could put some of the data in node.blobFrom and node.blobTo (32 bits each) but only if make sure not to use them as blob indexs if so, maybe by leaving blob as null? Id maybe like to use all 128 bits of node localId (idA idB blobFrom blobTo) to store up to 128 bits of literal data, but would need an extra bit to say if it is doing that or not, so at least 129 bits and that makes it not fit in some places. I could expand localIds to 256 bits but it would be slower. The main problem is, its far too slow to dedup all small blobs (cuz for example theyre used to copy between CPU and GPU) but cbts used as var names (like in (Lambda [varXYZ abc defg] ...) and in the code which reads their values in a Mut) must be deduped. I could add a Dedup op and have those automatically call it, or maybe just use Equals op? Or maybe just in the first param of Typeval auto dedup?';
 			//stringToUtf8AsUint8Array
 			//throw 'FIXME verify this does utf8 instead of utf16'
 		};
@@ -2732,12 +2753,15 @@ const Wikibinator203 = (()=>{
 			if(vm.isLambda(thing)) return thing;
 			switch(typeof(thing)){
 			case 'number':
+				throw 'TODO, since changed to Uint8Array, instead of Int32Array, as node.blob, these numbers are wrong';
+				/*
 				//FIXME prefix it with (typeval 'application/x-ieee754-double'). No, do that in wrapInTypeval.
 				vm.overlappingBufferDouble[0] = thing;
 				let ints = Int32Array.of(vm.overlappingBufferInts[0], vm.overlappingBufferInts[1]); //FIXME bigendian vs littleendian and of ints vs bytes??
 				let node = new vm.Node(this, null, null, ints, 0, 2);
 				console.log('FIXME put in dedup map'); //FIXME FIXME FIXME!!!!
 				return vm.lambdize(node);
+				*/
 			break; case 'string':
 				return vm.wrapUtf8Raw(thing);
 				//throw 'TODO prefix it with (typeval "text/plain;charset=utf-8") ?';
@@ -2773,6 +2797,17 @@ const Wikibinator203 = (()=>{
 			//or to (s i i (s i i)) if its known that it doesnt halt, for example.
 			//if(isEvaling) throw 'Dont eval here, use aLambda().getEvaler() aka aNode.getEvaler()';
 			
+			/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
+			vm.mask_stackIsAllowstackTimestackMem
+			vm.mask_stackIsAllowNondetRoundoff
+			vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
+			vm.mask_stackIsAllowAx
+			vm.mask_reservedForFutureExpansion4
+			vm.mask_reservedForFutureExpansion5
+			vm.mask_isCbt
+			vm.mask_containsAxConstraint
+			*/
+			let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
 			
 			let curriesLeft;
 			let op;
@@ -2824,6 +2859,7 @@ const Wikibinator203 = (()=>{
 					curriesLeft = lcur-1; //at least 1
 					//TODO?? use throw vm.o8ToNumParams[this.op];? it could be computed either way, but lcur-1 is probably faster???
 				}else if(isNowGettingIts7thParam){
+					/*opOneMoreParam has been removed, and will use Lambda [...up to around 250 var names...] instead
 					if(op == vm.o8Of_opOneMoreParam){ //the only vararg op
 						//(opOneMoreParam varNameOrComment lambdaCallToAddParamTo), not including (opOneMoreParam varNameOrComment lambdaCallToAddParamTo ...params...) since lambdaCallToAddParamTo is the 7th param and varNameOrComment is the 6th param
 						//(neither can be u/leaf since that would be a different op, and I designed it to always know the number of params by the 7th param.
@@ -2850,7 +2886,14 @@ const Wikibinator203 = (()=>{
 						}
 					}else{ //not vararg. set curriesLeft to the constant number of params the op takes, of 128 ops (o8 is 128 to 255).
 						curriesLeft = vm.opInfo[op].curriesLeft;
+					}*/
+					curriesLeft = vm.opInfo[op].curriesLeft;
+
+					if(vm.o8IsOfCbt(op)){
+						//is Bit0 or Bit1
+						upTo8BitsOfMasks |= vm.mask_isCbt;
 					}
+
 				}else{ //is more than 7 params, so op is copied from left child. need to check if its about to eval
 					if(isEvaling){
 						curriesLeft = 0; //in case lcur-1 is -1 which could happen if l (left lambda child) isEvaling.
@@ -2861,21 +2904,25 @@ const Wikibinator203 = (()=>{
 							curriesLeft = lcur-1; //r is the next curry, so count 1 less
 						}
 					}
+
+					if(lNode.isCbt() && rNode.isCbt() && (lcur==rNode.curriesLeft())){
+						//is a complete binary tree of Bit0 andOr Bit1
+						upTo8BitsOfMasks |= vm.mask_isCbt;
+					}
+					//Its not the max cbt size yet, cuz !isEvaling.
+					/*
+					That design choice is, not every call of Bit0 or Bit1 is a cbt.
+					DONE: choose if cbt called on cbt of different size (much smaller than max cbt size) should infloop
+					to prevent [o8 being Bit0 or Bit1] from happening in a non-cbt,
+					BUT maybe its ok for that to happen since the mask_isCbt bit will still know if its cbt.
+					Since curriesLeft is used to store cbt height (with a little math, not directly),
+					then its not allowed to eval before curriesLeft is 1 and its called on 1 more param.
+					*/
 				}
+
 			}
 			//DONE but todo test: set curriesLeft and o8 and make header from it. the above code doesnt always set those. header also contains 6+2 bits for literal cbt256.
 			
-			/* FIXME use these masks, but TODO how to choose which of them applies here? take param of Node constructor?
-			vm.mask_stackIsAllowstackTimestackMem
-			vm.mask_stackIsAllowNondetRoundoff
-			vm.mask_stackIsAllowMutableWrapperLambdaAndSolve
-			vm.mask_stackIsAllowAx
-			vm.mask_reservedForFutureExpansion4
-			vm.mask_reservedForFutureExpansion5
-			vm.mask_isCbt
-			vm.mask_containsAxConstraint
-			*/
-			let upTo8BitsOfMasks = 0; //FIXME, shouldnt always be 0
 			
 			this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, curriesLeft, upTo8BitsOfMasks);
 			
@@ -3223,6 +3270,18 @@ const Wikibinator203 = (()=>{
 		vm.Node.prototype.isCbt = function(){
 			return this.isCbtOf(this.header);
 		};
+
+		//number of bits in the cbt, range 1 to [2 pow 247], if vm.log2OfMaxBits==247, as a double.
+		//If not a cbt, TODO what should this return, or let it give nonsense answer since you shouldnt call it for that?
+		vm.Node.prototype.cbtSize = function(){
+			return 2**this.cbtHeight();
+		};
+
+		//If this is a cbt, then it is 2 pow cbtHeight bits. That ranges 1 bit to approx 2 pow 248 bits (FIXME thats not the exact right exponent?).
+		//If not cbt, then I'm not sure what this will return, TODO. For efficiency, does not check if its a cbt, but TODO maybe it should?
+		vm.Node.prototype.cbtHeight = function(){
+			return vm.log2OfMaxBits-this.curriesLeft();
+		};
 		
 		
 		//header int is like: namespaceByte o8Byte curriesLeftByte maskByte
@@ -3261,7 +3320,7 @@ const Wikibinator203 = (()=>{
 		//If not cbt, then those 12 bits are the number of curries left.
 		//
 		vm.Node.prototype.rawCurriesLeft = function(){
-			return this.curriesLeftOf(this.header);
+			return thi.curriesLeftOf(this.header);
 		};*/
 
 		vm.Node.prototype.toString = function(){
@@ -4116,8 +4175,10 @@ const Wikibinator203 = (()=>{
 		}
 		vm.addOp('F',null,false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
 		vm.addOp('T',',',false,2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
-		vm.o8OfBit0 = vm.addOp('Bit0',null,false,248,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
-		vm.o8OfBit1 = vm.addOp('Bit1',null,false,248,'see bit0');
+		vm.o8OfBit0 = vm.addOp('Bit0',null,false,vm.log2OfMaxBits,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
+		vm.o8OfBit1 = vm.addOp('Bit1',null,false,vm.log2OfMaxBits,'see bit0');
+		if((vm.o8OfBit1 & 0b11111110) != vm.o8OfBit0) throw 'o8 of Bit0 must be even (for an optimization to check if its a bit) but is '+vm.o8OfBit0+' and o8 of Bit1 is '+vm.o8OfBit1;
+		vm.o8IsOfCbt = o8=>((o8 & 0b11111110) == vm.o8OfBit0);
 		vm.o8OfL = vm.addOp('L',null,false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
@@ -4131,7 +4192,8 @@ const Wikibinator203 = (()=>{
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
 		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy');
+		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
+		vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
 		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
 		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
@@ -4471,6 +4533,8 @@ const Wikibinator203 = (()=>{
 			
 			//if(3<=vm.loglev)console.log('opNameToO8='+JSON.stringify(vm.opNameToO8));
 			vm.prepay(1,0);
+
+			//If param of the lambda is a string, for example, this converts it to utf8 bits in a cbt (which is a lambda), wrapped in a typeval saying its a string.
 			l = vm.wrap(l); //If is already a fn (vm.isWikibinator203Lambda and its type is 'function'), leaves it as it is
 			r = vm.wrap(r);
 			
@@ -4518,6 +4582,9 @@ const Wikibinator203 = (()=>{
 						
 					//StackAllowReadLocalIds used 1 more reserved index.
 					//OLD: ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
+					break;case o.Bit0:case o.Bit1:
+						ret = vm.ops.Infcur(l)(r); //cbt that exceeds max size
+						//vm.infloop(); //cbt that exceeds max size
 					break;case o.IsCbt:
 						ret = vm.bit(z().isCbt());
 					break;case o.ContainsAxConstraint:
@@ -4934,6 +5001,24 @@ const Wikibinator203 = (()=>{
 				view.hasDefinedBeforeUsingName = false;
 			});
 		};
+
+		//a cbt is a fn/lambda, a powOf2 number of bits (Bit0 or Bit1).
+		vm.cbtToHex = cbt=>{
+			if(!cbt().isCbt()) throw 'Not a cbt';
+			let h = cbt().cbtHeight();
+			let Bit1 = vm.ops.Bit1;
+			if(h < 2) throw 'Too few cbt bits for a hex digit, h='+h;
+			if(h == 2){
+				let a = cbt().l().l;
+				let b = cbt().l().r;
+				let c = cbt().r().l;
+				let d = cbt().r().r;
+				let hexInt4 = ((a==Bit1)?8:0)|((b==Bit1)?4:0)|((c==Bit1)?2:0)|((d==Bit1)?1:0);
+				return '0123456789abcdef'[hexInt4];
+			}else{
+				return vm.cbtToHex(cbt().l)+vm.cbtToHex(cbt().r);
+			}
+		}
 		
 		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
@@ -4943,6 +5028,18 @@ const Wikibinator203 = (()=>{
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
+
+			let FN = view.fn();
+			let isCbt = FN.isCbt();
+			let isSmallCbt = isCbt;//TODO && (FN.cbtSize()<=256); //or what should the max cbt size (in bits) be to display as literal?
+
+			//TODO also small string literals, with a few syntaxes for that,
+			//one syntax if its small and no whitespace and starts with lowercase letter then its a string literal,
+			//and one syntax for if its longer but within some size limit (dont make people read pages of text in a literal),
+			//and there will be literals for various number types such as float64 and int32 etc but I havent decided which types yet,
+			//and for raw cbts as 0b1110001101111100 or maybe hex 0x.
+			let isLiteral = isSmallCbt;
+
 			if(view.fn.localName){ //FIXME
 				if(view.fn != ops.Infcur){
 			
@@ -4963,14 +5060,28 @@ const Wikibinator203 = (()=>{
 					//console.log('viewing.tokens.push builtInName '+view.builtInName);
 					if(2<=vm.loglev)console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
 				}else{
-					viewing.tokens.push('[');
-					viewing.tokens.push(']');
+					//viewing.tokens.push('[');
+					//viewing.tokens.push(']');
+					viewing.tokens.push('[]');
 					if(2<=vm.loglev)console.log('viewing.tokens.push Infcur as []');
+				}
+			}else if(isLiteral){ //this is after checking for localName, so you can name a literal if you want.
+				if(FN.isCbt()){ //FN is view.fn()
+					/*let cbtHeight = FN.cbtHeight();
+					if(cbtHeight <= 3) throw 'cbt1 to cbt8 should already have localName like 0b10011111';
+					*/
+					viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
 				}
 			}
 			//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
 			//if((!doName || !view.fn.hasDefinedBeforeUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
-			if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+
+
+
+
+			let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral;
+			//if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+			if(displayChilds){ //!view.builtInName (such as 'S') cuz dont define below that.
 				view.hasDefinedBeforeUsingName = true;
 				if(doName){
 					//# like in... [(Pair Pair) (F F) CallParamOnItself#{I#(F U) I}]
@@ -5635,6 +5746,36 @@ const Wikibinator203 = (()=>{
 			}
 			return s;
 		};
+
+		//vm.length
+		//vm.regexForLiteralTypeWord = FIXME allow unicode but also 
+
+		//lang means programming language strings.
+		//for the default syntax (or you could derive any syntax using lambdas,
+		//but have to start somewhere for it to be Human readable in early experiments).
+		//
+		//TODO If it starts with a lowercase letter, does not contain whitespace or other certain symbols, and is small enough,
+		//then its a string literal of those utf8 bytes.
+		//TODO If it starts with ' (or maybe " or allow both?) then its a string literal,
+		//but there should be a size limit on those too, else display it as callpairs the normal way, and it would still be a string.
+		//TODO If it starts with 0b then its a cbt literal written as bits.
+		//TODO If it starts with 0x then its a cbt literal written as hex digits.
+		//TODO also literal for float64 andOr int32 etc.
+		//FIXME which of these does a raw cbt, of a certain size mean. For example, should a cbt32 display as int32 or 32 bits or float32 or what?
+		/*vm.langLiteralType = str=>{
+			fixmefixme
+			if(!str.length) throw 'Empty string';
+			
+			throw 'TODO';
+		};*/
+
+		/*
+		//which chars can be in a langLiteralType of 'word', such as helloworld234 means 'helloworld234'
+		vm.isLangLiteralWordChar = char=>{
+			TODO
+		};*/
+
+		vm.maxCharsInWordLiteral = 50; //FIXME how much?
 		
 		//TODO hook into Viewer or Viewing or parsing.loneTokenToFn, for AName#/AName##.
 		//Skip names for now. FIXME
@@ -5651,7 +5792,33 @@ const Wikibinator203 = (()=>{
 					ret = map[this.useExistingNameToken];
 					if(!ret) throw 'Name not found: '+this.useExistingNameToken;
 				}else if(this.literalToken){
-					throw 'TODO literalToken='+this.literalToken;
+					if(
+						(this.literalToken.length <= vm.maxCharsInWordLiteral) //max word literal length
+						&& /^\S*$/.test(this.literalToken) //no whitespace allowed in word literal
+						&& !/\(\)\{\}\[\]\<\>\'\"\#\\\:\,/.test(this.literalToken) //FIXME find the other syntax chars not allowed in a word literal
+					){
+						console.log('Found word literal: '+this.literalToken);
+						ret = vm.wrap(this.literalToken);
+					}else{
+						throw 'TODO other kinds of literal. Also, if its too long or not a literal, then shouldnt have entered this if(this.literalToken). literalToken['+this.literalToken+']';
+					}
+
+					//else display it normally as call pairs etc.
+
+					/*FIXME check literal length, but is it allowed to have longer length if its quoted than if its word?
+					let lity = vm.langLiteralType(this.literalToken);
+					switch(lity){
+						case 'word':
+							throw 'TODO word';
+						break;case 'quote':
+							throw 'TODO quote';
+						break;case '0b':
+							throw 'TODO 0b';
+						break;case '0x':
+							throw 'TODO 0x';
+						default: 
+							throw 'TODO literalToken='+this.literalToken;
+					}*/
 				}else if(this.listType){
 					if(this.listType == '('){ //curryList, just call them left to right. (a b c d) means (((a b) c) d).
 						ret = Ident;
@@ -6106,6 +6273,11 @@ const Wikibinator203 = (()=>{
 		//vm.t = TODO;
 		//vm.f = TODO;
 		
+		vm.isPowOfTwo = i=>!(i&(i-1));
+
+		vm.verifyPowOf2BytesElseThrowTodo = num=>{
+			if(!vm.isPowOfTwo(num)) throw 'TODO allow non-power-of-two number of bytes (by setting its prototype to something like objectThatReturns0ForAllFieldValues but that pads a 1 bit first then all 0s): '+num;
+		};
 		
 		/* FIXME theres only sizes cbt1 cbt2 cbt4 cbt8 cbt16 in this, not for example cbt15. So I'm splitting those into separate vars,
 		and to keep it loading fast (as the VM is not well optimized yet 2022-7) I'm just doing up to cbt8.
@@ -6144,6 +6316,43 @@ const Wikibinator203 = (()=>{
 		vm.cbt16 = []; //all possible 16 bits. starts null. created when observed.
 		vm.Cbt16 = i=>(vm.cbt16[i] || (vm.cbt16[i] = vm.cbt8[(i>>8)&255](vm.cbt8[i&255])));
 		vm.Cbt32 = i=>(vm.Cbt16((i>>16)&0xffff)(vm.Cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
+		vm.mustDedupIfAtMostThisManyBytes = 32; //Any wrapper of a Uint8Array this size or smaller must be deduped. Others can be lazy-deduped (which may happen later or never).
+		
+		//from and to are optional
+		vm.CbtOfBytesDedup = (bytes,from,to)=>{
+			if(from>=to){
+				throw from+' == from >= to == '+to;
+			}
+			if(from === undefined) from = 0;
+			if(to === undefined) to = bytes.length;
+			vm.verifyPowOf2BytesElseThrowTodo(to-from);
+			switch(to-from){
+				case 1: return vm.cbt8[bytes[from]];
+				case 2: return vm.Cbt16((bytes[from]<<8)|bytes[from+1]);
+				case 4: return vm.Cbt32((bytes[from]<<24)|(bytes[from+1]<<16)|(bytes[from+2]<<8)|bytes[from+3]);
+				default:
+					let mid = (from+to)>>1; //FIXME this should always be an integer. is it?
+					let left = vm.CbtOfBytesDedup(bytes,from,mid);
+					let right = vm.CbtOfBytesDedup(bytes,mid,to);
+					return left(right);
+			}
+		};
+		
+		//from and to are optional
+		vm.CbtOfBytes = (bytes,from,to)=>{
+			if(from === undefined) from = 0;
+			if(to === undefined) to = bytes.length;
+			if(bytes.length <= vm.mustDedupIfAtMostThisManyBytes){
+				//does verifyPowOf2BytesElseThrowTodo
+				return vm.CbtOfBytesDedup(bytes,from,to);
+			}else{
+				vm.verifyPowOf2BytesElseThrowTodo(to-from);
+				//not deduped:
+				return new vm.Node(this,null,null,blob,from,to); //can lazy-eval create its l and r childs pointing into subranges of from and to, if observed (FIXME todo).
+				//FIXME if theres a null l or l in node and that fails (such as "null is not a function" thrown maybe) then its cuz of the above line,
+				//which is correct but code that calls .l or .r should change, OR maybe define the .l and .r fields using javascript getters and setters if its not slow.
+			}
+		};
 		
 		
 		let U = u;

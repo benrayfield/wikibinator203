@@ -5,11 +5,16 @@
 
 let U = Wikibinator203; //the universal function
 let vm = Wikibinator203().vm;
-let S = vm.ops.S;
-let T = vm.ops.T;
-let F = vm.ops.F;
-let Pair = vm.ops.Pair;
+//let S = vm.ops.S;
+//let T = vm.ops.T;
+//let F = vm.ops.F;
+//let Pair = vm.ops.Pair;
 if(!vm) throw 'No vm';
+for(let op in vm.ops){
+	if(window[op]) throw 'Already have var window.'+op;
+	window[op] = vm.ops[op];
+	console.log('Created var for opcode as lambda: window.'+op);
+}
 
 var cssPositionType = 'absolute';
 
