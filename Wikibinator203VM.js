@@ -2571,6 +2571,7 @@ const Wikibinator203 = (()=>{
 		
 		//only includes things whose o8>127 aka has at least 7 params so op is known
 		//vm.mask_containsBit1 = 1<<5;
+		//TODO? should it have containsBit1 for bize and sparse matrix optimization? would have to scan blobs before wrapping them, log number of scans each.
 		
 		//FIXME are there other masks? what about ieee754 float ops vs the nearest value?
 		//What about lazyevaling bize and containsBit1 and containsBit0?
@@ -2987,6 +2988,160 @@ const Wikibinator203 = (()=>{
 
 		};
 		
+		//does it, anywhere inside it, contain a Bit1 (even if its not a cbt, such as if its a linkedlist that contains cbts etc)?
+		//In wikibinator203, a bitstring is a cbt that contains any Bit1, and its all the bits before the last Bit1. If its all Bit0, not a bitstring.
+		vm.Node.prototype.containsBit1 = function(){
+			if(this.cache_containsBit1 !== undefined){
+				return this.cache_containsBit1;
+			}else if(this.r){ //may have blob or not
+				//End recursion at Bit1 or Bit0 (where cbtHeight is 0, or if it starts with less params (of U, ops are at param 7) then not contain Bit1.
+				
+				if(this.hasMoreThan7Params()){
+					return this.cache_containsBit1 = (this.l.n.containsBit1() || this.r.n.containsBit1()); //recurse into childs
+				}else if(this.hasLessThan7Params()){
+					return this.cache_containsBit1 = false;
+				}else{
+					return this.cache_containsBit1 = (this.lam==vm.ops.Bit1);
+				}
+				/*
+				let h = this.cbtHeight();
+				if(h > 0) return this.cache_containsBit1 = (this.l.n.containsBit1() || this.r.n.containsBit1()); //recurse into childs
+				if(h < 0 || this.lam==vm.ops.Bit0) return this.cache_containsBit1 = false; //is Bit0 or too few params of U to be a bit.
+				return this.cache_containsBit1 = this.lam==vm.ops.Bit1;
+				//return this.cache_containsBit1 = ((this.lam==vm.ops.Bit1) || (this.cbtHeight()>=0 && this.l.n.containsBit1() && this.r.n.containsBit1()));
+				*/
+			}else{ //lacking childs means has blob (though might redesign that to allow sparse loading of parent across network before childs)
+				//TODO optimize by reusing the blob loop in node.Bize and node.containsBit1.
+				for(let i=this.blobFrom; i<this.blobTo; i++){
+					if(this.blob[i]) return this.cache_containsBit1 = true;
+				}
+				return this.cache_containsBit1 = false;
+			}
+		};
+		
+		//returns a Uint8Array that is backed by this.blob if it exists (dont modify, cuz immutable)
+		//or is a copy of the data if its stored as call pairs (that may contain smaller blobs or go all the way down to Bit0 and Bit1.
+		//If theres a fraction of a byte at the end, does not include it. Does not include padding. If its not a cbt, returns empty Uint8Array.
+		//blobFrom and blobTo must always be powOf2 aligned, so no need to check if it starts in the middle of a byte.
+		vm.Node.prototype.bytes = function(){
+			//TODO cache this, similar to cache_containsBit1 but it would be cache_bytes? Might make it harder to garbcol.
+			let byteLen = this.Bize()>>3;
+			if(this.blob){
+				return this.blob.subarray(this.blobFrom, this.blobTo);
+			}else{
+				let ret = new Uint8Array(byteLen);
+				for(let i=0; i<byteLen; i++){
+					ret[i] = this.byteAt(i);
+				}
+				return ret;
+			}
+		};
+		
+		//updates this.bize if its -2. -2 means has not computed it yet. -1 means is not a cbt. 0 means is either all 0s or is a 1 then 0s,
+		//since a bitstring is padded by a 1 then 0s until a powOf2 size.
+		//low 31 bits of bize (bitstring size), aka the index of the last 1 bit if its a cbt.
+		vm.Node.prototype.Bize = function(){
+			if(this.bize == -2){
+				if(this.isCbt()){
+					//is cbt so set bize to index of first Bit1 (0 to this.cbtSize()-1) or 0 if this is all Bit0.
+					//Since it is cbt, both childs have same cbtSize (half of mine), unless cbtSize is 1.
+					let h = this.cbtHeight();
+					if(h == 0){
+						this.bize = 0; //this is Bit1 or Bit0.
+					}else if(h < 32){ //fits in the low 31 bits of this.bize.
+						if(this.r){ //may have blob or not
+							if(this.r.n.containsBit1()){ //add l cbtSize to r bize cuz the last Bit1 exists and is in r
+								this.bize = (2**h)+this.r.n.Bize();
+							}else{ //use l bize cuz the last Bit1 (if any) is in l
+								this.bize = this.l.n.Bize();
+							}
+						}else{ //lacking childs means has blob (though might redesign that to allow sparse loading of parent across network before childs)
+							//TODO optimize by reusing the blob loop in node.Bize and node.containsBit1.
+							for(let i=this.blobTo-1; i>=this.blobFrom; i--){
+								if(this.blob[i]){
+									//0..32 zeros if it was int. 24..32 zeros since its a byte. But actually 24..31 zeros since its not byte 0.
+									let leadingZeros = Math.clz32(this.blob[i]);
+									this.bize = (i<<3)|(leadingZeros-24); //i bytes then 0-7 bits before the last Bit1.
+								}
+							}
+							this.bize = 0; //no Bit1 in this.blob. Bize of 0 also would happen (in some other code) if the first bit is 1 and all other bits are 0.
+						}
+					}else{ //between cbt2**32 and cbt2**247
+						throw 'fixmefixme';
+					}
+				}else{ //node.bize of -1 means not cbt
+					this.bize = -1;
+				}
+			}
+			return this.bize;
+		};
+		
+		//returns 0 (vm.ops.Bit0 or any non-cbt or is outside this cbt range) or 1 (vm.ops.Bit1).
+		//This is very slow compared to using Node.blob, .blobFrom, and .blobTo directly.
+		vm.Node.prototype.bitAt = function(bitIndex){
+			if(this.blob){ //a Uint8Array.
+				let byteIndex = bitIndex>>3;
+				if(byteIndex < this.blobFrom || this.blobTo <= byteIndex) return 0; //outside cbt range
+				let byt = this.blob[this.blobFrom+byteIndex];
+				return (byt>>(7-bitIndex))&1;
+			}else{
+				if(!this.isCbt()) return 0;
+				let siz = this.cbtSize(); //is a powOf2
+				if(bitIndex < 0 || siz <= bitIndex) return 0; //outside cbt range
+				if(siz == 1) return (this == vm.ops.Bit1) ? 1 : 0; //is Bit0 or Bit1
+				if(bitIndex < siz/2){
+					return this.l.bitAt(bitIndex);
+				}else{
+					return this.r.bitAt(bitIndex-siz/2);
+				}
+			}
+		};
+		
+		//If this is not a cbt, returns 0. Else recurses into childs to find the cbt8 at that byteIndex (such as 5 is bitIndexs 40 to 47).
+		//If goes past the borders of the cbt, returns 0.
+		vm.Node.prototype.byteAt = function(byteIndex){
+			if(this.blob){ //a Uint8Array.
+				if(byteIndex < this.blobFrom || this.blobTo <= byteIndex) return 0; //outside cbt range
+				return this.blob[this.blobFrom+byteIndex];
+			}else{
+				if(!this.isCbt()) return 0;
+				let siz = this.cbtSize(); //is a powOf2
+				if(siz < 8){
+					throw 'TODO fill with 0s where its outside range. part might be inside range.';
+				}else{
+					if(byteIndex < 0 || siz/8 <= byteIndex) return 0; //outside cbt range
+					if(siz == 8){
+						let one = vm.ops.Bit1;
+						//this.l()==this.n. TODO switch to .n everywhere for efficiency.
+						return(
+							 ((this.l.n.l.n.l==one)?128:0)
+							|((this.l.n.l.n.r==one)?64:0)
+							|((this.l.n.r.n.l==one)?32:0)
+							|((this.l.n.r.n.r==one)?16:0)
+							|((this.r.n.l.n.l==one)?8:0)
+							|((this.r.n.l.n.r==one)?4:0)
+							|((this.r.n.r.n.l==one)?2:0)
+							|((this.r.n.r.n.r==one)?1:0)
+						);
+					}else{
+						if(byteIndex*8 < siz/2){
+							return this.l.n.byteAt(byteIndex);
+						}else{
+							return this.r.n.byteAt(byteIndex-siz/16); //siz/8 is size in bytes. half that.
+						}
+					}
+				}
+			}
+		};
+		
+		vm.Node.prototype.intAt = function(intIndex){
+			return (this.byteAt(intIndex*4)<<24)|(this.byteAt(intIndex*4+1)<<16)|(this.byteAt(intIndex*4+2)<<8)|this.byteAt(intIndex*4+3);
+		};
+		
+		vm.Node.prototype.doubleAt = function(doubleIndex){
+			return vm.twoIntsToDouble(this.intAt(doubleIndex*2),this.intAt(doubleIndex*2+1));
+		};
+		
 		//in op lambda or opOneMoreParam
 		//(UPDATE: opOneMoreParam was removed from the design, and instead (Lambda [1 to 250-something paramNames] ...params)
 		//or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
@@ -3029,6 +3184,9 @@ const Wikibinator203 = (()=>{
 			return this.cacheFuncBody;
 		};
 		
+		
+		/* See other intAt doubleAt etc funcs, near the bitAt and byteAt funcs.
+		
 		//index is in units of ints, not bits. Node.blob is always a Int32Array. always 0s outside range.
 		//If blobFrom<blobTo then blob exists.
 		vm.Node.prototype.intAt = function(index){
@@ -3070,6 +3228,8 @@ const Wikibinator203 = (()=>{
 		vm.Node.prototype.d = function(){
 			return this.doubleAt(0);
 		};
+		*/
+		
 		
 		vm.twoIntsToDouble = function(high32, low32){
 			//FIXME bigEndian or littleEndian and of ints or bytes etc?
@@ -3980,7 +4140,7 @@ const Wikibinator203 = (()=>{
 			return cache;
 		};
 		
-		vm.o8OfIdentityFunc = 5000; //FIXME thats the wrong number
+		//vm.o8OfIdentityFunc = 5000; //FIXME thats the wrong number
 
 		//(func,param) or more params to curry...
 		//FIXME vararg might be slow. use separate func for vararg cp
@@ -4193,7 +4353,7 @@ const Wikibinator203 = (()=>{
 		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
 		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
-		vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
+		vm.o8OfTypeval = vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
 		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
 		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
@@ -4379,6 +4539,8 @@ const Wikibinator203 = (()=>{
 		vm.opmut = mut=>{
 			throw 'TODO compile, making sure to limit stackTime stackMem etc.';
 		};
+		
+		
 		
 		
 		//immutable. but stackTime stackMem etc are mutable and are stored somewhere else (maybe as fields in vm?)
@@ -4834,6 +4996,8 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		let u = vm.u = vm.lambdize(new vm.Node(vm,null,null)); //the universal function
+		let U = u;
+
 		//u.evaler = vm.rootEvaler();
 		//this happens in Node constructor: u.evaler = rootEvaler; //all other evalers, use theLambda.pushEvaler((vm,l,r)=>{...});
 		//let op0000001 = u;
@@ -4860,9 +5024,15 @@ const Wikibinator203 = (()=>{
 			return this.o8()==this.l().o8();
 		};
 		
+		vm.Node.prototype.hasLessThan7Params = function(){
+			return this.o8() < 128;
+		};
+		
 		vm.lambdasAreSameOp = function(a,b){
 			return a().o8()==b().o8();
 		};
+		
+		
 		
 		
 		//see vm.eval(string)->fn and ''+fn aka fn.toString() which is defined in lambdize function.
@@ -4972,6 +5142,8 @@ const Wikibinator203 = (()=>{
 		//
 		//Normally implemented in vm.Viewer.prototype.eval
 		vm.eval = function(wikibinator203CodeString,optionalNamespace){
+			wikibinator203CodeString = wikibinator203CodeString.trim();
+			if(!wikibinator203CodeString) return vm.identityFunc;
 			let parseTree = vm.parse(wikibinator203CodeString);
 			let namespace = optionalNamespace || vm.newDefaultNamespace(); //is modified by parseTree.eval if that defines names, and is read.
 			return parseTree.eval(namespace);
@@ -5018,7 +5190,12 @@ const Wikibinator203 = (()=>{
 			}else{
 				return vm.cbtToHex(cbt().l)+vm.cbtToHex(cbt().r);
 			}
-		}
+		};
+		
+		
+		//If true displays vm.eval('h') as h. If false displays it as (Typeval U 0b01101000).
+		//vm.isDisplayStringLiterals = false;
+		vm.isDisplayStringLiterals = true;
 		
 		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
@@ -5032,13 +5209,23 @@ const Wikibinator203 = (()=>{
 			let FN = view.fn();
 			let isCbt = FN.isCbt();
 			let isSmallCbt = isCbt;//TODO && (FN.cbtSize()<=256); //or what should the max cbt size (in bits) be to display as literal?
+			
+			//let isTypevalOf2Params = FN.o8()==vm.o8OfTypeval && FN.curriesLeft()==1;
+			
+			//WARNING: this only works if deduped and is not a lazy blob,
+			//which is true in this prototype VM. Using o8() is the more general way.
+			let isUtf8String = FN.l==vm.utf8Prefix;
+			//FN.r() would normally be a cbt, but does not technically have to be. Its only useful if its a cbt.
+			let isSmallUtf8String = isUtf8String && FN.r().cbtSize() <= 256;
+			
 
 			//TODO also small string literals, with a few syntaxes for that,
 			//one syntax if its small and no whitespace and starts with lowercase letter then its a string literal,
 			//and one syntax for if its longer but within some size limit (dont make people read pages of text in a literal),
 			//and there will be literals for various number types such as float64 and int32 etc but I havent decided which types yet,
 			//and for raw cbts as 0b1110001101111100 or maybe hex 0x.
-			let isLiteral = isSmallCbt;
+			let isLiteral = isSmallCbt || (vm.isDisplayStringLiterals && isSmallUtf8String);
+			//let isLiteral = isSmallCbt;
 
 			if(view.fn.localName){ //FIXME
 				if(view.fn != ops.Infcur){
@@ -5071,6 +5258,27 @@ const Wikibinator203 = (()=>{
 					if(cbtHeight <= 3) throw 'cbt1 to cbt8 should already have localName like 0b10011111';
 					*/
 					viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
+				}else if(isSmallUtf8String){
+					//utf8 bytes in a cbt. It may have content.blob or not, since thats just an optimization
+					//of a complete binary tree (cbt) of vm.ops.Bit0 and vm.ops.Bit1. If it has blob, the utf8 bytes,
+					//padded with a 1 bit then 0s to the next powOf2 number of bits,
+					//are in content.blob in byte range content.blobFrom (inclusive) to content.blobTo (exclusive).
+					//If thats at most pow(2,31)-1 bits then that bitstring size (of utf8 bytes) is in content.bize
+					//unless content.bize is negative
+					//in which case it hasnt computed the bize yet (bize==-2) or is not a cbt (bize==-1).
+					//As of 2022-7-23 this is the first time in wikibinator203 that I'm using blob and bize
+					//so there are probably some more functions that should be added to vm.Node.prototype to make this easier.
+					let content = FN.r;
+					let utf8Bytes = content.n.bytes();
+					//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
+					//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
+					//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
+					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this?
+					viewing.tokens.push('SMALLSTRING_'+smallString);
+					
+					//throw 'TODO use node.bytes';
+				}else{
+					throw 'TODO some other kind of literal, to code string';
 				}
 			}
 			//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
@@ -6269,6 +6477,9 @@ const Wikibinator203 = (()=>{
 			vm.opAbbrevs[lambda.opAbbrev] = lambda; //Example: T is , and Seq is _. -> fn
 		}
 		
+		//prefix of normal (utf8) text
+		vm.utf8Prefix = vm.ops.Typeval(U);
+		
 		//cuz vm.bit func needs these. todo opcode order.
 		//vm.t = TODO;
 		//vm.f = TODO;
@@ -6355,7 +6566,7 @@ const Wikibinator203 = (()=>{
 		};
 		
 		
-		let U = u;
+		
 		
 		//if(l != L) throw 'with(ops) isnt working for L';
 		//console.log('testing with(ops): L='+L+' l='+l);	
