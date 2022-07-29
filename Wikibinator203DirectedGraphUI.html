@@ -554,6 +554,7 @@ window.onload = ()=>{
 	//let firstCode = '(S (F U) (F U) Pair)';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
 	let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
+	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) (Pair こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
 	dom('codeIn').value = firstCode;
 	evalTextAreas();
 };
@@ -662,7 +663,7 @@ var buttons = {};
 </script>
 </head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);">
 	<center>
-		<h2>Wikibinator203, a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest.</h2>
+		<h2>Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
 		<nobr>OUT:<textarea id=codeOut rows="2" cols="100" readonly></textarea></nobr><br>
 		<nobr>IN:<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
 		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
@@ -678,6 +679,7 @@ var buttons = {};
 Wikibinator203 code in. It evals while you type,<br>
 but until vm.stackTime and vm.stackMem are working,<br>
 you might have to close and reopen browser tab if you write an infinite loop). Example: (Pair (F U) S F) -> S<br>
+Example: [(APair#(Pair こんに ちは世界) F) (APair T)]<br>
 Example: (Pair (F U) S T) -> (F U)<br>
 Example: Pair -> Pair<br>
 Example: ([L R L R] Pair Pair L S R) -> [L R L R Pair Pair L S R]<br>

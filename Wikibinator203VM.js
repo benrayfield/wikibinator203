@@ -1,3 +1,5 @@
+// https://github.com/benrayfield/wikibinator203
+
 //alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
 
 /*TODOS...
@@ -2707,6 +2709,11 @@ const Wikibinator203 = (()=>{
 		vm.utf8AsUint8ArrayToString = function(bytes){
 			return vm.utf8TextDecoder.decode(bytes);
 		};
+		
+		//from and to are byte ranges
+		vm.utf8AsUint8ArrayRangeToString = function(bytes, from, to){
+			return vm.utf8AsUint8ArrayToString(bytes.subarray(this.blobFrom, this.blobTo));
+		};
 	
 		
 		
@@ -2740,6 +2747,12 @@ const Wikibinator203 = (()=>{
 			let ty = typeof(string);
 			if(ty == 'string'){
 				let bytes = vm.stringToUtf8AsUint8Array(string);
+				
+				//adds at least 1 byte, then up to next powOf2.
+				//TODO optimize using prototype and something like vm.expandBytesToPowOf2 if can ever get that to work,
+				//but for now just copy it to a new byte array if need to expand it.
+				bytes = vm.padBytes(bytes);
+				
 				//let bytes = vm.utf8AsUint8ArrayToString(string);
 				return vm.CbtOfBytes(bytes);
 			}else{
@@ -3051,7 +3064,8 @@ const Wikibinator203 = (()=>{
 					}else if(h < 32){ //fits in the low 31 bits of this.bize.
 						if(this.r){ //may have blob or not
 							if(this.r.n.containsBit1()){ //add l cbtSize to r bize cuz the last Bit1 exists and is in r
-								this.bize = (2**h)+this.r.n.Bize();
+								let rHeight = h-1;
+								this.bize = (2**rHeight)+this.r.n.Bize();
 							}else{ //use l bize cuz the last Bit1 (if any) is in l
 								this.bize = this.l.n.Bize();
 							}
@@ -3568,6 +3582,42 @@ const Wikibinator203 = (()=>{
 		const objectThatReturns0ForAllFieldValues = new Proxy({}, { get(obj, prop){  return 0; } });
 		Object.freeze(objectThatReturns0ForAllFieldValues);
 		vm.objectThatReturns0ForAllFieldValues = objectThatReturns0ForAllFieldValues;
+		
+		//1 <= i <= 2**30.
+		vm.roundUpToPowOf2 = i=>{
+			if(i<=1) return 1;
+			let leadingZeros = Math.clz32(i-1);
+			return 2**(32-leadingZeros);
+		};
+		
+		//adds at least 1 byte of padding, and pads a 1 bit then 0s until next powOf2. Returns byte array of powOf2 size.
+		vm.padBytes = bytes=>{
+			//FIXME some callers of this, if they give an empty byte array, should get back vm.ops.Bit1 (a cbt of 1 bit, the padding bit), instead of 0b10000000 ???
+			
+			//TODO optimize using prototype and something like vm.expandBytesToPowOf2 if can ever get that to work,
+			//but for now just copy it to a new byte array if need to expand it.
+			let newByteSize = vm.roundUpToPowOf2(bytes.length+1);
+			let ret = new Uint8Array(newByteSize);
+			for(let i=0; i<bytes.length; i++) ret[i] = bytes[i]; //TODO optimize by using a Uint8Array func (or in TypedArray) to copy a range.
+			ret[bytes.length] = 0x80; //pad 1 bit and the rest up to the next powOf2 are 0s, but only put 7 of those 0s here
+			for(let i=bytes.length+1; i<newByteSize; i++) ret[i] = 0; //TODO optimize, would it already be 0s?
+			return ret;
+		};
+		
+		/** this isnt working. pad to next powOf2 size (using vm.padBytes), at least for now....
+		
+		//Modifies its param (which can be Uint8Array (or maybe later also allow Int32Array etc). Keeps same length but adds cbt padding if any is needed.
+		//Example: if its a Uint8Array size 19, pads a (byte)0 at index 19 (by setting key 19 to that,
+		//and pads 0s after that up to size 32 by setting its prototype to vm.objectThatReturns0ForAllFieldValues.
+		vm.expandBytesToPowOf2 = blob=>{
+			let newByteSize = vm.roundUpToPowOf2(blob.length);
+			let len = blob.length;
+			if(newByteSize != len){
+				Object.setPrototypeOf(blob, vm.objectThatReturns0ForAllFieldValues);
+				blob[len] = 0b10000000; //pad 1 bit and the rest up to the next powOf2 are 0s, but only put 7 of those 0s here
+			}
+		};
+		*/
 		
 		
 		
@@ -5274,7 +5324,9 @@ const Wikibinator203 = (()=>{
 					//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
 					//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
 					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this?
-					viewing.tokens.push('SMALLSTRING_'+smallString);
+					console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
+					//viewing.tokens.push('SMALLSTRING_'+smallString);
+					viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
 					
 					//throw 'TODO use node.bytes';
 				}else{
