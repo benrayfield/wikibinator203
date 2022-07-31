@@ -5175,12 +5175,32 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.bit = bit=>(bit?vm.ops.T:vm.ops.F);
+
+		//vm.getViewer().tokenize('[(Pair L R (T T)) ]') -> ['[', '(', 'Pair', ' ', 'L', ' ', 'R', ' ', '(', 'T', ' ', 'T', ')', ')', ' ', ']'].
+		//Problem is, that last ' ' (before the ']') makes it parse wrong, so this removes it, so to fix it this returns
+		//['[', '(', 'Pair', ' ', 'L', ' ', 'R', ' ', '(', 'T', ' ', 'T', ')', ')', ']'].
+		vm.filterTokens = tokens=>{
+			let ret = [];
+			let i = 0;
+			while(i < tokens.length-1){
+				if(!(vm.strIsAllWhitespace(tokens[i]) && (vm.strIsAllWhitespace(tokens[i+1]) || vm.isPopToken(tokens[i+1])))){
+					ret.push(tokens[i]);
+				}//else skip that whitespace since its before [whitespace or pop token].
+				i++;
+			}
+			ret.push(tokens[tokens.length-1]);
+			if(vm.strIsAllWhitespace(ret[0])) throw 'First token is all whitespace in '+JSON.stringify(ret);
+			if(vm.strIsAllWhitespace(ret[ret.length-1])) throw 'Last token is all whitespace in '+JSON.stringify(ret);
+			return ret;
+		};
 		
 		//returns a vm.ParseTree
 		vm.parse = function(wikibinator203CodeString){
+			wikibinator203CodeString = wikibinator203CodeString.trim();
 			//return vm.getViewer().eval(wikibinator203CodeString);
 			let v = vm.getViewer();
-			let tokens = v.tokenize(wikibinator203CodeString);
+			let rawTokens = v.tokenize(wikibinator203CodeString);
+			let tokens = vm.filterTokens(rawTokens); //remove whitespace before ], for example, which would make it parse wrong.
 			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
 			return v.tokensToParseTree(parsing);
 		};
@@ -5682,7 +5702,10 @@ const Wikibinator203 = (()=>{
 			this.tokens = tokens;
 			this.from = 0;
 			this.toExcl = 0;
+			
 			//this needs to be set (in vm.eval normally) before parsing, since it counts down.
+			//FIXME this isnt used? It was but i probably commentedout that code when it started working. Bring it back,
+			//cuz likely something could infinite loop in parsing if theres some possible input?
 			this.maxParseSteps = 0;
 			
 			//empty string evals to identityFunc. Whatever is parsing.fn gets called on the next thing parsed, and replace it with that.
@@ -5694,6 +5717,10 @@ const Wikibinator203 = (()=>{
 		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		vm.Parsing.prototype.isUnaryToken = function(token){
 			return token=='_' || token=='?' || token==',';
+		};
+
+		vm.Parsing.prototype.toString = function(token){
+			return '[Parsing from='+this.from+' toExcl='+this.toExcl+' toklen='+this.tokens.length+' stacklen='+this.stack.length+' tokens='+JSON.stringify(this.tokens)+' maxParseSteps='+this.maxParseSteps+']';
 		};
 		
 		vm.Parsing.prototype.stackToString = function(){
@@ -5733,9 +5760,13 @@ const Wikibinator203 = (()=>{
 			//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 			return token=='(' || token=='{' || token=='[' || token == '<';
 		};
+
+		//TODO this shouldnt be needed in vm, instead just in vm.Parsing, but 2022-7-30 added vm.filterTokens func that needed to call this. Its getting tangled. Organize it.
+		vm.isPopToken = token=>(token==')' || token=='}' || token==']' || token == '>');
 		
 		vm.Parsing.prototype.isPopToken = function(token){
-			return token==')' || token=='}' || token==']' || token == '>';
+			return vm.isPopToken(token);
+			//return token==')' || token=='}' || token==']' || token == '>';
 		};
 		
 		//Examples: 'S', 'Pair' (which are builtInName), or TODO if its a localName.
@@ -5892,52 +5923,92 @@ const Wikibinator203 = (()=>{
 			//FIXME handle ':'/'' syntax.
 			
 			let firstToken = parsing.tokens[parsing.from];
-			while(vm.strIsAllWhitespace(firstToken)){
-				firstToken  = parsing.tokens[++parsing.from]; //skip whitespace
-			}
-			if(parsing.from >= parsing.tokens.length){
-				//throw 'cant parse all whitespace at end. shouldnt have called tokensToParseTree that last time.';
-				return null;
-			}
-			let ret = new vm.ParseTree();
-			if(firstToken.endsWith('#')){ //AName#
-				if(firstToken.endsWith('##')){ //OpCommentedFuncOfOneParam and AName#
-					//FIXME update comments in vm.Parsing cuz not including ## at end
-					ret.defineCommentAndNameToken = firstToken.substring(0,firstToken.length-2);
-				}else{
-					//FIXME update comments in vm.Parsing cuz not including # at end
-					ret.defineNameToken = firstToken.substring(0,firstToken.length-1);
+			try{
+				while(vm.strIsAllWhitespace(firstToken)){
+					firstToken  = parsing.tokens[++parsing.from]; //skip whitespace
 				}
-				firstToken = parsing.tokens[++parsing.from]; //after the AName# or AName## is whatever its the name of.
-			}
-			if(parsing.isLoneToken(firstToken)){ //FIXME isLoneToken, should it match whitespace? if so, its only matching ' ' but not '\n' or '\t' etc.
-				if(vm.isCapitalLetter(firstToken[0])){
-					ret.useExistingNameToken = firstToken;
-				}else{
-					ret.literalToken = firstToken;
+				if(parsing.from >= parsing.tokens.length){
+					//throw 'cant parse all whitespace at end. shouldnt have called tokensToParseTree that last time.';
+					return null;
 				}
-			}else if(parsing.isPushToken(firstToken)){ //One of '{', '[', '(', '<', but doesnt handle ':'/'' here despite its also a listType.
-				//pushToken. but ':' is not a push or pop token, despite its still a listType, so not doing that here.
-				let pushToken = firstToken;
-				ret.listType = pushToken;
-				let popToken = vm.pushTokenToPopToken[pushToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
-				parsing.from++; //dont need parsing.toExcl in tokensToParseTree but may have needed it in the old design.
-				//while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
-				let observedPopToken = null;
-				while(parsing.from < parsing.tokens.length && !parsing.isPopToken(observedPopToken=parsing.tokens[parsing.from])){
-					let childParseTree = this.tokensToParseTree(parsing); //does parsing.from++ at end, so is just past what it parsed
-					if(childParseTree){ //would be null if its all whitespace at end
-						ret.childs.push(childParseTree);
+				console.log('tokensToParseTree firstToken='+firstToken);
+				let ret = new vm.ParseTree();
+				if(firstToken.endsWith('#')){ //AName#
+					if(firstToken.endsWith('##')){ //OpCommentedFuncOfOneParam and AName#
+						//FIXME update comments in vm.Parsing cuz not including ## at end
+						ret.defineCommentAndNameToken = firstToken.substring(0,firstToken.length-2);
+					}else{
+						//FIXME update comments in vm.Parsing cuz not including # at end
+						ret.defineNameToken = firstToken.substring(0,firstToken.length-1);
 					}
+					firstToken = parsing.tokens[++parsing.from]; //after the AName# or AName## is whatever its the name of.
 				}
-				if(parsing.isPopToken(observedPopToken) && popToken != observedPopToken) throw pushToken+' doesnt match '+observedPopToken+', expected '+popToken+', parsedSoFar='+ret;
-				parsing.tokens[++parsing.from];
+				if(parsing.isLoneToken(firstToken)){ //FIXME isLoneToken, should it match whitespace? if so, its only matching ' ' but not '\n' or '\t' etc.
+					if(vm.isCapitalLetter(firstToken[0])){
+						ret.useExistingNameToken = firstToken;
+					}else{
+						ret.literalToken = firstToken;
+					}
+				}else if(parsing.isPushToken(firstToken)){ //One of '{', '[', '(', '<', but doesnt handle ':'/'' here despite its also a listType.
+					//pushToken. but ':' is not a push or pop token, despite its still a listType, so not doing that here.
+					let observePushToken = firstToken;
+					let observePushToken_tokenIndex = parsing.from;
+					console.log('Start observePushToken='+observePushToken+' at observePushToken_tokenIndex='+observePushToken_tokenIndex);
+					ret.listType = observePushToken;
+					let expectPopToken = vm.pushTokenToPopToken[observePushToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
+					parsing.from++; //dont need parsing.toExcl in tokensToParseTree but may have needed it in the old design.
+					//while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
+					let observedPopToken = null;
+					//while(parsing.from < parsing.tokens.length && !parsing.isPopToken(observedPopToken=parsing.tokens[parsing.from])){
+					while(true){
+						
+						//TODO? rename observedPopToken to popToken? cuz its every token until and including the popToken,
+						//other than recursing in (...) [...] etc whic is handled by tokensToParseTree.
+						observedPopToken = parsing.tokens[parsing.from];
+
+						console.log('possible (looking for a) observedPopToken='+observedPopToken+' parsing='+parsing);
+						if(observedPopToken === undefined){
+							throw 'observedPopToken is undefined, parsing='+parsing;
+						}
+						if(parsing.from == parsing.tokens.length){
+							console.log('break while cuz, parsing.from == parsing.tokens.length and observePushToken='+observePushToken+' ('+observePushToken_tokenIndex+') expectPopToken='+expectPopToken);
+							break;
+						}
+						if(parsing.isPopToken(observedPopToken)){
+							console.log('break while cuz, observedPopToken is a pop token: '+observedPopToken+' ('+parsing.from+') and observePushToken='+observePushToken+' ('+observePushToken_tokenIndex+') expectPopToken='+expectPopToken+' parsing='+parsing);
+							break;
+						}
+
+						if(vm.strIsAllWhitespace(observedPopToken)){
+							console.log('skipping whitespace at index '+parsing.from);
+							parsing.from++;
+						}else{
+							let childParseTree = this.tokensToParseTree(parsing); //does parsing.from++ at end, so is just past what it parsed
+							if(childParseTree){ //would be null if its all whitespace at end
+								ret.childs.push(childParseTree);
+							}else{
+								throw 'No childParseTree';
+							}
+						}
+
+					}
+					console.log('end loop, observePushToken='+observePushToken+' observedPopToken='+observedPopToken+' expectPopToken='+expectPopToken+' parsing='+parsing);
+					if(parsing.isPopToken(observedPopToken) && expectPopToken != observedPopToken){
+						throw observePushToken+' doesnt match '+observedPopToken+', expected '+expectPopToken+', parsedSoFar='+ret+', parsing='+parsing;
+					}
+					//parsing.from++;
+					//console.log('increment parsing.from to '+parsing.from+' and setting observedPopToken to '+parsing.tokens[parsing.from]);
+					//observedPopToken = parsing.tokens[parsing.from];
+				}
+				parsing.from++; //does parsing.from++ at end, so is just past what it parsed
+				if(!ret.defineCommentAndNameToken && !ret.defineNameToken && !ret.listType && !ret.literalToken && !ret.useExistingNameToken){
+					throw 'Didnt set any of the fields, retParsing=['+ret+']';
+				}
+				return ret;
+			}catch(e){
+				console.log('tokensToParseTree error '+e);
+				throw e;
 			}
-			parsing.from++; //does parsing.from++ at end, so is just past what it parsed
-			if(!ret.defineCommentAndNameToken && !ret.defineNameToken && !ret.listType && !ret.literalToken && !ret.useExistingNameToken){
-				throw 'Didnt set any of the fields, retParsing='+ret;
-			}
-			return ret;
 		};
 		
 		//internal datastruct of Viewer.

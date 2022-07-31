@@ -260,7 +260,7 @@ var doPhysics = dt=>{
 		updateUinodeAccelsBetweenChildsOfNode(dt,node);
 	}
 	let minY = 0; //FIXME leave some room at top for textareas of code, buttons, etc.
-	let maxY = 700; //FIXME what should this be?
+	let maxY = 1200; //FIXME what should this be?
 	let minX = 0;
 	let maxX = 900; //FIXME get from screen
 	for(let node of nodes){ //dont let nodes get too far from main area of screen.
@@ -553,7 +553,10 @@ window.onload = ()=>{
 	
 	//let firstCode = '(S (F U) (F U) Pair)';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
-	let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
+	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
+	let firstCode = '[(CallParamOnItself#(S I#(F U) I) (S こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
+	//let firstCode = '[(Pair (T T))]';
+	//let firstCode = '[the first half is (Typeval U (L (R Abc#こんにちは世界))) and the second half is (Typeval U (R (R Abc))) but that seems to have a problem with the padding]';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) (Pair こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
 	dom('codeIn').value = firstCode;
 	evalTextAreas();
@@ -564,6 +567,7 @@ var displayDirectedGraphOfCodeInTextarea = true;
 
 var evalTextAreas = ()=>{
 	vm.refill();
+	let throwE = null;
 	let textOut = 'ERROR';
 	try{
 		let wikibinator203CodeIn = dom('codeIn').value;
@@ -578,9 +582,11 @@ var evalTextAreas = ()=>{
 			textOut = ''+parseTree;
 		}
 	}catch(e){
+		throwE = e;
 		textOut = 'ERROR: '+e;
 	}
 	dom('codeOut').value = textOut;
+	if(throwE) throw throwE;
 };
 
 
@@ -675,32 +681,34 @@ var buttons = {};
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 	<center>
-	Test Wikibinator203 prototype (incomplete but works a little)<br>
-Wikibinator203 code in. It evals while you type,<br>
-but until vm.stackTime and vm.stackMem are working,<br>
-you might have to close and reopen browser tab if you write an infinite loop). Example: (Pair (F U) S F) -> S<br>
-Example: [(APair#(Pair こんに ちは世界) F) (APair T)]<br>
-Example: (Pair (F U) S T) -> (F U)<br>
-Example: Pair -> Pair<br>
-Example: ([L R L R] Pair Pair L S R) -> [L R L R Pair Pair L S R]<br>
-Example: (L ([L R L R] Pair Pair L S R)) -> [L R L R Pair Pair L S]<br>
-Example: (R ([L R L R] Pair Pair L S R)) -> R<br>
-Example: (L U (R U)) -> U<br>
-Example: (L L (R L)) -> L<br>
-Example: (L R (R R)) -> R<br>
-Example: (L S (R S)) -> S<br>
-Example: (L (Pair S T) (R (Pair S T))) -> (Pair S T) - aka (Pair S T) is the iota lambda<br>
-Example: ((Pair S T) (Pair S T) [L R L R S]) -> [L R L R S] - cuz iota called on itself is an identityFunc.<br>
-Example: ((Pair S T) (Pair S T) (Pair S T)) -> (Pair S T) - cuz iota called on itself is an identityFunc.<br>
-Example: ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T)))) -> T<br>
-- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
-Example: ((Pair S T) ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T))))) -> S<br>
-- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
-This is an infinite loop (though runs out of javascript stack: (S (F U) (F U) (S (F U) (F U)))<br>
-It will be much easier use when Names#(...) and drag-and-drop and 1024x1024 per pixel graphics are working.<br>
-<br><br><br>
-TODO, something I'll build to improve the UI later... Right click any node to edit it as a string of code, in its dom node (dob), which as you type creates/finds new nodes below it (or only if you push a certain button since that might be confusing to have stuff change so fast), and while editing you can choose a subset of the nodes on screen that can reach it by l and r edges (easiest way is edit nodeA as viewed from nodeB which can reach nodeA, and a button to save a snapshot of it into the nodes directed graph), and that subset can be copied then modified or just modified, and such modifying/editing does not affect the 256 bit ids (TODO ids) of the nodes, just is different lambdas.<br>
-</center>
+		Test Wikibinator203 prototype (incomplete but works a little)<br>
+		Wikibinator203 code in. It evals while you type,<br>
+		but until vm.stackTime and vm.stackMem are working,<br>
+		you might have to close and reopen browser tab if you write an infinite loop). Example: (Pair (F U) S F) -> S<br>
+		Example: [(APair#(Pair こんに ちは世界) F) (APair T)]<br>
+		Example: (Pair (F U) S T) -> (F U)<br>
+		Example: Pair -> Pair<br>
+		Example: ([L R L R] Pair Pair L S R) -> [L R L R Pair Pair L S R]<br>
+		Example: (L ([L R L R] Pair Pair L S R)) -> [L R L R Pair Pair L S]<br>
+		Example: (R ([L R L R] Pair Pair L S R)) -> R<br>
+		Example: (L U (R U)) -> U<br>
+		Example: (L L (R L)) -> L<br>
+		Example: (L R (R R)) -> R<br>
+		Example: (L S (R S)) -> S<br>
+		Example: (L (Pair S T) (R (Pair S T))) -> (Pair S T) - aka (Pair S T) is the iota lambda<br>
+		Example: ((Pair S T) (Pair S T) [L R L R S]) -> [L R L R S] - cuz iota called on itself is an identityFunc.<br>
+		Example: ((Pair S T) (Pair S T) (Pair S T)) -> (Pair S T) - cuz iota called on itself is an identityFunc.<br>
+		Example: ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T)))) -> T<br>
+		- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
+		Example: ((Pair S T) ((Pair S T) ((Pair S T) ((Pair S T) (Pair S T))))) -> S<br>
+		- as in https://en.wikipedia.org/wiki/Iota_and_Jot cuz T is the K of SKI-Calculus.<br>
+		This is an infinite loop (though runs out of javascript stack: (S (F U) (F U) (S (F U) (F U)))<br>
+		It will be much easier use when Names#(...) and drag-and-drop and 1024x1024 per pixel graphics are working.<br>
+		<br><br>
+		TODO, M[...] syntax aka (M [...]) where a lack of whitespace between 2 things means call one on the other, and : between them will do the same thing.
+		<br><br>
+		TODO, something I'll build to improve the UI later... Right click any node to edit it as a string of code, in its dom node (dob), which as you type creates/finds new nodes below it (or only if you push a certain button since that might be confusing to have stuff change so fast), and while editing you can choose a subset of the nodes on screen that can reach it by l and r edges (easiest way is edit nodeA as viewed from nodeB which can reach nodeA, and a button to save a snapshot of it into the nodes directed graph), and that subset can be copied then modified or just modified, and such modifying/editing does not affect the 256 bit ids (TODO ids) of the nodes, just is different lambdas.<br>
+	</center>
 <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 </body></html>
