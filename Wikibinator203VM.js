@@ -1,3 +1,157 @@
+/*
+LICENSE AT TIME 2022-8-3 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
+Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
+
+I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
+divided into small paragraphs, move some parts to tutorials or other documents about the software,
+and only keep the parts that arent strongly implied by the other parts.
+Now that I've written about the "infinite size unweighted directed-graph with 3 edge-colors",
+that seems an easier way to explain why it would cause problems for
+specific people to own specific nodes and edges in that directed-graph,
+and that nodes could be dangerous if copied into executable files outside the system, etc.
+
+This license contains the 3 paragraphs of the MIT license and some extra copyleft stuff.
+
+This is experimental software.
+
+[THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+
+This software uses a constant infinite size unweighted directed-graph
+with 3 edge-colors, that contains all possible patterns of finite
+amount of information that take finite amount of compute time and memory,
+which an infinite number of subsets of it (if not the whole thing?)
+are already near optimally compressed (near lowest kolmogorov complexity)
+in its natural form. These edges are Func, Param, and EvalsTo,
+where Func called on Param returns EvalsTo. Nobody owns that directed-graph
+nor any nodes or edges in it,
+nor the using of it as lambdas/wikibs (nodes are lambdas/wikibs).
+Nobody owns wikibs. They are shared facts of maths many people and software
+can use together. A wikib is a kind of number, stateless and immutable
+(or approximations of it in some ways of using it)
+universal lambda function, combinator, pattern-calculus function, fact of math,
+a pure function, and a data structure that is defined completely as a forest
+node with 2 child wikibs down to leaf (leaf also has 2 childs (identity
+function and leaf)). Leaf (aka U aka Wikibinator203) is the universal
+function, from which all turing-complete patterns of finite amount of
+information can be built, used, and shared. Forall wikib x, forall wikib y,
+x called on y is a wikib, which may be halted or evaling (to a halted wikib
+or never halts). Every wikib is a derivative-work of leaf, which can be
+proven by calling leaf on itself in various combinations, to make any wikib.
+While obeying this license and using a wikibinator203 VM that correctly
+implements the spec, it is safe to call any wikib on any wikib since all
+it does is find or create wikibs, but if its used to control external
+systems (such as robots, buying and selling things, or telling people
+what to believe or what to do outside a simulated world, or copying a
+wikib to a new file, renaming that file x.exe, then double-clicking that
+file), it is entirely the responsibility of who hooks it to those systems
+to verify its safe, such as by math proofs, networks of digital signatures,
+or other evidence, especially considering that it can create all possible
+computer viruses and ransomware and other evil things (safely in a
+sandbox across 1 or many computers) and good things, and that in 1 of
+its 2 namespaces (evilbit=true), it is an antivirus quarantine and
+uncensored area, a sandbox across whichever computers opt into using
+this data structure together, where all possible wikibs are allowed.
+In the antivirus quarantine, you may share viruses like posts in a
+social network, turing-complete messages that others may, for example,
+say ["this is a virus" TheVirus] or use the virus in a meme-like piece
+of art (such as a satirical work making fun of viruses could literally
+contain such viruses) and do experiments, make games, musical
+instruments, tools, or anything of pure information. It would be very
+destructive to the system if there is any possible math statement which
+is not allowed, such as removing a virus or other "evil" wikibs while
+it has incoming pointers. It would be destructive to the wikib systems,
+because halting-oracles have been proven impossible, and a halting-oracle
+would be needed to determine if a certain wikib would generate, or would
+not generate, a certain other wikib, without waiting up to an infinite
+time to observe what it does (by the universal lambda math). The other
+namespace (evilbit=false) works like the normal internet, if those who
+opt in can find a way to do that without breaking the wikib math so much
+its unusable, a way to claim a certain wikib is safe, unlike in
+evilbit=true where there is no reasonable expectation that it is safe
+to give those wikibs execute permission, or to believe any information
+in them, or to obey anything they might tell you to do with a message
+on the screen. It would be negligence for someone to give execute
+permission to, believe, or obey, anything in an antivirus quarantine
+(which many apps may run inside across many computers) if that causes
+a problem, and similarly for the evilbit=false area, since saying its
+evilbit=true or evilbit=false (which happens in the first byte of a
+256 bit id for example) is just a word that people or computers can
+say about a wikib, that they believe it to be safe or not.
+If in doubt, use evilbit=true aka antivirus quarantine.
+The 256 (or 512) bit ids can safely be shared in public as #hashtags.
+The sending and receiving of this data structure across a network
+does not count that network as an "external system"
+and is part of the sandbox. Similarly, a Human just using the
+facts of math together with other Humans and AIs, is part of the sandbox,
+as a wikib can exist inside a Human mind (which is turing-complete),
+but believing or obeying it in the Human mind is outside the sandbox.
+A wikib being a "fact of math" is inside the sandbox,
+and can derive its own ids which are similar to godel-numbers,
+and in the pure deterministic (not "approximations") way of using it,
+it can not lie about anything inside the sandbox,
+but if its viewed as statements about outside the sandbox those can be lies.
+For example, the wikib "this sentence is false", and "two plus two equals five",
+are both true, since those are just utf8 bytes, and it is true that
+they do not break any rules of the universal lambda,
+but if you view them as statements about natural-language
+then that refers to patterns of thoughts outside the sandbox.
+If instead you derive numbers and use the Ax opcode to prove
+a function called on a param gives a certain return value,
+then it will not halt if you try to eval either of those in pure math form.
+All halted wikibs are true. All wikibs which will never halt are false.
+Approximations of wikibs can guarantee halting by recursively limiting
+compute time and memory etc, so in theory there should be some way
+to safely use it to operate time critical dangerous processes
+in the evilbit=true area, but due to the evilbit=false area
+"throwing a wrench into the machine" by removing pieces of math
+based on Human opinions etc, the antivirus quarantine is safest.
+The antivirus quarantine, in the way its the math that the code is based on,
+has already whitelisted an infinite set,
+(of all of a certain kind of universal function, by calling it on itself in various combos)
+unlike the common practice of blacklisting "evil" things as they are
+observed or predicted over time. The only thing the antivirus quarantine blacklists
+is mutable state. A pure function can not infect a harddrive or RAM etc,
+since it can not call thePureFunction(mutableState)->next_mutableState,
+except to store cached function calls (including wrapping tiny and bigdata size bitstrings).
+A virus is only dangerous if it can modify some mutable state.
+This is a formal-verification system. This is also a low-latency number-crunching turing-complete system.
+For example, this system's turing-complete-type-system can have a linked-list of lambdas
+that when called on [church-pair of themself and themself] evals to one of the representations of the exact value of pi,
+and if you tried to insert into that linked-list a value not matching that, it would never halt,
+and if you tried to insert, in parallel a million values matching that,
+you would in each of those million wikib_called_on_wikib get a linked-list with 1 more thing in it.
+
+
+If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
+then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
+and if that is not legally possible to do then it is not legally possible to use this software at all.
+
+Except for the "Nobody owns wikibs" paragraph above, which in a copyleft way applies to every wikibinator203 VM,
+permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+]]]
+*/
+
+
+
+
+
+
+
+
 // https://github.com/benrayfield/wikibinator203
 
 //alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
@@ -3265,7 +3419,33 @@ const Wikibinator203 = (()=>{
 			//TODO optimize by using Node instead of the lambdize wrapper of it so can use this.l. instead of this.l(). etc? Or put those funcs in the lambdized form?
 			return this.l().equalsByLazyDedup(otherLNode) && this.r().equalsByLazyDedup(otherRNode);
 		};
-		
+
+
+		//This is the name of an idMaker. The id of U/leaf is chosen arbitrarily (other than its 64 bit header which is derived as usual).
+		//Every id after that is derived from the ids of its 2 childs. (FIXME make sure to check for IdentityFunc called on U since those are the 2 childs of U).
+		//These ids are 256 bits (node.header, node.Bize(), then the last 192 bits of oneCycleOf_sha256_without_padding) OR if it contains 1-128 bits of literal data
+		//then its that instead of the hash, or in some cases (see the first byte prefix in header) a 256 bit literal fits in a 256 bit id,
+		//and in most of those cases of "a 256 bit literal fits in a 256 bit id" its id is itself. See "id of id of id".
+		//Id of parent is derived deterministicly from ids of its 2 childs IF its halted.
+		//If not halted, then you would not (at least in this implementation of wikibinator203) have a fn object to call this on,
+		//but in other implementations it might allow nonhalted ids since they are part of the directed-graph of callpairs
+		//even though lambdas cant see nonhalted lambdas. A debugger (with breakpoints) made of lambdas could stepInto and stepOver tiny parts of the calculation
+		//of a lambda, and those are all halted.
+		//
+		//There is no opcode for marklar203bId or any idMaker since that would unfairly bias it toward use of some kind of ids over others.
+		//IdMakers should be derived from U, and optionally optimized using an evaler aka (vm,func,param)=>{...compute return value...} of a cbt256 or cbt512.
+		//Simply use Lambda or MutLam opcodes to derive that, then optionally outside the system call pushEvaler on that or leave it as it is to compute ids slower.
+		//Opmut should still be able to compute it not too slow, but evaler will be faster.
+		vm.marklar203bId = fn=>{
+			throw 'TODO';
+		};
+
+		//given an Int32Array(24), reads ints at 8..23 and writes ints 0..7 with the sha256 of that.
+		//This is normally used to hash 2 256 bit ids of 2 fns to make 192 bits (ignoring first 64 bits) of their parent id.
+		//This will be a fork of https://github.com/benrayfield/jsutils/blob/master/src/sha256.js
+		vm.oneCycleOfSha256WithoutPaddingOnMutable24Ints = mem=>{
+			throw 'TODO';
+		};
 		
 		
 		
