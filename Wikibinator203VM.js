@@ -152,6 +152,24 @@ copies or substantial portions of the Software.
 
 
 
+
+
+
+
+
+
+/*
+#wikibinator ids (of a lambda) are like #hashtags, derived from any 2 ids and will look like λb7018ef5ffffffff43ad4c915f93a4f8582f7447ee6e22f208b4d9d2eae50d36
+Its 32 bits of header, 32 bits of bitstring size (if bitstring), 192 bits of sha256(concat(2 child ids)), or literal bits
+*/
+
+
+
+
+
+
+
+
 // https://github.com/benrayfield/wikibinator203
 
 //alert('TODO for vm.eval, make another layer, of vararg tree, for [] {} () <> a:b:c:d syntaxs, before evaling anything, which means it wont merge duplicate fns in code string at this level (and at lazyDedup level it will mostly except for some blobs, and at globalId256 level everything is deduped). Make that tree so can look at it in browser debugger to make sure it parsed right before evaling its parts, since thats unnecessary extra work to do at once when tracking down bugs. Eventually the eval func will be derived from combos of U/TheUniversalLambda, so you can make new syntaxes at the same level as the default syntax. Do that in vm.ParseTree. ParseTree comment, add a fifth kind of list, \':\' where literal \':\' or \'\' (as in \'a(b c)d\' or \'M[...]\') is the fifth kind, < [ { (. It evals a:b:c:d as (a (b (c d))), unlike (a b c d) means (((a b) c) d).');
@@ -2681,6 +2699,8 @@ const Wikibinator203 = (()=>{
 		//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
 		vm.mask_stackIsAllowAx = 1<<3;
 		
+		vm.mask_stackIsAllowHypercompute = 1<<4;
+		
 		//THIS SHOULD INSTEAD JUST BE IN the evilBit in first byte (evil good or 256(or512IfIdsAre512Bit)BitLiteralNeutral) and vm.import func,
 		//and only vm.import can choose where and how to load a lambda by id, and TODO vm.import should take an idMaker param where (idMaker x) -> id of x.
 		//
@@ -2690,7 +2710,7 @@ const Wikibinator203 = (()=>{
 		//Evilbit means "not necessarily good" and is an "antivirus quarantine" and uncensored area. It does not imply it is or is not evil.
 		//vm.mask_stackIsAllowImportEvilIds = 1<<6;
 		
-
+		//FIXME allow more than 128 bits in this? allow fn/lambda in general?
 		/*implement op (getLocalId128 x) gives the 4 ints (in js) x().idA x().idB x().blobFrom and x().blobTo.
 		blobFrom and blobTo are both 0 in any node thats not a cbt so you only need half the id then.
 		Use it in a treemap (Lambda [...] ...) of #SomeName to fn, for use as a code editor.
@@ -2707,10 +2727,10 @@ const Wikibinator203 = (()=>{
 		Each VM running simultaneously can be running a different "VM run",
 		so the nondeterministic localid128s should be limited to when vm.mask_stackAllowReadLocalIds (now 1 of 5 kinds of clean/dirty).
 		*/
-		vm.mask_stackAllowReadLocalIds = 1<<4;
+		vm.mask_stackAllowReadLocalIds = 1<<5;
 		//vm.mask_reservedForFutureExpansion4 = 1<<4;
 		
-		vm.mask_reservedForFutureExpansion5 = 1<<5;
+		//vm.mask_reservedForFutureExpansion5 = 1<<5;
 		
 		//Only includes things whose o8>127 aka has at least 7 params so op is known.
 		//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
@@ -3420,7 +3440,35 @@ const Wikibinator203 = (()=>{
 			return this.l().equalsByLazyDedup(otherLNode) && this.r().equalsByLazyDedup(otherRNode);
 		};
 
+		//2 Uint8Array in, 1 out.
+		vm.concatBytes = (a,b)=>{
+			let c = new Uint8Array(a.length+b.length);
+			c.set(a, 0);
+			c.set(b, a.length);
+			return c;
+		};
 
+		vm.arraysEqual = (a,b)=>{
+			if(a.length != b.length) return false;
+			for(let i=0; i<a.length; i++) if(a[i]!==b[i]) return false;
+			return true;
+		};
+
+		//returns true or false.
+		//do 2 nodes equal by hash? Tries some basic compares first since hash is expensive.
+		//Average of constant time (big constant). Worst case of linear of number of nodes. Caches so only pays for each node at most once.
+		vm.Node.prototype.eq = function(node){
+			if(this === node) return true;
+			if(this.header != node.header) return false;
+			return vm.arraysEqual(vm.marklar203bId(this.lam),vm.marklar203bId(node.lam));
+		};
+
+		//UPDATE: dont skip padding, cuz in this early prototype of wikibinator203, its better for existing hash tools to be able to confirm its security,
+		//and make different id types later that are more efficient andOr more secure.
+		//
+		//returns a Uint8Array(32) of a global id you can share online or use locally, of the given fn/lambda.
+		//Caches it in fn.n.cache_marklar203bId (aka fn().n.cache_marklar203bId) so calling this again gets that same Uint8Array(32). Dont modify that array.
+		//
 		//This is the name of an idMaker. The id of U/leaf is chosen arbitrarily (other than its 64 bit header which is derived as usual).
 		//Every id after that is derived from the ids of its 2 childs. (FIXME make sure to check for IdentityFunc called on U since those are the 2 childs of U).
 		//These ids are 256 bits (node.header, node.Bize(), then the last 192 bits of oneCycleOf_sha256_without_padding) OR if it contains 1-128 bits of literal data
@@ -3437,14 +3485,431 @@ const Wikibinator203 = (()=>{
 		//Simply use Lambda or MutLam opcodes to derive that, then optionally outside the system call pushEvaler on that or leave it as it is to compute ids slower.
 		//Opmut should still be able to compute it not too slow, but evaler will be faster.
 		vm.marklar203bId = fn=>{
-			throw 'TODO';
+			if(fn.n.cache_marklar203bId) return fn.n.cache_marklar203bId;
+			let ret;
+			//TODO optimize use oneCycleOfSha256WithoutPaddingOnMutable88Ints instead of allocating multiple arrays and converting between bytes and ints etc,
+			//and it will be more secure to not allocate arrays during hashing.
+			if(fn === U){
+				//hardcode the 192 bits of hash of U as all 0s, but compute header and bize the usual way
+				ret = new Uint8Array(32);
+				for(let i=0; i<32; i++) ret[i] = 0;
+			}else{
+				if(fn.n.isCbt()) throw 'FIXME still need to put 1-256 bits of literal data in the id depending on if its a cbt those sizes, and for the size of 256 depending on the first byte';
+				let leftId = vm.marklar203bId(fn.n.l); //is a Uint8Array
+				let rightId = vm.marklar203bId(fn.n.r);
+				let cat = vm.concatBytes(leftId,rightId);
+				//ret = vm.sha256(cat,true); //true to skip padding, so its 1 sha256 cycle instead of 2. Size is always 512 bits in so dont need padding.
+				ret = vm.sha256(cat); //with padding so 2 sha256 cycles.
+			}
+			let asInts = new Int32Array(ret.buffer); //TODO optimize just do it as bytes
+			asInts[0] = fn.n.header;
+			asInts[1] = fn.n.Bize();
+			return fn.n.cache_marklar203bId = ret;
 		};
 
-		//given an Int32Array(24), reads ints at 8..23 and writes ints 0..7 with the sha256 of that.
+		//string view of: the default kind of id in this VM is marklar203bId, but theres no opcode for "default id" cuz it supports any kind of id that can be derived from content.
+		//TODO use this when toStringing code.
+		//TODO generalize this to any kind of idMaker but dont make it hard to use. This isnt preventing anyone from using a different idMaker at user level.
+		vm.Node.prototype.id = function(){
+			if(this.cache_idString) return this.cache_idString;
+			return this.cache_idString = 'λ'+vm.bytesToHex(vm.marklar203bId(this.lam));
+		};
+
+		//returns 3 ids, including my left and right childs.
+		vm.Node.prototype.idlr = function(){
+			return this.id()+'_'+this.l.n.id()+'_'+this.r.n.id();
+		};
+
+		/** this is getting too hard to test. TODO write it using vm.sha256 first (which I know works), and I'll add an optional param there to skip padding or not,
+		Use vm.sha256(bytes,true) instead.
+		//
+		//given an Int32Array(88), reads the last 16 ints and writes the 8 ints just before that, using the first 64 ints for internal state.
+		//This is ame as vm.sha256 except the multi-block code is commented-out, and the
+		//FIXME test this. Is there some other implementation of just 1 cycle of sha256?
+		//
 		//This is normally used to hash 2 256 bit ids of 2 fns to make 192 bits (ignoring first 64 bits) of their parent id.
 		//This will be a fork of https://github.com/benrayfield/jsutils/blob/master/src/sha256.js
-		vm.oneCycleOfSha256WithoutPaddingOnMutable24Ints = mem=>{
-			throw 'TODO';
+		//WARNING, TODO CHECK SECURITY OF SHA3_256: checkIfSha3PermutationStepIsUnitaryAndIfItsNotThenCheckThatItExpandsItFirstInWayThatsSecureAgainstCreatingCollisionsInTheFirstNonunitarySoCalledPermutation
+		//	But the main reason using sha256 instead of sha3_256 is sha256 is faster in CPU (and faster than that in GPU, todo find it i wrote that code using lazycl somewhere, was around 50 gflops i think) even though SHA3_256 is designed to be even faster in GPU (todo verify).
+		vm.oneCycleOfSha256WithoutPaddingOnMutable88Ints = a=>{
+			if(!(a instanceof Int32Array)) throw 'mem is not an Int32Array';
+			//write them into array to make it easier for javascript's JIT compiler to know their values and that they are ints instead of doubles. In theory that will be faster. TODO test that theory.
+			if(a.length != 88) throw 'mem.length must be 8 (output) + 16 (input) + 64 (SHA256 constants) = 88 (ints), but is '+a.length;
+
+			//https://raw.githubusercontent.com/benrayfield/jsutils/master/src/sha256.js
+
+			//var t = typeof bytesIn;
+			//if(t != 'Uint8Array') throw 'Expected Uint8Array but got a '+t; //this check wont work because its like a map of index to byte
+			
+			/*
+			var chunks = Math.floor((bytesIn.byteLength+9+63)/64); //512 bit each
+			
+			//Copy bytesIn[] into b[], then pad bit1, then pad bit0s,
+			//then append int64 bit length, finishing the last block of 512 bits.
+			//byte b[] = new byte[chunks*64];
+			var b = new Uint8Array(chunks*64);
+			
+			//System.arraycopy(bytesIn, 0, b, 0, bytesIn.byteLength);
+			b.set(bytesIn, 0);
+			
+			b[bytesIn.byteLength] = 0x80;
+			
+			//long bitLenTemp = bytesIn.byteLength*8;
+			var bitLenTemp = bytesIn.byteLength*8; //in js, this has float64 precision, which is more than enough for Uint8Array size
+			for(var i=7; i>=0; i--){
+				b[b.byteLength-8+i] = bitLenTemp&0xff;
+				bitLenTemp >>>= 8;
+			}
+			*
+			
+			//log('b as hex = '+bitfuncs.uint8ArrayToHex(b));
+			
+			
+			//var a = new Uint32Array(136);
+			//"first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311"
+			a[0]=0x428a2f98;
+			a[1]=0x71374491;
+			a[2]=0xb5c0fbcf;
+			a[3]=0xe9b5dba5;
+			a[4]=0x3956c25b;
+			a[5]=0x59f111f1;
+			a[6]=0x923f82a4;
+			a[7]=0xab1c5ed5;
+			a[8]=0xd807aa98;
+			a[9]=0x12835b01;
+			a[10]=0x243185be;
+			a[11]=0x550c7dc3;
+			a[12]=0x72be5d74;
+			a[13]=0x80deb1fe;
+			a[14]=0x9bdc06a7;
+			a[15]=0xc19bf174;
+			a[16]=0xe49b69c1;
+			a[17]=0xefbe4786;
+			a[18]=0x0fc19dc6;
+			a[19]=0x240ca1cc;
+			a[20]=0x2de92c6f;
+			a[21]=0x4a7484aa;
+			a[22]=0x5cb0a9dc;
+			a[23]=0x76f988da;
+			a[24]=0x983e5152;
+			a[25]=0xa831c66d;
+			a[26]=0xb00327c8;
+			a[27]=0xbf597fc7;
+			a[28]=0xc6e00bf3;
+			a[29]=0xd5a79147;
+			a[30]=0x06ca6351;
+			a[31]=0x14292967;
+			a[32]=0x27b70a85;
+			a[33]=0x2e1b2138;
+			a[34]=0x4d2c6dfc;
+			a[35]=0x53380d13;
+			a[36]=0x650a7354;
+			a[37]=0x766a0abb;
+			a[38]=0x81c2c92e;
+			a[39]=0x92722c85;
+			a[40]=0xa2bfe8a1;
+			a[41]=0xa81a664b;
+			a[42]=0xc24b8b70;
+			a[43]=0xc76c51a3;
+			a[44]=0xd192e819;
+			a[45]=0xd6990624;
+			a[46]=0xf40e3585;
+			a[47]=0x106aa070;
+			a[48]=0x19a4c116;
+			a[49]=0x1e376c08;
+			a[50]=0x2748774c;
+			a[51]=0x34b0bcb5;
+			a[52]=0x391c0cb3;
+			a[53]=0x4ed8aa4a;
+			a[54]=0x5b9cca4f;
+			a[55]=0x682e6ff3;
+			a[56]=0x748f82ee;
+			a[57]=0x78a5636f;
+			a[58]=0x84c87814;
+			a[59]=0x8cc70208;
+			a[60]=0x90befffa;
+			a[61]=0xa4506ceb;
+			a[62]=0xbef9a3f7;
+			a[63]=0xc67178f2;
+			//h0-h7 "first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19"
+			a[64]=0x6a09e667;
+			a[65]=0xbb67ae85;
+			a[66]=0x3c6ef372;
+			a[67]=0xa54ff53a;
+			a[68]=0x510e527f;
+			a[69]=0x9b05688c;
+			a[70]=0x1f83d9ab;
+			a[71]=0x5be0cd19;
+			//a[72..135] are the size 64 w array of ints
+			for(var chunk=0; chunk<chunks; chunk++){
+				var bOffset = chunk<<6;
+				//copy chunk into first 16 words w[0..15] of the message schedule array
+				for(var i=0; i<16; i++){
+					//Get 4 bytes from b[]
+					var o = bOffset+(i<<2);
+					a[72+i] = ((b[o]&0xff)<<24) | ((b[o+1]&0xff)<<16) | ((b[o+2]&0xff)<<8) | (b[o+3]&0xff);
+				}
+				//Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:
+				for(var i=16; i<64; i++){
+					//s0 := (w[i-15] rightrotate 7) xor (w[i-15] rightrotate 18) xor (w[i-15] rightshift 3)
+					//s1 := (w[i-2] rightrotate 17) xor (w[i-2] rightrotate 19) xor (w[i-2] rightshift 10)
+					//w[i] := w[i-16] + s0 + w[i-7] + s1
+					var wim15 = a[72+i-15];
+					var s0 = ((wim15>>>7)|(wim15<<25)) ^ ((wim15>>>18)|(wim15<<14)) ^ (wim15>>>3);
+					var wim2 = a[72+i-2];
+					var s1 = ((wim2>>>17)|(wim2<<15)) ^ ((wim2>>>19)|(wim2<<13)) ^ (wim2>>>10);
+					a[72+i] = a[72+i-16] + s0 + a[72+i-7] + s1;
+				}
+				var A = a[64];
+				var B = a[65];
+				var C = a[66];
+				var D = a[67];
+				var E = a[68];
+				var F = a[69];
+				var G = a[70];
+				var H = a[71];
+				for(var i=0; i<64; i++){
+					/* S1 := (e rightrotate 6) xor (e rightrotate 11) xor (e rightrotate 25)
+					ch := (e and f) xor ((not e) and g)
+					temp1 := h + S1 + ch + k[i] + w[i]
+					S0 := (a rightrotate 2) xor (a rightrotate 13) xor (a rightrotate 22)
+					maj := (a and b) xor (a and c) xor (b and c)
+					temp2 := S0 + maj
+					h := g
+					g := f
+					f := e
+					e := d + temp1
+					d := c
+					c := b
+					b := a
+					a := temp1 + temp2
+					*
+					var s1 = ((E>>>6)|(E<<26)) ^ ((E>>>11)|(E<<21)) ^ ((E>>>25)|(E<<7));
+					var ch = (E&F) ^ ((~E)&G);
+					var temp1 = H + s1 + ch + a[i] + a[72+i];
+					var s0 = ((A>>>2)|(A<<30)) ^ ((A>>>13)|(A<<19)) ^ ((A>>>22)|(A<<10));
+					var maj = (A&B) ^ (A&C) ^ (B&C);
+					var temp2 = s0 + maj;
+					H = G;
+					G = F;
+					F = E;
+					E = D + temp1;
+					D = C;
+					C = B;
+					B = A;
+					A = temp1 + temp2;
+				}
+				a[64] += A;
+				a[65] += B;
+				a[66] += C;
+				a[67] += D;
+				a[68] += E;
+				a[69] += F;
+				a[70] += G;
+				a[71] += H;
+			}
+			//RETURN h0..h7 = a[64..71]
+			//byte ret[] = new byte[32];
+			var ret = new Uint8Array(32);
+			for(var i=0; i<8; i++){
+				var ah = a[64+i];
+				ret[i*4] = (ah>>>24)&0xff;
+				ret[i*4+1] = (ah>>>16)&0xff;
+				ret[i*4+2] = (ah>>>8)&0xff;
+				ret[i*4+3] = ah&0xff;
+			}
+		};
+		*/
+
+
+		//returns a mutable Uint8Array(32).
+		//Uint8Array(any size) in. Uint8Array(32) out.
+		//WARNING, TODO CHECK SECURITY OF SHA3_256: checkIfSha3PermutationStepIsUnitaryAndIfItsNotThenCheckThatItExpandsItFirstInWayThatsSecureAgainstCreatingCollisionsInTheFirstNonunitarySoCalledPermutation
+		//	But the main reason using sha256 instead of sha3_256 is sha256 is faster in CPU (and faster than that in GPU, todo find it i wrote that code using lazycl somewhere, was around 50 gflops i think) even though SHA3_256 is designed to be even faster in GPU (todo verify).
+		vm.sha256 = function(bytesIn, optionalParam_skipPadding){
+			//https://raw.githubusercontent.com/benrayfield/jsutils/master/src/sha256.js slightly modified by adding optionalParam_skipPadding param
+
+			//var t = typeof bytesIn;
+			//if(t != 'Uint8Array') throw 'Expected Uint8Array but got a '+t; //this check wont work because its like a map of index to byte
+			
+			var chunks = Math.floor((bytesIn.byteLength+(optionalParam_skipPadding?0:9)+63)/64); //512 bit each
+			
+			//Copy bytesIn[] into b[], then pad bit1, then pad bit0s,
+			//then append int64 bit length, finishing the last block of 512 bits.
+			//byte b[] = new byte[chunks*64];
+			var b = new Uint8Array(chunks*64);
+			
+			//System.arraycopy(bytesIn, 0, b, 0, bytesIn.byteLength);
+			b.set(bytesIn, 0);
+			
+			if(!optionalParam_skipPadding){
+				b[bytesIn.byteLength] = 0x80;
+			
+				//long bitLenTemp = bytesIn.byteLength*8;
+				var bitLenTemp = bytesIn.byteLength*8; //in js, this has float64 precision, which is more than enough for Uint8Array size
+				for(var i=7; i>=0; i--){
+					b[b.byteLength-8+i] = bitLenTemp&0xff;
+					bitLenTemp >>>= 8;
+				}
+			}
+			
+			//log('b as hex = '+bitfuncs.uint8ArrayToHex(b));
+			
+			
+			var a = new Uint32Array(136);
+			//"first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311"
+			a[0]=0x428a2f98;
+			a[1]=0x71374491;
+			a[2]=0xb5c0fbcf;
+			a[3]=0xe9b5dba5;
+			a[4]=0x3956c25b;
+			a[5]=0x59f111f1;
+			a[6]=0x923f82a4;
+			a[7]=0xab1c5ed5;
+			a[8]=0xd807aa98;
+			a[9]=0x12835b01;
+			a[10]=0x243185be;
+			a[11]=0x550c7dc3;
+			a[12]=0x72be5d74;
+			a[13]=0x80deb1fe;
+			a[14]=0x9bdc06a7;
+			a[15]=0xc19bf174;
+			a[16]=0xe49b69c1;
+			a[17]=0xefbe4786;
+			a[18]=0x0fc19dc6;
+			a[19]=0x240ca1cc;
+			a[20]=0x2de92c6f;
+			a[21]=0x4a7484aa;
+			a[22]=0x5cb0a9dc;
+			a[23]=0x76f988da;
+			a[24]=0x983e5152;
+			a[25]=0xa831c66d;
+			a[26]=0xb00327c8;
+			a[27]=0xbf597fc7;
+			a[28]=0xc6e00bf3;
+			a[29]=0xd5a79147;
+			a[30]=0x06ca6351;
+			a[31]=0x14292967;
+			a[32]=0x27b70a85;
+			a[33]=0x2e1b2138;
+			a[34]=0x4d2c6dfc;
+			a[35]=0x53380d13;
+			a[36]=0x650a7354;
+			a[37]=0x766a0abb;
+			a[38]=0x81c2c92e;
+			a[39]=0x92722c85;
+			a[40]=0xa2bfe8a1;
+			a[41]=0xa81a664b;
+			a[42]=0xc24b8b70;
+			a[43]=0xc76c51a3;
+			a[44]=0xd192e819;
+			a[45]=0xd6990624;
+			a[46]=0xf40e3585;
+			a[47]=0x106aa070;
+			a[48]=0x19a4c116;
+			a[49]=0x1e376c08;
+			a[50]=0x2748774c;
+			a[51]=0x34b0bcb5;
+			a[52]=0x391c0cb3;
+			a[53]=0x4ed8aa4a;
+			a[54]=0x5b9cca4f;
+			a[55]=0x682e6ff3;
+			a[56]=0x748f82ee;
+			a[57]=0x78a5636f;
+			a[58]=0x84c87814;
+			a[59]=0x8cc70208;
+			a[60]=0x90befffa;
+			a[61]=0xa4506ceb;
+			a[62]=0xbef9a3f7;
+			a[63]=0xc67178f2;
+			//h0-h7 "first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19"
+			a[64]=0x6a09e667;
+			a[65]=0xbb67ae85;
+			a[66]=0x3c6ef372;
+			a[67]=0xa54ff53a;
+			a[68]=0x510e527f;
+			a[69]=0x9b05688c;
+			a[70]=0x1f83d9ab;
+			a[71]=0x5be0cd19;
+			//a[72..135] are the size 64 w array of ints
+			for(var chunk=0; chunk<chunks; chunk++){
+				var bOffset = chunk<<6;
+				//copy chunk into first 16 words w[0..15] of the message schedule array
+				for(var i=0; i<16; i++){
+					//Get 4 bytes from b[]
+					var o = bOffset+(i<<2);
+					a[72+i] = ((b[o]&0xff)<<24) | ((b[o+1]&0xff)<<16) | ((b[o+2]&0xff)<<8) | (b[o+3]&0xff);
+				}
+				//Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:
+				for(var i=16; i<64; i++){
+					//s0 := (w[i-15] rightrotate 7) xor (w[i-15] rightrotate 18) xor (w[i-15] rightshift 3)
+					//s1 := (w[i-2] rightrotate 17) xor (w[i-2] rightrotate 19) xor (w[i-2] rightshift 10)
+					//w[i] := w[i-16] + s0 + w[i-7] + s1
+					var wim15 = a[72+i-15];
+					var s0 = ((wim15>>>7)|(wim15<<25)) ^ ((wim15>>>18)|(wim15<<14)) ^ (wim15>>>3);
+					var wim2 = a[72+i-2];
+					var s1 = ((wim2>>>17)|(wim2<<15)) ^ ((wim2>>>19)|(wim2<<13)) ^ (wim2>>>10);
+					a[72+i] = a[72+i-16] + s0 + a[72+i-7] + s1;
+				}
+				var A = a[64];
+				var B = a[65];
+				var C = a[66];
+				var D = a[67];
+				var E = a[68];
+				var F = a[69];
+				var G = a[70];
+				var H = a[71];
+				for(var i=0; i<64; i++){
+					/* S1 := (e rightrotate 6) xor (e rightrotate 11) xor (e rightrotate 25)
+					ch := (e and f) xor ((not e) and g)
+					temp1 := h + S1 + ch + k[i] + w[i]
+					S0 := (a rightrotate 2) xor (a rightrotate 13) xor (a rightrotate 22)
+					maj := (a and b) xor (a and c) xor (b and c)
+					temp2 := S0 + maj
+					h := g
+					g := f
+					f := e
+					e := d + temp1
+					d := c
+					c := b
+					b := a
+					a := temp1 + temp2
+					*/
+					var s1 = ((E>>>6)|(E<<26)) ^ ((E>>>11)|(E<<21)) ^ ((E>>>25)|(E<<7));
+					var ch = (E&F) ^ ((~E)&G);
+					var temp1 = H + s1 + ch + a[i] + a[72+i];
+					var s0 = ((A>>>2)|(A<<30)) ^ ((A>>>13)|(A<<19)) ^ ((A>>>22)|(A<<10));
+					var maj = (A&B) ^ (A&C) ^ (B&C);
+					var temp2 = s0 + maj;
+					H = G;
+					G = F;
+					F = E;
+					E = D + temp1;
+					D = C;
+					C = B;
+					B = A;
+					A = temp1 + temp2;
+				}
+				a[64] += A;
+				a[65] += B;
+				a[66] += C;
+				a[67] += D;
+				a[68] += E;
+				a[69] += F;
+				a[70] += G;
+				a[71] += H;
+			}
+			//RETURN h0..h7 = a[64..71]
+			//byte ret[] = new byte[32];
+			var ret = new Uint8Array(32);
+			for(var i=0; i<8; i++){
+				var ah = a[64+i];
+				ret[i*4] = (ah>>>24)&0xff;
+				ret[i*4+1] = (ah>>>16)&0xff;
+				ret[i*4+2] = (ah>>>8)&0xff;
+				ret[i*4+3] = ah&0xff;
+			}
+			return ret;
 		};
 		
 		
@@ -4581,6 +5046,15 @@ const Wikibinator203 = (()=>{
 		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
+		//addOp(name,prefix,isStrange,curriesLeft,description)
+		vm.o8OfHypercomputeGreen = vm.addOp('Hypercombinator',null,true,1,'The "hypercompute leaf combinator", just a binary forest data structure that prevents anything but combos of itself from being its params, and limits it to 7 stored params, and in abstract math it has 8 params but its always lazy-eval so the 8th param always infloops. You call it by looking along HypercomputeRedA and HypercomputeRedB edges. Its opcodes include the hypercomputing kinds of: S T F L R ISLEAF PAIR LAZYTHREEWAYCALL_CARDINALITYA_FUNC_PARAM SEMANTICFORDOESNOTHALT SEMANTICFORCALLERDOESNOTHAVEENOUGHCARDINALITYTOLOOKALONGTHATEDGE SEMANTICFORRETURNEDWHATSALONGREDAORBEDGE GETCALLERSCARDINALITYASLINKEDLISTOFTTTTASUNARY and maybe a few other operators, and one very important operator that branches at the first (of 7 or 8 params) param, which is a lambda of 6 params (if first param is the leaf hypercombinator, else first param is anything else).');
+		//TODO vm.lazyEvalOfDoesPEqualNP = ...; //Call this on Hypercombinator (the hyper leaf) to get hyper_T or hyper_F,
+		//but it will cost infinite time and memory so dont expect an answer unless some advanced proofs and optimizations
+		//are added later.
+		vm.o8OfHypercomputeGreen = vm.addOp('HypercomputeGreen',null,false,1,'This would be the L/GREEN hypercompute edge, which is same as the L op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to the "variant of identityFunc made of hypercompute combinator called on itself various ways"');
+		vm.o8OfHypercomputeBlue = vm.addOp('HypercomputeBlue',null,false,1,'This would be the R/BLUE hypercompute edge, which is same as the R op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to itself, returns the "leaf hypercompute combinator" (as its hyper_R child) in that one case.');
+		vm.o8OfHypercomputeRedA = vm.addOp('HypercomputeRedA',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) This would give the RED (doesItHaltAtLowerCardinalityThanCaller) edge in... See https://github.com/benrayfield/hyperquasicrystal for an incomplete similar set of opcodes for hypercomputing. TODO design this wikibinator203 opcode. This is deterministic but in some cases costs pow(infinity,pow(infinity,infinity))... (im not sure how deep of exponents and infinities it will go) time and memory ONCE but after, in abstract math, thats cached, everything costs 1 compute step, so its more like a digital-signature of infinite size, or converges by disproof-by-contradiction, various ways it could be implemented. For example, you could have 2 competing networks, one with the claim that P!=NP and the other with the claim that P=NP, which would both be VarargAx ops of Hypercompute ops, so there will be a wikibinator203 node that claims P=NP and one that claims P!=NP but exactly 1 of those would ever (in abstract math, after infinities) halt.');
+		vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).');
 		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
 		vm.o8OfTypeval = vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
@@ -4597,6 +5071,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('StackIsAllowNondetRoundoff',null,false,1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowMutableWrapperLambdaAndSolve',null,false,1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowAx',null,false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
+		vm.addOp('StackIsAllowHypercompute',null,false,1,'reads a certain bit (stackIsAllowHypercompute) from top of stack. See the few "hyper" opcodes');
 		vm.addOp('stackAllowReadLocalIds ',null,false,1,'reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.');
 		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
@@ -4607,7 +5082,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Get32BitsInCbt',null,false,2,'(get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val');
 		vm.addOp('Put32BitsInCbt',null,false,3,'(put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks');
 		//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks');
-		vm.addOp('Equals',null,false,2,'By content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).');
+		vm.addOp('Eq',null,false,2,'Do 2 fns equal by content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).');
 		vm.addOp('StreamWhile',null,false,3,'(streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
 		vm.addOp('StreamDoWhile',null,false,3,'(streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
 		vm.addOp('StreamFor',null,false,5,'(streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
@@ -4628,7 +5103,9 @@ const Wikibinator203 = (()=>{
 		*/
 		vm.addOp('Seq','_',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].');
 		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.');
-		vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? UPDATE: that syntax puts the #Name on the left instead of the right, but no syntax is part of the spec, and all possible syntaxes can be made from the universal lambda.');
+		
+		
+		//removed, replaced by the Lambda op and MutLam op: vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? UPDATE: that syntax puts the #Name on the left instead of the right, but no syntax is part of the spec, and all possible syntaxes can be made from the universal lambda.');
 		//(name,prefix,isStrange,curriesLeft,description)
 		//vm.addOp('AvlTree',null,false,?,'(AvlTree KeyComparator)');
 		//TODO just use [ [a b c d e] f [g h] i] (Infcur is []) instead? Or maybe a max branching factor of 2 (or some small constant) is better? vm.addOp('Sortree',null,false,?,'A sortable tree, that can be ordered a variety of ways. (Sortree Comparator ) (((A sortable tree, though it doesnt (like ax could) enforce being sorted. Ax could enforce being sorted, but ax constraints may take infinite time and memory to disprove a false claim, while taking finite time to prove a true claim.)))');
@@ -4797,6 +5274,7 @@ const Wikibinator203 = (()=>{
 		vm.StackStuff.prototype.stackIsAllowstackTimestackMem = function(){
 			return this.mask&vm.mask_stackIsAllowstackTimestackMem;
 		};
+		//FIXME TODO add vm.stackStuff.isAllowHypercompute
 
 		
 		//pure deterministic, no ax (which is deterministic but can have infinite cost to verify), and 128 0s for salt.
@@ -5038,6 +5516,8 @@ const Wikibinator203 = (()=>{
 						ret = Bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
 					break;case o.Pair:case o.Typeval:
 						ret = z(x)(y); //the church-pair lambda
+					break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
+						ret = Bit(x().eq(y));
 					break;case o.VarargAx:
 						if(vm.stackIsAllowAx){
 							//throw 'TODO ax';
@@ -5422,6 +5902,22 @@ const Wikibinator203 = (()=>{
 			this.views.forEach((view,fn)=>{ //value,key
 				view.hasDefinedBeforeUsingName = false;
 			});
+		};
+
+		vm.hexDigits = '0123456789abcdef';
+
+		//256 pairs of hex digits
+		vm.doubleHexDigits = [];
+		for(let i=0; i<16; i++){
+			for(let j=0; j<16; j++){
+				vm.doubleHexDigits.push(vm.hexDigits[i]+vm.hexDigits[j]);
+			}
+		}
+
+		vm.bytesToHex = bytes=>{
+			let s = '';
+			for(let i=0; i<bytes.length; i++) s += vm.doubleHexDigits[bytes[i]];
+			return s;
 		};
 
 		//a cbt is a fn/lambda, a powOf2 number of bits (Bit0 or Bit1).
