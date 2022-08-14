@@ -2889,7 +2889,13 @@ const Wikibinator203 = (()=>{
 			return vm.utf8AsUint8ArrayToString(bytes.subarray(this.blobFrom, this.blobTo));
 		};
 	
-		
+		//for ops.Lambda. ops.MutLam might be 1 less (TODO verify that)?
+		//(Lambda [...param names...] FuncBody ...up_to_maxLambdaParams_params...)
+		//has at most 254 params (of U, which Lambda is 6th param of, and [...param names...] is 7th param of),
+		//cuz 255 params of U means never evals and takes infinity params (like in Infcur).
+		//You can have more lambda params but the lambda will become like Infcur,
+		//and in that case its curriesLeft will be 255. 254-8=246 so maxLambdaParams is 246.
+		vm.maxLambdaParams = 246;
 		
 		vm.overlappingBufferInts = new Int32Array(2);
 		vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
@@ -3075,7 +3081,39 @@ const Wikibinator203 = (()=>{
 					}else{ //not vararg. set curriesLeft to the constant number of params the op takes, of 128 ops (o8 is 128 to 255).
 						curriesLeft = vm.opInfo[op].curriesLeft;
 					}*/
-					curriesLeft = vm.opInfo[op].curriesLeft;
+					console.log('about to set curriesLeft. op='+op);
+					switch(op){
+						case vm.o8OfLambdo: //Lambdo has 7 params. Lambda has 6.
+							//(Lambda [...paramNames...] FuncBody ...params...).
+							//Lambda is 6th param (an opcode despite those normally are at param 7,
+							//cuz list size of [...paramNames...]
+							//affects how many params (Lambda [...paramNames...] FuncBody) takes.
+						
+							//let rCur = rNode.cur(); //TODO optimize only call this after checking "rNode.o8() === vm.o8OfInfcur".
+							//let isValidLambdaParamNames = true;
+							let paramsListSize;
+							if(rNode.o8() === vm.o8OfInfcur && (paramsListSize=rNode.cur()-7) <= vm.maxLambdaParams){
+								//Lambda of 0..vm.maxLambdaParams params.
+								//Example: If rCur (renaming that to paramsListSize)
+								//is 3, then... (Lambda [a b c] FuncBody valA valB valC)
+								// --> (FuncBody [(Lambda [a b c] FuncBody valA valB) valC]).
+								//curriesLeft in code below is of (Lambda [a b c]).
+								//rCur is curries so far of [a b c] which is of (Infcur a b c) which is 10
+								//since []/Infcur, like most opcodes, is 7 curriesSoFar, plus 3 for a b c.
+								//curriesLeft should be 4 in that case: FuncBody valA valB valC.
+								curriesLeft = 1+paramsListSize; //FuncBody then paramVals.
+								console.log('Lambda getting its 7th param a [], curriesLeft='+curriesLeft+' paramsListSize='+paramsListSize);
+							}else{
+								//Lambda similar to Infcur, takes infinity params, never evals.
+								curriesLeft = 255; //infinity. 1..254 params are a specific number of params. 0 is evaling.
+							}
+						break;case vm.o8OfMutLam:
+							console.log('fixmefixme Returning 1 for now, which is wrong, just so all the ops can be created without crashing, but dont use this op yet. similar to Lambda but with an extra param for [...(ObKeyVal key val)...] stateless state');
+							curriesLeft = 1; //fixme
+						break;default:
+							curriesLeft = vm.opInfo[op].curriesLeft;
+					}
+					
 
 					if(vm.o8IsOfCbt(op)){
 						//is Bit0 or Bit1
@@ -3329,47 +3367,195 @@ const Wikibinator203 = (()=>{
 		vm.Node.prototype.doubleAt = function(doubleIndex){
 			return vm.twoIntsToDouble(this.intAt(doubleIndex*2),this.intAt(doubleIndex*2+1));
 		};
+
+		//Example: a Lambda with [...paramNames...] at param 7 and FuncBody at param 8, downToCur(8) gives (Lambda [...] FuncBody),
+		//and downToCur(7) would give (Lambda [...]). If cur is already less than that, throws.
+		vm.Node.prototype.downToCur = function(cur){
+			let observeCur = this.cur();
+			if(observeCur < cur) throw 'Cant downToCur('+cur+') cuz observeCur='+observeCur+' is already below that.';
+			let ret = this.lam;
+			while(cur < observeCur){
+				ret = ret.n.l;
+				observeCur--;
+			}
+			return ret;
+		};
 		
-		//in op lambda or opOneMoreParam
-		//(UPDATE: opOneMoreParam was removed from the design, and instead (Lambda [1 to 250-something paramNames] ...params)
-		//or op varargAx, theres a funcBody. FIXME choose a design, of where funcBody goes,
-		//cuz could simplify this. curriesLeft and op must be known at param 7, so lambda 
+		vm.Node.prototype.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things = function(curN){
+			if(curN < 7) throw 'curN='+curN;
+			let o8 = this.o8();
+			switch(o8){
+				/*FIXME optimize by putting in header or some way... to efficiently know if its the 8th param. ???
+				Or change these 3 ops (varargAx opOneMoreParam lambda) so that funcBody is the 7th param?
+				Would need to have 2 or 4 of each of those ops if so, cuz up to the 7th param,
+				every next param being u vs anything_except_u branches to twice as many ops.
+				By design the op and curriesLeft are known at param 7 (or less),
+				so the design of using the 8th param as funcBody and maybe 9th for something related,
+				is complicating that. Write out the design below, and try to make it consistent,
+				and look for all other ops that have strange curriesLeft
+				andOr evalingVsHalted params, such as op.evaling has o8 of 0)...
+				Thats in vm.opInfo[o8].isStrange.
+				Or should they be 1 deeper than that, so can find funcBody just by o8? A few specific o8s have funcBody as their r child.
+				The problem with waiting until param7 is every later param has the same o8 as param7 as it copies from l child after that.
+				...
+				*/
+				
+				case vm.o8OfInfcur:
+					if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
+					let shouldBeLambdaOrMutLam = this.n.l.n.r;
+					return this.downToCur(curN);
+					//this.cacheFuncBody = shouldBeLambdaOrMutLam.funcBody();
+				break;case vm.o8OfLambdo:
+					if(this.cur() < curN) throw 'There is no 8th param so cant get FuncBody. If this is called in paramNames then FIXME that should call this.downToCur(7) instead but FIXME need to handle [AllParamsExceptLast LastParam].';
+					//this.cacheFuncBody = this.downToCur(8).n.r;
+					//return this.downToCur(8);
+					return this.downToCur(curN);
+					//while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+				break;case vm.o8OfMutLam:
+					throw 'TODO';
+				/*case vm.o8OfVarargAx:case o8OfLambda:
+					let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
+					let prevFind = find;
+					//FIXME redesign this so the loop is smaller?
+					while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+					//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+					throw 'TODO';
+					//this.cacheFuncBody = TODO;
+				*/
+				//break;case vm.o8OfOpOneMoreParam:
+					//this.cacheFuncBody = TODO;
+				//	throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
+				break;default:
+					//this.cacheFuncBody = U;
+					throw 'Unknown o8 for getAtCur8OfLambdaOrMutLamOrInfcurOf2Things: '+o8;
+			}
+			//return this.cacheFuncBody;
+		};
+
+		/*
+		//returns something like (Lambda_or_MutLam [..paramNames..] FuncBody)
+		vm.Node.prototype.getAtCur8OfLambdaOrMutLamOrInfcurOf2Things = function(){
+			let o8 = this.o8();
+			if(this.cur() < 8) throw 'There is no 8th param so cant get FuncBody. If this is called in paramNames then FIXME that should call this.downToCur(7) instead but FIXME need to handle [AllParamsExceptLast LastParam].';
+			switch(o8){
+				/*FIXME optimize by putting in header or some way... to efficiently know if its the 8th param. ???
+				Or change these 3 ops (varargAx opOneMoreParam lambda) so that funcBody is the 7th param?
+				Would need to have 2 or 4 of each of those ops if so, cuz up to the 7th param,
+				every next param being u vs anything_except_u branches to twice as many ops.
+				By design the op and curriesLeft are known at param 7 (or less),
+				so the design of using the 8th param as funcBody and maybe 9th for something related,
+				is complicating that. Write out the design below, and try to make it consistent,
+				and look for all other ops that have strange curriesLeft
+				andOr evalingVsHalted params, such as op.evaling has o8 of 0)...
+				Thats in vm.opInfo[o8].isStrange.
+				Or should they be 1 deeper than that, so can find funcBody just by o8? A few specific o8s have funcBody as their r child.
+				The problem with waiting until param7 is every later param has the same o8 as param7 as it copies from l child after that.
+				...
+				*
+				
+				case vm.o8OfInfcur:
+					if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
+					//let shouldBeLambdaOrMutLam = this.n.l.n.r;
+					//this.cacheFuncBody = shouldBeLambdaOrMutLam.funcBody();
+				break;case vm.o8OfLambdo:
+					//this.cacheFuncBody = this.downToCur(8).n.r;
+					return this.downToCur(8);
+					//while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+				break;case vm.o8OfMutLam:
+					throw 'TODO';
+				/*case vm.o8OfVarargAx:case o8OfLambda:
+					let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
+					let prevFind = find;
+					//FIXME redesign this so the loop is smaller?
+					while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+					//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
+					throw 'TODO';
+					//this.cacheFuncBody = TODO;
+				*
+				//break;case vm.o8OfOpOneMoreParam:
+					//this.cacheFuncBody = TODO;
+				//	throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
+				break;default:
+					//this.cacheFuncBody = U;
+					throw 'Unknown o8 for getAtCur8OfLambdaOrMutLamOrInfcurOf2Things: '+o8;
+			}
+			//return this.cacheFuncBody;
+		};*/
+
+		//In a (Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam),
+		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...) etc, returns FuncBody.
 		vm.Node.prototype.funcBody = function(){
 			if(!this.cacheFuncBody){
-				throw 'FIXME';
-				switch(this.o8()){
-					/*FIXME optimize by putting in header or some way... to efficiently know if its the 8th param. ???
-					Or change these 3 ops (varargAx opOneMoreParam lambda) so that funcBody is the 7th param?
-					Would need to have 2 or 4 of each of those ops if so, cuz up to the 7th param,
-					every next param being u vs anything_except_u branches to twice as many ops.
-					By design the op and curriesLeft are known at param 7 (or less),
-					so the design of using the 8th param as funcBody and maybe 9th for something related,
-					is complicating that. Write out the design below, and try to make it consistent,
-					and look for all other ops that have strange curriesLeft
-					andOr evalingVsHalted params, such as op.evaling has o8 of 0)...
-					Thats in vm.opInfo[o8].isStrange.
-					Or should they be 1 deeper than that, so can find funcBody just by o8? A few specific o8s have funcBody as their r child.
-					The problem with waiting until param7 is every later param has the same o8 as param7 as it copies from l child after that.
-					...
-					*/
-					
-					
-					case vm.o8OfVarargAx:case o8OfLambda:
-						let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
-						let prevFind = find;
-						//FIXME redesign this so the loop is smaller?
-						while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-						//while(find.n.l.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-						throw 'TODO';
-						//this.cacheFuncBody = TODO;
-					break;case vm.o8OfOpOneMoreParam:
-						//this.cacheFuncBody = TODO;
-						throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
-					break;default:
-						this.cacheFuncBody = vm.u;
-				}
+				let at8Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8);
+				this.cacheFuncBody = at8Params.n.r;
 			}
 			return this.cacheFuncBody;
+		};
+		
+		//In a (Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam),
+		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...) etc, returns the [..paramNames..].
+		vm.Node.prototype.paramNames = function(){
+			if(!this.cacheParamNames){
+				let at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+				this.cacheParamNames = at7Params.n.r;
+			}
+			return this.cacheParamNames;
+		};
+		
+		//get Param whose name is any fn, normally a (Typeval U Utf8bytes) aka the simplest kind of string but could be any fn/lambda.
+		//If there is no such param, returns U.
+		//If theres more than 1 param of the same name, returns the rightmost one. I didnt mean to design it to allow
+		//multiple params of the same name, but its for efficiency that Lambda op does not check the list of param names for duplicates.
+		vm.Node.prototype.p = function(name){
+			let pNames = this.paramNames(); //[..paramNames..]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+			//let funcBody = this.funcBody();
+			switch(this.o8()){
+				case vm.o8OfInfcur:
+					if(this.o8() === vm.o8OfInfcur){ //should be [(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on.
+						if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
+						if(name.eq(pNames.n.r)){
+							let ret  = this.n.r; //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
+							console.log('node.p [] name='+name+' val='+ret);
+							return ret;
+						}
+						let lambdaOrMutLam = this.l.n.r;
+						return lambdaOrMutLam.p(name); //uses cached this.paramNames()
+					}
+				break;case vm.o8OfLambdo:
+					
+					//if 1, then it got its second last param and has not "[(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on" yet.
+					//If 2, its the param just before that (if any).
+					let curLeft = this.curriesLeft();
+
+
+					//remove newest curLeft params, so the Lambda params (in this.r and this.l.n.r and this.l.n.l.n.r etc) are aligned to pNames.
+					for(let i=0; i<curLeft; i++) pNames = pNames.n.l;
+
+					let lambdaOrMutLamCall = this.lam;
+					while(lambdaOrMutLamCall.n.cur() > 8){ //7th param is [..paramNames..]. 8th parm is FuncBody. Then are the normal params.
+						if(name.n.eq(pNames.n.r)){
+							let ret = lambdaOrMutLamCall.n.r; //return the param with that name.
+							console.log('node.p Lambda name='+name+' val='+ret);
+							return ret;
+						}
+						pNames = pNames.n.l; //remove newest name
+						lambdaOrMutLamCall = lambdaOrMutLamCall.n.l; //remove newest val
+					}
+				break;case vm.o8OfMutLam:
+					throw 'TODO';
+				break;default:
+					return U;	
+			}
+		};
+
+		//number of curries so far. Different than curriesLeft which is a byte stored in int header and is 0 to mean evaling,
+		//1-254 to mean waiting on that many more params before eval, or 255 to mean never eval such as Infcur.
+		//This is how many times you'd have to go l l l l... before reach U.
+		vm.Node.prototype.cur = function(){
+			if(this.cache_cur === undefined){
+				this.cache_cur = (this.isLeaf() ? 0 : (this.l().cur()+1));
+			}
+			return this.cache_cur;
 		};
 		
 		
@@ -3457,7 +3643,8 @@ const Wikibinator203 = (()=>{
 		//returns true or false.
 		//do 2 nodes equal by hash? Tries some basic compares first since hash is expensive.
 		//Average of constant time (big constant). Worst case of linear of number of nodes. Caches so only pays for each node at most once.
-		vm.Node.prototype.eq = function(node){
+		vm.Node.prototype.eq = function(nodeOrLam){
+			let node = nodeOrLam.n || nodeOrLam;
 			if(this === node) return true;
 			if(this.header != node.header) return false;
 			return vm.arraysEqual(vm.marklar203bId(this.lam),vm.marklar203bId(node.lam));
@@ -5039,26 +5226,43 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
 		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
 		vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
-		vm.o8OfLambda = vm.addOp('Lambda',null,true,2,'FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
-		if(!(vm.o8OfLambda&1)) throw 'o8 of Lambda must be odd.';
+		
+		
+		/* I wrote code for this, "curriesLeft = 1+rCur; //FuncBody then paramVals." but todo test it.
+		//
+		fixme Lambda has to exist at 6 params, since [...param names...] in (Lambda [...param names...]) is 7th param,
+		and number of params has to be known at 7th param, and there being more or less params in that chooses the number of params.
+		Also, are there other ops which do that, or is it just Lambda? MutLam? VarargAx? etc?
+		*/
+		
+		/*FIXMEFIXME Lambda has to refer to the 6 param form of it, so funcallcache doesnt reuse the 7 param form of it
+		when params should differ but is reusing that instead.
+		*/
+		
+		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,2,'Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
+		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
+		vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).');
+		vm.o8OfP = vm.addOp('P',null,false,2,'(P LambdaOrMutLamOrListOfObvalObkeyvalEtc ParamName) -> value of ParamName in (Lambda ...) etc, usually in [(Lambda ... all params except last) LastParam] since thats what FuncBody inside that Lambda call is called on [...] and FuncBody normally calls P to get specific params.');
+		if(!(vm.o8OfLambdo&1)) throw 'o8 of Lambdo must be odd.';
 		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
 		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
 		//addOp(name,prefix,isStrange,curriesLeft,description)
-		vm.o8OfHypercomputeGreen = vm.addOp('Hypercombinator',null,true,1,'The "hypercompute leaf combinator", just a binary forest data structure that prevents anything but combos of itself from being its params, and limits it to 7 stored params, and in abstract math it has 8 params but its always lazy-eval so the 8th param always infloops. You call it by looking along HypercomputeRedA and HypercomputeRedB edges. Its opcodes include the hypercomputing kinds of: S T F L R ISLEAF PAIR LAZYTHREEWAYCALL_CARDINALITYA_FUNC_PARAM SEMANTICFORDOESNOTHALT SEMANTICFORCALLERDOESNOTHAVEENOUGHCARDINALITYTOLOOKALONGTHATEDGE SEMANTICFORRETURNEDWHATSALONGREDAORBEDGE GETCALLERSCARDINALITYASLINKEDLISTOFTTTTASUNARY and maybe a few other operators, and one very important operator that branches at the first (of 7 or 8 params) param, which is a lambda of 6 params (if first param is the leaf hypercombinator, else first param is anything else).');
+		vm.o8OfHypercombinator = vm.addOp('Hyperleaf',null,true,1,'(Hyperleaf. The "hypercompute leaf combinator", just a binary forest data structure that prevents anything but combos of itself from being its params, and limits it to 7 stored params, and in abstract math it has 8 params but its always lazy-eval so the 8th param always infloops. You call it by looking along HypercomputeRedA and HypercomputeRedB edges. Its opcodes include the hypercomputing kinds of: S T F L R ISLEAF PAIR LAZYTHREEWAYCALL_CARDINALITYA_FUNC_PARAM SEMANTICFORDOESNOTHALT SEMANTICFORCALLERDOESNOTHAVEENOUGHCARDINALITYTOLOOKALONGTHATEDGE SEMANTICFORRETURNEDWHATSALONGREDAORBEDGE GETCALLERSCARDINALITYASLINKEDLISTOFTTTTASUNARY and maybe a few other operators, and one very important operator that branches at the first (of 7 or 8 params) param, which is a lambda of 6 params (if first param is the leaf hypercombinator, else first param is anything else).');
 		//TODO vm.lazyEvalOfDoesPEqualNP = ...; //Call this on Hypercombinator (the hyper leaf) to get hyper_T or hyper_F,
 		//but it will cost infinite time and memory so dont expect an answer unless some advanced proofs and optimizations
 		//are added later.
-		vm.o8OfHypercomputeGreen = vm.addOp('HypercomputeGreen',null,false,1,'This would be the L/GREEN hypercompute edge, which is same as the L op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to the "variant of identityFunc made of hypercompute combinator called on itself various ways"');
-		vm.o8OfHypercomputeBlue = vm.addOp('HypercomputeBlue',null,false,1,'This would be the R/BLUE hypercompute edge, which is same as the R op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to itself, returns the "leaf hypercompute combinator" (as its hyper_R child) in that one case.');
-		vm.o8OfHypercomputeRedA = vm.addOp('HypercomputeRedA',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) This would give the RED (doesItHaltAtLowerCardinalityThanCaller) edge in... See https://github.com/benrayfield/hyperquasicrystal for an incomplete similar set of opcodes for hypercomputing. TODO design this wikibinator203 opcode. This is deterministic but in some cases costs pow(infinity,pow(infinity,infinity))... (im not sure how deep of exponents and infinities it will go) time and memory ONCE but after, in abstract math, thats cached, everything costs 1 compute step, so its more like a digital-signature of infinite size, or converges by disproof-by-contradiction, various ways it could be implemented. For example, you could have 2 competing networks, one with the claim that P!=NP and the other with the claim that P=NP, which would both be VarargAx ops of Hypercompute ops, so there will be a wikibinator203 node that claims P=NP and one that claims P!=NP but exactly 1 of those would ever (in abstract math, after infinities) halt.');
-		vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).');
+		vm.o8OfHypercomputeGreen = vm.addOp('HyperGreen',null,false,1,'This would be the L/GREEN hypercompute edge, which is same as the L op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to the "variant of identityFunc made of hypercompute combinator called on itself various ways"');
+		vm.o8OfHypercomputeBlue = vm.addOp('HyperBlue',null,false,1,'This would be the R/BLUE hypercompute edge, which is same as the R op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to itself, returns the "leaf hypercompute combinator" (as its hyper_R child) in that one case.');
+		vm.o8OfHypercomputeRedA = vm.addOp('HyperRed',null,true,2,'(HyperRed CardinalityComparator SomeComboOfHyperleafToGetRedEdge). TODO implement this https://raw.githubusercontent.com/benrayfield/hyperquasicrystal/main/hyperquasicrystalRedesign2022-8-10%2B.txt .This would give the RED (doesItHaltAtLowerCardinalityThanCaller) edge in... See https://github.com/benrayfield/hyperquasicrystal for an incomplete similar set of opcodes for hypercomputing. TODO design this wikibinator203 opcode. This is deterministic but in some cases costs pow(infinity,pow(infinity,infinity))... (im not sure how deep of exponents and infinities it will go) time and memory ONCE but after, in abstract math, thats cached, everything costs 1 compute step, so its more like a digital-signature of infinite size, or converges by disproof-by-contradiction, various ways it could be implemented. For example, you could have 2 competing networks, one with the claim that P!=NP and the other with the claim that P=NP, which would both be VarargAx ops of Hypercompute ops, so there will be a wikibinator203 node that claims P=NP and one that claims P!=NP but exactly 1 of those would ever (in abstract math, after infinities) halt.');
+		/*vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).');
+		*/
 		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
 		vm.o8OfTypeval = vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
-		vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
+		vm.o8OfInfcur = vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
 		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
 		vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
@@ -5513,11 +5717,13 @@ const Wikibinator203 = (()=>{
 					break;case o.R:
 						ret = z().r;
 					break;case o.IsLeaf:
-						ret = Bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
+						ret = vm.bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
 					break;case o.Pair:case o.Typeval:
 						ret = z(x)(y); //the church-pair lambda
 					break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
-						ret = Bit(x().eq(y));
+						let bit = y.n.eq(z);
+						console.log('Computing Eq... y='+y+' z='+z+' bit='+bit);
+						ret = vm.bit(bit);
 					break;case o.VarargAx:
 						if(vm.stackIsAllowAx){
 							//throw 'TODO ax';
@@ -5618,7 +5824,24 @@ const Wikibinator203 = (()=>{
 						}else{
 							throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
 						}
+					break; case o.P: //the "get parameter from Lambda/MutLam/[...]/etc" opcode.
+						let paramName = y;
+						let lambdaEtc = z;
+						ret = lambdaEtc.n.p(paramName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.
+					//break; case o.Lambda:
+					break; case o.Lambdo:
+						//Lambdo is the 7 param form with (U U) as its last param.
+						//Lambda is the 6 param form waiting for a [...param names...] param as 7th param.
+						//TODO do same for MutLam at 6/7 params.
+						
+						//(Lambda [ab bc aSize bSize cSize] FuncBody ValAB valBC ValASize ValBSize ValCSize)
+						// --> (FuncBody [(Lambda [ab bc aSize bSize cSize] FuncBody ValAB ValBC ValASize ValBSize) ValCSize]),
+						//and in that case, FuncBody normally contains (P aSize) which gets ValASize,
+						//and (P aSize) might be written as ?aSize or .aSize or something like that, and see <...> syntax.
+						let FuncBody = l.n.funcBody();
+						ret = FuncBody(vm.ops.Infcur(l)(r)); //l contains FuncBody so it can call itself recursively if it wants to.
 					break; case o.LambdaParams:
+						//FIXME remove this? cuz should use ObVal and ObKeyVal etc in a []?
 						ret = vm.lambdaParamsInfcurInReverseOrder(z);
 						//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
 						//Returns an infcurStream, in those 2 cases, [y valY x valX] or [y valY x valX],
@@ -5632,7 +5855,7 @@ const Wikibinator203 = (()=>{
 						//throw 'TODO';
 						//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
 					
-					break; case o.Qes:
+					break; case o.Qes: //opposite of Seq
 						{
 							//TODO merge duplicate code between qes and seq
 							let reverseSeq = y;
@@ -7250,7 +7473,6 @@ const Wikibinator203 = (()=>{
 			return ret;
 		};
 		
-		
 		//let prevProto = vm.Node.prototype;
 		//prevProto
 		//vm.Node.prototype.prototype = vm;
@@ -7266,7 +7488,7 @@ const Wikibinator203 = (()=>{
 			vm.ops[opName] = lambda;
 		}*/
 		
-		for(let o8=1; o8<256; o8++){ //excluses o8 of 0 aka evaling.
+		let updateOp = o8=>{
 			let lambda = vm.o8ToLambda(o8);
 			//The difference between a builtInName and a localName is the builtInName can be used the first time it occurs,
 			//but the localName has to be displayed as expanded once, then #ItsLocalName, before the next time just append 'ItsLocalName'.
@@ -7274,7 +7496,26 @@ const Wikibinator203 = (()=>{
 			lambda.opAbbrev = vm.opInfo[o8].prefix; //TODO rename prefix to opAbbrev
 			vm.ops[lambda.localName] = lambda; // -> fn
 			vm.opAbbrevs[lambda.opAbbrev] = lambda; //Example: T is , and Seq is _. -> fn
+		};
+		
+		for(let o8=1; o8<256; o8++){ //excluses o8 of 0 aka evaling.
+			updateOp(o8);
 		}
+		
+		//The Lambda and MutLam ops are updated after the main loop^ that makes ops,
+		//cuz most ops start with 7 params but Lambda and MutLam start with 6.
+		//TODO also do this for MutLam when get that op working.
+		
+		//Lambda is 6 params waiting for a [...]. Lambdo has 7th param of (U U).
+		//TODO do same thing for MutLam but it has 1 more param that is a [...stateless state...]
+		console.log('vm.o8OfLambda='+vm.o8OfLambda);
+		//let Lambda = vm.o8ToLambda(vm.o8OfLambda);
+		//Lambda.localName = Lambda.builtInName = 'Lambda';
+		let lamOpInfo = vm.opInfo[vm.o8OfLambda];
+		lamOpInfo.name = 'Lambda';
+		//lamOpInfo.description = lamOpInfo.name+'/'+lamOpInfo.description;
+		updateOp(vm.o8OfLambda);
+		console.log('Updated Lambda op: '+JSON.stringify(vm.opInfo[vm.o8OfLambda]));
 		
 		//prefix of normal (utf8) text
 		vm.utf8Prefix = vm.ops.Typeval(U);
