@@ -2607,7 +2607,6 @@ const Wikibinator203 = (()=>{
 			throw 'No opName='+opName;
 		};
 		
-		
 		//Any datastruct other than the id of a lambda starts with this byte, and you can choose evilBit of true or false.
 		//The main usecase of this is large blobs, but anything could be mounted in it such as prefix it with a contentType such as put "image/jpeg"
 		//or "application/x-multicodec" (or whats their contenttype) for the https://github.com/multiformats/multicodec data format.
@@ -2636,18 +2635,22 @@ const Wikibinator203 = (()=>{
 		//vm.prefixByteOfOther is 0b11110[0or1]00 and callpairs start at 0b11110[0or1]01 and 0b11110[0or1]10 is "id of id"
 		//and 0b11110[0or1]11 is "id of id of id" and past that you need 2 nodes of 128 literal bits each to be 256 bits.
 		//such 256 bits doesnt imply it is or is not an id. Its just bits.
-		vm.callPairPrefixByte_evilBitOn =          0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
 		vm.callPairPrefixByte_evilBitOff =         0b11110001; //FIXME?
+		vm.callPairPrefixByte_evilBitOn =          0b11110101; //FIXME? might need to rearrange these bits so its easier to write as text in base64 or base58
 		
 		//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
 		//(in this case its not its own id, but most literal 256 bits are their own id).
 		vm.prefixByteOfIdOfIdOrOfAny256BitsA =     0b11110010; //FIXME?
+		if(vm.prefixByteOfIdOfIdOrOfAny256BitsA != vm.callPairPrefixByte_evilBitOff+1) throw 'vm.prefixByteOfIdOfIdOrOfAny256BitsA != vm.callPairPrefixByte_evilBitOff+1';
 		vm.prefixByteOfIdOfIdOrOfAny256BitsB =     0b11110110; //FIXME?
+		if(vm.prefixByteOfIdOfIdOrOfAny256BitsB != vm.callPairPrefixByte_evilBitOn+1) throw 'vm.prefixByteOfIdOfIdOrOfAny256BitsB != vm.callPairPrefixByte_evilBitOn+1';
 		
 		//no evilBit in literal 256 bits that fits in a 256 bit id cuz it doesnt have room for a header
 		//(in this case its not its own id, but most literal 256 bits are their own id).
 		vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA = 0b11110011; //FIXME?
+		if(vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA != vm.prefixByteOfIdOfIdOrOfAny256BitsA+1) throw 'vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA != vm.prefixByteOfIdOfIdOrOfAny256BitsA+1';
 		vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
+		if(vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB != vm.prefixByteOfIdOfIdOrOfAny256BitsB+1) throw 'vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB != vm.prefixByteOfIdOfIdOrOfAny256BitsB+1';
 		
 		/*
 		FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
@@ -3312,7 +3315,7 @@ const Wikibinator203 = (()=>{
 				return (byt>>(7-bitIndex))&1;
 			}else{
 				if(!this.isCbt()) return 0;
-				let siz = this.cbtSize(); //is a powOf2
+				let siz = this.cbtSize(); //is a powOf2 num of bits from 1 to 2**vm.log2OfMaxBits. aka 2**this.cbtHeight()
 				if(bitIndex < 0 || siz <= bitIndex) return 0; //outside cbt range
 				if(siz == 1) return (this == vm.ops.Bit1) ? 1 : 0; //is Bit0 or Bit1
 				if(bitIndex < siz/2){
@@ -3402,7 +3405,7 @@ const Wikibinator203 = (()=>{
 				
 				case vm.o8OfInfcur:
 					if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
-					let shouldBeLambdaOrMutLam = this.n.l.n.r;
+					let shouldBeLambdaOrMutLam = this.l.n.r;
 					return this.downToCur(curN);
 					//this.cacheFuncBody = shouldBeLambdaOrMutLam.funcBody();
 				break;case vm.o8OfLambdo:
@@ -3492,16 +3495,24 @@ const Wikibinator203 = (()=>{
 			return this.cacheFuncBody;
 		};
 		
-		//In a (Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam),
-		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...) etc, returns the [..paramNames..].
+		//In a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam)],
+		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...), returns the [..paramNames..].
 		vm.Node.prototype.paramNames = function(){
 			if(!this.cacheParamNames){
-				let at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+				let at7Params;
+				if(this.o8() === vm.o8OfInfcur){
+					if(this.cur() != 9) throw 'Is not an Infcur/[] of 2 things';
+					let normallyIsALambdaOrMutlam = this.l.n.r;
+					at7Params = normallyIsALambdaOrMutlam.n.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+				}else{
+					at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+				}
 				this.cacheParamNames = at7Params.n.r;
 			}
 			return this.cacheParamNames;
 		};
 		
+		//name is a fn.
 		//get Param whose name is any fn, normally a (Typeval U Utf8bytes) aka the simplest kind of string but could be any fn/lambda.
 		//If there is no such param, returns U.
 		//If theres more than 1 param of the same name, returns the rightmost one. I didnt mean to design it to allow
@@ -3513,13 +3524,13 @@ const Wikibinator203 = (()=>{
 				case vm.o8OfInfcur:
 					if(this.o8() === vm.o8OfInfcur){ //should be [(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on.
 						if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
-						if(name.eq(pNames.n.r)){
-							let ret  = this.n.r; //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
+						if(name.n.eq(pNames.n.r)){
+							let ret  = this.r; //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
 							console.log('node.p [] name='+name+' val='+ret);
 							return ret;
 						}
 						let lambdaOrMutLam = this.l.n.r;
-						return lambdaOrMutLam.p(name); //uses cached this.paramNames()
+						return lambdaOrMutLam.n.p(name); //uses cached this.paramNames()
 					}
 				break;case vm.o8OfLambdo:
 					
@@ -3649,6 +3660,16 @@ const Wikibinator203 = (()=>{
 			if(this.header != node.header) return false;
 			return vm.arraysEqual(vm.marklar203bId(this.lam),vm.marklar203bId(node.lam));
 		};
+		
+		//the last 24 bytes of the marklar203b id of U/theUniversalLambda. First 8 bytes, as usual, are node.header and node.Bize(),
+		//which there can be a few variants of that header if its still evaling, or depending on evilBit being true/false, etc.
+		//Even though it will normally be displayed as hex or base58 or base64 (TODO choose which),
+		//if you view it in a hex editor you can see the text here in this genesis block.
+		//
+		//I'm going with _Marklar203bGenesisBlock . marklar is a joke word from tv show southpark that means all possible words
+		//at once, which is kind of how a universal lambda is. 203 is the version of wikibinator. 203b is the version of the marklar id,
+		//cuz might have a 512 bit version in 203c or other variants in d e f later.
+		vm.marklar203b_last24BytesOfLeaf = vm.stringToUtf8AsUint8Array('_Marklar203bGenesisBlock');
 
 		//UPDATE: dont skip padding, cuz in this early prototype of wikibinator203, its better for existing hash tools to be able to confirm its security,
 		//and make different id types later that are more efficient andOr more secure.
@@ -3676,21 +3697,89 @@ const Wikibinator203 = (()=>{
 			let ret;
 			//TODO optimize use oneCycleOfSha256WithoutPaddingOnMutable88Ints instead of allocating multiple arrays and converting between bytes and ints etc,
 			//and it will be more secure to not allocate arrays during hashing.
+			let putHeaderAndBizeAsFirst64Bits = true; //only false for literal 256 bits that fits in a 256 bit id (most literal 256 bits do)
 			if(fn === U){
 				//hardcode the 192 bits of hash of U as all 0s, but compute header and bize the usual way
 				ret = new Uint8Array(32);
-				for(let i=0; i<32; i++) ret[i] = 0;
+				for(let i=0; i<24; i++) ret[8+i] = vm.marklar203b_last24BytesOfLeaf[i]; //genesis block starts with this constant
 			}else{
-				if(fn.n.isCbt()) throw 'FIXME still need to put 1-256 bits of literal data in the id depending on if its a cbt those sizes, and for the size of 256 depending on the first byte';
-				let leftId = vm.marklar203bId(fn.n.l); //is a Uint8Array
-				let rightId = vm.marklar203bId(fn.n.r);
-				let cat = vm.concatBytes(leftId,rightId);
-				//ret = vm.sha256(cat,true); //true to skip padding, so its 1 sha256 cycle instead of 2. Size is always 512 bits in so dont need padding.
-				ret = vm.sha256(cat); //with padding so 2 sha256 cycles.
+				if(fn.n.fitsInId256()){
+					//cbt1..cbt128 always fits in id256. Most cbt256s fit in 256 bits. 1/64 of them do not and are done by hash of 2 childs instead.
+					/*if(fn.n.isCbt()){
+						let siz = this.cbtSize(); //is a powOf2 num of bits from 1 to 2**vm.log2OfMaxBits. aka 2**this.cbtHeight()
+						if(
+						switch(siz){
+							case 1:
+						}
+						throw 'FIXME still need to put 1-256 bits of literal data in the id depending on if its a cbt those sizes, and for the size of 256 depending on the first byte';
+					}*/
+					
+					ret = new Uint8Array(32);
+					for(let i=0; i<32; i++) ret[i] = 0;
+					let siz = fn.n.cbtSize();
+					switch(siz){
+						case 1:
+							ret[31] = fn.n.bitAt(0); //TODO optimize
+						break;case 2:
+							ret[31] = (fn.n.bitAt(0)<<1)|fn.n.bitAt(1); //TODO optimize
+						break;case 4:
+							ret[31] = (fn.n.bitAt(0)<<3)|(fn.n.bitAt(1)<<2)|(fn.n.bitAt(2)<<1)|fn.n.bitAt(3); //TODO optimize
+						break;case 8:
+							ret[31] = fn.n.byteAt(0);
+						break;case 16:
+							ret[30] = fn.n.byteAt(0);
+							ret[31] = fn.n.byteAt(1);
+						break;case 32:
+							ret[28] = fn.n.byteAt(0);
+							ret[29] = fn.n.byteAt(1);
+							ret[30] = fn.n.byteAt(2);
+							ret[31] = fn.n.byteAt(3);
+						break;case 64:
+							for(let i=0; i<8; i++){
+								ret[24+i] = fn.n.byteAt(i);
+							}
+						break;case 128:
+							for(let i=0; i<16; i++){
+								ret[16+i] = fn.n.byteAt(i);
+							}
+						break;case 256:
+							putHeaderAndBizeAsFirst64Bits = false;
+							for(let i=0; i<32; i++){
+								ret[i] = fn.n.byteAt(i);
+							}
+							if(ret[i]>>3 == 0b11110){ //any id that starts with 11110 is the id of itself as 256 literal bits
+								console.log('is the id of itself as 256 literal bits, leaving first byte as it is');
+							}else{
+								console.log('is the id of 256 literal bits that are not itself. Adding 1 to first byte to mean "id of id" or "id of id of id", or id of [some 256 bits thats not used as an id].');
+								ret[i]++;
+							}
+							/*switch(ret[0]){
+								case vm.prefixByteOfOther_evilBitOn:
+								case vm.prefixByteOfOther_evilBitOff:
+								case vm.callPairPrefixByte_evilBitOn:
+								case: vm.callPairPrefixByte_evilBitOff:
+								vm.prefixByteOfIdOfIdOrOfAny256BitsA:
+								vm.prefixByteOfIdOfIdOrOfAny256BitsB:
+								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA:
+								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB:
+							}*/
+							fixmefixme
+						default:
+							throw 'cbtSize='+siz+' which is too big to fit in a 256 bit id (so why did fitsInId256 say it fits?)';
+					}
+				}else{
+					let leftId = vm.marklar203bId(fn.n.l); //is a Uint8Array
+					let rightId = vm.marklar203bId(fn.n.r);
+					let cat = vm.concatBytes(leftId,rightId);
+					//ret = vm.sha256(cat,true); //true to skip padding, so its 1 sha256 cycle instead of 2. Size is always 512 bits in so dont need padding.
+					ret = vm.sha256(cat); //with padding so 2 sha256 cycles.
+				}
+			}			
+			if(putHeaderAndBizeAsFirst64Bits){
+				let asInts = new Int32Array(ret.buffer); //TODO optimize just do it as bytes
+				asInts[0] = fn.n.header;
+				asInts[1] = fn.n.Bize();
 			}
-			let asInts = new Int32Array(ret.buffer); //TODO optimize just do it as bytes
-			asInts[0] = fn.n.header;
-			asInts[1] = fn.n.Bize();
 			return fn.n.cache_marklar203bId = ret;
 		};
 
@@ -4281,6 +4370,29 @@ const Wikibinator203 = (()=>{
 		//If not a cbt, TODO what should this return, or let it give nonsense answer since you shouldnt call it for that?
 		vm.Node.prototype.cbtSize = function(){
 			return 2**this.cbtHeight();
+		};
+		
+		vm.Node.prototype.fitsInId256 = function(){
+			if(!this.isCbt()) return false;
+			let siz = this.cbtSize();
+			if(siz < 256) return true;
+			if(siz == 256){
+				let firstByte = this.byteAt(0);
+				switch(firstByte){
+					case vm.prefixByteOfOther_evilBitOn:
+					case vm.prefixByteOfOther_evilBitOff:
+					//case vm.callPairPrefixByte_evilBitOn:
+					//case: vm.callPairPrefixByte_evilBitOff:
+					//case vm.prefixByteOfIdOfIdOrOfAny256BitsA:
+					case vm.prefixByteOfIdOfIdOrOfAny256BitsB:
+					//case vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA:
+					case vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB:
+						return false; //these must hash 2 child id256s, dont fit in id256 as literal.
+					default:
+						return true;
+				}
+			}
+			return false; //cbt bigger than 256 bits
 		};
 
 		//If this is a cbt, then it is 2 pow cbtHeight bits. That ranges 1 bit to approx 2 pow 248 bits (FIXME thats not the exact right exponent?).

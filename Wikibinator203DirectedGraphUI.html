@@ -679,13 +679,15 @@ var buttons = {};
 	<center>
 		<h2>Agree (no checkbox) to the opensource license at bottom of this file or dont use this. Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
 		<br><br>
-		DONE: (Lambda [a b c] T) and node.prototype.p(name)<br>
-		TODO: (P a (Lambda [a b c] T Pair)) -> Pair<br>
-		TODO: (P a (Lambda [a b c] T Pair S)) -> Pair<br>
-		TODO: (P b (Lambda [a b c] T Pair S)) -> S<br>
-		TODO: (Lambda [a b c] (P a) Pair S L) -> Pair<br>
-		TODO: (Lambda [a b c] (P b) Pair S L) -> S<br>
-		TODO: (Lambda [a b c] (P c) Pair S L) -> L<br>
+		(Lambda [a b c] T) and node.prototype.p(name)<br>
+		(P a (Lambda [a b c] T Pair)) -> Pair<br>
+		(P a (Lambda [a b c] T Pair S)) -> Pair<br>
+		(P b (Lambda [a b c] T Pair S)) -> S<br>
+		(Lambda [a b c] (P a) Pair S L) -> Pair<br>
+		(Lambda [a b c] (P b) Pair S L) -> S<br>
+		(Lambda [a b c] (P c) Pair S L) -> L<br>
+		[backward is words some are these]<br>
+		Lambda opcode works now. abc means (Typeval U BytesOf_abc) aka "abc". (Lambda [a b c d] {(T []) (T backward ) (T is) (P d) (P c) (P b) (P a)} these are some words) --> [backward is words some are these]<br>
 		<nobr>OUT:<textarea id=codeOut rows="2" cols="100" readonly></textarea></nobr><br>
 		<nobr>IN:<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
 		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
