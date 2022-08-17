@@ -2914,15 +2914,18 @@ const Wikibinator203 = (()=>{
 		vm.wrapInTypeval = function(thing){
 			if(vm.isLambda(thing)) return thing;
 			let ty = typeof(thing);
-			if(ty === 'string'){
-				//(Typeval U Utf8Bytes) is the first typeval, used to display strings that can be used as types in other typevals
-				//such as (Typeval (Typeval U Utf8Bytes) SomeBytes) aka (Typeval "doubleAsCbt" SomeBytes),
-				//so (Typeval "double") would be the prefix of a cbt64 of double/float64 bits. If as bitstring instead of cbt, it needs padding (1 000000....).
-				console.log('Wrapping string of '+thing.length+' chars');
-				//TODO cache ops.Typeval(U) and other common typevals instead of rebuilding it here (funcallcaching is slower than getting it from vm.something).
-				return vm.ops.Typeval(U)(vm.wrapUtf8Raw(thing));
-			}else{
-				throw 'TODO use (ops.Typeval contentType thing)';
+			switch(ty){
+				case 'string':
+					//(Typeval U Utf8Bytes) is the first typeval, used to display strings that can be used as types in other typevals
+					//such as (Typeval (Typeval U Utf8Bytes) SomeBytes) aka (Typeval "doubleAsCbt" SomeBytes),
+					//so (Typeval "double") would be the prefix of a cbt64 of double/float64 bits. If as bitstring instead of cbt, it needs padding (1 000000....).
+					console.log('Wrapping string of '+thing.length+' chars');
+					//TODO cache ops.Typeval(U) and other common typevals instead of rebuilding it here (funcallcaching is slower than getting it from vm.something).
+					return vm.ops.Typeval(U)(vm.wrapUtf8Raw(thing));
+				break;case 'number':
+					return vm.wrapDouble(thing);
+				break;default:
+					throw 'TODO use (ops.Typeval contentType thing)';
 			}
 		};
 		
@@ -3616,12 +3619,6 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		
-		vm.twoIntsToDouble = function(high32, low32){
-			//FIXME bigEndian or littleEndian and of ints or bytes etc?
-			vm.overlappingBufferInts[0] = high32;
-			vm.overlappingBufferInts[1] = low32;
-			return vm.overlappingBufferDouble[0];
-		};
 		
 		//can say duplicate forest shapes are not equal, but if forest shape differs then they certainly dont equal.
 		//For perfect dedup, use 256 bit or 512 bit global ids which are lazyEvaled and most nodes never need one.
@@ -7122,6 +7119,43 @@ const Wikibinator203 = (()=>{
 
 		vm.maxCharsInWordLiteral = 50; //FIXME how much?
 		
+		vm.ParseTree.prototype.literalTokenToFn = function(literalToken){
+			//TODO optimize
+			if(literalToken.startsWith('0x')){ //cbt literal as hex like 0xab44ff09, always a powOf2 size.
+				throw 'TODO parse 0x literals';
+			}else if(literalToken.startsWith('0b')){ //cbt literal as bits, normally only used up to 2 bits since after that use 0x for hex, always a powOf2 size.
+				throw 'TODO parse 0b literals';
+			}else if(literalToken.startsWith('"')){
+				throw 'TODO quoted string literals';
+			}else if(literalToken.startsWith('\'')){
+				throw 'TODO quoted string literals';
+			}else if('0' <= literalToken[0] && literalToken[0] <= '9'){ //if first char is a baseTen number and its not 0x or 0b
+				/*
+				js parseFloat seems to never throw, ignore leading whitespace, ignore anything after non-number-chars (except e in some cases),
+				and return NaN for anything its confused by, and never return undefined.
+				..
+				parseFloat('342534.435abc')
+				342534.435
+				parseFloat('342534.435e50')
+				3.42534435e+55
+				parseFloat('342534.435e50aa')
+				3.42534435e+55
+				parseFloat('342534.435e+50aa')
+				3.42534435e+55
+				parseFloat('a342534.435e+50aa')
+				NaN
+				parseFloat('ba342534.435e+50aa')
+				NaN
+				parseFloat('14b2534.435e+50aa')
+				14
+				*/
+				let num = parseFloat(literalToken);
+				return vm.wrapDouble(num); //vm.wrap would do same thing but with extra steps to check if its a double.
+			}else{
+				return vm.wrap(this.literalToken);
+			}
+		};
+		
 		//TODO hook into Viewer or Viewing or parsing.loneTokenToFn, for AName#/AName##.
 		//Skip names for now. FIXME
 		//TODO using Name# Fills optionalMapOfStringToFn as mutable {}. Creates optionalMapOfStringToFn if one isnt given.
@@ -7142,8 +7176,9 @@ const Wikibinator203 = (()=>{
 						&& /^\S*$/.test(this.literalToken) //no whitespace allowed in word literal
 						&& !/\(\)\{\}\[\]\<\>\'\"\#\\\:\,/.test(this.literalToken) //FIXME find the other syntax chars not allowed in a word literal
 					){
-						console.log('Found word literal: '+this.literalToken);
-						ret = vm.wrap(this.literalToken);
+						console.log('Found word literal (or maybe its a number or 0x or 0b cbt literal, FIXME adding more kinds of literals): '+this.literalToken);
+						//ret = vm.wrap(this.literalToken);
+						ret = this.literalTokenToFn(this.literalToken);
 					}else{
 						throw 'TODO other kinds of literal. Also, if its too long or not a literal, then shouldnt have entered this if(this.literalToken). literalToken['+this.literalToken+']';
 					}
@@ -7645,6 +7680,11 @@ const Wikibinator203 = (()=>{
 			if(!vm.isPowOfTwo(num)) throw 'TODO allow non-power-of-two number of bytes (by setting its prototype to something like objectThatReturns0ForAllFieldValues but that pads a 1 bit first then all 0s): '+num;
 		};
 		
+		
+		
+		
+		
+		
 		/* FIXME theres only sizes cbt1 cbt2 cbt4 cbt8 cbt16 in this, not for example cbt15. So I'm splitting those into separate vars,
 		and to keep it loading fast (as the VM is not well optimized yet 2022-7) I'm just doing up to cbt8.
 		
@@ -7682,6 +7722,35 @@ const Wikibinator203 = (()=>{
 		vm.cbt16 = []; //all possible 16 bits. starts null. created when observed.
 		vm.Cbt16 = i=>(vm.cbt16[i] || (vm.cbt16[i] = vm.cbt8[(i>>8)&255](vm.cbt8[i&255])));
 		vm.Cbt32 = i=>(vm.Cbt16((i>>16)&0xffff)(vm.Cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
+		
+		//wraps in a Typeval.
+		vm.wrapDouble = d=>vm.typeDouble(vm.wrapDoubleRaw(d));
+		
+		//Returns a cbt64 of the double bits.
+		//FIXME norm the double (infinities, nans, etc) Does js already do that?
+		//FIXME node.idA and node.idB should be copied from the double bits, and also exist in node.blob as Uint8Array(8) (or an 8 byte range in a bigger one).
+		//but for now I'm just calling Cbt32 twice.
+		vm.wrapDoubleRaw = d=>{
+			vm.overlappingBufferDouble[0] = d;
+			let low32 = vm.overlappingBufferInts[0];
+			let high32 = vm.overlappingBufferInts[1];
+			//let high32 = vm.overlappingBufferInts[0];
+			//let low32 = vm.overlappingBufferInts[1];
+			return vm.Cbt32(high32)(vm.Cbt32(low32));
+		};
+		
+		vm.twoIntsToDouble = function(high32, low32){
+			//FIXME bigEndian or littleEndian and of ints or bytes etc?
+			vm.overlappingBufferInts[0] = low32;
+			vm.overlappingBufferInts[1] = high32;
+			//vm.overlappingBufferInts[0] = high32;
+			//vm.overlappingBufferInts[1] = low32;
+			return vm.overlappingBufferDouble[0];
+		};
+		
+		console.log("FIXME 'Typed array views are in the native byte-order (see Endianness) of your platform' -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays . It has to be consistent across all wikibinator203 VMs.");
+		
+		//vm.cbt1 to vm.Cbt32 refer to 1-32 bits, not bytes.
 		vm.mustDedupIfAtMostThisManyBytes = 32; //Any wrapper of a Uint8Array this size or smaller must be deduped. Others can be lazy-deduped (which may happen later or never).
 		
 		//from and to are optional
@@ -7719,6 +7788,23 @@ const Wikibinator203 = (()=>{
 				//which is correct but code that calls .l or .r should change, OR maybe define the .l and .r fields using javascript getters and setters if its not slow.
 			}
 		};
+		
+		vm.contentType = ct=>vm.ops.Typeval(ct);
+		
+		console.log('FIXME type application/x-IEEE754-double vs type application/x-IEEE754-doubles has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
+		
+		//a cbt64 of the double bits, without padding
+		vm.typeDouble = vm.contentType('application/x-IEEE754-double');
+		vm.typeFloat = vm.contentType('application/x-IEEE754-float');
+		
+		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
+		vm.typeDoubles = vm.contentType('application/x-IEEE754-doubles');
+		vm.typeFloats = vm.contentType('application/x-IEEE754-floats');
+		
+		//Its suggested this be the only contentType whose first param is not a string, is how to make a utf8 string,
+		//though other combos can happen since the math allows it.
+		//Other contentTypes use such a string in their first param, like (Typeval application/x-IEEE754-float 0x40490fdb) is float pi.
+		vm.typeUtf8 = vm.contentType(U);
 		
 		
 		
