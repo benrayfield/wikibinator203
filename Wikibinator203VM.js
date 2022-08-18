@@ -3185,6 +3185,11 @@ const Wikibinator203 = (()=>{
 			this.bize = -2; //-2 means dont know bize yet (lazyEval). -1 means its all 0s or is not a cbt. nonnegative means its the low 31 bits of the index of the last 1 bit. FIXME TODO write code to deal with that in blob and normal callpairs
 			//FIXME set bize
 			
+			//TODO if l is vm.typeDouble and r is a cbt64 whose bits are an IEEE754 normed double
+			//(allowing subnormals but not allowing nonnormed nans or nonnormed infinities)
+			//then set idA and idB to those double bits. Make sure idA and idB (how incIdAB starts)
+			//are in 1 of those nonnormed nan/infinity ranges so this doesnt overlap it.
+			//
 			vm.incIdAB(); //change vm.lastIdA and vm.lastIdB.
 			//The 4 ints of localId, used in hashtable (TODO that would be more efficient than {} with string keys for https://en.wikipedia.org/wiki/Hash_consing
 			this.idA = vm.lastIdA|0; //|0 might make it easier for javascript JIT compiler to know its an int, even though vm.lastIdA always will be unless you make more than 2 pow 64 ids (or is it, more than 2 pow 53 or 2 pow 48, cuz some of that range is double values and i want an idA concat idB to contain every possible double.
@@ -3367,11 +3372,27 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.Node.prototype.intAt = function(intIndex){
+			//FIXME endian?
 			return (this.byteAt(intIndex*4)<<24)|(this.byteAt(intIndex*4+1)<<16)|(this.byteAt(intIndex*4+2)<<8)|this.byteAt(intIndex*4+3);
 		};
 		
 		vm.Node.prototype.doubleAt = function(doubleIndex){
+			//FIXME endian?
 			return vm.twoIntsToDouble(this.intAt(doubleIndex*2),this.intAt(doubleIndex*2+1));
+		};
+		
+		//If this is a cbt (FIXME? even of the wrong size?), then its first 8 bytes as double/float64.
+		//If this is a (Typeval application/x-IEEE754-double EightBytes) then gets that but from EightBytes.
+		//Else returns (double)0.
+		//FIXME endian?
+		vm.Node.prototype.d = function(){
+			if(this.isCbt() /*&& this.cbtSize() == 64*/){
+				return this.doubleAt(0);
+			}
+			if(this.l === vm.typeDouble){
+				return this.r.n.d();
+			}
+			return 0;
 		};
 
 		//Example: a Lambda with [...paramNames...] at param 7 and FuncBody at param 8, downToCur(8) gives (Lambda [...] FuncBody),
@@ -4342,6 +4363,11 @@ const Wikibinator203 = (()=>{
 		//If o8 < 128 then full opcode isnt known yet, so its 2*o8 if r is u, and its 2*o8+1 if r is not u. Else o8 is just copied from l child.
 		vm.Node.prototype.o8 = function(){
 			return this.o8Of(this.header);
+		};
+		
+		//not part of the wikibinator203 spec since those names can vary across different VMs.
+		vm.Node.prototype.opName = function(){
+			return vm.opInfo[this.o8()].name;
 		};
 		
 		vm.Node.prototype.firstByteOf = function(headerInt){
@@ -5388,7 +5414,13 @@ const Wikibinator203 = (()=>{
 		vm.addOp('stackAllowReadLocalIds ',null,false,1,'reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.');
 		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
-		vm.addOp('Dplusraw',null,false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
+		vm.addOp('+',null,false,2,'+ of 2 doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
+		vm.addOp('*',null,false,2,'* of 2 doubles. See + for details on doubles in general.');
+		vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
+		vm.addOp('Neg',null,false,1,'negate double, unary. See + for details on doubles in general.');
+		vm.addOp('Sine',null,false,1,'Sine of double. See + for details on doubles in general.');
+		vm.addOp('Sqrt',null,false,1,'Sqrt of double. See + for details on doubles in general.');
+		//vm.addOp('Dplusraw',null,false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
 		vm.addOp('StreamGet',null,false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.');
 		vm.addOp('StreamPut',null,false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]');
 		vm.addOp('StreamPack',null,false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].');
@@ -5925,17 +5957,18 @@ const Wikibinator203 = (()=>{
 						}
 						//OLD, cuz opOneMoreParam is replaced by op Lambda and op MutLam: FIXME it said somewhere said that opOneMoreParam is the only vararg, but actually theres 3: infcur, varargAx, and opOneMoreParam.
 						//so update comments and maybe code depends on that?
-					break; case o.OpCommentedFuncOfOneParam:
+					break; case o.OpCommentedFuncOfOneParam: //the ## syntax.
 						//(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param)
 						ret = y(z);
-					break;case o.Sqrt: //of a cbt64 viewed as float64
-						if(vm.stackIsAllowNondetRoundoff){
+					/*break;case o.Sqrt: //of a cbt64 viewed as float64
+						//TODO if(vm.stackIsAllowNondetRoundoff){
 							let float64 = TODO;
 							throw 'ret = TODO wrap Math.sqrt(float64) in cbt64;';
 							throw 'TODO';
-						}else{
-							throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
-						}
+						//TODO }else{
+						//TODO 	throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
+						//TODO }
+					*/
 					break; case o.P: //the "get parameter from Lambda/MutLam/[...]/etc" opcode.
 						let paramName = y;
 						let lambdaEtc = z;
@@ -6011,8 +6044,32 @@ const Wikibinator203 = (()=>{
 						}
 						ret = param;
 						*/
-					break; case o.HasMoreThan7Params:
-						return vm.Bit(z().hasMoreThan7Params());
+					break;case o.HasMoreThan7Params:
+						ret = vm.Bit(z().hasMoreThan7Params());
+					break;case o['+']:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(y.n.d()+z.n.d());
+					break;case o['*']:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(y.n.d()*z.n.d());
+					break;case o['-']:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(y.n.d()-z.n.d());
+					break;case o.Neg:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(-z.n.d());
+					break;case o.Sine:
+						//FIXME verify deterministic rounding matches between javascript, java,
+						//opencl, etc, and take whatever is the most common standard, else emulate
+						//it as int math depending on if the optimized form passes testcases at runtime.
+						//And same for + * and other double ops. GPU.js can do deterministic int16 math
+						//but is nondeterministic for float32 and doesnt do float64 at all or so it appears Y2022.
+						//FIXME check stackIsAllowNondetRoundoff.
+						ret = vm.wrapDouble(Math.sin(z.n.d()));
+					break;case o.Sqrt:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(Math.sqrt(z.n.d()));
+						//FIXME see "FIXME" comment in case Sine.
 					break;default:
 						throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
 				}
@@ -6290,6 +6347,7 @@ const Wikibinator203 = (()=>{
 			let FN = view.fn();
 			let isCbt = FN.isCbt();
 			let isSmallCbt = isCbt;//TODO && (FN.cbtSize()<=256); //or what should the max cbt size (in bits) be to display as literal?
+			let isTypevalDisplayedAsLiteral = false; //may become true
 			
 			//let isTypevalOf2Params = FN.o8()==vm.o8OfTypeval && FN.curriesLeft()==1;
 			
@@ -6363,6 +6421,27 @@ const Wikibinator203 = (()=>{
 				}else{
 					throw 'TODO some other kind of literal, to code string';
 				}
+			}else if(FN.o8() === vm.o8OfTypeval && FN.cur()==9){
+				//Dont include Typeval or (Typeval Type) but do include (Typeval Type Val).
+				let content = FN.r;
+				switch(FN.l){
+					//TODO more cases for more Typeval types that have a syntax, such as quotedStringLiteral thats not too big.
+					case vm.typeDouble:
+						//content.n.bytes() should be the 8 bytes of a double,
+						//but use node.d() as an optimization since node.idA and node.idB (TODO)
+						//will be copy of those bytes or it might have the double stored as a double.
+						let doubleVal = FN.d(); //FIXME endian?
+						let token = ''+doubleVal; //the normal way double is displayed in javascript and in java (which matches, except do they differ by including an e+ vs just e?).
+						if(token != 'NaN' && token != '-Infinity' && token != 'Infinity'){
+							viewing.tokens.push(token);
+							isTypevalDisplayedAsLiteral = true;
+						}
+						//else let displayChilds happen,
+						//since those overlap the #Names syntax since they start with A-Z.
+					break; default:
+						
+						//do nothing, let displayChilds happen.
+				}
 			}
 			//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
 			//if((!doName || !view.fn.hasDefinedBeforeUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
@@ -6370,7 +6449,7 @@ const Wikibinator203 = (()=>{
 
 
 
-			let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral;
+			let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
 			//if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
 			if(displayChilds){ //!view.builtInName (such as 'S') cuz dont define below that.
 				view.hasDefinedBeforeUsingName = true;
@@ -6704,7 +6783,8 @@ const Wikibinator203 = (()=>{
 			return tokens;
 		};
 		
-		vm.strIsAllWhitespace = s=>(s==0);
+		//vm.strIsAllWhitespace = s=>(s==0);
+		vm.strIsAllWhitespace = str=>/^\s*$/.test(str);
 		//unlike FnIsAllWhitespace which would better be made of combos of U (and maybe optimized using an Evaler) than part of vm.
 		
 		//used by Viewer.eval and Viewer.parse
@@ -6914,6 +6994,10 @@ const Wikibinator203 = (()=>{
 		vm.isCapitalLetter = x=>/^([A-Z]|Λ)$/.test(x);
 		//vm.isCapitalLetter = x=>/^[A-Z]$/.test(x);
 		
+		//isCapitalLetter or 1 of these: ~ ! @ $ % ^ & * + =, or other chars on a common qwerty keyboard that arent syntax chars (# , etc)
+		//If you want to use the many unicode chars as names, prefix it by any of those, such as Nこんにちは世界.
+		vm.charIsNamePrefix = x=>/^([A-Z]|\Λ|\λ|\~|\!|\@|\$|\%|\^|\&|\*|\+|\=)$/.test(x);
+		
 		/*
 		//such as 'Aname#' in 'AName#(S T T)'. It used to be #Aname, but cuz of the order of parsing in : syntax,
 		//I'm putting name first, so can A#a:B#b:C#c, and in that case A means (a:b:c) and B means (b:c) and C means c.
@@ -6955,7 +7039,8 @@ const Wikibinator203 = (()=>{
 					firstToken = parsing.tokens[++parsing.from]; //after the AName# or AName## is whatever its the name of.
 				}
 				if(parsing.isLoneToken(firstToken)){ //FIXME isLoneToken, should it match whitespace? if so, its only matching ' ' but not '\n' or '\t' etc.
-					if(vm.isCapitalLetter(firstToken[0])){
+					//if(vm.isCapitalLetter(firstToken[0])){
+					if(vm.charIsNamePrefix(firstToken[0])){
 						ret.useExistingNameToken = firstToken;
 					}else{
 						ret.literalToken = firstToken;
@@ -7662,7 +7747,8 @@ const Wikibinator203 = (()=>{
 		//let Lambda = vm.o8ToLambda(vm.o8OfLambda);
 		//Lambda.localName = Lambda.builtInName = 'Lambda';
 		let lamOpInfo = vm.opInfo[vm.o8OfLambda];
-		lamOpInfo.name = 'Lambda';
+		//lamOpInfo.name = 'Lambda';
+		lamOpInfo.name = 'λ'; //instead of Lambda
 		//lamOpInfo.description = lamOpInfo.name+'/'+lamOpInfo.description;
 		updateOp(vm.o8OfLambda);
 		console.log('Updated Lambda op: '+JSON.stringify(vm.opInfo[vm.o8OfLambda]));
@@ -7748,6 +7834,8 @@ const Wikibinator203 = (()=>{
 			return vm.overlappingBufferDouble[0];
 		};
 		
+		//see vm.Node.prototype.d to get double
+		
 		console.log("FIXME 'Typed array views are in the native byte-order (see Endianness) of your platform' -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays . It has to be consistent across all wikibinator203 VMs.");
 		
 		//vm.cbt1 to vm.Cbt32 refer to 1-32 bits, not bytes.
@@ -7793,8 +7881,18 @@ const Wikibinator203 = (()=>{
 		
 		console.log('FIXME type application/x-IEEE754-double vs type application/x-IEEE754-doubles has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
 		
-		//a cbt64 of the double bits, without padding
+		//a cbt64 of the double bits, without padding.
+		//The -cbt64 ending means its only the bits before the padding,
+		//and the padding (which may or may not be stored),
+		//as usual in cbt is a 1 bit then 0s until next powOf2 size.
+		//This means that with padding, its always exactly 64 bits,
+		//but as a bitstring, to fit with the model of contentTypes being of a bitstring,
+		//part of the content is viewed as padding, whichever part would be rebuilt by padding whats left.
+		//FIXME it might be breaking when type doesnt fit in a literal (has to callpair it),
+		//since stringLiterals arent fully working yet 2022-8-18.
+		//vm.typeDouble = vm.contentType('application/x-IEEE754-double-cbt64');
 		vm.typeDouble = vm.contentType('application/x-IEEE754-double');
+		//vm.typeFloat = vm.contentType('application/x-IEEE754-float-cbt64');
 		vm.typeFloat = vm.contentType('application/x-IEEE754-float');
 		
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).

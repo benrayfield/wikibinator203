@@ -555,7 +555,24 @@ window.onload = ()=>{
 	//let firstCode = '(S (F U) (F U) Pair)';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F) CallParamOnItself]';
-	let firstCode = '[(CallParamOnItself#(S I#(F U) I) (S こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
+	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) (S こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
+	let firstCode =
+`[
+I#(F U)
+Sqr#{(T *) I I}
+Hypot#(
+	λ [x y]
+	{
+		(T Sqrt)
+		{
+			(T +)
+			{(T Sqr) (P x)}
+			{(T Sqr) (P y)}
+		}
+	}
+)
+the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8)
+]`;
 	//let firstCode = '[(Pair (T T))]';
 	//let firstCode = '[the first half is (Typeval U (L (R Abc#こんにちは世界))) and the second half is (Typeval U (R (R Abc))) but that seems to have a problem with the padding]';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) (Pair こんにちは世界)) (CallParamOnItself F) CallParamOnItself]';
@@ -679,17 +696,18 @@ var buttons = {};
 	<center>
 		<h2>Agree (no checkbox) to the opensource license at bottom of this file or dont use this. Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
 		<br><br>
-		(Lambda [a b c] T) and node.prototype.p(name)<br>
-		(P a (Lambda [a b c] T Pair)) -> Pair<br>
-		(P a (Lambda [a b c] T Pair S)) -> Pair<br>
-		(P b (Lambda [a b c] T Pair S)) -> S<br>
-		(Lambda [a b c] (P a) Pair S L) -> Pair<br>
-		(Lambda [a b c] (P b) Pair S L) -> S<br>
-		(Lambda [a b c] (P c) Pair S L) -> L<br>
+		λ means Lambda.
+		(λ [a b c] T) and node.prototype.p(name)<br>
+		(P a (λ [a b c] T Pair)) -> Pair<br>
+		(P a (λ [a b c] T Pair S)) -> Pair<br>
+		(P b (λ [a b c] T Pair S)) -> S<br>
+		(λ [a b c] (P a) Pair S L) -> Pair<br>
+		(λ [a b c] (P b) Pair S L) -> S<br>
+		(λ [a b c] (P c) Pair S L) -> L<br>
 		[backward is words some are these]<br>
-		Lambda opcode works now. abc means (Typeval U BytesOf_abc) aka "abc". (Lambda [a b c d] {(T []) (T backward ) (T is) (P d) (P c) (P b) (P a)} these are some words) --> [backward is words some are these]<br>
-		<nobr>OUT:<textarea id=codeOut rows="2" cols="100" readonly></textarea></nobr><br>
-		<nobr>IN:<textarea id=codeIn rows="5" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
+		Lambda/λ opcode works now. abc means (Typeval U BytesOf_abc) aka "abc". 	 --> [backward is words some are these]<br>
+		<nobr>OUT:<textarea id=codeOut rows="10" cols="100" readonly></textarea></nobr><br>
+		<nobr>IN:<textarea id=codeIn rows="20" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
 		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>
 		<input type=checkbox id=isEditCodeWhenClickGraphNodeBelow checked></input><label for=isEditCodeWhenClickGraphNodeBelow>when click below, edit code here</label><br>
 	</center>
