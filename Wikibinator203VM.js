@@ -2651,6 +2651,39 @@ const Wikibinator203 = (()=>{
 		if(vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA != vm.prefixByteOfIdOfIdOrOfAny256BitsA+1) throw 'vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA != vm.prefixByteOfIdOfIdOrOfAny256BitsA+1';
 		vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB = 0b11110111; //FIXME?
 		if(vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB != vm.prefixByteOfIdOfIdOrOfAny256BitsB+1) throw 'vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB != vm.prefixByteOfIdOfIdOrOfAny256BitsB+1';
+
+		//returns true (bigEndian) or false (littleEndian) or throws if overlapping Uint8Array and Float64Array dont store pi correctly either way.
+		vm.isBigEndian = ()=>{
+			let bytes = new Uint8Array(8);
+			//java at https://www.tutorialspoint.com/compile_java_online.php
+			//says Long.toHexString(Double.doubleToLongBits(5)) is 400921fb54442d18L, and thats a bigEndian tostring of the long (regardless of how it is in memory).
+			bytes[0] = 0x40;
+			bytes[1] = 0x09;
+			bytes[2] = 0x21;
+			bytes[3] = 0xfb;
+			bytes[4] = 0x54;
+			bytes[5] = 0x44;
+			bytes[6] = 0x2d;
+			bytes[7] = 0x18;
+			let doubles = new Float64Array(bytes.buffer);
+			if(doubles[0] == Math.PI) return true; //bigEndian
+			bytes[7] = 0x40;
+			bytes[6] = 0x09;
+			bytes[5] = 0x21;
+			bytes[4] = 0xfb;
+			bytes[3] = 0x54;
+			bytes[2] = 0x44;
+			bytes[1] = 0x2d;
+			bytes[0] = 0x18;
+			if(doubles[0] == Math.PI) return false; //littleEndian
+			throw 'Is not bigEndian or littleEndian as tested by overlapping Uint8Array and Float64Array on pi';
+		};
+
+		if(vm.isBigEndian()){
+			throw 'Wikibinator203 VM detected bigEndian, but that is not supported in this wikibinator203 VM. If you need that, it could be redesigned to support both but slower as it would have to auto adjust array indexs.';
+		}else{
+			console.log('Wikibinator203 VM detected littleEndian and will use that for overlapping .buffer in Uint8Array, Int32Array, Float32Array, Float64Array, etc. Despite that bigEndian is how people usually write things, most hardware seems to be littleEndian.');
+		}
 		
 		/*
 		FIXME can it do id of id of... deeper by not having A and B? Should it? cuz the logic has to be checked for, takes time, in some ways of computing it.
@@ -3804,13 +3837,45 @@ const Wikibinator203 = (()=>{
 		//string view of: the default kind of id in this VM is marklar203bId, but theres no opcode for "default id" cuz it supports any kind of id that can be derived from content.
 		//TODO use this when toStringing code.
 		//TODO generalize this to any kind of idMaker but dont make it hard to use. This isnt preventing anyone from using a different idMaker at user level.
+		vm.Node.prototype.fullId = function(){
+			if(this.cache_fullIdString) return this.cache_fullIdString;
+			return this.cache_fullIdString = 'λ'+vm.bytesToHex(vm.marklar203bId(this.lam));
+		};
+		
+		vm.stringCanBeId = function(str){
+			if(str.length === 0) return false;
+			if(str[0] === 'λ') return false; //cant start with λ cuz thats a prefix of fullIds and maybe of other syntax.
+			if(str.length > 64) return false; //arbitrary max len, but id as hex, with the λ prefix, is 65 bytes and 66 bytes.
+			if(/\(\)\{\}\[\]\<\>\'\"\#\\\:\,\s/.test(str)) return false; //has syntax chars or whitespace not allowed. FIXME there might be more to not allow.
+			return true;
+		};
+		
+		//same as fullId except if this would be displayed smaller than an id in the language, as a number or string etc,
+		//then thats the id. Small string containing only certain chars (no whitespace etc) then is itself as a literal,
+		//and maybe if this is a double (such as 3.45e-23), either way in a Typeval, then its id is that.
+		//UPDATE: dont include numbers that contain '.' cuz that a syntax char.
 		vm.Node.prototype.id = function(){
 			if(this.cache_idString) return this.cache_idString;
-			return this.cache_idString = 'λ'+vm.bytesToHex(vm.marklar203bId(this.lam));
+			//let str;
+			/*if(this === U){
+				return 'λ';
+			}if(this.l === vm.typeDouble){
+				return ''+this.d();
+			}else */if(this.l === vm.typeUtf8){
+				let content = this.r;
+				if(content.n.fitsInId256()){					
+					let utf8Bytes = content.n.bytes();
+					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
+					if(vm.stringCanBeId(smallString)){
+						return this.cache_idString = smallString;
+					}
+				}
+			}
+			return this.cache_idString = this.fullId();
 		};
 
 		//returns 3 ids, including my left and right childs.
-		vm.Node.prototype.idlr = function(){
+		vm.Node.prototype.fullIdlr = function(){
 			return this.id()+'_'+this.l.n.id()+'_'+this.r.n.id();
 		};
 
@@ -5398,12 +5463,25 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
 		vm.o8OfTypeval = vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
 		vm.o8OfInfcur = vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
-		vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
-		vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
-		vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
+		
+		
+		vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
+		vm.addOp('OK?',null,false,3,'(OK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
+		vm.addOp('K=',null,false,3,'(K= Key Val [...]) -> [... (K= Key Val)], just appends a key/val pair to the end of the list');
+		vm.addOp('OK=',null,false,4,'(OK= Ob Key Val [...]) -> [... (OK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
+		vm.addOp('K=C',null,false,3,'(K=C Key C [...]) -> [... (K=C Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
+		vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
+		//TODO opcodes for read and write cbt, similar to K? and K= (which are for fn in general) but specific to cbt as an optimization,
+		//and opcodes for reading and writing inside a cbt at a size 1, 8, 16, 32, or 64 in it, such as reading or writing a double,
+		//especiall in a vm.Mut (which is an optimization of a [...] stateless state). A Mut has a js map/{} of string to Mut and a Float64Array, Uint8Array, etc, that share the same buffer,
+		//but those are details to work out... TODO.
+		//Replace this with K=: vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
+		//Replace this with OK=: vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
+		//Replace this with C=: vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
+
 		//vm.addOp('Mut',null,false,6,'Used with opmut* and lambdaParams*. This is a snapshot of a key/fourVals, normally used in a [...] stream/Infcur. (Mut cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped) is halted, and add 1 more param and it infloops). FIXME should Mut be a little varargAx-like as it could verify its params are those types (but unlike varargAx, guarantees it verifies fast)?');
-		vm.addOp('OpmutOuter',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler. (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
-		vm.addOp('OpmutInner',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler.  See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
+		//vm.addOp('OpmutOuter',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler. (opmutOuter treeOfJavascriptlikeCode param), and treeOfJavascriptlikeCode can call opmutInner which is like opmutOuter except it doesnt restart the mutable state, and each opmutInner may be compiled (to evaler) separately so you can reuse different combos of them without recompiling each, just recompiling (or not) the opmutOuter andOr multiple levels of opmutInner in opmutInner. A usecase for this is puredata-like pieces of musical instruments that can be combined and shared in realtime across internet.');
+		//vm.addOp('OpmutInner',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler.  See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
 		
 		
 		vm.addOp('StackIsAllowstackTimestackMem',null,false,1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
@@ -5428,19 +5506,30 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Put32BitsInCbt',null,false,3,'(put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks');
 		//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks');
 		vm.addOp('Eq',null,false,2,'Do 2 fns equal by content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).');
-		vm.addOp('StreamWhile',null,false,3,'(streamWhile condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
-		vm.addOp('StreamDoWhile',null,false,3,'(streamDoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
-		vm.addOp('StreamFor',null,false,5,'(streamFor start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
+		
+
+		
+	
+
+
+		vm.addOp('While',null,false,3,'stream: (While condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
+		vm.addOp('DoWhile',null,false,3,'stream: (DoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
+		vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
+		vm.addOp('Fo',null,false,5,'(Fo varName UpTo loopBody stream), is like For except starts with varName being 0 and counts up to whatever (UpTo stream) returns.');
 		vm.addOp('IfElse',null,false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
 		vm.addOp('If',null,false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
+		vm.addOp('Lt',null,false,2,'less than. (Lt 2 3) -> T, else F');
+		vm.addOp('Lte',null,false,2,'less than or equal. (Lte 2 3) -> T, else F');
+		vm.addOp('Gt',null,false,2,'greater than. (Gt 3 2) -> T, else F');
+		vm.addOp('Gte',null,false,2,'greater than or equal. (Gte 3 2) -> T, else F');
 		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.');
 		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.');
 		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).');
 		vm.addOp('SolveRecog',null,false,1,'(solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64.');
 		vm.addOp('SolveFloat64',null,false,1,'(solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack.');
-		vm.addOp('Bize31',null,false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number).');
-		vm.addOp('Bize53',null,false,1,'(bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general.');
-		vm.addOp('Bize256',null,false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id.');
+		vm.addOp('Bize31',null,false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number... its in vm.maxBits TODO use that here and merge duplicate code in what generates these descriptions of bize* opcodes). 2**31 bits is 256mB.');
+		vm.addOp('Bize53',null,false,1,'(bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general. Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256.');
+		vm.addOp('Bize256',null,false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id. Max cbt size is 2**'+vm.log2OfMaxBits+'='+vm.maxBits+' and max bitstring size is 1 bit less (which is a number that wont fit in double, but maxBits itself fits in double cuz its a small enuf powOf2). Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. Bize256 always fits in a 256 bit id of literal 256 bits.');
 		vm.addOp('LambdaParamsList',null,false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.');
 		vm.addOp('LambdaParamsStream',null,false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.');
 		/*vm.addOp('lambdaParams',null,false,1,'Same as LambdaParamsReverse except is the same order they occur in the Lambda call, and is less efficient cuz has to reverse it. This is normally implemented by calling LambdaParamsReverse then reversing that []/stream.');
@@ -5770,8 +5859,9 @@ const Wikibinator203 = (()=>{
 				//	throw 'shouldnt be here cuz should have just done cp';
 				//}
 				//last 3 params
-				let x = l().l().r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
-				let y = l().r;
+				let w = l.n.l.n.l.n.r;
+				let x = l.n.l.n.r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
+				let y = l.n.r;
 				let z = r;
 				let ret = null;
 				let o = vm.opNameToO8;
@@ -5863,7 +5953,75 @@ const Wikibinator203 = (()=>{
 					break;case o.IsLeaf:
 						ret = vm.bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
 					break;case o.Pair:case o.Typeval:
-						ret = z(x)(y); //the church-pair lambda
+						ret = z(x)(y); //the church-pair lambda. Pair and Typeval do the same thing but have a different o8/opcode so Typeval is used as a semantic like (Typeval image/jpeg JpgBytes).
+					break;case o.Lte:
+						//lessThanOrEqual
+						ret = vm.bit(x.n.d()<=y.n.d());
+					break;case o.Lt:
+						//lessThan
+						ret = vm.bit(x.n.d()<y.n.d());
+					break;case o.Gt:
+						//greaterThan
+						ret = vm.bit(x.n.d()>y.n.d());
+					break;case o.Gte:
+						//greaterThanOrEqual
+						ret = vm.bit(x.n.d()>=y.n.d());
+					break;case o['K?']:{
+						//vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
+						//(K? a [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> bb
+						//(K? d [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> vald
+						let key = y;
+						let stream = z;
+						let search = vm.ops['K='](key);
+						ret = U; //in case not found
+						while(stream.n.hasMoreThan7Params()){
+							let item = stream.n.r; //item in the stream such as (K= Key Val)
+							if(item.n.l === search){
+								ret = item.n.r; //Val in [... (K= Key Val) ...]
+								break;
+							}
+							stream = stream.n.l;
+						}
+					}break;case o['OK?']:
+						//vm.addOp('OK?',null,false,3,'(OK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
+						throw 'TODO';
+					break;case o['K=']:{
+						//vm.addOp('K=',null,false,3,'(K= Key Val [...]) -> [... (K= Key Val)], just appends a key/val pair to the end of the list');
+						//key = x;
+						//let val = y;
+						let stream = z;
+						ret = stream(l); //l is (K= Key Val)
+					}break;case o['OK=']:
+						//vm.addOp('OK=',null,false,4,'(OK= Ob Key Val [...]) -> [... (OK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
+						throw 'TODO';
+					break;case o['K=C']:
+						//vm.addOp('K=C',null,false,3,'(K=C Key C [...]) -> [... (K=C Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
+						throw 'TODO';
+					break;case o['K?C']:
+						//vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
+						throw 'TODO';
+					break;case o.Fo:
+						/*
+							(Fo ,i .z.y.length _[
+								(=ood .z.abc .i <.z.y .i>)
+							])
+						*/
+						let varName = x;
+						let condition = y;
+						stream = z;
+						throw 'TODO';
+						
+					break;case o.For:
+						//vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript:
+						//	for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
+						let start = w;
+						condition = x;
+						let loopBody = y;
+						stream = z;
+						for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)){
+							stream = loopBody(stream);
+						}
+						ret = stream;
 					break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
 						let bit = y.n.eq(z);
 						console.log('Computing Eq... y='+y+' z='+z+' bit='+bit);
@@ -6412,7 +6570,7 @@ const Wikibinator203 = (()=>{
 					//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
 					//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
 					//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
-					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this?
+					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
 					console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
 					//viewing.tokens.push('SMALLSTRING_'+smallString);
 					viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
@@ -6731,7 +6889,8 @@ const Wikibinator203 = (()=>{
 		
 		//key is char. val is true. these are not for splitting in string literals, just for the parts of code between them.
 		vm.Viewer.prototype.simpleSplitCharsSet = {};
-		for(let ch of '#:_,()[]{}<>? \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
+		for(let ch of '#:_,()[]{}<> \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
+		//for(let ch of '#:_,()[]{}<>? \t\r\n') vm.Viewer.prototype.simpleSplitCharsSet[ch] = true;
 		//FIXME maybe . shouldnt be a splitChar like in .varA.b.cde if its also going to be used in number literals like 3.4 .
 		
 		//code thats before, between, or after string literals -> list of tokens.
@@ -7562,11 +7721,12 @@ const Wikibinator203 = (()=>{
 			(Mut [...theMutsAsInfcurList...] cbt num fn fnAsKeyA)
 			...
 		]
-		*/
+		*
 		vm.Mut = function(dedupedFn, whichOpmutSpace){
-			this.k = dedupedFn; 
+			this.k = dedupedFn; //(dedupedFn,whichOpmutSpace) is primaryKey. If you call opmut stuff from inside opmut stuff, it will alloc another whichOpmutSpace recursively.
 			this.o = whichOpmutSpace;
-			//this.keyFn = dedupedFn; 
+			this.a = null;
+			//this.keyFn = dedupedFn;
 			//this.keyNum = whichOpmutSpace;
 			//can have instance fields of e (double), j (dup fn), m (dup Array of Mut), i (dup Int32Array that shares buffer with field d).
 		};
@@ -7585,6 +7745,65 @@ const Wikibinator203 = (()=>{
 		
 		vm.Mut.prototype.ii = vm.emptyFrozenIntArray; //can replace with new Int32Array(someNumber) in Mut instance. must be even size cuz shares buffer with Float64Array.
 		vm.Mut.prototype.dd = vm.emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) in Mut instance
+		*/
+		
+		vm.Mut = function(fn,whichOpmutSpace){
+			this.ns = whichOpmutSpace || {}; //js map {} of fn to Mut. FIXME make fn.toString give the [string id, or if small string literal then prefix concat that] of that fn.
+			
+			//(fn,whichOpmutSpace) is primaryKey. If you call opmut stuff from inside opmut stuff, it will alloc another whichOpmutSpace recursively.
+			this.fn = fn; //cant be replaced (except maybe by deduping it?)
+			
+			//id is either 'λ' concat hex of its marklar203bId, OR a small literal string if no whitespace or syntax chars etc, or maybe other small literals.
+			//TODO Might use base58 or base64 later instead of hex.
+			//this.fnId = fn.n.id();
+			
+			//double val. mutable.
+			this.num = 0;
+			
+			//map of Mut to Mut.
+			this.map = {};
+			Object.setPrototypeOf(this.map,null);
+			
+			//list of Mut
+			this.list = [];
+			
+			//A fn that doesnt have to be deduped, but isnt used as a key here (may be used as a key other places),
+			//so it can do fast things like 
+			this.fnVal = U;
+			
+			//Any primitive array, such as Uint8Array, Int32Array, Float32Array, Float64Array. Mutable if nonempty.
+			//Can be replaced after the mut is created.
+			//Depending on what type this is, values put in it will be truncated or dropped (TODO make it deterministic).
+			this.arr = vm.emptyFrozenDoublesArray;
+			
+		};
+		
+		/*vm.makeMutId = fn=>{
+			throw 'TODO check if its a small string literal and prefix it if so';
+			//return vm.bytesToHex(fn.n.marklar203bId());
+			return fn.n.id();
+		};*/
+		
+		vm.Mut.prototype.toString = function(){
+			//return this.fnId;
+			//is cached there, though caching it again in Mut.fnId might be a little faster. It will usually get compiled so this isnt even called often.
+			return this.fn.n.id();
+		};
+		
+		//given a fn/lambda, returns the Mut wrapper for it in this same whichOpmutSpace.
+		vm.Mut.prototype.fnToMut = function(fn){
+			return this.ns[fn] || (this.ns[fn] = new vm.Mut(fn,this.ns));
+		};
+		
+		//Call Mut on Mut to get Mut, using the fns they contain, in this same whichOpmutSpace,
+		//but if this.k (the caller fn) is an opcode that allocates a new whichOpmutSpace
+		//then does that recursively before returning back to this whichOpmutSpace.
+		vm.Mut.prototype.call = function(mut){
+			return this.fnToMut(this.fn(mut.fn));
+		};
+		
+		
+		
 		
 		
 		
@@ -7836,7 +8055,7 @@ const Wikibinator203 = (()=>{
 		
 		//see vm.Node.prototype.d to get double
 		
-		console.log("FIXME 'Typed array views are in the native byte-order (see Endianness) of your platform' -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays . It has to be consistent across all wikibinator203 VMs.");
+		//FIXED by verifying littleEndian at VM boot. console.log("FIXME 'Typed array views are in the native byte-order (see Endianness) of your platform' -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays . It has to be consistent across all wikibinator203 VMs.");
 		
 		//vm.cbt1 to vm.Cbt32 refer to 1-32 bits, not bytes.
 		vm.mustDedupIfAtMostThisManyBytes = 32; //Any wrapper of a Uint8Array this size or smaller must be deduped. Others can be lazy-deduped (which may happen later or never).
