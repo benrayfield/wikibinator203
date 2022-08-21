@@ -2557,6 +2557,10 @@ See "THINGS CONSIDERING IN MAKING AN OPENSOURCE LICENSE" in comments farther dow
 const Wikibinator203 = (()=>{
 	
 	let vm = new function(){};
+	
+	//vm.loglev is 0 for no logging, and higher numbers for more logging.
+	vm.loglev = 1;
+	if(vm.loglev>0) console.log('Wikibinator203VM loglev='+vm.loglev);
 		
 	vm.ops = {}; //map of opName to lambda
 	vm.opAbbrevs = {}; //similar to vm.ops except its , instead of T, and _ instead of Seq
@@ -2896,9 +2900,11 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		
-		
-		
+		//returns 'Uint8Array' or 'Float64Array' or 'object' or 'number' or 'string' for example.
+		//https://stackoverflow.com/questions/58280379/how-to-find-the-type-of-a-typedarray
+		//FIXME also check (x instanceof DataView)?
+		//TODO also check vm.isWikibinator203Lambda(x) and return 'fn' if so?
+		vm.jsType = x=>(ArrayBuffer.isView(x) ? x.constructor.name : typeof(x));
 		
 		
 		
@@ -2946,7 +2952,8 @@ const Wikibinator203 = (()=>{
 		//1 (or a few?) types dont need a typeval, such as maybe 64 bits by itself would be displayed as a double/float64? Or should it be 0xffff343f24352211? what about 32 bits? would that display as an int? or float?
 		vm.wrapInTypeval = function(thing){
 			if(vm.isLambda(thing)) return thing;
-			let ty = typeof(thing);
+			//let ty = typeof(thing);
+			let ty = vm.jsType(thing);
 			switch(ty){
 				case 'string':
 					//(Typeval U Utf8Bytes) is the first typeval, used to display strings that can be used as types in other typevals
@@ -2957,8 +2964,12 @@ const Wikibinator203 = (()=>{
 					return vm.ops.Typeval(U)(vm.wrapUtf8Raw(thing));
 				break;case 'number':
 					return vm.wrapDouble(thing);
+				break;case 'Uint8Array':
+					//TODO optimize if its 2**22 bytes (such as a 1024x1024x4 byte graphics) then could store it in half the size
+					//without padding, but would need a different contentType to say theres no padding.
+					return vm.typeBytes(vm.CbtOfBytes(vm.padBytes(thing)));
 				break;default:
-					throw 'TODO use (ops.Typeval contentType thing)';
+					throw 'TODO use (ops.Typeval contentType thing), ty='+ty;
 			}
 		};
 		
@@ -3814,7 +3825,7 @@ const Wikibinator203 = (()=>{
 								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA:
 								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB:
 							}*/
-							fixmefixme
+							throw 'fixmefixme';
 						default:
 							throw 'cbtSize='+siz+' which is too big to fit in a 256 bit id (so why did fitsInId256 say it fits?)';
 					}
@@ -5813,9 +5824,6 @@ const Wikibinator203 = (()=>{
 			this.stackMem = this.saveLoadStack.pop();
 			this.stackTime = this.saveLoadStack.pop();
 		};*/
-	
-		//vm.loglev is 0 for no logging, and higher numbers for more logging.
-		vm.loglev = 1;
 		
 		/* very slow interpreted mode. add optimizations, as a linked list of evalers of whatever lambda,
 		as recursive (of whatever evaler is in relevant fns/lambdas called on eachother) evalers,
@@ -8060,6 +8068,8 @@ const Wikibinator203 = (()=>{
 		//vm.cbt1 to vm.Cbt32 refer to 1-32 bits, not bytes.
 		vm.mustDedupIfAtMostThisManyBytes = 32; //Any wrapper of a Uint8Array this size or smaller must be deduped. Others can be lazy-deduped (which may happen later or never).
 		
+		
+		
 		//from and to are optional
 		vm.CbtOfBytesDedup = (bytes,from,to)=>{
 			if(from>=to){
@@ -8090,11 +8100,56 @@ const Wikibinator203 = (()=>{
 			}else{
 				vm.verifyPowOf2BytesElseThrowTodo(to-from);
 				//not deduped:
-				return new vm.Node(this,null,null,blob,from,to); //can lazy-eval create its l and r childs pointing into subranges of from and to, if observed (FIXME todo).
+				return vm.lambdize(new vm.Node(vm,null,null,bytes,from,to)); //can lazy-eval create its l and r childs pointing into subranges of from and to, if observed (FIXME todo).
 				//FIXME if theres a null l or l in node and that fails (such as "null is not a function" thrown maybe) then its cuz of the above line,
 				//which is correct but code that calls .l or .r should change, OR maybe define the .l and .r fields using javascript getters and setters if its not slow.
 			}
 		};
+		
+		
+		/*
+		//from and to are optional
+		vm.CbtNodeOfBytesDedup = (bytes,from,to)=>{
+			if(from>=to){
+				throw from+' == from >= to == '+to;
+			}
+			if(from === undefined) from = 0;
+			if(to === undefined) to = bytes.length;
+			vm.verifyPowOf2BytesElseThrowTodo(to-from);
+			switch(to-from){
+				case 1: return vm.cbt8[bytes[from]];
+				case 2: return vm.Cbt16((bytes[from]<<8)|bytes[from+1]);
+				case 4: return vm.Cbt32((bytes[from]<<24)|(bytes[from+1]<<16)|(bytes[from+2]<<8)|bytes[from+3]);
+				default:
+					let mid = (from+to)>>1; //FIXME this should always be an integer. is it?
+					let left = vm.CbtOfBytesDedup(bytes,from,mid);
+					let right = vm.CbtOfBytesDedup(bytes,mid,to);
+					return left(right);
+			}
+		};
+		
+		vm.CbtOfBytesDedup = (bytes,from,to)=>vm.lambdize(vm.CbtNodeOfBytesDedup(bytes,from,to));
+		
+		//from and to are optional
+		vm.CbtNodeOfBytes = (bytes,from,to)=>{
+			if(from === undefined) from = 0;
+			if(to === undefined) to = bytes.length;
+			if(bytes.length <= vm.mustDedupIfAtMostThisManyBytes){
+				//does verifyPowOf2BytesElseThrowTodo
+				return vm.CbtNodeOfBytesDedup(bytes,from,to);
+			}else{
+				vm.verifyPowOf2BytesElseThrowTodo(to-from);
+				//not deduped:
+				return new vm.Node(vm,null,null,bytes,from,to); //can lazy-eval create its l and r childs pointing into subranges of from and to, if observed (FIXME todo).
+				//FIXME if theres a null l or l in node and that fails (such as "null is not a function" thrown maybe) then its cuz of the above line,
+				//which is correct but code that calls .l or .r should change, OR maybe define the .l and .r fields using javascript getters and setters if its not slow.
+			}
+		};
+		
+		vm.CbtOfBytes = (bytes,from,to)=>vm.lambdize(vm.CbtNodeOfBytes(bytes,from,to));
+		*/
+		
+		
 		
 		vm.contentType = ct=>vm.ops.Typeval(ct);
 		
@@ -8117,6 +8172,11 @@ const Wikibinator203 = (()=>{
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
 		vm.typeDoubles = vm.contentType('application/x-IEEE754-doubles');
 		vm.typeFloats = vm.contentType('application/x-IEEE754-floats');
+		
+		//FIXME if its a powOf2 number of bytes, especially 2**22 bytes for 1024x1024 graphics and 4 bytes per pixel,
+		//then the cbt will normally be a raw cbt (no padding) instead of twice that size (to pad a 1 bit then 0s until next powOf2),
+		//so need a contentType for that?
+		vm.typeBytes = vm.contentType('application/octet-stream');
 		
 		//Its suggested this be the only contentType whose first param is not a string, is how to make a utf8 string,
 		//though other combos can happen since the math allows it.

@@ -526,19 +526,36 @@ var lastTimeOf_doGraphicsDtAgeByterectAndMore = 0;
 //canvas
 var canv = null;
 
-let canvH = 512;
-let canvW = 512;
+let canvH = 1024;
+let canvW = canvH;
 
 //canvas
 var doGraphicsDtAgeByterectAndMore = function(){
 	if(canv == null){
 		canv = new FullScreenCanvas(document.body, canvH, canvW);
+		
+		//TODO the canvas moved on page faster (same update speed per video frame, but its rectangle on scree) as 'fixed' than 'absolute'
+		
 		canv.dom.style.position = 'fixed'; //relative to scroll position, always displayed nomatter where you scroll
+		//canv.dom.style.position = 'absolute';
 		canv.dom.style.left = '0px';
 		canv.dom.style.top = '0px';
+		//canv.dom.style.left = '470px';
+		//canv.dom.style.top = '270px';
 		canv.dom.style['z-index'] = -1000; //behind other stuff
 	}
-	canv.resizeCanvas(window.innerHeight,window.innerWidth); //to screen size, if no params.
+	//canv.resizeCanvas(window.innerHeight,window.innerWidth); //to screen size, if no params. change number of canvas pixels.
+	let scaleCanvY = window.innerHeight/canv.dom.height;
+	let scaleCanvX = window.innerWidth/canv.dom.width;
+	//let scaleCanvY = 1;
+	//let scaleCanvX = 1;
+	///canv.dom.style.left = (canv.dom.width/2)+'px';
+	//scaleCanvX = 4;
+	//console.log('scaleCanvX = '+scaleCanvX+' window.innerWidth='+window.innerWidth+' canv.dom.width='+canv.dom.width);
+	//canv.dom.style.transform = 'scale('+scaleCanvX+','+scaleCanvY+')'; //dont change number of canvas pixels. stretch it instead.
+	//canv.dom.style.transform = 'matrix('+scaleCanvX+',0,0,'+scaleCanvY+','+((window.innerWidth-canv.dom.width)/2)+','+((window.innerHeight-canv.dom.height)/2+window.scrollY)+')'; //dont change number of canvas pixels. stretch it instead.
+	//canv.dom.style.transform = 'matrix('+scaleCanvX+',0,0,'+scaleCanvY+','+(0)+','+(0)+')'; //dont change number of canvas pixels. stretch it instead.
+	canv.dom.style.transform = 'matrix('+scaleCanvX+',0,0,'+scaleCanvY+','+((window.innerWidth-canv.dom.width)/2)+','+((window.innerHeight-canv.dom.height)/2)+')'; //dont change number of canvas pixels. stretch it instead.
 	let now = time();
 	let age = now-timeStarted; //how many seconds ago did this page transition start?
 	let dt = Math.max(0, Math.min(now-lastTimeOf_doGraphicsDtAgeByterectAndMore, .2));
@@ -546,7 +563,10 @@ var doGraphicsDtAgeByterectAndMore = function(){
 	canv.beforePaint();
 	doGraphicsDtAgeByterect(dt, age, canv.byteRect);
 	canv.afterPaint();
-	setTimeout(doGraphicsDtAgeByterectAndMore, 1);
+	//setTimeout(doGraphicsDtAgeByterectAndMore, 1);
+	//setTimeout(doGraphicsDtAgeByterectAndMore, 5);
+	requestAnimationFrame(doGraphicsDtAgeByterectAndMore); //TODO optimize, only update canvas if pixels changed. store pixels as a fn/lambda.
+	//setTimeout(doGraphicsDtAgeByterectAndMore, 30);
 };
 
 //canvas
@@ -1316,7 +1336,7 @@ var setToIdentityMatrix = aftrans=>{
 </script>
 </head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);" style="color:white;background-color:black">
 	<center>
-		<h2>Agree (no checkbox) to the opensource license at bottom of this file or dont use this. Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
+		<h2><div style="background-color:black">Agree (no checkbox) to the opensource <a href="#theLicense">license</a> at bottom of this file or dont use this.</div> Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
 		<br><br>
 		λ means Lambda.
 		(λ [a b c] T) and node.prototype.p(name)<br>
@@ -1370,6 +1390,7 @@ var setToIdentityMatrix = aftrans=>{
 	</center>
 <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+<a name="theLicense"><div style="background-color:black">
 LICENSE AT TIME 2022-8-3 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
 Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
 <br><br>
@@ -1513,4 +1534,5 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 ]]]
+</div></a>
 </body></html>
