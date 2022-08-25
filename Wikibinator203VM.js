@@ -2739,7 +2739,11 @@ const Wikibinator203 = (()=>{
 		//This mask_stackIsAllowAx is the evaling/nonhalted counterpart of mask_containsAxConstraint.
 		vm.mask_stackIsAllowAx = 1<<3;
 		
-		vm.mask_stackIsAllowHypercompute = 1<<4;
+		//FIXME: Might have to divide the system into hypercompute vs nonhypercompute,
+		//since allowing that to change on stack would require marking halted VarargAx calls
+		//individually for if they've been affected by a call of HyperRed (the only hypercompute opcode).
+		//vm.mask_stackIsAllowHypercompute = 1<<4;
+		vm.mask_allowHypercompute = 1<<4;
 		
 		//THIS SHOULD INSTEAD JUST BE IN the evilBit in first byte (evil good or 256(or512IfIdsAre512Bit)BitLiteralNeutral) and vm.import func,
 		//and only vm.import can choose where and how to load a lambda by id, and TODO vm.import should take an idMaker param where (idMaker x) -> id of x.
@@ -2780,6 +2784,12 @@ const Wikibinator203 = (()=>{
 		
 		//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
 		//This mask_containsAxConstraint is the halted counterpart of mask_stackIsAllowAx.
+		//
+		//FIXME might need another bit,
+		//or to modify the meaning of this one to be affected by mask_allowHypercompute
+		//(so mask_containsAxConstraint WITH mask_allowHypercompute in a halted fn would mean was affected by HyperRed,
+		//but mask_allowHypercompute during eval (o8 of 0) means it allows HyperRed to return instead of inflooping).
+		//
 		vm.mask_containsAxConstraint = 1<<7;
 		
 		//only includes things whose o8>127 aka has at least 7 params so op is known
@@ -2961,13 +2971,14 @@ const Wikibinator203 = (()=>{
 					//so (Typeval "double") would be the prefix of a cbt64 of double/float64 bits. If as bitstring instead of cbt, it needs padding (1 000000....).
 					console.log('Wrapping string of '+thing.length+' chars');
 					//TODO cache ops.Typeval(U) and other common typevals instead of rebuilding it here (funcallcaching is slower than getting it from vm.something).
-					return vm.ops.Typeval(U)(vm.wrapUtf8Raw(thing));
+					return vm.ops.TypevalB(U)(vm.wrapUtf8Raw(thing));
 				break;case 'number':
 					return vm.wrapDouble(thing);
 				break;case 'Uint8Array':
 					//TODO optimize if its 2**22 bytes (such as a 1024x1024x4 byte graphics) then could store it in half the size
 					//without padding, but would need a different contentType to say theres no padding.
-					return vm.typeBytes(vm.CbtOfBytes(vm.padBytes(thing)));
+					//return vm.typeBytes(vm.CbtOfBytes(vm.padBytes(thing)));
+					return vm.CbtOfBytes(vm.padBytes(thing)); //dont use application/octet-stream here, cuz just use cbt by itself.
 				break;default:
 					throw 'TODO use (ops.Typeval contentType thing), ty='+ty;
 			}
@@ -3031,7 +3042,7 @@ const Wikibinator203 = (()=>{
 			this.r = r;
 			this.cacheFuncBody = null;
 			
-			let isLeaf = r==null;
+			let isLeaf = (!l && !optionalBlob);
 			
 			
 			//allow isEvaling as a datastruct, but in this implementation of wikibinator203 that wont happen since
@@ -3058,6 +3069,24 @@ const Wikibinator203 = (()=>{
 			if(isLeaf){
 				op = 1; //u/leaf, the universal lambda
 				curriesLeft = 7; //eval again at 7 just to store what op it is in header. Nothing actually evals at 7 params.
+			}else if(optionalBlob){
+				if(l) throw 'Dont start with l and r if this is a wrapper of a blob/Uint8Array, type of optionalBlob is '+vm.jsType(optionalBlob);
+				if(!(optionalBlob instanceof Uint8Array)) throw 'blob is not a Uint8Array';
+				if(!optionalBlob.length || !vm.isPowOfTwo(optionalBlob.length)) throw 'Not a powOf2 size blob: '+optionalBlob.length;
+				
+				//Set vars for this lower line: this.header = vm.headerOfNonliteralCallPair(vm.evilBit, op, curriesLeft, upTo8BitsOfMasks);
+				
+				//op is Bit0 or Bit1, depending on first bit in the blob. Already verified its not an empty blob. Also, smallest cbt is Bit0 or Bit1.
+				let firstBit = optionalBlob[0]>>7;
+				op = firstBit ? vm.o8OfBit1 : vm.o8OfBit0;
+				
+				//blob cant get big enuf in memory to eval (see vm.maxBits), so isEvaling is false.
+				let cbtHeight = vm.log2OfPowOf2ThatFitsInInt(optionalBlob.length)+3; //+3 so its bits instead of bytes
+				//cbtHeight is return vm.log2OfMaxBits-this.curriesLeft();
+				curriesLeft = vm.log2OfMaxBits-cbtHeight;
+				//this will happen below after the if/else/else: //let bize = -2; //lazyEval of bize
+				
+				upTo8BitsOfMasks |= vm.mask_isCbt; //the other 7 mask bits are 0 in a cbt. Search for vm.mask_ in this file.
 			}else{
 				
 				let lNode = l(); //FIXME if !l (this is u) then "this.evaler = l ? lNode.evaler : vm.rootEvaler" kind of checks need to happen before calling l() to get lNode.
@@ -3262,7 +3291,11 @@ const Wikibinator203 = (()=>{
 			//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
 			//TODO pushEvaler for isleaf etc
 			*/
-			this.evaler = l ? l().evaler : vm.rootEvaler;
+			
+			//get evaler from l if there is a l yet. There is no l yet if this is leaf OR if this is a blob wrapping a Uint8Array.
+			//If blob, it can add l and r later, when observed, but that would be inefficient to create a tree of nodes for every part of the blob
+			//since (TODO) most big blobs are used as blobs directly by evalers.
+			this.evaler = l ? l.n.evaler : vm.rootEvaler;
 			
 			//this.prototype.prototype = vm;
 
@@ -3883,6 +3916,18 @@ const Wikibinator203 = (()=>{
 				}
 			}
 			return this.cache_idString = this.fullId();
+		};
+
+		//local id, either 64 or 128 bits depending if those 128 bits are all 0s they can be ignored or not. Its prefixed by λ then hex.
+		vm.Node.prototype.locid = function(){
+			if(!this.cache_locidString){
+				let s = '';
+				if(this.blobFrom || this.blobTo) s += vm.intToHex(this.blobFrom)+vm.intToHex(this.blobTo); //put these first so they are dropped as leading 0s
+				s += vm.intToHex(this.idA)+vm.intToHex(this.idB);
+				while(s.length>1 && s.startsWith('0')) s = s.substring(1); //dont display leading 0s
+				this.cache_locidString = 'λ'+s;
+			}
+			return this.cache_locidString;
 		};
 
 		//returns 3 ids, including my left and right childs.
@@ -5426,17 +5471,40 @@ const Wikibinator203 = (()=>{
 			let name = 'Op'+o8.toString(2);
 			vm.addOp(name, null, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
 		}
-		vm.addOp('F',null,false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
-		vm.addOp('T',',',false,2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
+		vm.o8OfF = vm.addOp('F',null,false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
+		if(vm.o8OfF != 128) throw 'vm.o8OfF must be 128 so (L U) -> (U U U U U U U U U) and (R U) -> U, to close the quine loop.';
+		vm.o8OfT = vm.addOp('T',',',false,2,'the church-true lambda and the k lambda of SKI-Calculus, aka λy.λz.y');
+		if(vm.o8OfT != 129) throw 'vm.o8OfT must be 129.';
 		vm.o8OfBit0 = vm.addOp('Bit0',null,false,vm.log2OfMaxBits,'complete binary tree is made of pow(2,cbtHeight) number of bit0 and bit1, evals at each curry, and counts rawCurriesLeft down to store (log2 of) cbt size'); //FIXME is it 247 or 248 or what? or 4077 or what?
+		if(vm.o8OfBit0 != 130) throw 'vm.o8OfBit0 must be 130.';
 		vm.o8OfBit1 = vm.addOp('Bit1',null,false,vm.log2OfMaxBits,'see bit0');
 		if((vm.o8OfBit1 & 0b11111110) != vm.o8OfBit0) throw 'o8 of Bit0 must be even (for an optimization to check if its a bit) but is '+vm.o8OfBit0+' and o8 of Bit1 is '+vm.o8OfBit1;
+		if(vm.o8OfBit1 != 131) throw 'vm.o8OfBit1 must be 131.';
 		vm.o8IsOfCbt = o8=>((o8 & 0b11111110) == vm.o8OfBit0);
 		vm.o8OfL = vm.addOp('L',null,false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
-		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda');
-		vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
-		vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
+		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda, same as does OpByte param equal 0x01.');
+		
+		vm.o8OfInfcur = vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
+		
+		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
+		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
+		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
+		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
+		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
+		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
+		
+		//It is by design that a fn/lambda cant know evilbit==true vs evilbit==false about any fn/lambda,
+		//since thats only a bit in some kinds of ids, a thing to say about a lambda, not about the lambda itself.
+		
+		vm.addOp('OpByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params o8 opcode in its header. O8 of U is 1. O8 of (U U) is 2. O8 of (U (U U)) is 3. O8 of (U Anything_except_U) is 3. And so on up to 7 params. 6 params has O8 of 64 to 127. O8 of 7 params is 128 to 255.');
+		
+		vm.addOp('CurleftByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params curriesLeft. 1 means it will eval on next param. 2 means it will eval when gets 2 more params. And so on up to 254. 255 means will never eval, just keeps adding more params. 255 is used in Infcur/[] aka a list that adds its param to the list, to forkEdit itself.');
+		
+		//FIXME need about 5 opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
+		vm.addOp('MaskByte',null,false,1,'returns a cbt8 whose bits are a mask of the 8 vm.mask_*, in params header. This means those wont be able to be reordered without breaking calls of MaskByte.');
+		
+		//vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
 		
 		
 		/* I wrote code for this, "curriesLeft = 1+rCur; //FuncBody then paramVals." but todo test it.
@@ -5453,6 +5521,7 @@ const Wikibinator203 = (()=>{
 		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,2,'Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
 		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
 		vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).');
+		//Maybe its better to focus on optimizing Lambda and MutLam, which have named params. vm.addOp('Vararg',null,true,2,'(Vararg [a b c d] e) -> (a [a b c d e]), maybe viewed as (<a b c d> e) -> (a <a b c d e>)? So (Vararg [a b c d]) is displayed as <a b c d>? Used for deriving syntaxes like <M keyA valA keyB valB>.');
 		vm.o8OfP = vm.addOp('P',null,false,2,'(P LambdaOrMutLamOrListOfObvalObkeyvalEtc ParamName) -> value of ParamName in (Lambda ...) etc, usually in [(Lambda ... all params except last) LastParam] since thats what FuncBody inside that Lambda call is called on [...] and FuncBody normally calls P to get specific params.');
 		if(!(vm.o8OfLambdo&1)) throw 'o8 of Lambdo must be odd.';
 		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
@@ -5470,10 +5539,7 @@ const Wikibinator203 = (()=>{
 		vm.o8OfHypercomputeRedA = vm.addOp('HyperRed',null,true,2,'(HyperRed CardinalityComparator SomeComboOfHyperleafToGetRedEdge). TODO implement this https://raw.githubusercontent.com/benrayfield/hyperquasicrystal/main/hyperquasicrystalRedesign2022-8-10%2B.txt .This would give the RED (doesItHaltAtLowerCardinalityThanCaller) edge in... See https://github.com/benrayfield/hyperquasicrystal for an incomplete similar set of opcodes for hypercomputing. TODO design this wikibinator203 opcode. This is deterministic but in some cases costs pow(infinity,pow(infinity,infinity))... (im not sure how deep of exponents and infinities it will go) time and memory ONCE but after, in abstract math, thats cached, everything costs 1 compute step, so its more like a digital-signature of infinite size, or converges by disproof-by-contradiction, various ways it could be implemented. For example, you could have 2 competing networks, one with the claim that P!=NP and the other with the claim that P=NP, which would both be VarargAx ops of Hypercompute ops, so there will be a wikibinator203 node that claims P=NP and one that claims P!=NP but exactly 1 of those would ever (in abstract math, after infinities) halt.');
 		/*vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).');
 		*/
-		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
-		vm.o8OfTypeval = vm.addOp('Typeval',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (Typeval U BytesOfUtf8String) or (Typeval (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
-		vm.o8OfInfcur = vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
+		
 		
 		
 		vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
@@ -5495,14 +5561,18 @@ const Wikibinator203 = (()=>{
 		//vm.addOp('OpmutInner',null,false,2,'FIXME get rid of Opmut* opcodes, since StreamWhile StreamIfElse etc is fn to fn and is just optimized by evaler.  See opmutOuter. Starts at a Mut inside the one opmutOuter can reach, so its up to the outer opmuts if that Mut contains pointers to Muts it otherwise wouldnt be able to access.');
 		
 		
+		/* TODO merge these with MaskByte op? Or have both? These are the 8 bits, though some have been renamed.
 		vm.addOp('StackIsAllowstackTimestackMem',null,false,1,'reads a certain bit (stackIsAllowstackTimestackMem) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowNondetRoundoff',null,false,1,'reads a certain bit (stackIsAllowNondetRoundoff) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowMutableWrapperLambdaAndSolve',null,false,1,'reads a certain bit (stackIsAllowMutableWrapperLambdaAndSolve) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
 		vm.addOp('StackIsAllowAx',null,false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system');
-		vm.addOp('StackIsAllowHypercompute',null,false,1,'reads a certain bit (stackIsAllowHypercompute) from top of stack. See the few "hyper" opcodes');
+		vm.addOp('IsAllowHypercompute',null,false,1,'reads a certain bit (allowHypercompute) from top of stack. See the few "hyper" opcodes');
 		vm.addOp('stackAllowReadLocalIds ',null,false,1,'reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.');
 		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1');
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
+		*/
+		
+		
 		vm.addOp('+',null,false,2,'+ of 2 doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
 		vm.addOp('*',null,false,2,'* of 2 doubles. See + for details on doubles in general.');
 		vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
@@ -5677,6 +5747,8 @@ const Wikibinator203 = (()=>{
 		...reservedForFutureOpcodes... //up to 128.
 		make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
 		*/
+		
+		console.log('Theres '+(256-vm.opInfo.length)+' reserved opcodes for future expansion in this Wikibinator203 VM. All Wikibinator203 VMs must have the same set of opcodes, else call it something other than Wikibinator203, so those are expected to be filled in while experimenting with the prototype VM to find what works and is intuitive for Humans.');
 		
 		while(vm.opInfo.length < 256) vm.addOp('Op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', 1, 'Given 1 param, evals to (S I I (S I I)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.');
 		
@@ -5955,12 +6027,12 @@ const Wikibinator203 = (()=>{
 					break;case o.F:
 						ret = z;
 					break;case o.L:
-						ret = z().l;
+						ret = z.n.l || z.n.L();
 					break;case o.R:
-						ret = z().r;
+						ret = z.n.r || z.n.R();
 					break;case o.IsLeaf:
 						ret = vm.bit(z().o8()==1); //TODO optimize as: ret = Bit(z==u); ??? check that code
-					break;case o.Pair:case o.Typeval:
+					break;case o.Pair:case o.TypevalB:case o.TypevalC:
 						ret = z(x)(y); //the church-pair lambda. Pair and Typeval do the same thing but have a different o8/opcode so Typeval is used as a semantic like (Typeval image/jpeg JpgBytes).
 					break;case o.Lte:
 						//lessThanOrEqual
@@ -6477,22 +6549,37 @@ const Wikibinator203 = (()=>{
 			for(let i=0; i<bytes.length; i++) s += vm.doubleHexDigits[bytes[i]];
 			return s;
 		};
+		
+		vm.bytesAndRangeToHex = (bytes,from,toExcl)=>{
+			let s = '';
+			for(let i=from; i<toExcl; i++) s += vm.doubleHexDigits[bytes[i]];
+			return s;
+		};
+
+		//returns 8 hex digits including any leading zeros.
+		vm.intToHex = i=>(vm.doubleHexDigits[(i>>24)&0xff]+vm.doubleHexDigits[(i>>16)&0xff]+vm.doubleHexDigits[(i>>8)&0xff]+vm.doubleHexDigits[i&0xff]);
 
 		//a cbt is a fn/lambda, a powOf2 number of bits (Bit0 or Bit1).
+		//WARNING: this could be big so check cbt.n.cbtSize() first (in bits, which is always a powOf2 size).
 		vm.cbtToHex = cbt=>{
-			if(!cbt().isCbt()) throw 'Not a cbt';
-			let h = cbt().cbtHeight();
+			if(!cbt.n.isCbt()) throw 'Not a cbt';
+			let h = cbt.n.cbtHeight();
 			let Bit1 = vm.ops.Bit1;
 			if(h < 2) throw 'Too few cbt bits for a hex digit, h='+h;
 			if(h == 2){
-				let a = cbt().l().l;
-				let b = cbt().l().r;
-				let c = cbt().r().l;
-				let d = cbt().r().r;
+				let a = cbt.n.l.n.l;
+				let b = cbt.n.l.n.r;
+				let c = cbt.n.r.n.l;
+				let d = cbt.n.r.n.r;
 				let hexInt4 = ((a==Bit1)?8:0)|((b==Bit1)?4:0)|((c==Bit1)?2:0)|((d==Bit1)?1:0);
 				return '0123456789abcdef'[hexInt4];
 			}else{
-				return vm.cbtToHex(cbt().l)+vm.cbtToHex(cbt().r);
+				if(cbt.n.blob){
+					//might not have l and r childs cuz they would be lazyEvaled, and dont trigger that lazyEval here.
+					return vm.bytesAndRangeToHex(cbt.n.blob, cbt.n.blobFrom, cbt.n.blobTo);
+				}else{
+					return vm.cbtToHex(cbt.n.l)+vm.cbtToHex(cbt.n.r);
+				}
 			}
 		};
 		
@@ -6562,7 +6649,11 @@ const Wikibinator203 = (()=>{
 					/*let cbtHeight = FN.cbtHeight();
 					if(cbtHeight <= 3) throw 'cbt1 to cbt8 should already have localName like 0b10011111';
 					*/
-					viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
+					if(view.syntaxType === 'Blob'){ //its a Uint8Array in FN.blob, with FN.l and Fn.r being null cuz those are lazyEval of powOf2 aligned ranges of that blob.
+						viewing.tokens.push(FN.locid());
+					}else{
+						viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
+					}
 				}else if(isSmallUtf8String){
 					//utf8 bytes in a cbt. It may have content.blob or not, since thats just an optimization
 					//of a complete binary tree (cbt) of vm.ops.Bit0 and vm.ops.Bit1. If it has blob, the utf8 bytes,
@@ -6754,12 +6845,15 @@ const Wikibinator203 = (()=>{
 			if(this.syntaxType) return this.syntaxType;
 			let fn = this.fn;
 			
-			if(fn().isLeaf()){
+
+			if(fn.n.isLeaf()){
 				this.syntaxType = 'U';
 				//dont call lsyty rsyty or lrsyty past U cuz might infloop
 				
 			//TODO GV aka getvar syntax, displayed as < ... >	
-			
+			}else if(!fn.n.l && fn.n.blob){
+				//is a view of a Uint8Array without childs (they are lazyEvaled)
+				this.syntaxType = 'Blob';
 			}else if(fn == ops.S){
 				this.syntaxType = 'S0';
 			}else if(fn == ops.Infcur){
@@ -7981,13 +8075,15 @@ const Wikibinator203 = (()=>{
 		console.log('Updated Lambda op: '+JSON.stringify(vm.opInfo[vm.o8OfLambda]));
 		
 		//prefix of normal (utf8) text
-		vm.utf8Prefix = vm.ops.Typeval(U);
+		vm.utf8Prefix = vm.ops.TypevalB(U);
 		
 		//cuz vm.bit func needs these. todo opcode order.
 		//vm.t = TODO;
 		//vm.f = TODO;
 		
 		vm.isPowOfTwo = i=>!(i&(i-1));
+		
+		vm.log2OfPowOf2ThatFitsInInt = powOf2=>(31-Math.clz32(powOf2));
 
 		vm.verifyPowOf2BytesElseThrowTodo = num=>{
 			if(!vm.isPowOfTwo(num)) throw 'TODO allow non-power-of-two number of bytes (by setting its prototype to something like objectThatReturns0ForAllFieldValues but that pads a 1 bit first then all 0s): '+num;
@@ -8105,6 +8201,32 @@ const Wikibinator203 = (()=>{
 				//which is correct but code that calls .l or .r should change, OR maybe define the .l and .r fields using javascript getters and setters if its not slow.
 			}
 		};
+
+		//finds or creates .l (lazyEval), especially for wrappers of Uint8Array in .blob which start with .l and .r being null.
+		vm.Node.prototype.L = function(){
+			if(!this.l){
+				if(this.blob){
+					//If its a byte or smaller its already preallocated in vm.cbt8[...] etc, so dont check size here.
+					this.l = vm.CbtOfBytes(this.blob, this.blobFrom, (this.blobTo+this.blobFrom)/2); //has same .idA and .idB (of the Uint8Array) but different range
+				}else{
+					throw 'Not a blob. What kind of lazyeval (of L) is this?';
+				}
+			}
+			return this.l;
+		};
+
+		//finds or creates .r (lazyEval), especially for wrappers of Uint8Array in .blob which start with .l and .r being null.
+		vm.Node.prototype.R = function(){
+			if(!this.r){
+				if(this.blob){
+					//If its a byte or smaller its already preallocated in vm.cbt8[...] etc, so dont check size here.
+					this.r = vm.CbtOfBytes(this.blob, (this.blobTo+this.blobFrom)/2, this.blobTo); //has same .idA and .idB (of the Uint8Array) but different range
+				}else{
+					throw 'Not a blob. What kind of lazyeval (of R) is this?';
+				}
+			}
+			return this.r;
+		};
 		
 		
 		/*
@@ -8149,9 +8271,12 @@ const Wikibinator203 = (()=>{
 		vm.CbtOfBytes = (bytes,from,to)=>vm.lambdize(vm.CbtNodeOfBytes(bytes,from,to));
 		*/
 		
+
+
 		
-		
-		vm.contentType = ct=>vm.ops.Typeval(ct);
+		vm.contentTypeBitstring = ct=>vm.ops.TypevalB(ct);
+
+		vm.contentTypeCbt = ct=>vm.ops.TypevalC(ct);
 		
 		console.log('FIXME type application/x-IEEE754-double vs type application/x-IEEE754-doubles has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
 		
@@ -8165,23 +8290,26 @@ const Wikibinator203 = (()=>{
 		//FIXME it might be breaking when type doesnt fit in a literal (has to callpair it),
 		//since stringLiterals arent fully working yet 2022-8-18.
 		//vm.typeDouble = vm.contentType('application/x-IEEE754-double-cbt64');
-		vm.typeDouble = vm.contentType('application/x-IEEE754-double');
+		vm.typeDouble = vm.contentTypeCbt('application/x-IEEE754-double');
 		//vm.typeFloat = vm.contentType('application/x-IEEE754-float-cbt64');
-		vm.typeFloat = vm.contentType('application/x-IEEE754-float');
-		
+		vm.typeFloat = vm.contentTypeCbt('application/x-IEEE754-float');
+
+
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
-		vm.typeDoubles = vm.contentType('application/x-IEEE754-doubles');
-		vm.typeFloats = vm.contentType('application/x-IEEE754-floats');
+		vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles');
+		vm.typeFloats = vm.contentTypeBitstring('application/x-IEEE754-floats');
 		
+		/* just use cbt by itself.
 		//FIXME if its a powOf2 number of bytes, especially 2**22 bytes for 1024x1024 graphics and 4 bytes per pixel,
 		//then the cbt will normally be a raw cbt (no padding) instead of twice that size (to pad a 1 bit then 0s until next powOf2),
 		//so need a contentType for that?
 		vm.typeBytes = vm.contentType('application/octet-stream');
+		*/
 		
 		//Its suggested this be the only contentType whose first param is not a string, is how to make a utf8 string,
 		//though other combos can happen since the math allows it.
 		//Other contentTypes use such a string in their first param, like (Typeval application/x-IEEE754-float 0x40490fdb) is float pi.
-		vm.typeUtf8 = vm.contentType(U);
+		vm.typeUtf8 = vm.contentTypeBitstring(U);
 		
 		
 		
@@ -8290,8 +8418,8 @@ const Wikibinator203 = (()=>{
 		
 		//This optimization makes it fast enough to use l(lambda) and r(lambda) instead of lambda().l and lambda().r.
 		//dont FuncallCache things that instantly return and cant make an infinite loop.
-		l().pushEvaler((vm,func,param)=>(param().l));
-		r().pushEvaler((vm,func,param)=>(param().r));
+		l.n.pushEvaler((vm,func,param)=>(param.n.l || param.n.L())); //param.n.L() triggers lazyEval of viewing the left or right half of range of a wrapped Uint8Array.
+		r.n.pushEvaler((vm,func,param)=>(param.n.r || param.n.R()));
 		vm.identityFunc().pushEvaler((vm,func,param)=>param);
 		//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
 		//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
