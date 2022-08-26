@@ -1,0 +1,34 @@
+NormPixelsAllToSameBrightness#{Λ (targetSum)
+	(expects (pix h w) params in state param.
+		new syntax..
+		'{}' call
+		'()' infcur. (this means (you can write) whatever (you want (in parens)) and its just data but [+ ,5] is still a func that adds 5 to its param).
+		'[]' sCurryListWithTOfFirst
+		'<>' sCurryList
+		vararg funcs can be funcs of 2 params as TheFunc(...infcur list of params...) is it with 1 param waiting on a (...state...).
+		most opcodes are not vararg. + and * and = and ? are vararg, but / (divide) is not. You can make new vararg or nonvararg funcs. Also VarargAx is the most flexible way to do vararg since it can do turing-complete-types such as a linkedlist that can only contain prime numbers.
+		, is T.
+		_ is Seq.
+		? is getParam (todo exactly which of the get funcs ?).
+		3.45 is a literal.
+		0x43f9 is a literal.
+		todo stringliterals.	
+		(+ and * will be opcodes of 2 params, that check if their first param is an infcur/(),
+			and if it is they call each thing in it on second param,
+			and add (or mul) all those (todo add which order),
+			else they just add/mul their 2 params (node.d()).
+		)
+	)
+	_(
+	
+		=(len *(?h ?w))
+		=(retb [NewDoubles ?len])
+		[Fo i ,0 ?len ,4 _(
+			=(sum +(?(pix +(?i ?red)) ?(pix +(?i ?green)) ?(pix +(?i ?blue))))
+			=(mul [/ ?targetSum ?sum])
+			[Fo colorDim ,0 ,4 ,1
+				[= retb +(?i ?colorDim) ?(pix *(?mul +(?i ?colorDim)))]
+			]
+		)]
+	)
+}

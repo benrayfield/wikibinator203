@@ -1,0 +1,73 @@
+SimpleGraphicsExample#{λ (age height width)
+	(age is seconds since it started as a double.
+		this returns a blob of pixels to copy into html5 canvas.
+		todo change the λ opcode to have a place for a comment (...).
+		new syntax.. ;
+		'{}' call ;
+		'()' infcur. (this means (you can write) whatever (you want (in parens)) and its just data but [+ ,5] is still a func that adds 5 to its param). ;
+		'[]' sCurryListWithTOfFirst ;
+		'<>' sCurryList ;
+	)
+	[
+		?pix //get pix from what it forkEdits [...state...] to be.
+		[
+			_(
+				=(numBytes *(?height ?width ,4))
+				=(pix [NewBytes ?numBytes])
+				=(i ,0)
+				=(red ,0)
+				=(green ,1)
+				=(blue ,2)
+				[Fo y ,0 ?height ,1 _(
+					[Fo x ,0 ?width ,1 _(
+						F'//bytes[i+RED] = (x+age*35)&255;'
+						=(pix +(?i ?red) [& +(?x *(?age ,35)) 255])
+						
+						F'//bytes[i+GREEN] = (x+y*age)&255;'
+						=(pix +(?i ?green) [& +(?x *(?y ?age)) 255])
+						
+						F'//bytes[i+BLUE] = (333*x/y)&255;'
+						=( pix +(?i ?green) [& *( ,333 [/ ?x ?y]) 255] )
+						
+						
+						+=(i ,4); //next pixel
+					)]
+					+=(i *(?w ,4)); //row of pixels
+				)]
+			)
+			LambdaParams //start with [...state...] of the λ's params.
+		]
+	]
+}
+
+/*
+//age in seconds since transition started. Just paints onto ByteRect
+var doGraphicsDtAgeByterect = function(dt, age, byteRect){
+
+	let bytes = byteRect.bytes;
+	let offset = Math.floor(Math.sin(time()*5*2*Math.PI)*100+100);
+	let w = byteRect.width;
+	let h = byteRect.height;
+	let cx = Math.floor(w/2); //center x
+	let cy = Math.floor(h/2); //center y
+	for(let i=0; i<bytes.length; i+=4){
+		bytes[i+RED] = backgroundRed;
+		bytes[i+GREEN] = backgroundGreen;
+		bytes[i+BLUE] = backgroundBlue;
+		bytes[i+ALPHA] = 255;
+	}
+	let i = 0;
+	for(let y=0; y<h; y++){
+		for(let x=0; x<w; x++){
+			bytes[i+RED] = (x+age*35)&255;
+			bytes[i+GREEN] = (x+y*age)&255;
+			bytes[i+BLUE] = (333*x/y)&255;
+			i += 4;
+		}
+		i += w*4; //row of pixels
+	}
+
+};
+*/
+
+]
