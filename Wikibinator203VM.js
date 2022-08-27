@@ -2344,7 +2344,7 @@ stackIsAllowstackTimestackMem //the 2x2 kinds of clean/dirty/etc. exists only on
 stackIsAllowNondetRoundoff //isAllowSinTanhSqrtRoundoffEtc //the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?
 stackIsAllowMutableWrapperLambda
 stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
-varargAxCall //(varargAxCall constraint ...params...) ... (varargAxCall constraint a) is halted if (constraint [(varargAxCall constraint ...paramsExceptLast...) lastParamSoFar])->u, and evals to v if that -> (u v), so varargAxCall chooses at each next param that it has enough params or not (vararg) and if not then what the return val is. These ax (axiom-like) constraints are a turing-complete-type-system that could for example make a list that can only contain prime numbers, or a tree that can only have a certain type of nodes in it. It takes finite time to compute, just normal forward computing, but cuz of haltingProblem, it takes on average infinity time and memory to verify, so theres a containsAxConstraint bit in header int and a stackIsAllowAx bit on stack thats also in that header int for nonhalted calls/nodes. varargAxCall tightens cleanvsdirty (higher on stack) to be deterministic (ax is deterministic, but so is not allowing ax), so you cant for example have an ax constraint about nondeterministic roundoff or about mutableWrapperLambda.
+varargAxCall //(varargAxCall constraint ...params...) ... (varargAxCall constraint a) is halted if (constraint [(varargAxCall constraint ...paramsExceptLast...) lastParamSoFar])->u, and evals to v if that -> (AnythingExceptU v), so varargAxCall chooses at each next param that it has enough params or not (vararg) and if not then what the return val is. These ax (axiom-like) constraints are a turing-complete-type-system that could for example make a list that can only contain prime numbers, or a tree that can only have a certain type of nodes in it. It takes finite time to compute, just normal forward computing, but cuz of haltingProblem, it takes on average infinity time and memory to verify, so theres a containsAxConstraint bit in header int and a stackIsAllowAx bit on stack thats also in that header int for nonhalted calls/nodes. varargAxCall tightens cleanvsdirty (higher on stack) to be deterministic (ax is deterministic, but so is not allowing ax), so you cant for example have an ax constraint about nondeterministic roundoff or about mutableWrapperLambda.
 lambda //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
 getnamedparam //ddee? would be a syntax for '(getnamedparam "ddee")', and appears like 'ddee?' .
 opOneMoreParam //(lambda funcBody ? ?ddee a b ??? c d e) -> (funcBody (pair (lambda funcBody ? ?ddee a b ??? c d) e))
@@ -3886,11 +3886,11 @@ const Wikibinator203 = (()=>{
 			return this.cache_fullIdString = 'λ'+vm.bytesToHex(vm.marklar203bId(this.lam));
 		};
 		
-		vm.stringCanBeId = function(str){
+		vm.stringWithoutPrefixCanBeId = function(str){
 			if(str.length === 0) return false;
 			if(str[0] === 'λ') return false; //cant start with λ cuz thats a prefix of fullIds and maybe of other syntax.
 			if(str.length > 64) return false; //arbitrary max len, but id as hex, with the λ prefix, is 65 bytes and 66 bytes.
-			if(/\(\)\{\}\[\]\<\>\'\"\#\\\:\,\s/.test(str)) return false; //has syntax chars or whitespace not allowed. FIXME there might be more to not allow.
+			if(/\(\)\{\}\[\]\<\>\'\"\#\\\:\,\s\?/.test(str)) return false; //has syntax chars or whitespace not allowed. FIXME there might be more to not allow.
 			return true;
 		};
 		
@@ -3910,8 +3910,8 @@ const Wikibinator203 = (()=>{
 				if(content.n.fitsInId256()){					
 					let utf8Bytes = content.n.bytes();
 					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
-					if(vm.stringCanBeId(smallString)){
-						return this.cache_idString = smallString;
+					if(vm.stringWithoutPrefixCanBeId(smallString)){ //without the λ prefix.
+						return this.cache_idString = 'λ'+smallString;
 					}
 				}
 			}
@@ -3925,7 +3925,7 @@ const Wikibinator203 = (()=>{
 				if(this.blobFrom || this.blobTo) s += vm.intToHex(this.blobFrom)+vm.intToHex(this.blobTo); //put these first so they are dropped as leading 0s
 				s += vm.intToHex(this.idA)+vm.intToHex(this.idB);
 				while(s.length>1 && s.startsWith('0')) s = s.substring(1); //dont display leading 0s
-				this.cache_locidString = 'λ'+s;
+				this.cache_locidString = 'Λ'+s; //Λ (capital lambda) prefixes a localId. Λ also means mutlam, as an opcode, which is unrelated but feels like its a little similar maybe.
 			}
 			return this.cache_locidString;
 		};
@@ -5489,8 +5489,8 @@ const Wikibinator203 = (()=>{
 		
 		vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
-		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
-		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
+		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
+		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
 		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
 		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
 		
@@ -5572,10 +5572,22 @@ const Wikibinator203 = (()=>{
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
 		*/
 		
-		
-		vm.addOp('+',null,false,2,'+ of 2 doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
-		vm.addOp('*',null,false,2,'* of 2 doubles. See + for details on doubles in general.');
+		vm.addOp('+',null,false,2,'[+ 2 3]->5 (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
+		vm.addOp('*',null,false,2,'[* 2 3]->6 (3*2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or *(X Y Z)State -> * of {Z State}, {Y State}, and {X State}, for vararg in (...)/infcurList. See + for details on doubles in general. (((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList)))');
 		vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
+		vm.addOp('%',null,false,2,'double mod double. See + for details on doubles in general.');
+		vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.');
+		vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.');
+		vm.addOp('--',null,false,2,'--(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.');
+		vm.addOp('**',null,false,2,'[** 2 10]->1024. See + for details on doubles in general.');
+		vm.addOp('&',null,false,2,'double & double (cast both to int32 first, &, then back to double). See + for details on doubles in general.');
+		vm.addOp('|',null,false,2,'double | double (cast both to int32 first, |, then back to double). See + for details on doubles in general.');
+		vm.addOp('^',null,false,2,'double & double (cast both to int32 first, ^, then back to double). See + for details on doubles in general.');
+		vm.addOp('~',null,false,1,'~double (cast to int32 first, ~, then back to double). See + for details on doubles in general.');
+		vm.addOp('Shll',null,false,2,'double << double (cast both to int32 first, <<, then back to double). See + for details on doubles in general.');
+		vm.addOp('Shrr',null,false,2,'double >> double (cast both to int32 first, >>, then back to double). See + for details on doubles in general.');
+		vm.addOp('Shrrr',null,false,2,'double >>> double (cast both to int32 first, >>>, then back to double). See + for details on doubles in general.');
+
 		vm.addOp('Neg',null,false,1,'negate double, unary. See + for details on doubles in general.');
 		vm.addOp('Sine',null,false,1,'Sine of double. See + for details on doubles in general.');
 		vm.addOp('Sqrt',null,false,1,'Sqrt of double. See + for details on doubles in general.');
@@ -5896,6 +5908,11 @@ const Wikibinator203 = (()=>{
 			this.stackMem = this.saveLoadStack.pop();
 			this.stackTime = this.saveLoadStack.pop();
 		};*/
+
+		//is Infcur with 0 or more params.
+		vm.Node.prototype.isInfcur = function(){
+			return this.o8()===vm.o8OfInfcur;
+		};
 		
 		/* very slow interpreted mode. add optimizations, as a linked list of evalers of whatever lambda,
 		as recursive (of whatever evaler is in relevant fns/lambdas called on eachother) evalers,
@@ -5938,8 +5955,10 @@ const Wikibinator203 = (()=>{
 				//if(l().o8() < 128){ //TODO remove this
 				//	throw 'shouldnt be here cuz should have just done cp';
 				//}
-				//last 3 params
-				let w = l.n.l.n.l.n.r;
+				//last 6 params
+				let a = l.n.l.n.l.n.l.n.l.n.r;
+				let b = l.n.l.n.l.n.l.n.r;
+				let c = l.n.l.n.l.n.r;
 				let x = l.n.l.n.r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
 				let y = l.n.r;
 				let z = r;
@@ -6027,6 +6046,8 @@ const Wikibinator203 = (()=>{
 					break;case o.F:
 						ret = z;
 					break;case o.L:
+						//node.L() and .R() triggers lazyEval of .l or .r child like in a blob wrapper,
+						//so next time this will just return z.n.l and not need to call .L()
 						ret = z.n.l || z.n.L();
 					break;case o.R:
 						ret = z.n.r || z.n.R();
@@ -6080,18 +6101,72 @@ const Wikibinator203 = (()=>{
 					break;case o['K?C']:
 						//vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
 						throw 'TODO';
-					break;case o.Fo:
-						/*
+					break;case o.While:{
+						let condition = x;
+						let loopBody = y;
+						let state = z;
+						while(condition(state) !== U){
+							vm.prepay1Time();
+							state = loopBody(state);
+						}
+						ret = state;
+					}break;case o.Fo:{
+						//constant size loop (ending condition cant change during loop)
+						//({,Fo varName ,0 ?height ,1 LoopBody} State), evals ?height to be (? height State).
+						//State starts as [], and may be made by vm.ops.LambdaParams or by vm.statePut(state,varName,val).
+						//State is just a [] list of ob/key/val triples andOr ob/val pairs
+						//andOr ob/cbtVal separate pairs for 1 cbt val per ob for efficiency.
+						//I'm undecided but _[...state...] (where _ is vm.ops.Seq) might be a func of state to state.
+						let varName = a;
+						let start = b.n.d();
+						//let dynamicMaxExcl = x;
+						let maxExcl = c.n.d();
+						let inc = x.n.d();
+						let loopBody = y;
+						let state = z;
+						let prevVal = vm.stateGet(state,varName);
+						//try{
+							for(let i=state; i<maxExcl; i+=inc){
+								vm.prepay1Time();
+								state = vm.statePut(state,varName,i);
+								state = loopBody(state);
+							}
+						//}finally{
+							state = vm.statePut(state,varName,prevVal);
+						//}
+						ret = state;
+					
+					
+						//NEW: Fo[y ,0 ?height ,1 LoopBody]
+						
+						/*no, these are in the [...]. theres only 2 params. let varName = v;
+						let start = w.n.d();
+						//let dynamicMaxExcl = x;
+						let maxExcl = x.n.d();
+						let inc = y.n.d();
+						let loopBody = z;
+						*
+						let list = y;
+						FIXME what if theres diff num of params?
+						FIXME do i want n loopbody params as if a _[...] wraps them?
+						FIXME do i want optional start (default 0), optional inc (default 1)?
+						//let loopBody = y.n.r;
+						
+						let state = z;
+						
+					
+						/*OLD:
 							(Fo ,i .z.y.length _[
 								(=ood .z.abc .i <.z.y .i>)
 							])
-						*/
+						*
 						let varName = x;
 						let condition = y;
 						stream = z;
 						throw 'TODO';
-						
-					break;case o.For:
+						*/
+					
+					/*break;case o.For:
 						//vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript:
 						//	for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
 						let start = w;
@@ -6102,7 +6177,8 @@ const Wikibinator203 = (()=>{
 							stream = loopBody(stream);
 						}
 						ret = stream;
-					break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
+					*/
+					}break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
 						let bit = y.n.eq(z);
 						console.log('Computing Eq... y='+y+' z='+z+' bit='+bit);
 						ret = vm.bit(bit);
@@ -6251,7 +6327,7 @@ const Wikibinator203 = (()=>{
 							}
 							ret = state;
 						}
-					break; case o.Seq:
+					break; case o.Seq: //aka _ like in _(...) in //new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList.
 						{
 							//TODO merge duplicate code between qes and seq
 							//vm.addOp('seq',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any 	vararg in the [].');
@@ -6284,15 +6360,85 @@ const Wikibinator203 = (()=>{
 						*/
 					break;case o.HasMoreThan7Params:
 						ret = vm.Bit(z().hasMoreThan7Params());
-					break;case o['+']:
+					break;case o['+']:{
 						//FIXME see "FIXME" comment in case Sine.
-						ret = vm.wrapDouble(y.n.d()+z.n.d());
-					break;case o['*']:
+
+						//new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList.
+						//+(a b c d)e -> sum these doubles: {a e} {b e} {c e} {d e}.
+						//{+ 2 3} -> 5. Either way + has 2 params. Differs by if first of 2 params is a ()/infcur, which is how that vararg syntax is done.
+						if(y.n.isInfcur()){ //+(a b c d ...)z, a kind of vararg
+							//FIXME add from left or right side first? Affects roundoff even if deterministic.
+							//At least for now do it in reverse order cuz thats the order they're reachable in the infcur list.
+							let infcurList = y;
+							let sum = 0;
+							while(infcurList.n.hasMoreThan7Params()){
+								vm.prepay1Time();
+								sum += infcurList.n.r.n.d();
+								infcurList = infcurList.n.l;
+							}
+							ret = vm.wrapDouble(sum);
+						}else{ //{+ 2 3}
+							ret = vm.wrapDouble(z.n.d()+y.n.d()); //secondParam+firstParam, reverse order to match the vararg order being reversed
+						}
+					}break;case o['*']:{
 						//FIXME see "FIXME" comment in case Sine.
-						ret = vm.wrapDouble(y.n.d()*z.n.d());
-					break;case o['-']:
+						//ret = vm.wrapDouble(y.n.d()*z.n.d());
+
+						//See o['+'].
+
+						//new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList.
+						//*(a b c d)e -> multiply these doubles: {a e} {b e} {c e} {d e}.
+						//{* 2 3} -> 5. Either way * has 2 params. Differs by if first of 2 params is a ()/infcur, which is how that vararg syntax is done.
+						if(y.n.isInfcur()){ //*(a b c d ...)z, a kind of vararg
+							//FIXME add from left or right side first? Affects roundoff even if deterministic.
+							//At least for now do it in reverse order cuz thats the order they're reachable in the infcur list.
+							let infcurList = y;
+							let mul = 0;
+							while(infcurList.n.hasMoreThan7Params()){
+								vm.prepay1Time();
+								mul *= infcurList.n.r.n.d();
+								infcurList = infcurList.n.l;
+							}
+							ret = vm.wrapDouble(mul);
+						}else{ //{+ 2 3}
+							ret = vm.wrapDouble(z.n.d()*y.n.d()); //secondParam*firstParam, reverse order to match the vararg order being reversed
+						}
+					}break;case o['%']: //mod. (-310)%100==(-10). (-310+1000)%100==90. -10 and 90 are 100 apart, so the mod works.
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(y.n.d()%z.n.d()); //(double,double)->double
+					break;case o['++']:{
+						//++(a getB getC)State -> next State with value of ?(a getB getC) incremented.
+						//++(a)State -> State with val of a incremented.
+						throw 'TODO need to use ? op, = op, andOr variants of it, andOr vm.something like vm.stateGet and vm.statePut but those arent vararg, find or make a vararg one.';
+						//ret = vm.wrapDouble(z.n.d()+1); //double->double
+					}break;case o['--']:{
+						throw 'See TODO in ++.';
+						//ret = vm.wrapDouble(z.n.d()-1); //double->double
+					}break;case o['**']:{ //means exponent in javascript and here, of doubles.
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(Math.pow( y.n.d(),z.n.d())); //(double,double)->double
+					}break;case o['-']:
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(y.n.d()-z.n.d());
+					break;case o['/']:
+						//FIXME see "FIXME" comment in case Sine.
+						ret = vm.wrapDouble(y.n.d()/z.n.d());
+					break;case o['&']:
+						//(double,double)->double, cuz this is designed to fit how javascript works, and all math ops happen on doubles, but can store in Int32Array with auto cast.
+						ret = vm.wrapDouble(y.n.d()&z.n.d());
+					break;case o['|']:
+						ret = vm.wrapDouble(y.n.d()|z.n.d()); //(double,double)->double
+					break;case o['^']:
+						ret = vm.wrapDouble(y.n.d()^z.n.d()); //(double,double)->double
+					break;case o['~']:
+						ret = vm.wrapDouble(~z.n.d()); //double->double
+					break;case o['Shll']:
+						ret = vm.wrapDouble(y.n.d()<<z.n.d()); //(double,double)->double
+					break;case o['Shrr']:
+						ret = vm.wrapDouble(y.n.d()>>z.n.d()); //(double,double)->double
+					break;case o['Shrrr']:
+						ret = vm.wrapDouble(y.n.d()>>>z.n.d()); //(double,double)->double
+					
 					break;case o.Neg:
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(-z.n.d());
@@ -6362,6 +6508,10 @@ const Wikibinator203 = (()=>{
 		//TODO optimize this by storing a hasMoreThan7Params bit in headerInt mask?
 		vm.Node.prototype.hasMoreThan7Params = function(){
 			return this.o8()==this.l().o8();
+		};
+		
+		vm.Node.prototype.hasAtMost7Params = function(){
+			return !this.hasMoreThan7Params();
 		};
 		
 		vm.Node.prototype.hasLessThan7Params = function(){
@@ -6588,6 +6738,9 @@ const Wikibinator203 = (()=>{
 		//vm.isDisplayStringLiterals = false;
 		vm.isDisplayStringLiterals = true;
 		
+		//Example: view (TypevalC application/x-IEEE754-double 0x4002b851eb851eb8) as 2.34
+		vm.isDisplayDoubleLiterals = true;
+		
 		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
@@ -6606,9 +6759,11 @@ const Wikibinator203 = (()=>{
 			
 			//WARNING: this only works if deduped and is not a lazy blob,
 			//which is true in this prototype VM. Using o8() is the more general way.
-			let isUtf8String = FN.l==vm.utf8Prefix;
+			let isUtf8String = FN.l===vm.utf8Prefix;
 			//FN.r() would normally be a cbt, but does not technically have to be. Its only useful if its a cbt.
 			let isSmallUtf8String = isUtf8String && FN.r().cbtSize() <= 256;
+			
+			let isDoubleLiteral = FN.isDouble();
 			
 
 			//TODO also small string literals, with a few syntaxes for that,
@@ -6616,7 +6771,7 @@ const Wikibinator203 = (()=>{
 			//and one syntax for if its longer but within some size limit (dont make people read pages of text in a literal),
 			//and there will be literals for various number types such as float64 and int32 etc but I havent decided which types yet,
 			//and for raw cbts as 0b1110001101111100 or maybe hex 0x.
-			let isLiteral = isSmallCbt || (vm.isDisplayStringLiterals && isSmallUtf8String);
+			let isLiteral = isSmallCbt || (vm.isDisplayStringLiterals && isSmallUtf8String) || (vm.isDisplayDoubleLiterals && isDoubleLiteral);
 			//let isLiteral = isSmallCbt;
 
 			if(view.fn.localName){ //FIXME
@@ -6675,6 +6830,8 @@ const Wikibinator203 = (()=>{
 					viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
 					
 					//throw 'TODO use node.bytes';
+				}else if(isDoubleLiteral){
+					viewing.tokens.push(''+FN.d());
 				}else{
 					throw 'TODO some other kind of literal, to code string';
 				}
@@ -6835,6 +6992,92 @@ const Wikibinator203 = (()=>{
 				//view.hasDefinedBeforeUsingName = true;
 			}
 			
+		};
+		
+		
+		//throw 'TODO';
+		/*
+		TODO should the fields in Mut (or 1 char abbrevs of them) be part of the datastruct in [...state...]?
+		Example: [[valMap playerball5 xv 3.45][...][...]]
+		If define = (which is just a name of some lambda, maybe make it an opcode)
+		so that everything in [...state...] if prefixed by = sets that in another [...state...],
+		then this is a flexible design and easy to read.
+		=[valMap playerball5 xv 3.45]
+		=[valCbt playerball5 (TypevalB application/x-IEEE754-doubles 0x4012449ba5e353f84012449ba5e353f84012449ba5e353f88000000000000000)]
+		..
+		How about a mindmapEdge type, like in the listweb mindmap,
+		which can be viewed as a sparse weighted matrix between objects...
+		but can that be made efficiently using the objects as they are? And would I want more than 1 mindmap at a time?
+		//? [mindmap playerball5 2.34 thethingxyz]
+		Or could have those vals be a [] list instead of making a sparse matrix datastruct for it.
+		Mindmap might be displayed between many fns/lambdas as a certain color
+		of edge (or same color as the node is displayed) but only from the selected node
+		cuz otherwises it could be too many edges on screen.
+		The listweb mindmap software (newest version in https://github.com/benrayfield/occamsworkspace
+		or i have local updates havent put on github in too long as of 2022-8-25)
+		will be very important for organizing lambdas cuz its a way to organize many thousands of lists of lists of lists...
+		and if x is in y's list then y is in x's list and the lists can be reordered by mouse drag,
+		and notes can be written or copy/pasted about any node.
+		Imagine dragging fns/lambdas into and out of such lists (including copying them by ptr)
+		and gathering thousands of fns over time that you use in various combos.
+		But that doesnt necessarily need its own opcodes. The opcodes are already turingcomplete.
+		..
+		The mindmap is more of a longterm thing. The vm.Mut system is normally for very short times
+		such as 1/60 second between video frames, or  .0001 second, or maybe in some rare cases a few seconds or more,
+		so vm.Mut should probably NOT have such a sparse matrix built in between Muts.
+		*
+		
+		[
+			[playerball5 valMap xv 3.45]
+			[playerball5 valNum 2]
+			[playerball5 valFn (...)]
+			[...]
+			[...]
+		]
+		
+		Or should there be different =D =fn =KV =ObKeyVal etc (but shorter names for those)?
+		Cuz i dont want to write =[playerball5 ,valMap ,xv ,3.45] in code.
+		I want to write something like =[playerball5 ,xv ,3.45].
+		Also, i dont want to put ',' (aka T) before them in the [...state...].
+		
+		(=okv ob key val)
+		(=of ob fn)
+		(=oe ob num)
+		(=oc ob typedblob)
+		*/
+		
+		/*
+		[
+			(=m ob key val) //Mut.valMap[Mut]->Mut. ob, key, and val must all be deduped. Both js {} and js [] go here.
+			(=f ob fn) //ob deduped, fn may be dup.
+			(=n ob num) //ob deduped, num probably deduped cuz numbers are so small it happens automatically, but not technically required. Maybe this should be raw 64 bits, implying double.
+			(=b ob typedblob) //ob deduped, typedblob may be dup. typedblob may be Uint8Array, Float32Array, etc.
+		]*/
+		
+		
+		
+		//val is typedblob is normally something like
+		//(TypevalB application/x-IEEE754-doubles 0x4012449ba5e353f84012449ba5e353f84012449ba5e353f88000000000000000)
+		//aka a double[3] with 3 specific doubles in it and padding to next powOf2 size.
+		//Might also be a TypevalC (cbt). TypevalB (bitstring) is also about a cbt but views it as bitstring then padding.
+		vm.stateKeyTypedblob = function(state, key, typedblob){
+			throw 'TODO see stateGet';
+		};
+		
+		vm.stateObKeyVal = function(state, ob, key, val){
+			throw 'TODO see stateGet';
+		};
+		
+		//put key=val
+		//a [...state...] list
+		vm.stateKeyVal = function(state, key, val){
+			throw 'TODO see stateGet';
+		};
+		
+		//get val of it
+		vm.stateKey = function(state, key){
+			if(state.n.hasAtMost7Params()) return U;
+			throw 'TODO check state.n.r for being something like =[key val] or (ObVal key val) or (ObKeyVal ob key val), or something like that. TODO i havent decided on all the setter and getter types.';
 		};
 		
 		//syntax type
@@ -7849,34 +8092,49 @@ const Wikibinator203 = (()=>{
 		vm.Mut.prototype.dd = vm.emptyFrozenDoublesArray; //can replace with new Float64Array(someNumber) in Mut instance
 		*/
 		
+		//fn is any deduped fn. Optional param whichOpmutSpace is any mutable js {}.
 		vm.Mut = function(fn,whichOpmutSpace){
-			this.ns = whichOpmutSpace || {}; //js map {} of fn to Mut. FIXME make fn.toString give the [string id, or if small string literal then prefix concat that] of that fn.
+			this.keyNs = whichOpmutSpace || {}; //js map {} of fn to Mut. FIXME make fn.toString give the [string id, or if small string literal then prefix concat that] of that fn.
 			
 			//(fn,whichOpmutSpace) is primaryKey. If you call opmut stuff from inside opmut stuff, it will alloc another whichOpmutSpace recursively.
-			this.fn = fn; //cant be replaced (except maybe by deduping it?)
+			this.keyFn = fn; //cant be replaced (except maybe by deduping it?)
 			
 			//id is either 'λ' concat hex of its marklar203bId, OR a small literal string if no whitespace or syntax chars etc, or maybe other small literals.
 			//TODO Might use base58 or base64 later instead of hex.
 			//this.fnId = fn.n.id();
 			
 			//double val. mutable.
-			this.num = 0;
-			
-			//map of Mut to Mut.
-			this.map = {};
-			Object.setPrototypeOf(this.map,null);
-			
-			//list of Mut
-			this.list = [];
+			this.valNum = 0;
 			
 			//A fn that doesnt have to be deduped, but isnt used as a key here (may be used as a key other places),
 			//so it can do fast things like 
-			this.fnVal = U;
+			this.valFn = U;
+			
+			//map of Mut to Mut.
+			//this.map = {};
+			//
+			//TODO key in this map is node.id() which is either a full id as string or a small
+			//string (with a prefix?), either way uniquely identifies that fn.
+			//
+			//TODO way to lookup node and node.lam and Mut wrapper of it, look up by node.id() aka key in this map,
+			//but only certain strings can be ids, make sure to exclude those that are fields in js [] etc
+			//so "length" cant be an id but λlength could be,
+			//and FIXME if a string is all digits such as 42 then make sure λ42 is not ambiguous,
+			//whether thats node.locid() (128 bit local id in hex excluding leading zeros, prefixed by λ)
+			//vs node.id() being '42' or 'λ42'.
+			//
+			this.valMap = []; //map and list. careful about certain keys such as length and __prototype__ or those similarly named
+			Object.setPrototypeOf(this.map,null);
+			
+			//list of Mut
+			//this.list = [];
 			
 			//Any primitive array, such as Uint8Array, Int32Array, Float32Array, Float64Array. Mutable if nonempty.
 			//Can be replaced after the mut is created.
 			//Depending on what type this is, values put in it will be truncated or dropped (TODO make it deterministic).
-			this.arr = vm.emptyFrozenDoublesArray;
+			//
+			//Stored in [...state...] this would be a TypevalB (bitstring) or TypevalC (cbt). TODO which?
+			this.valArr = vm.emptyFrozenDoublesArray;
 			
 		};
 		
@@ -7889,19 +8147,19 @@ const Wikibinator203 = (()=>{
 		vm.Mut.prototype.toString = function(){
 			//return this.fnId;
 			//is cached there, though caching it again in Mut.fnId might be a little faster. It will usually get compiled so this isnt even called often.
-			return this.fn.n.id();
+			return this.keyFn.n.id();
 		};
 		
 		//given a fn/lambda, returns the Mut wrapper for it in this same whichOpmutSpace.
 		vm.Mut.prototype.fnToMut = function(fn){
-			return this.ns[fn] || (this.ns[fn] = new vm.Mut(fn,this.ns));
+			return this.keyNs[fn] || (this.keyNs[fn] = new vm.Mut(fn,this.keyNs));
 		};
 		
 		//Call Mut on Mut to get Mut, using the fns they contain, in this same whichOpmutSpace,
 		//but if this.k (the caller fn) is an opcode that allocates a new whichOpmutSpace
 		//then does that recursively before returning back to this whichOpmutSpace.
 		vm.Mut.prototype.call = function(mut){
-			return this.fnToMut(this.fn(mut.fn));
+			return this.fnToMut(this.keyFn(mut.keyFn));
 		};
 		
 		
@@ -8228,6 +8486,15 @@ const Wikibinator203 = (()=>{
 			return this.r;
 		};
 		
+		//Thats 1 double. For array use vm.typeDoubles(TheArrayToWrap) aka {TypevalC application/x-IEEE754-doubles TheArrayToWrap}.
+		//(((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList))).
+		//If its just the 64 bits of a double, it will display as 0x0000000000000000 (whatever 64 bits), without an interpretation of the bits.
+		//let isDoubleLiteral = FN.l===vm.typeDouble && FN.r.cbtHeight()===6;
+		vm.Node.prototype.isDouble = function(){
+			//If !this.l, like if this.blob exists but its childs are lazyEvals, then its not a double, since a double is a call of TypevalC.
+			return this.l===vm.typeDouble && this.r.n.cbtHeight()===6;
+		};
+		
 		
 		/*
 		//from and to are optional
@@ -8290,14 +8557,14 @@ const Wikibinator203 = (()=>{
 		//FIXME it might be breaking when type doesnt fit in a literal (has to callpair it),
 		//since stringLiterals arent fully working yet 2022-8-18.
 		//vm.typeDouble = vm.contentType('application/x-IEEE754-double-cbt64');
-		vm.typeDouble = vm.contentTypeCbt('application/x-IEEE754-double');
+		vm.typeDouble = vm.contentTypeCbt('application/x-IEEE754-double'); //TypevalC
 		//vm.typeFloat = vm.contentType('application/x-IEEE754-float-cbt64');
-		vm.typeFloat = vm.contentTypeCbt('application/x-IEEE754-float');
+		vm.typeFloat = vm.contentTypeCbt('application/x-IEEE754-float'); //TypevalC
 
 
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
-		vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles');
-		vm.typeFloats = vm.contentTypeBitstring('application/x-IEEE754-floats');
+		vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles'); //TypevalB
+		vm.typeFloats = vm.contentTypeBitstring('application/x-IEEE754-floats'); //typevalB
 		
 		/* just use cbt by itself.
 		//FIXME if its a powOf2 number of bytes, especially 2**22 bytes for 1024x1024 graphics and 4 bytes per pixel,
@@ -8309,7 +8576,7 @@ const Wikibinator203 = (()=>{
 		//Its suggested this be the only contentType whose first param is not a string, is how to make a utf8 string,
 		//though other combos can happen since the math allows it.
 		//Other contentTypes use such a string in their first param, like (Typeval application/x-IEEE754-float 0x40490fdb) is float pi.
-		vm.typeUtf8 = vm.contentTypeBitstring(U);
+		vm.typeUtf8 = vm.contentTypeBitstring(U); //TypevalB. This is normally the only TypevalB whose content is not a cbt (its U), but any combo is technically allowed, within same number of params.
 		
 		
 		
@@ -8399,6 +8666,8 @@ const Wikibinator203 = (()=>{
 		
 		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
+		
+		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
 		
 		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
 		
