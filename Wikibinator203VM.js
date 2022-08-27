@@ -146,6 +146,11 @@ copies or substantial portions of the Software.
 */
 
 
+console.log('TODO!!!!: Changing the syntax of vm.eval(codeString)->lambda. Theres 4 s-expression-like things: {a b} is normal call. {a b c} is {{a b} c}. (this is (just data) put anything {a b} here). () is an empty such list. <a b> is {S a b}. <a b c> is {S {S a b} c}. [a b c] is <,a b c>. ,a is {T a}');
+
+
+
+
 
 
 
@@ -2776,10 +2781,10 @@ const Wikibinator203 = (()=>{
 		
 		//vm.mask_reservedForFutureExpansion5 = 1<<5;
 		
-		//Only includes things whose o8>127 aka has at least 7 params so op is known.
 		//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
 		//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
 		//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
+		//Only includes things whose o8>127 aka has at least 7 params so op is known.
 		vm.mask_isCbt = 1<<6;
 		
 		//anything that implies a certain lambda call halts (need to do that to verify it, which may take infinite time and memory to disprove a false claim, but always takes finite time and memory to prove a true claim).
@@ -2941,13 +2946,15 @@ const Wikibinator203 = (()=>{
 			return vm.utf8AsUint8ArrayToString(bytes.subarray(this.blobFrom, this.blobTo));
 		};
 	
+		//UPDATE: changing this from 246 to 245 cuz adding a comment param in vm.ops.Lambdo between param names list and funcBody.
 		//for ops.Lambda. ops.MutLam might be 1 less (TODO verify that)?
 		//(Lambda [...param names...] FuncBody ...up_to_maxLambdaParams_params...)
 		//has at most 254 params (of U, which Lambda is 6th param of, and [...param names...] is 7th param of),
 		//cuz 255 params of U means never evals and takes infinity params (like in Infcur).
 		//You can have more lambda params but the lambda will become like Infcur,
 		//and in that case its curriesLeft will be 255. 254-8=246 so maxLambdaParams is 246.
-		vm.maxLambdaParams = 246;
+		//vm.maxLambdaParams = 246;
+		vm.maxLambdaParams = 245;
 		
 		vm.overlappingBufferInts = new Int32Array(2);
 		vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
@@ -3180,7 +3187,8 @@ const Wikibinator203 = (()=>{
 								//rCur is curries so far of [a b c] which is of (Infcur a b c) which is 10
 								//since []/Infcur, like most opcodes, is 7 curriesSoFar, plus 3 for a b c.
 								//curriesLeft should be 4 in that case: FuncBody valA valB valC.
-								curriesLeft = 1+paramsListSize; //FuncBody then paramVals.
+								//curriesLeft = 1+paramsListSize; //FuncBody then paramVals.
+								curriesLeft = 2+paramsListSize; //Comment then FuncBody then paramVals. 2022-8-27 added comment param in vm.ops.Lambdo.
 								console.log('Lambda getting its 7th param a [], curriesLeft='+curriesLeft+' paramsListSize='+paramsListSize);
 							}else{
 								//Lambda similar to Infcur, takes infinity params, never evals.
@@ -3590,8 +3598,11 @@ const Wikibinator203 = (()=>{
 		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...) etc, returns FuncBody.
 		vm.Node.prototype.funcBody = function(){
 			if(!this.cacheFuncBody){
-				let at8Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8);
-				this.cacheFuncBody = at8Params.n.r;
+				//let at8Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8);
+				//this.cacheFuncBody = at8Params.n.r;
+				//FIXME, this might break things: 2022-8-27 adding a comment param before funcBody in vm.ops.Lambdo, so FuncBody is now param 9 (was 8).
+				let at9Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(9);
+				this.cacheFuncBody = at9Params.n.r;
 			}
 			return this.cacheFuncBody;
 		};
@@ -3611,6 +3622,21 @@ const Wikibinator203 = (()=>{
 				this.cacheParamNames = at7Params.n.r;
 			}
 			return this.cacheParamNames;
+		};
+		
+		
+		//If this is a call of Lambdo (λ is {L Lambdo}, to make room for vararg param names infcurList/(a b c...))
+		//then comment is 8th param, or it might not have 8 params in which case comment is U.
+		//If this is MutLam or maybe VarargAx, or maybe a few other types might have a standard place to put in a comment,
+		//then todo return comment of those too.
+		vm.Node.prototype.getComment = function(){
+			if(this.cur() < 8) return U;
+			switch(this.o8()){
+				case vm.o8OfLambdo:
+					return this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8).n.r;
+				break;default:
+					return U;
+			}
 		};
 		
 		//name is a fn.
@@ -5518,7 +5544,7 @@ const Wikibinator203 = (()=>{
 		when params should differ but is reusing that instead.
 		*/
 		
-		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,2,'Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
+		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,1,'It works like this: {{L Lambdo} (x y) (todo add comment param here...) [+ [* x x] *[y y]] 6 8}->100. {L Lambdo} is written as λ and its opcode is vm.o8OfLambda. The (x y ...) can be any num of params up to around 250 (todo whats the exact number? check vm.max* vars). OLD... Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
 		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
 		vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).');
 		//Maybe its better to focus on optimizing Lambda and MutLam, which have named params. vm.addOp('Vararg',null,true,2,'(Vararg [a b c d] e) -> (a [a b c d e]), maybe viewed as (<a b c d> e) -> (a <a b c d e>)? So (Vararg [a b c d]) is displayed as <a b c d>? Used for deriving syntaxes like <M keyA valA keyB valB>.');
@@ -6298,6 +6324,9 @@ const Wikibinator203 = (()=>{
 						//and in that case, FuncBody normally contains (P aSize) which gets ValASize,
 						//and (P aSize) might be written as ?aSize or .aSize or something like that, and see <...> syntax.
 						let FuncBody = l.n.funcBody();
+						
+						//FIXME maybe infcur/() shouldnt be used here, and should use Pair or some other op for it instead,
+						//so Get (whats it called?) aka the ? opcode, can easier tell the difference between [AllParamsExceptLast LastParam] vs [...state...].
 						ret = FuncBody(vm.ops.Infcur(l)(r)); //l contains FuncBody so it can call itself recursively if it wants to.
 					break; case o.LambdaParams:
 						//FIXME remove this? cuz should use ObVal and ObKeyVal etc in a []?
