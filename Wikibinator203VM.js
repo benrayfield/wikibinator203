@@ -1,5 +1,5 @@
 /*
-LICENSE AT TIME 2022-8-3 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
+LICENSE AT TIME 2022-9-2 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
 Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
 
 I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
@@ -21,6 +21,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+
+It may be illegal in some countries to say certain things,
+such as "the holocaust didnt happen" for example.
+This license protects free speech in evilbit=true namespace
+by making it normal that anything said there is not claiming it is true,
+as lambdas generate many variants of things that are true and many false,
+so it would be negligence to believe something there just because you read it,
+and all it means is that its a piece of data, not that its true or false.
+If you put such data there and say with your mouth its true,
+that thing your mouth did may be claiming "the holocaust didnt happen",
+but that string "the holocaust didnt happen",
+along with "the holocaust is made of green cheese" etc are just data
+and are not legal claims. Numbers by themself do not have legal effect.
 
 This software uses a constant infinite size unweighted directed-graph
 with 3 edge-colors, that contains all possible patterns of finite
@@ -144,6 +157,28 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 ]]]
 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 console.log('TODO!!!!: Changing the syntax of vm.eval(codeString)->lambda. Theres 4 s-expression-like things: {a b} is normal call. {a b c} is {{a b} c}. (this is (just data) put anything {a b} here). () is an empty such list. <a b> is {S a b}. <a b c> is {S {S a b} c}. [a b c] is <,a b c>. ,a is {T a}');
