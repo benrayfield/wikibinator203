@@ -1,0 +1,89 @@
+<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<script src="Wikibinator203VM.js" charset="UTF-8"></script>
+<script>
+//This script is under the Wikibinator203 license.
+
+//drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
+
+const U = Wikibinator203; //the universal function
+const vm = Wikibinator203.n.vm;
+
+const loadOpsByName = true;
+console.log('loadOpsByName='+loadOpsByName);
+
+//let S = vm.ops.S;
+//let T = vm.ops.T;
+//let F = vm.ops.F;
+//let Pair = vm.ops.Pair;
+if(!vm) throw 'No vm';
+if(loadOpsByName) for(let op in vm.ops){
+	if(window[op]) throw 'Already have var window.'+op;
+	window[op] = vm.ops[op];
+	console.log('Created var for opcode as lambda: window.'+op);
+}
+
+//draggable tree node, view of a fn/lambda.
+var Branch = function(fn){
+	
+	this.fn = fn;
+	
+	//or if its displayed as just a Name# (defined somewhere else) then no prefix or suffix.
+	this.prefix = ''; //Examples: [ { ( <
+	this.suffix = ''; //Examples: ] } ) >
+	
+	//dom object, maybe a div. div may contain canvas andOr child Branchs.
+	//Contains childsDob and maybe other stuff (such as displaying this.prefix and this.suffix left of it tabbed over).
+	this.dob = null;
+	
+	this.prefixDob = null;
+	
+	//TODO move Name# to end instead of start, so its (...)#Name, cuz theres more room on the closing paren/etc, often in its own line.
+	//and cuz you cant use #Name before its (...) is defined, so you cant create cycles in the lambda forest.
+	this.nameDob = null;
+	
+	//may be a canvas or text or 0x45f9 cbt or 2.34 number or localId or globalId etc.
+	//This must be used if !this.treeOpen
+	this.literalDob = null;
+	
+	//inside this.dob, near this.prefix. controlsDob has a checkbox to change this.treeOpen
+	//and maybe other controls to change how things are displayed.
+	//TODO where is this.fn dragged from?
+	this.controlsDob = null;
+	
+	//tabbed over 1 tab to the right of this.prefix, and this.suffix is down right from childsDob and is on its own line,
+	//or if its all on 1 line then childsDob is between this.prefix on its left and this.suffix on its right with no tabs.
+	//childsDob contains all Branchs in this.childs, if this.treeOpen, else is empty/hidden/etc.
+	this.childsDob = null;
+	
+	this.suffixDob = null;
+	
+	FIXME should there be Branch for every fn or just one per var size list?
+	
+	//child Branchs. They may or may not be displayed.
+	this.childs = [];
+	
+	//If false, this is displayed as this.fn.locid() (string form of 128 bit local id). If true, childs are displayed.
+	this.treeOpen = true;
+	
+	//If childs fit on 1 line, then set this to true. Starts false in case they dont,
+	//since fn hasnt been tostringed to know how big its code is, which parts are displayed etc.
+	//If one line, then this.prefix and this.suffix
+	this.isOneLine = false;
+};
+
+Branch.prototype.display = function(){
+	throw 'TODO';
+};
+
+
+
+
+
+</script>
+</head><body>
+	drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
+	<br><br>
+	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
+	
+</body></html>
