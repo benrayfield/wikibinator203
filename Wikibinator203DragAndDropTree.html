@@ -23,10 +23,49 @@ if(loadOpsByName) for(let op in vm.ops){
 	console.log('Created var for opcode as lambda: window.'+op);
 }
 
-//draggable tree node, view of a fn/lambda.
-var Branch = function(fn){
-	
+//a split is a view of a fn/lambda and its 2 child fn/lambdas, with each child being open or closed.
+//a split is immutable. If its a view of U (leaf aka the universal combinator) or of a literal then childs wont be displayed.
+//The first n fns in a [] {} () <> can be viewed as closed, and just {} call that closed localId on those after the first n,
+//but those would be different Splits.
+var Split = function(fn, leftOpen, rightOpen, literalOpen){
 	this.fn = fn;
+	//There can be multiple Splits for same fn since they can view it diff ways.
+	this.leftSplit = null; //TODO a Split for L(this.fn)
+	this.rightSplit = null; //TODO a Split for R(this.fn).
+	this.leftOpen = leftOpen;
+	this.rightOpen = rightOpen;
+	this.literalOpen = literalOpen;
+	
+	FIXME should it be selfOpen instead of leftOpen and rightOpen?
+	
+	FIXME should Split know about height and width sizes recursively? Or leave that to Branch?
+	
+	TODO should Split have isOneLine var?
+	
+	TODO use vm.ParseTree to get syty (syntax type) of this.fn.
+	
+	TODO when start dragging with mouse, it should grab a Split, not a Branch?
+};
+
+//draggable tree node, view of a fn/lambda as a var size list or literal. Literals can be text, sounds, canvas bytes, etc.
+var Branch = function(split){
+
+	FIXME, should Branch be immutable (other than maybe some dob/domObject optimizations)?
+	Yes, do that. But optimize for reusing canvas(es) for low lag cuz changing dom tree maybe is not as fast as video frames in canvas.
+	Might cause a problem with renaming #Names after theyre displayed.
+	Maybe Names and literals(like a pic displayed in canvas, changing every 1/60 second for interactive video) should
+	be in a separate js type than Branch, so they can update on their own, without changing size, and without interfering
+	with the Branch objects?
+	Should each Branch take a height and width in its constructor, maybe in units of monospaced chars?
+		That could be a problem for magnifying/shrinking big names to fit in the same space.
+	Imagine dragging a Branch (a rectangle on screen) onto another Branch to call it, in {} [] () or <>.
+		Just making the tree causes the call.
+	Fixing some of that using the Split class which is an immutable view of 
+		
+	
+	
+	//this.fn = fn;
+	this.split = split;
 	
 	//or if its displayed as just a Name# (defined somewhere else) then no prefix or suffix.
 	this.prefix = ''; //Examples: [ { ( <
