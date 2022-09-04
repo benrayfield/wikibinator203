@@ -2,12 +2,15 @@
 <meta charset="UTF-8">
 <script src="Wikibinator203VM.js" charset="UTF-8"></script>
 <script>
+//TODO move window out of that lambda then... const Wikibinator203DragAndDropTreeUI = (()=>{
+
 //This script is under the Wikibinator203 license.
 
 //drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 
 const U = Wikibinator203; //the universal function
-const vm = Wikibinator203.n.vm;
+if(U(U(U))(U) !== U(U(U))(U)) throw 'Lambda equality is broken';
+const vm = Wikibinator203.n.vm; //anyWikibinator203Lambda.n is its vm.Node instance, wrapped in a lambda by vm.lambdize(node)
 
 const loadOpsByName = true;
 console.log('loadOpsByName='+loadOpsByName);
@@ -23,10 +26,40 @@ if(loadOpsByName) for(let op in vm.ops){
 	console.log('Created var for opcode as lambda: window.'+op);
 }
 
+//TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
+//and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
+//and replaces some dom nodes if they're no longer used.
+//Split can share branches and is a forest (like fn). Split might be made of fns later (TODO?).
+//Splat is a tree and cant share branches.
+//A split is dragged from any part of Splat to any part of Splat."
+//
+var Splat = function(){
+
+	this.split = null; //TODO
+	
+	//map of string to dob (dom object)
+	this.dobs = {};
+	
+	this.parentSplat = null; //null if this is a top Splat (any can be)
+	this.leftSplat = null; //null if not viewing left child
+	this.rightSplat = null; //null if not viewing right child
+};
+
+//display rootSplat in rootDiv, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
+var rootSplat = new Splat();
+var rootDiv = null; //TODO
+
 //a split is a view of a fn/lambda and its 2 child fn/lambdas, with each child being open or closed.
 //a split is immutable. If its a view of U (leaf aka the universal combinator) or of a literal then childs wont be displayed.
+//
+//FIXME make it a fractal, not a tree.
+//Making a drag-and-drop tree UI for #wikibinator. Each branch is a javascript lambda (useable on browser console
+//or by drag and drop). But its not actually a tree. Its a fractal. Without exception, every branch has 2 child branches,
+//that when called on eachother return the parent.
+//
 //The first n fns in a [] {} () <> can be viewed as closed, and just {} call that closed localId on those after the first n,
 //but those would be different Splits.
+/*
 var Split = function(fn, leftOpen, rightOpen, literalOpen){
 	this.fn = fn;
 	//There can be multiple Splits for same fn since they can view it diff ways.
@@ -35,6 +68,9 @@ var Split = function(fn, leftOpen, rightOpen, literalOpen){
 	this.leftOpen = leftOpen;
 	this.rightOpen = rightOpen;
 	this.literalOpen = literalOpen;
+	
+	//map of string to dob (dom object)
+	this.dobs = {};
 	
 	FIXME should it be selfOpen instead of leftOpen and rightOpen?
 	
@@ -45,8 +81,101 @@ var Split = function(fn, leftOpen, rightOpen, literalOpen){
 	TODO use vm.ParseTree to get syty (syntax type) of this.fn.
 	
 	TODO when start dragging with mouse, it should grab a Split, not a Branch?
+};*/
+
+
+
+//TODO write new description now that theres both Split and Splat (old Split code was divided into that).
+var Split = function(fn, leftSplit, rightSplit, displayType, isOneLine){
+
+	this.fn = fn;
+	
+	/*
+	//TODO How this Split is displayed depends on this.parentSplit.dity,
+	//like parentSyty is used in in vm.ParseTree, vm.eval, etc.
+	//fns/lambdas have no parent, but Splits do. Splits are a tree and not a forest. fns are both.
+	this.parentSplit = parentSplit;
+	this.leftSplit = leftSplit;
+	this.rightSplit = rightSplit; throw 'TODO';
+	*/
+	
+	//There can be 0 or more parents of Split cuz its an immutable forest, unlike Splaat which is a mutable tree.
+	//Split therefore only knows its childs, down to whichever are viewed as closed (by #Name or localId or globalId).
+	//A Split is itself open or closed
+	this.leftSplit = leftSplit;
+	this.rightSplit = rightSplit;
+	
+	/*FIXME how can Split be immutable and tell all 3 at once: parent, left, and right splits?
+		And is there lazyEval of creating left and right Split childs when observed,
+			cuz without that how would you look deeper into a very big forest of fns viewed by Splits?
+	...
+	I basically want forkEditable maps of fn to displayParams, except the fns can be duplicated,
+	so maybe key is fn_with_arbitraryNumber?
+	No, the map should use a fn and l l l r l r r l paths in it as key.
+	I can make forkEditable treemaps, but the problem seems to be I want to be able to expand it on both ends,
+	the parent direction and the childs direction.
+	Need to copy these trees of Split and keep which parts are open/closed in the copy,
+	make variants, mix them in various combos, etc.
+	
+	Here's the design (closer to it, todo keep fixing this...):
+	A leaf Split is a closed view of a fn. A split can be made of any 2 Splits or be a leaf.
+	Opening such a closed Split requires forkEdit all the way up the immutable tree of Split,
+	which requires updating display of everything changed during that,
+	but FIXME... FIXME... A dob cant have 2 parents, so either need to use immutable graphics,
+	such as tree of y10x10rgb12 voxels with offset per branch, or make new dobs in the whole tree with each change.
+	
+	Pics as canvas bytes need to be cached somehow.
+	Maybe fn.n.blob is a good enough cache, being the canvas bytes directly in some cases.
+	I dont want to replace text on screen after every open/close, cuz it might interfere with which text is selected,
+	but on the other hand you wont be actively using the text selection when you're opening/closing something.
+	
+	SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
+	and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
+	and replaces some dom nodes if they're no longer used.
+	Split can share branches and is a forest (like fn). Split might be made of fns later (TODO?).
+	Splat is a tree and cant share branches.
+	A split is dragged from any part of Splat to any part of Splat.
+	*/
+	
+	
+	
+	//'literal', 'localId', 'localName', 'hidden', or syty of fn, and maybe a few other possible values.
+	//TODO choose shorter names for those such as 'lit' instead of literal.
+	//This chooses if its displayed as open or closed, and if open then as canvas bytes, text, [], {}, (), <>, etc.
+	//vm.ParseTree can give syty of a fn.
+	this.dity = displayType;
+	
+	this.isOneLine = isOneLine;
+	
+	//FIXME where do height and width in pixels go for canvas bytes literal?
+	
+	//Moving this to Splat, so Split can be immutable forest, and Splat can be mutable tree with dom nodes.
+	//map of string to dob (dom object)
+	//this.dobs = {};
 };
 
+Split.prototype.isDisplayPrefixAndSuffix = function(){
+	throw 'TODO';
+};
+
+//Example: '['. Prefix and suffix are not always used, depending if parent is doing the prefix and suffix.
+Split.prototype.prefix = function(){
+	throw 'TODO';
+};
+
+//Example: ']#NameXYZ'. Prefix and suffix are not always used, depending if parent is doing the prefix and suffix.
+Split.prototype.suffix = function(){
+	throw 'TODO';
+};
+
+//param is normally a div.
+Split.prototype.displayIn = function(dob){
+	this.dity.dob = dob;
+	dob.innerHTML = '';
+	throw 'TODO';
+};
+
+/*
 //draggable tree node, view of a fn/lambda as a var size list or literal. Literals can be text, sounds, canvas bytes, etc.
 var Branch = function(split){
 
@@ -102,7 +231,7 @@ var Branch = function(split){
 	//child Branchs. They may or may not be displayed.
 	this.childs = [];
 	
-	//If false, this is displayed as this.fn.locid() (string form of 128 bit local id). If true, childs are displayed.
+	//If false, this is displayed as this.fn.n.locid() (string form of 128 bit local id). If true, childs are displayed.
 	this.treeOpen = true;
 	
 	//If childs fit on 1 line, then set this to true. Starts false in case they dont,
@@ -114,11 +243,19 @@ var Branch = function(split){
 Branch.prototype.display = function(){
 	throw 'TODO';
 };
+*/
 
 
-
-
-
+/*return {
+	U: U,
+	vm: vm,
+	Split: Split,
+	loadOpsByName: loadOpsByName,
+};*/
+//TODO move window out of that lambda then... })();
+</script>
+<script>
+	
 </script>
 </head><body>
 	drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
