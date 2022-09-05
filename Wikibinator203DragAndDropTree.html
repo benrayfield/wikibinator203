@@ -26,6 +26,74 @@ if(loadOpsByName) for(let op in vm.ops){
 	console.log('Created var for opcode as lambda: window.'+op);
 }
 
+const firstCode =
+`[
+I#(F U)
+Sqr#{(T *) I I}
+Hypot#(
+	λ [x y]
+	[this is [a comment] with a function Sqr in it]
+	{
+		(T Sqrt)
+		{
+			(T +)
+			{(T Sqr) (P x)}
+			{(T Sqr) (P y)}
+		}
+	}
+)
+the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func is Hypot and as a 1 param func is (Hypot 6)
+]`;
+const exampleFnToDisplay = vm.eval(firstCode); //a Wikibinator203 fn/lambda (which is a js lambda)
+
+
+//START Splat.dobs keys:
+
+/*
+//The dom object that the other splat dobs are childs of. This is normally a div.
+const SELF = 'self';
+
+//Example: Display '[' or '(' at top left corner.
+//This might just be a html label.
+const PREFIX = 'prefix';
+
+//drop (or during drag displays where would drop) left/above/before the left of 2 childs, then forkEdit
+//rootSplit by some interpretation of what dropping it there means, considering it uses a high level syntax.
+//This is normally a div, size 0 and hidden until needed.
+const DROPLEFT = 'dropleft';
+
+//left splat child of a splat.
+//This is normally a div.
+const LEFT = 'left';
+
+//drop (or during drag displays where would drop) between 2 childs, then forkEdit
+//rootSplit by some interpretation of what dropping it there means, considering it uses a high level syntax.
+//This is normally a div, size 0 and hidden until needed.
+const DROPMID = 'dropmid';
+
+//where to display a canvas, text, pdf file, jpg file, or other literal value, but only do this if childs are NOT displayed
+//(a necessary but not sufficient condition),
+//check split for should it be displayed and caching of the Uint8Array of canvas bytes etc.
+//This is normally a div or maybe a canvas, or a div with a canvas in it, etc.
+const LITERAL = 'literal';
+
+//right splat child of a splat.
+//This is normally a div.
+const RIGHT = 'right';
+
+//drop (or during drag displays where would drop) right/below/after the right of 2 childs, then forkEdit
+//rootSplit by some interpretation of what dropping it there means, considering it uses a high level syntax.
+//This is normally a div, size 0 and hidden until needed.
+const DROPRIGHT = 'dropright';
+
+//Example: Display ']#NameXYZ' or ')#NameXYZ' or ']' or ')' at bottom left corner or on right if 1 line.
+//This might just be a html label.
+const SUFFIX = 'suffix';
+*/
+
+//END Splat.dobs keys.
+
+
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
 //and replaces some dom nodes if they're no longer used.
@@ -37,7 +105,10 @@ var Splat = function(){
 
 	this.split = null; //TODO
 	
-	//map of string to dob (dom object)
+	//map of string to dob (dom object).
+	//TODO dobs for the 2 childs, prefix and suffix, etc.
+	//TODO also include dobs for "include extra divs, normally empty, in every Splat, in every
+	//possible place in that splat it could be dropped, including hidden splats".
 	this.dobs = {};
 	
 	this.parentSplat = null; //null if this is a top Splat (any can be)
@@ -45,9 +116,61 @@ var Splat = function(){
 	this.rightSplat = null; //null if not viewing right child
 };
 
-//display rootSplat in rootDiv, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
-var rootSplat = new Splat();
-var rootDiv = null; //TODO
+Splat.prototype.L = function(){
+	if(!this.leftSplat){
+		this.leftSplat = new Splat();
+		this.leftSplat.parentSplat = this;
+		//let leftFn = this.split.fn.n.L()
+		throw 'TODO';
+	}
+	return this.leftSplat;
+};
+
+//new dob/domObject
+let Nob = (tag,optionalParent,optionalInnerHtml)=>{
+	let dob = document.createElement(tag);
+	if(optionalInnerHtml) dob.innerHTML = optionalInnerHtml;
+	if(optionalParent) optionalParent.appendChild(dob);
+	return dob;
+};
+
+Splat.prototype.parentDob = function(){
+	if(this.parentSplat){
+		if(!this.parentSplat.dobs.self){
+			console.log('child splat creating dobs in parent. FIXME? why didnt parent do it already?');
+			this.parentSplat.createDobsIfNotExist();
+		}
+		return this.parentSplat.dobs.self;
+	}else{
+		if(!rootDob) throw 'No rootDob';
+		return rootDob;
+	}
+};
+
+var childDobNames = 'self prefix dropleft left dropmid literal right dropright suffix'.split(' ');
+
+Splat.prototype.createDobsIfNotExist = function(){
+	if(!this.dobs.self){
+		console.log('splat creating this.dobs.self, which contains the other dobs of this splat');
+		this.dobs.self = Nob('div', this.parentDob());
+	}
+	for(let dobName of childDobNames){
+		if(!this.dobs[dobName]){
+			let dob = Nob('div', this.dobs.self, 'x');
+			dob.classList.add('wikib_'+dobName);
+			this.dobs[dobName] = dob;
+		}
+	}
+};
+
+Splat.prototype.R = function(){
+	if(!this.leftSplat){
+		throw 'TODO';
+	}
+	return this.leftSplat;
+};
+
+
 
 //a split is a view of a fn/lambda and its 2 child fn/lambdas, with each child being open or closed.
 //a split is immutable. If its a view of U (leaf aka the universal combinator) or of a literal then childs wont be displayed.
@@ -154,6 +277,12 @@ var Split = function(fn, leftSplit, rightSplit, displayType, isOneLine){
 	//this.dobs = {};
 };
 
+//a leaf split is closed. Otherwise, since fn is a fractal (every fn has 2 child fns that when called
+//on eachother return that parent fn), it will expand forever into childs.
+Split.prototype.isLeaf = function(){
+	throw 'TODO get from this.dity';
+};
+
 Split.prototype.isDisplayPrefixAndSuffix = function(){
 	throw 'TODO';
 };
@@ -168,10 +297,18 @@ Split.prototype.suffix = function(){
 	throw 'TODO';
 };
 
+//FIXME splits must not contain dobs, instead dobs are in splats.
 //param is normally a div.
-Split.prototype.displayIn = function(dob){
-	this.dity.dob = dob;
+/*Split.prototype.displayIn = function(dob){
+	//this.dity is a string. why is this code here? this.dity.dob = dob;
 	dob.innerHTML = '';
+	throw 'TODO';
+};*/
+Split.prototype.displayIn = function(splat){
+	throw 'TODO';
+};
+
+var newSplitForFn = function(fn){
 	throw 'TODO';
 };
 
@@ -246,6 +383,41 @@ Branch.prototype.display = function(){
 */
 
 
+//display rootSplat in rootDiv, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
+var rootSplat = new Splat();
+rootSplat.split = newSplitForFn(exampleFnToDisplay);
+var rootDob = null; //TODO
+
+
+/*TODO how will Split and Splat do the graphics of dragging, during the drag?
+I want it to show either a small icon or a whole splat, during the drag.
+Maybe I should include extra divs, normally empty, in every Splat, in every
+possible place in that splat it could be dropped, including hidden splats?
+Or maybe there should be a second rootSplat-like var called dragSplat?
+Do both, and keep moving dragDob, which dragSplat is displayed in,
+to these drop target dobs in the splats.
+Once dropped, it forkEdits rootSplat.split and displays that in rootSplat,
+and maybe there will be an undo button and history for going way back
+andOr some quicksave and quickload buttons etc.
+Any split should display the same even if its loaded again,
+and maybe later I'll make it be made completely of fns instead of a split just wrapping a fn.
+*/
+var dragSplat;
+var dragDob; //dragSplat.displayIn(dragDob). rootSplat.displayIn(rootDob).
+
+var rootDisplay = ()=>{
+	console.log('rootDisplay');
+	if(!rootDob) rootDob = Dob('rootDob');
+	rootSplat.displayIn(rootDob); //FIXME is this compatible with split.displayIn(splat)?
+};
+
+var Dob = id=>document.getElementById(id);
+
+window.onload = ()=>{
+	rootDisplay();
+};
+
+
 /*return {
 	U: U,
 	vm: vm,
@@ -261,5 +433,7 @@ Branch.prototype.display = function(){
 	drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 	<br><br>
 	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
+	<br><br>
+	<div id=rootDob>(rootDob)</div>
 	
 </body></html>
