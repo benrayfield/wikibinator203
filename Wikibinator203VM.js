@@ -3978,6 +3978,19 @@ const Wikibinator203 = (()=>{
 			}
 			return this.cache_idString = this.fullId();
 		};
+		
+		//This is used in Wikibinator203DragAndDropTree.html for example, but is more general than that.
+		//If you want a name, it will find one, of that fn,
+		//of localName or localId. (If theres a builtInName its also the localName).
+		//If it starts with Λ (such as Λ322) then its a localId
+		//and TODO should that go in the literal div instead of the suffix div as a name?
+		//FIXME it has to be able to go in suffix cuz the  might need to name some nodes by it
+		//in the programming language so you know which code (...)#Λ322 [...]#Λ322 is its definition,
+		//BUT FIXME make sure as a string literal of that localId it would have be written as 'Λ322'
+		//since Λ322 by itself refers to the fn/lambda itself.
+		vm.Node.prototype.nameEtc = function(){
+			return this.lam.localName || this.locid();
+		};
 
 		//local id, either 64 or 128 bits depending if those 128 bits are all 0s they can be ignored or not. Its prefixed by λ then hex.
 		vm.Node.prototype.locid = function(){
@@ -5165,7 +5178,7 @@ const Wikibinator203 = (()=>{
 		//FIXME where do blobs go in here, that dont have a left and right child yet cuz its lazy and creating the top of the blob as wrapper node?
 		
 		//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in Nodes.
-		vm.dedupMap = {};
+		//vm.dedupMap = {};
 		//FIXME put u in dedupMap
 		
 		/*vm.HashtableNode = function(val,next){
@@ -5343,6 +5356,8 @@ const Wikibinator203 = (()=>{
 
 		//(func,param) or more params to curry...
 		//FIXME vararg might be slow. use separate func for vararg cp
+		//FIXME should some of the mask bits (vm.mask_*) in lambda.n.header (an int) be a param here,
+		//such as if you want to make a cp/callPair of an evaling node or that allows hypercomputing?
 		vm.cp = function(){
 			//TODO divide cp into 2 funcs, one with 2 params and 1 with variable number of params, for efficiency.
 			switch(arguments.length){
@@ -5375,16 +5390,16 @@ const Wikibinator203 = (()=>{
 						let lambda = vm.dedupHashtable[bucket]; //null if bucket is empty, else lambda.htNext is next lambda in linkedlist of bucket
 						while(lambda){
 							vm.prepay1Time();
-							if(lambda().equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
+							if(lambda.n.equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
 								return lambda; //found it, reuse that instead of creating another node of same forest shape
 							}
-							lambda = lambda.htNext;
+							lambda = lambda.htNext; //linked list per bucket.
 						}
 						//didnt find that forest shape. create one.
 						this.prepay1Mem();
 						//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
 						lambda = vm.lambdize(new this.Node(this,func,param));
-						lambda.htNext = vm.dedupHashtable[bucket];
+						lambda.htNext = vm.dedupHashtable[bucket]; //linked list per bucket.
 						vm.dedupHashtable[bucket] = lambda;
 						return lambda;
 						
@@ -5409,7 +5424,7 @@ const Wikibinator203 = (()=>{
 						*/
 						
 						
-						return lambda;
+						//return lambda;
 					}
 				break;
 				default:
@@ -7266,6 +7281,8 @@ const Wikibinator203 = (()=>{
 			return ret;
 		};
 		
+		//FIXME as of 2022-9-8 ive been using fn.n.localName instead of aView.localName,
+		//and in Wikibinator203DragAndDropTree.html its using fn.n.nameEtc().
 		vm.View.prototype.setLocalName = function(localName){
 			if(!localName) throw 'localName='+localName;
 			let v = this.viewer.localNameToView[localName];
@@ -7353,6 +7370,7 @@ const Wikibinator203 = (()=>{
 		
 		//vm.strIsAllWhitespace = s=>(s==0);
 		vm.strIsAllWhitespace = str=>/^\s*$/.test(str);
+		vm.strContainsWhitespace = str=>/\s/.test(str);
 		//unlike FnIsAllWhitespace which would better be made of combos of U (and maybe optimized using an Evaler) than part of vm.
 		
 		//used by Viewer.eval and Viewer.parse
@@ -7572,6 +7590,16 @@ const Wikibinator203 = (()=>{
 		vm.numberOf
 		vm.isDefineNameToken
 		*/
+		
+		//This is for #Names. Theres no limit on names in a Lambda or MutLam param list,
+		//as those can be any lambdas even if they arent strings. This takes a string param.
+		//arbitrary length. TODO what should this be?
+		//This is in units of utf16 chars like javascript and java strings use.
+		vm.maxLocalNameChars = 65;
+		
+		//This is for #Names. Theres no limit on names in a Lambda or MutLam param list,
+		//as those can be any lambdas even if they arent strings. This takes a string param.
+		vm.isValidLocalName = name=>(0<name.length && name.length<=vm.maxNameChars && !vm.strContainsWhitespace(name) && vm.charIsNamePrefix(name[0]));
 		
 		//returns a vm.Parsing or null. Returns null if its all whitespace from current position, so dont add that to childs list.
 		//This is a redesign of parse function, to split it into 2 steps, parsing into tree, then evaling.

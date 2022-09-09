@@ -26,6 +26,24 @@ if(loadOpsByName) for(let op in vm.ops){
 	console.log('Created var for opcode as lambda: window.'+op);
 }
 
+var randInt = n=>Math.floor(Math.random()*n);
+
+var between = (min, val, max)=>Math.max(min, Math.min(val, max));
+
+var betweenInt = (min, val, max)=>Math.floor(Math.max(min, Math.min(val, max)));
+
+var asByte = num=>betweenInt(0,num,255);
+
+var colorStr = function(redFraction, greenFraction, blueFraction){
+	let r = asByte(redFraction*256);
+	let g = asByte(greenFraction*256);
+	let b = asByte(blueFraction*256);
+	let s = '000000'+(r*65536+g*256+b).toString(16);
+	return '#'+s.substring(s.length-6);
+};
+
+var randColorStr = ()=>colorStr(.45+.55*Math.random(), .45+.55*Math.random(), .45+.55*Math.random());
+
 /*const firstCode =
 `[
 I#(F U)
@@ -108,6 +126,11 @@ var Splat = function(parentSplatOrNull, splate){
 
 	this.splate = splate; //doesnt include splates for leftSplat or rightSplat. Its local to this Splat.
 	//this.split = null; //TODO
+	if(this.splate.isOpen && this.splate.isDisplayName){
+		fnMeta(this.splate.fn).numOpenNamedSplats++;
+		//FIXME do fnMeta(this.splate.fn).numOpenNamedSplats--
+		//when this.splate is replaced with a !isOpen and !isDisplayName or this Splat removed.
+	}
 	
 	//map of string to dob (dom object).
 	//TODO dobs for the 2 childs, prefix and suffix, etc.
@@ -118,6 +141,7 @@ var Splat = function(parentSplatOrNull, splate){
 	this.parentSplat = parentSplatOrNull || null; //null if this is a top Splat (probably just these 2: rootSplat and dragSplat)
 	this.leftSplat = null; //null if not viewing left child
 	this.rightSplat = null; //null if not viewing right child
+
 };
 
 //lazy create left splat
@@ -184,6 +208,18 @@ var sytyToPopChar_ = {
 
 var sytyToPopChar = syty=>(sytyToPopChar_[syty] || 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
 
+Splat.prototype.updateSelfDivStyle = function(){
+	let sty = this.dobs.self.style;
+	sty.borderStyle = 'outset';
+	let red = .45+.55*Math.random();
+	let green = .45+.55*Math.random();
+	let blue = .45+.55*Math.random();
+	let brightMul = .85;
+	sty.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
+	sty.borderWidth = '15px';
+	sty.borderColor = colorStr(red,green,blue);
+};
+
 Splat.prototype.createDobsIfNotExist = function(){
 	if(!this.dobs.self){
 		console.log('splat creating this.dobs.self, which contains the other dobs of this splat');
@@ -211,14 +247,31 @@ Splat.prototype.displayIn = function(dob){
 		}
 		this.dobs.self = dob;
 		this.createDobsIfNotExist();
+		this.updateSelfDivStyle();
+		let syty = this.splate.syty;
 		if(this.splate.isDisplayPushAndPopChars){
-			let prefix = sytyToPushChar(this.splate.syty);
-			let suffix = sytyToPopChar(this.splate.syty);
+			if(syty == 'U'){
+				throw 'Dont look into the fractal (L U (R U))->U, isDisplayPushAndPopChars should be false and isDisplayName true and name should be U.';
+			}
+			let prefix = sytyToPushChar(syty);
+			let suffix = sytyToPopChar(syty);
+			/*let prefix = syty=='U' ? '' : sytyToPushChar(syty);
+			let suffix = syty=='U' ? '' : sytyToPopChar(syty);
+			if(syty=='U' && !this.splate.isDisplayName){
+				throw 'Must display name if its U
+			}*/
 			if(this.splate.isDisplayName){
-				suffix += '#TODONAMEHERE';
+				//suffix += '#TODONAMEHERE';
+				suffix += '#'+this.splate.name();
 			}
 			this.dobs.prefix.innerHTML = prefix;
 			this.dobs.suffix.innerHTML = suffix;
+		}else{
+			if(syty == 'U'){
+				if(!this.splate.isDisplayName){
+					throw 'Must isDisplayName for leaf/U';
+				}
+			}
 		}
 	}
 	if(this.splate.isOpen){
@@ -320,7 +373,57 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	
 	this.isDisplayPushAndPopChars = !!isDisplayPushAndPopChars;
 	
+	//get name from this.fn.n.nameEtc() which can be this.fn.n.localName or this.fn.n.locid(),
+	//but you can only change this.fn.n.localName, and changing it might contradict the immutable design of Splate
+	//and if so maybe Splate should be redesigned to have a name field. isDisplayName still chooses to display it or not.
+	//In most fns/lambdas, name is not displayed. Its only displayed if need it to show 2 fns equal
+	//or for a Human or AI to remember that fn.
+	
 };
+
+Splate.prototype.name = function(){
+	return this.fn.n.nameEtc();
+};
+
+//throws unless vm.isValidLocalName(name)
+Splate.prototype.setName = function(name){
+	if(!vm.isValidLocalName(name)) throw 'Invalid localName['+name+']';
+	this.fn.n.localName = name;
+};
+
+//UPDATE: js {} map of fn.n.locid() to {...various stuff about displaying that fn...}.
+//
+//OLD fnMeta_ comment:
+//metadata/stuff about a fn, used in displaying it,
+//especially remembering which Splates are views of a given fn.
+//Its a Map (not a {}) of fn to {}. Map is slower than {} but can use any object as key.
+//TODO optimize by using fn.n.locid() as key instead (but in vm theres only vm.cp(fn,fn)
+//(which dedups by 2 locids (blobFrom blobTo idA idB, 2 of each of those), not 1 localid)?
+//var fnMeta_ = new Map();
+//I'm doing it by locid for speed (TODO verify its faster) and putting the fn in the val.
+var fnMeta_ = {};
+
+//Example: fnMeta(U(U(U))).numOpenSplates
+var fnMeta = fn=>{
+	//let ret = fnMeta.get(fn);
+	let key = fn.n.locid();
+	let ret = fnMeta_[key];
+	if(!ret){
+		ret = {
+			//FIXME splat should adjust this when created and when splat is removed.
+			//This is in rootSplat and dragSplat and everything reachable from them, FIXME should it only be rootSplat?
+			numOpenNamedSplats: 0,
+			
+			//splates: [], //FIXME might need to use a treemap here (sorted by some arbitrary number in Splate, add that) if this list gets too big
+			fn: fn,
+		};
+		//fnMeta_.set(fn,ret);
+		fnMeta_[key] = ret;
+	}
+	return ret;
+};
+
+
 
 //FIXME you shouldnt need to copy a Splate since it should be used as immutable,
 //but in this early prototype of the UI I'm modifying vars in it cuz forkEditing it isnt working yet.
@@ -331,22 +434,12 @@ Splate.prototype.copy = function(){
 //makes a Splate of left child of fn, with everything open except if its U then closed.
 //Normally you'll want to create a custom Splate, for custom ways to display it, but this is just to get started fast.
 Splate.prototype.simpleLeftSplate = function(){
-	if(this.fn.n.isLeaf()){
-		return defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable.
-	}else{
-		let fn = this.fn.n.L();
-		let syty = fnToSyty(fn);
-		let isOpen = true;
-		let isOneLine = true;
-		let isLiteral = false;
-		let isDisplayName = false;
-		let isDisplayPushAndPopChars = true;
-		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars);
-	}
+	return this.simpleLeftOrRightSplate(false);
 };
 
 Splate.prototype.simpleRightSplate = function(){
-	if(this.fn.n.isLeaf()){
+	return this.simpleLeftOrRightSplate(true);
+	/*if(this.fn.n.isLeaf()){
 		return defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable.
 	}else{
 		let fn = this.fn.n.R();
@@ -356,6 +449,25 @@ Splate.prototype.simpleRightSplate = function(){
 		let isLiteral = false;
 		let isDisplayName = false;
 		let isDisplayPushAndPopChars = true;
+		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars);
+	}*/
+};
+
+Splate.prototype.simpleLeftOrRightSplate = function(isRight){
+	if(this.fn.n.isLeaf()){
+		return defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable.
+	}else{
+		
+		let fn = (this.fn.n)[isRight ? 'R' : 'L']();
+		let syty = fnToSyty(fn);
+		let numOpenNamedSplats = fnMeta(this.fn).numOpenNamedSplats; //set by Splat, not by Splate.
+		//FIXME what if forkEditing a Splate leaves that as 1 so !isOpen cuz a variant of itself is open that is about to be removed?
+		let isOpen = numOpenNamedSplats===0;
+		//let isDisplayName = false;
+		let isDisplayName = true; //FIXME
+		let isOneLine = true;
+		let isLiteral = false;
+		let isDisplayPushAndPopChars = !this.fn.n.isLeaf();
 		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars);
 	}
 };
@@ -609,5 +721,165 @@ window.onload = ()=>{
 	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
 	<div id=rootDob>(rootDob)</div>
+	
+	
+	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+	LICENSE AT TIME 2022-9-9 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
+Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
+<br><br>
+I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
+divided into small paragraphs, move some parts to tutorials or other documents about the software,
+and only keep the parts that arent strongly implied by the other parts.
+Now that I've written about the "infinite size unweighted directed-graph with 3 edge-colors",
+that seems an easier way to explain why it would cause problems for
+specific people to own specific nodes and edges in that directed-graph,
+and that nodes could be dangerous if copied into executable files outside the system, etc.
+<br><br>
+This license contains the 3 paragraphs of the MIT license and some extra copyleft stuff.
+<br><br>
+This is experimental software.
+<br><br>
+[THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+<br><br>
+It may be illegal in some countries to say certain things,
+such as "the holocaust didnt happen" for example.
+This license protects free speech in evilbit=true namespace
+by making it normal that anything said there is not claiming it is true,
+as lambdas generate many variants of things that are true and many false,
+so it would be negligence to believe something there just because you read it,
+and all it means is that its a piece of data, not that its true or false.
+If you put such data there and say with your mouth its true,
+that thing your mouth did may be claiming "the holocaust didnt happen",
+but that string "the holocaust didnt happen",
+along with "the holocaust is made of green cheese" etc are just data
+and are not legal claims. Numbers by themself do not have legal effect.
+<br><br>
+This software uses a constant infinite size unweighted directed-graph
+with 3 edge-colors, that contains all possible patterns of finite
+amount of information that take finite amount of compute time and memory,
+which an infinite number of subsets of it (if not the whole thing?)
+are already near optimally compressed (near lowest kolmogorov complexity)
+in its natural form. These edges are Func, Param, and EvalsTo,
+where Func called on Param returns EvalsTo. Nobody owns that directed-graph
+nor any nodes or edges in it,
+nor the using of it as lambdas/wikibs (nodes are lambdas/wikibs).
+Nobody owns wikibs. They are shared facts of maths many people and software
+can use together. A wikib is a kind of number, stateless and immutable
+(or approximations of it in some ways of using it)
+universal lambda function, combinator, pattern-calculus function, fact of math,
+a pure function, and a data structure that is defined completely as a forest
+node with 2 child wikibs down to leaf (leaf also has 2 childs (identity
+function and leaf)). Leaf (aka U aka Wikibinator203) is the universal
+function, from which all turing-complete patterns of finite amount of
+information can be built, used, and shared. Forall wikib x, forall wikib y,
+x called on y is a wikib, which may be halted or evaling (to a halted wikib
+or never halts). Every wikib is a derivative-work of leaf, which can be
+proven by calling leaf on itself in various combinations, to make any wikib.
+While obeying this license and using a wikibinator203 VM that correctly
+implements the spec, it is safe to call any wikib on any wikib since all
+it does is find or create wikibs, but if its used to control external
+systems (such as robots, buying and selling things, or telling people
+what to believe or what to do outside a simulated world, or copying a
+wikib to a new file, renaming that file x.exe, then double-clicking that
+file), it is entirely the responsibility of who hooks it to those systems
+to verify its safe, such as by math proofs, networks of digital signatures,
+or other evidence, especially considering that it can create all possible
+computer viruses and ransomware and other evil things (safely in a
+sandbox across 1 or many computers) and good things, and that in 1 of
+its 2 namespaces (evilbit=true), it is an antivirus quarantine and
+uncensored area, a sandbox across whichever computers opt into using
+this data structure together, where all possible wikibs are allowed.
+In the antivirus quarantine, you may share viruses like posts in a
+social network, turing-complete messages that others may, for example,
+say ["this is a virus" TheVirus] or use the virus in a meme-like piece
+of art (such as a satirical work making fun of viruses could literally
+contain such viruses) and do experiments, make games, musical
+instruments, tools, or anything of pure information. It would be very
+destructive to the system if there is any possible math statement which
+is not allowed, such as removing a virus or other "evil" wikibs while
+it has incoming pointers. It would be destructive to the wikib systems,
+because halting-oracles have been proven impossible, and a halting-oracle
+would be needed to determine if a certain wikib would generate, or would
+not generate, a certain other wikib, without waiting up to an infinite
+time to observe what it does (by the universal lambda math). The other
+namespace (evilbit=false) works like the normal internet, if those who
+opt in can find a way to do that without breaking the wikib math so much
+its unusable, a way to claim a certain wikib is safe, unlike in
+evilbit=true where there is no reasonable expectation that it is safe
+to give those wikibs execute permission, or to believe any information
+in them, or to obey anything they might tell you to do with a message
+on the screen. It would be negligence for someone to give execute
+permission to, believe, or obey, anything in an antivirus quarantine
+(which many apps may run inside across many computers) if that causes
+a problem, and similarly for the evilbit=false area, since saying its
+evilbit=true or evilbit=false (which happens in the first byte of a
+256 bit id for example) is just a word that people or computers can
+say about a wikib, that they believe it to be safe or not.
+If in doubt, use evilbit=true aka antivirus quarantine.
+The 256 (or 512) bit ids can safely be shared in public as #hashtags.
+The sending and receiving of this data structure across a network
+does not count that network as an "external system"
+and is part of the sandbox. Similarly, a Human just using the
+facts of math together with other Humans and AIs, is part of the sandbox,
+as a wikib can exist inside a Human mind (which is turing-complete),
+but believing or obeying it in the Human mind is outside the sandbox.
+A wikib being a "fact of math" is inside the sandbox,
+and can derive its own ids which are similar to godel-numbers,
+and in the pure deterministic (not "approximations") way of using it,
+it can not lie about anything inside the sandbox,
+but if its viewed as statements about outside the sandbox those can be lies.
+For example, the wikib "this sentence is false", and "two plus two equals five",
+are both true, since those are just utf8 bytes, and it is true that
+they do not break any rules of the universal lambda,
+but if you view them as statements about natural-language
+then that refers to patterns of thoughts outside the sandbox.
+If instead you derive numbers and use the Ax opcode to prove
+a function called on a param gives a certain return value,
+then it will not halt if you try to eval either of those in pure math form.
+All halted wikibs are true. All wikibs which will never halt are false.
+Approximations of wikibs can guarantee halting by recursively limiting
+compute time and memory etc, so in theory there should be some way
+to safely use it to operate time critical dangerous processes
+in the evilbit=true area, but due to the evilbit=false area
+"throwing a wrench into the machine" by removing pieces of math
+based on Human opinions etc, the antivirus quarantine is safest.
+The antivirus quarantine, in the way its the math that the code is based on,
+has already whitelisted an infinite set,
+(of all of a certain kind of universal function, by calling it on itself in various combos)
+unlike the common practice of blacklisting "evil" things as they are
+observed or predicted over time. The only thing the antivirus quarantine blacklists
+is mutable state. A pure function can not infect a harddrive or RAM etc,
+since it can not call thePureFunction(mutableState)->next_mutableState,
+except to store cached function calls (including wrapping tiny and bigdata size bitstrings).
+A virus is only dangerous if it can modify some mutable state.
+This is a formal-verification system. This is also a low-latency number-crunching turing-complete system.
+For example, this system's turing-complete-type-system can have a linked-list of lambdas
+that when called on [church-pair of themself and themself] evals to one of the representations of the exact value of pi,
+and if you tried to insert into that linked-list a value not matching that, it would never halt,
+and if you tried to insert, in parallel a million values matching that,
+you would in each of those million wikib_called_on_wikib get a linked-list with 1 more thing in it.
+<br><br>
+If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
+then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
+and if that is not legally possible to do then it is not legally possible to use this software at all.
+<br><br>
+Except for the "Nobody owns wikibs" paragraph above, which in a copyleft way applies to every wikibinator203 VM,
+permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+<br><br>
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+]]]
+
 	
 </body></html>
