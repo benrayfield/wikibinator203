@@ -2,6 +2,230 @@
 <meta charset="UTF-8">
 <script src="Wikibinator203VM.js" charset="UTF-8"></script>
 <script>
+//https://raw.githubusercontent.com/benrayfield/jsutils/master/src/sha256.js
+
+var sha256 = function(bytesIn){
+	//var t = typeof bytesIn;
+	//if(t != 'Uint8Array') throw 'Expected Uint8Array but got a '+t; //this check wont work because its like a map of index to byte
+	
+	var chunks = Math.floor((bytesIn.byteLength+9+63)/64); //512 bit each
+	
+	//Copy bytesIn[] into b[], then pad bit1, then pad bit0s,
+	//then append int64 bit length, finishing the last block of 512 bits.
+	//byte b[] = new byte[chunks*64];
+	var b = new Uint8Array(chunks*64);
+	
+	//System.arraycopy(bytesIn, 0, b, 0, bytesIn.byteLength);
+	b.set(bytesIn, 0);
+	
+	b[bytesIn.byteLength] = 0x80;
+	
+	//long bitLenTemp = bytesIn.byteLength*8;
+	var bitLenTemp = bytesIn.byteLength*8; //in js, this has float64 precision, which is more than enough for Uint8Array size
+	for(var i=7; i>=0; i--){
+		b[b.byteLength-8+i] = bitLenTemp&0xff;
+		bitLenTemp >>>= 8;
+	}
+	
+	//log('b as hex = '+bitfuncs.uint8ArrayToHex(b));
+	
+	
+	var a = new Uint32Array(136);
+	//"first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311"
+	a[0]=0x428a2f98;
+	a[1]=0x71374491;
+	a[2]=0xb5c0fbcf;
+	a[3]=0xe9b5dba5;
+	a[4]=0x3956c25b;
+	a[5]=0x59f111f1;
+	a[6]=0x923f82a4;
+	a[7]=0xab1c5ed5;
+	a[8]=0xd807aa98;
+	a[9]=0x12835b01;
+	a[10]=0x243185be;
+	a[11]=0x550c7dc3;
+	a[12]=0x72be5d74;
+	a[13]=0x80deb1fe;
+	a[14]=0x9bdc06a7;
+	a[15]=0xc19bf174;
+	a[16]=0xe49b69c1;
+	a[17]=0xefbe4786;
+	a[18]=0x0fc19dc6;
+	a[19]=0x240ca1cc;
+	a[20]=0x2de92c6f;
+	a[21]=0x4a7484aa;
+	a[22]=0x5cb0a9dc;
+	a[23]=0x76f988da;
+	a[24]=0x983e5152;
+	a[25]=0xa831c66d;
+	a[26]=0xb00327c8;
+	a[27]=0xbf597fc7;
+	a[28]=0xc6e00bf3;
+	a[29]=0xd5a79147;
+	a[30]=0x06ca6351;
+	a[31]=0x14292967;
+	a[32]=0x27b70a85;
+	a[33]=0x2e1b2138;
+	a[34]=0x4d2c6dfc;
+	a[35]=0x53380d13;
+	a[36]=0x650a7354;
+	a[37]=0x766a0abb;
+	a[38]=0x81c2c92e;
+	a[39]=0x92722c85;
+	a[40]=0xa2bfe8a1;
+	a[41]=0xa81a664b;
+	a[42]=0xc24b8b70;
+	a[43]=0xc76c51a3;
+	a[44]=0xd192e819;
+	a[45]=0xd6990624;
+	a[46]=0xf40e3585;
+	a[47]=0x106aa070;
+	a[48]=0x19a4c116;
+	a[49]=0x1e376c08;
+	a[50]=0x2748774c;
+	a[51]=0x34b0bcb5;
+	a[52]=0x391c0cb3;
+	a[53]=0x4ed8aa4a;
+	a[54]=0x5b9cca4f;
+	a[55]=0x682e6ff3;
+	a[56]=0x748f82ee;
+	a[57]=0x78a5636f;
+	a[58]=0x84c87814;
+	a[59]=0x8cc70208;
+	a[60]=0x90befffa;
+	a[61]=0xa4506ceb;
+	a[62]=0xbef9a3f7;
+	a[63]=0xc67178f2;
+	//h0-h7 "first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19"
+	a[64]=0x6a09e667;
+	a[65]=0xbb67ae85;
+	a[66]=0x3c6ef372;
+	a[67]=0xa54ff53a;
+	a[68]=0x510e527f;
+	a[69]=0x9b05688c;
+	a[70]=0x1f83d9ab;
+	a[71]=0x5be0cd19;
+	//a[72..135] are the size 64 w array of ints
+	for(var chunk=0; chunk<chunks; chunk++){
+		var bOffset = chunk<<6;
+		//copy chunk into first 16 words w[0..15] of the message schedule array
+		for(var i=0; i<16; i++){
+			//Get 4 bytes from b[]
+			var o = bOffset+(i<<2);
+			a[72+i] = ((b[o]&0xff)<<24) | ((b[o+1]&0xff)<<16) | ((b[o+2]&0xff)<<8) | (b[o+3]&0xff);
+		}
+		//Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:
+		for(var i=16; i<64; i++){
+			//s0 := (w[i-15] rightrotate 7) xor (w[i-15] rightrotate 18) xor (w[i-15] rightshift 3)
+			//s1 := (w[i-2] rightrotate 17) xor (w[i-2] rightrotate 19) xor (w[i-2] rightshift 10)
+			//w[i] := w[i-16] + s0 + w[i-7] + s1
+			var wim15 = a[72+i-15];
+			var s0 = ((wim15>>>7)|(wim15<<25)) ^ ((wim15>>>18)|(wim15<<14)) ^ (wim15>>>3);
+			var wim2 = a[72+i-2];
+			var s1 = ((wim2>>>17)|(wim2<<15)) ^ ((wim2>>>19)|(wim2<<13)) ^ (wim2>>>10);
+			a[72+i] = a[72+i-16] + s0 + a[72+i-7] + s1;
+		}
+		var A = a[64];
+		var B = a[65];
+		var C = a[66];
+		var D = a[67];
+		var E = a[68];
+		var F = a[69];
+		var G = a[70];
+		var H = a[71];
+		for(var i=0; i<64; i++){
+			/* S1 := (e rightrotate 6) xor (e rightrotate 11) xor (e rightrotate 25)
+			ch := (e and f) xor ((not e) and g)
+			temp1 := h + S1 + ch + k[i] + w[i]
+			S0 := (a rightrotate 2) xor (a rightrotate 13) xor (a rightrotate 22)
+			maj := (a and b) xor (a and c) xor (b and c)
+			temp2 := S0 + maj
+			h := g
+			g := f
+			f := e
+			e := d + temp1
+			d := c
+			c := b
+			b := a
+			a := temp1 + temp2
+			*/
+			var s1 = ((E>>>6)|(E<<26)) ^ ((E>>>11)|(E<<21)) ^ ((E>>>25)|(E<<7));
+			var ch = (E&F) ^ ((~E)&G);
+			var temp1 = H + s1 + ch + a[i] + a[72+i];
+			var s0 = ((A>>>2)|(A<<30)) ^ ((A>>>13)|(A<<19)) ^ ((A>>>22)|(A<<10));
+			var maj = (A&B) ^ (A&C) ^ (B&C);
+			var temp2 = s0 + maj;
+			H = G;
+			G = F;
+			F = E;
+			E = D + temp1;
+			D = C;
+			C = B;
+			B = A;
+			A = temp1 + temp2;
+		}
+		a[64] += A;
+		a[65] += B;
+		a[66] += C;
+		a[67] += D;
+		a[68] += E;
+		a[69] += F;
+		a[70] += G;
+		a[71] += H;
+	}
+	//RETURN h0..h7 = a[64..71]
+	//byte ret[] = new byte[32];
+	var ret = new Uint8Array(32);
+	for(var i=0; i<8; i++){
+		var ah = a[64+i];
+		ret[i*4] = (ah>>>24)&0xff;
+		ret[i*4+1] = (ah>>>16)&0xff;
+		ret[i*4+2] = (ah>>>8)&0xff;
+		ret[i*4+3] = ah&0xff;
+	}
+	return ret;
+};
+</script>
+<script>
+//https://github.com/benrayfield/jsutils/blob/master/src/unicode.js
+
+var unicode = {
+	//TODO consider using TextEncoder instead, which is a web standard in progress and works in at least firefox chrome and 1 other
+	
+	utf8TextEncoder: new TextEncoder('utf-8'),
+	
+	utf8TextDecoder: new TextDecoder('utf-8'),
+	
+	stringToUtf8AsUint8Array: function(s){
+		//log('unicode.utf8TextEncoder='+unicode.utf8TextEncoder+' '+mapToString(unicode.utf8TextEncoder));
+		//log('param of encode: '+s);
+		var u = unicode.utf8TextEncoder.encode(s);
+		//var t = typeof u;
+		//if(t != 'Uint8Array') throw 'Expected TextEncoder.encode(string) to return Uint8Array but got a '+t+': '+u+': '+mapToString(u);
+		return u;
+	},
+	
+	utf8AsUint8ArrayToString: function(bytes){
+		return unicode.utf8TextDecoder.decode(bytes);
+	},
+	
+	asBytes: function(stringOrBytes){
+		var t = typeof stringOrBytes;
+		if(t == 'Uint8Array') return stringOrBytes;
+		if(t == 'string') return unicode.stringToUtf8AsUint8Array(stringOrBytes);
+		throw 'Unknown type: '+t;
+	},
+	
+	asString: function(stringOrBytes){
+		var t = typeof stringOrBytes;
+		if(t == 'string') return stringOrBytes;
+		if(t == 'Uint8Array') return unicode.utf8AsUint8ArrayToString(stringOrBytes);
+		throw 'Unknown type: '+t;
+	}
+	
+};
+</script>
+<script>
 //TODO move window out of that lambda then... const Wikibinator203DragAndDropTreeUI = (()=>{
 
 //This script is under the Wikibinator203 license.
@@ -26,6 +250,9 @@ if(loadOpsByName) for(let op in vm.ops){
 	console.log('Created var for opcode as lambda: window.'+op);
 }
 
+//sha256hex of text. TODO optimize by using a normal hashtable to dedup Splits
+var hashText = text=>vm.bytesToHex(sha256(stringToUtf8AsUint8Array(text)));
+
 var randInt = n=>Math.floor(Math.random()*n);
 
 var between = (min, val, max)=>Math.max(min, Math.min(val, max));
@@ -42,7 +269,9 @@ var colorStr = function(redFraction, greenFraction, blueFraction){
 	return '#'+s.substring(s.length-6);
 };
 
-var randColorStr = ()=>colorStr(.45+.55*Math.random(), .45+.55*Math.random(), .45+.55*Math.random());
+//var randColorStr = ()=>colorStr(.45+.55*Math.random(), .45+.55*Math.random(), .45+.55*Math.random());
+
+var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 
 /*const firstCode =
 `[
@@ -215,6 +444,10 @@ Splat.prototype.updateSelfDivStyle = function(){
 	let green = .45+.55*Math.random();
 	let blue = .45+.55*Math.random();
 	let brightMul = .85;
+	if(this.isSelected()){
+		console.log('isSelected splat='+this);
+		red = green = blue = 1;
+	}
 	sty.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
 	sty.borderWidth = '15px';
 	sty.borderColor = colorStr(red,green,blue);
@@ -236,18 +469,93 @@ Splat.prototype.createDobsIfNotExist = function(){
 	}
 };
 
-Splat.prototype.displayIn = function(dob){
-	console.log('Splat displayIn '+dob);
-	if(this.dobs.self != dob){
-		console.log('Splat replacing its dobs');
-		dob.innerHTML = '';
-		for(let dobName in this.dobs){
+var options = {};
+options.displayWholeTostringAtEachRect = true;
+options.displaySplateDetailExceptFnAtEachRect = true;
+
+Splat.prototype.displayLocal = function(){
+	console.log('Splat displayLocal this='+this);
+	if(!this.dobs.self) throw 'No self dob';
+	this.updateSelfDivStyle();
+	let syty = this.splate.syty;
+	if(this.splate.isDisplayPushAndPopChars){
+		if(syty == 'U'){
+			throw 'Dont look into the fractal (L U (R U))->U, isDisplayPushAndPopChars should be false and isDisplayName true and name should be U.';
+		}
+		let prefix = sytyToPushChar(syty);
+		let suffix = sytyToPopChar(syty);
+		/*let prefix = syty=='U' ? '' : sytyToPushChar(syty);
+		let suffix = syty=='U' ? '' : sytyToPopChar(syty);
+		if(syty=='U' && !this.splate.isDisplayName){
+			throw 'Must display name if its U
+		}*/
+		if(this.splate.isDisplayName){
+			//suffix += '#TODONAMEHERE';
+			suffix += '#'+this.splate.name();
+		}
+		if(options.displayWholeTostringAtEachRect){
+			suffix += '__'+this.splate.fn;
+		}
+		if(options.displaySplateDetailExceptFnAtEachRect){
+			suffix += '__'+this.splate.toStringExceptFn();
+		}
+		suffix += '__isSelected='+this.isSelected();
+		this.dobs.prefix.innerHTML = prefix;
+		this.dobs.suffix.innerHTML = suffix;
+	}else{
+		if(syty == 'U'){
+			if(!this.splate.isDisplayName){
+				throw 'Must isDisplayName for leaf/U';
+			}
+		}
+	}
+};
+
+Splat.prototype.toString = function(){
+	return '[Splat splate='+this.splate+' isSelected='+this.isSelected()+']';
+};
+
+Splat.prototype.removeDobsExceptSelf = function(){
+	for(let dobName in this.dobs){
+		if(dobName !== 'self'){
 			this.dobs[dobName].remove(); //remove from dom tree
 			delete this.dobs[dobName];
 		}
+	}
+};
+
+Splat.prototype.removeDobs = function(){
+	for(let dobName in this.dobs){
+		this.dobs[dobName].remove(); //remove from dom tree
+		delete this.dobs[dobName];
+	}
+};
+
+Splat.prototype.displayIn = function(dob){
+	if(!dob) throw 'No param dob';
+
+	//TODO merge duplicate code between displayIn and displayLocal
+
+	console.log('Splat displayIn '+dob);
+	const ThisSplat = this;
+	if(this.dobs.self != dob){
+		console.log('Splat replacing its dobs');
+		dob.innerHTML = '';
+		dob.addEventListener(
+			'click',
+			function(event){
+				//console.log('click '+ThisSplat);
+				//requestAnimationFrame(function(){
+					//console.log('ThisSplat_isRoot='+(ThisSplat===rootSplat));
+					setSelSplat(ThisSplat);
+				//});
+				event.stopPropagation();
+			}
+		);
+		this.removeDobs();
 		this.dobs.self = dob;
 		this.createDobsIfNotExist();
-		this.updateSelfDivStyle();
+		/*this.updateSelfDivStyle();
 		let syty = this.splate.syty;
 		if(this.splate.isDisplayPushAndPopChars){
 			if(syty == 'U'){
@@ -255,14 +563,20 @@ Splat.prototype.displayIn = function(dob){
 			}
 			let prefix = sytyToPushChar(syty);
 			let suffix = sytyToPopChar(syty);
-			/*let prefix = syty=='U' ? '' : sytyToPushChar(syty);
-			let suffix = syty=='U' ? '' : sytyToPopChar(syty);
-			if(syty=='U' && !this.splate.isDisplayName){
-				throw 'Must display name if its U
-			}*/
+			//let prefix = syty=='U' ? '' : sytyToPushChar(syty);
+			//let suffix = syty=='U' ? '' : sytyToPopChar(syty);
+			//if(syty=='U' && !this.splate.isDisplayName){
+			//	throw 'Must display name if its U
+			//}
 			if(this.splate.isDisplayName){
 				//suffix += '#TODONAMEHERE';
 				suffix += '#'+this.splate.name();
+			}
+			if(options.displayWholeTostringAtEachRect){
+				suffix += '__'+this.splate.fn;
+			}
+			if(options.displaySplateDetailExceptFnAtEachRect){
+				suffix += '__'+this.splate.toStringExceptFn();
 			}
 			this.dobs.prefix.innerHTML = prefix;
 			this.dobs.suffix.innerHTML = suffix;
@@ -273,6 +587,8 @@ Splat.prototype.displayIn = function(dob){
 				}
 			}
 		}
+		*/
+		this.displayLocal();
 	}
 	if(this.splate.isOpen){
 		//if(this.leftSplat){
@@ -287,6 +603,11 @@ Splat.prototype.displayIn = function(dob){
 		//}
 	}
 };
+
+Splat.prototype.isSelected = function(){
+	return this===selSplat;
+};
+
 
 
 
@@ -324,6 +645,14 @@ var Split = function(fn, leftOpen, rightOpen, literalOpen){
 	TODO when start dragging with mouse, it should grab a Split, not a Branch?
 };*/
 
+console.log(`FIXME add all state thats in splat and selSplat etc, including:
+	isSelected, and some form of color.
+	Use splate as immutable, and add a Splat.setSpit(split) func that instantly updates dobs.
+	and I want a splat editor.
+	then make all parts of code appear.
+	then fix the display so its like (	(	{	[.
+	then add drag and drop.`);
+
 //Splate is local SPLat and SPLit stATE (Split is immutable so has only 1) not including its childs.
 //Renaming ViewType to Splate.
 //
@@ -332,7 +661,9 @@ var Split = function(fn, leftOpen, rightOpen, literalOpen){
 //A fn can be part of an immutable splate cuz (other than some internal optimizations)
 //its an immutable (lazy-deduped, multi fn objects of same shape but different 128 bit localId) forest shape
 //where all paths lead to U/Wikibinator203/TheUniversalCombinator.
-var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars){
+var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isSelected, red, green, blue){
+
+	
 
 	if(!vm.isLambda(fn)) throw 'Not a Wikibinator203 lambda: '+fn;
 	this.fn = fn;
@@ -379,6 +710,130 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	//In most fns/lambdas, name is not displayed. Its only displayed if need it to show 2 fns equal
 	//or for a Human or AI to remember that fn.
 	
+	this.isSelected = !!isSelected;
+	
+	this.red = red;
+	this.green = green;
+	this.blue = blue;
+	
+};
+
+//perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
+//caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
+Splate.prototype.bigHash = function(){
+	return '<Splate_'+this.fn.n.locid()+'_'+this.syty+'_'+(this.isOpen?'O':'o')+(this.isOneLine?'L':'l')+(this.isLiteral?'I':'i')+
+		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+'>';
+};
+
+
+//forkEdit. You probably should change syty and maybe some other things too if you change fn.
+Splate.prototype.setFn = function(fn){
+	let ret = this.copy();
+	ret.fn = fn;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setSyty = function(syty){
+	let ret = this.copy();
+	ret.syty = syty;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsOpen = function(isOpen){
+	let ret = this.copy();
+	ret.isOpen = !!isOpen;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsOneLine = function(isOneLine){
+	let ret = this.copy();
+	ret.isOneLine = !!isOneLine;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsLiteral = function(isLiteral){
+	let ret = this.copy();
+	ret.isLiteral = !!isLiteral;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsDisplayName = function(isDisplayName){
+	let ret = this.copy();
+	ret.isDisplayName = !!isDisplayName;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsDisplayName = function(isDisplayPushAndPopChars){
+	let ret = this.copy();
+	ret.isDisplayPushAndPopChars = !!isDisplayPushAndPopChars;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsSelected = function(isSelected){
+	let ret = this.copy();
+	ret.isSelected = !!isSelected;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setRed = function(red){
+	let ret = this.copy();
+	ret.red = red;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setGreen = function(green){
+	let ret = this.copy();
+	ret.green = green;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setBlue = function(blue){
+	let ret = this.copy();
+	ret.blue = blue;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setRGB = function(red, green, blue){
+	let ret = this.copy();
+	ret.red = red;
+	ret.green = green;
+	ret.blue = blue;
+	delete ret.bigHash_;
+	return ret;
+};
+
+
+
+Splate.prototype.toString = function(){
+	return this.toStringExceptFn()+'__fn='+this.fn;
+};
+
+
+//The "except fn" part is cuz displaying a fn could be very big.
+Splate.prototype.toStringExceptFn = function(){
+	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayName='+this.isDisplayName+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' ]';
 };
 
 Splate.prototype.name = function(){
@@ -428,7 +883,7 @@ var fnMeta = fn=>{
 //FIXME you shouldnt need to copy a Splate since it should be used as immutable,
 //but in this early prototype of the UI I'm modifying vars in it cuz forkEditing it isnt working yet.
 Splate.prototype.copy = function(){
-	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars);
+	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars, this.isSelected, this.red, this.green, this.blue);
 };
 
 //makes a Splate of left child of fn, with everything open except if its U then closed.
@@ -468,9 +923,15 @@ Splate.prototype.simpleLeftOrRightSplate = function(isRight){
 		let isOneLine = true;
 		let isLiteral = false;
 		let isDisplayPushAndPopChars = !this.fn.n.isLeaf();
-		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars);
+		let isSelected = false;
+		//FIXME dont use random
+		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isSelected, randRed(), randGreen(), randBlue());
 	}
 };
+
+var randRed = ()=>(.45+.55*Math.random());
+var randGreen = randRed;
+var randBlue = randRed;
 
 //this is for U.
 var defaultSplate = new Splate(U, 'C', false, true, false, true, false);
@@ -550,6 +1011,31 @@ var Split = function(splate, leftSplit, rightSplit){
 	//map of string to dob (dom object)
 	//this.dobs = {};
 };
+
+
+//perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
+//caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
+Split.prototype.bigHash = function(){
+	if(!this.bigHash_){
+		let hashMe = this.splate.bigHash();
+		hashMe += this.leftSplit ? this.leftSplit.bigHash() : 'l';
+		hashMe += this.rightSplit ? this.rightSplit.bigHash() : 'r';
+		this.bigHash_ = 'Split_'+hashText(hashMe); //expensive calculation, todo use normal hashtable instead for speed.
+	}
+	return this.bigHash_;
+};
+
+//do 2 Splits equal by deep content except fns are compared by their 128 bit localId (fn.n.locid()) not perfect deduped, true or false.
+Split.prototype.eq = function(split){
+	return this.bigHash()==split.bigHash();
+};
+
+
+/* Since Split and Splate will have bigHash func, just use a js {} map of bigHash to that if you want dedup.
+//Returns a deduped Split, given 2 deduped child Splits or nulls, but null childs are only allowed if !splate.isOpen.
+var dedupSplit = function(splate, leftSplit, rightSplit){
+	throw 'TODO';
+};*/
 
 /*
 //a leaf split is closed. Otherwise, since fn is a fractal (every fn has 2 child fns that when called
@@ -667,6 +1153,17 @@ Branch.prototype.display = function(){
 };
 */
 
+//selected splat else null if none is selected
+var selSplat = null;
+
+//null to unselect
+var setSelSplat = splat=>{
+	let prevSelSplat = selSplat;
+	selSplat = splat;
+	if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
+	selSplat.displayLocal();
+	//rootDisplay(true);
+};
 
 //display rootSplat in rootDob, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
 var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
@@ -691,10 +1188,25 @@ and maybe later I'll make it be made completely of fns instead of a split just w
 var dragSplat = null; //TODO when dragging
 var dragDob = null; //dragSplat.displayIn(dragDob). rootSplat.displayIn(rootDob).
 
-var rootDisplay = isForce=>{
+//expensive calculation
+Splat.prototype.displayDeep = function(){
+	if(!this.dobs.self) throw 'No self dob in '+this;
+	this.removeDobsExceptSelf();
+	this.displayIn(this.dobs.self);
+	if(this.splate.isOpen){
+		this.L().displayIn(this.dobs.left);
+		this.R().displayIn(this.dobs.right);
+	}
+};
+
+var rootDisplay = ()=>{
 	console.log('rootDisplay');
-	if(isForce || !rootDob) rootDob = Dob('rootDob');
-	rootSplat.displayIn(rootDob); //FIXME is this compatible with split.displayIn(splat)?
+	if(rootSplat.dobs.self){
+		rootSplat.displayDeep();
+	}else{
+		rootDob = Dob('rootDob');
+		rootSplat.displayIn(rootDob); //FIXME is this compatible with split.displayIn(splat)?
+	}
 };
 
 var Dob = id=>document.getElementById(id);
