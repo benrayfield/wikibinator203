@@ -251,7 +251,7 @@ if(loadOpsByName) for(let op in vm.ops){
 }
 
 //sha256hex of text. TODO optimize by using a normal hashtable to dedup Splits
-var hashText = text=>vm.bytesToHex(sha256(stringToUtf8AsUint8Array(text)));
+var hashText = text=>vm.bytesToHex(sha256(unicode.stringToUtf8AsUint8Array(text)));
 
 var randInt = n=>Math.floor(Math.random()*n);
 
@@ -351,45 +351,64 @@ const SUFFIX = 'suffix';
 //Splat is a tree and cant share branches.
 //A split is dragged from any part of Splat to any part of Splat."
 //
-var Splat = function(parentSplatOrNull, splate){
+//var Splat = function(parentSplatOrNull, splate){
+//
+//OLD: isRight means is right child, else left child, of parentSplatOrNull, or if !parentSplatOrNull then this is a root, not a child.
+//
+//selfDob is normally parentSplatOrNull.dobs.left or parentSplatOrNull.dobs.right or if !parentSplatOrNull then its probably rootDob or dragDob.
+var Splat = function(parentSplatOrNull, selfDob){
 
-	this.splate = splate; //doesnt include splates for leftSplat or rightSplat. Its local to this Splat.
+	//this.splate = splate; //doesnt include splates for leftSplat or rightSplat. Its local to this Splat.
+	//this.splate = defaultSplate; //so Splat.setSplit can display it first. Has no childs.
 	//this.split = null; //TODO
+	this.split = defaultSplit;
+	
+	
+	
+	/*
 	if(this.splate.isOpen && this.splate.isDisplayName){
 		fnMeta(this.splate.fn).numOpenNamedSplats++;
 		//FIXME do fnMeta(this.splate.fn).numOpenNamedSplats--
 		//when this.splate is replaced with a !isOpen and !isDisplayName or this Splat removed.
-	}
+	}*/
 	
 	//map of string to dob (dom object).
 	//TODO dobs for the 2 childs, prefix and suffix, etc.
 	//TODO also include dobs for "include extra divs, normally empty, in every Splat, in every
 	//possible place in that splat it could be dropped, including hidden splats".
-	this.dobs = {};
+	this.dobs = {
+		self: selfDob,
+	};
 	
 	this.parentSplat = parentSplatOrNull || null; //null if this is a top Splat (probably just these 2: rootSplat and dragSplat)
 	this.leftSplat = null; //null if not viewing left child
 	this.rightSplat = null; //null if not viewing right child
+	
+	this.createDobsIfNotExist(); //other than selfDob which is given
 
 };
 
-//lazy create left splat
+//lazy create left splat with defaultSplate (waiting for setSplate to cause display of nontrivial contents)
 Splat.prototype.L = function(){
 	if(!this.leftSplat){
 		//let leftSplate = defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable. Also, this shouldnt be defaultSplate.
-		let leftSplate = this.splate.simpleLeftSplate();
-		this.leftSplat = new Splat(this, leftSplate);
+		//let leftSplate = this.splate.simpleLeftSplate();
+		//this.leftSplat = new Splat(this, leftSplate);
+		//this.leftSplat = new Splat(this, leftSplate);
+		if(!this.dobs.left) throw 'No left dob';
+		this.leftSplat = new Splat(this, this.dobs.left);
 		this.leftSplat.parentSplat = this;
 	}
 	return this.leftSplat;
 };
 
-//lazy create left splat
+//lazy create right splat with defaultSplate (waiting for setSplate to cause display of nontrivial contents)
 Splat.prototype.R = function(){
 	if(!this.rightSplat){
 		//let rightSplate = defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable. Also, this shouldnt be defaultSplate.
-		let rightSplate = this.splate.simpleRightSplate();
-		this.rightSplat = new Splat(this, rightSplate);
+		//let rightSplate = this.splate.simpleRightSplate();
+		if(!this.dobs.right) throw 'No right dob';
+		this.rightSplat = new Splat(this, this.dobs.right);
 		this.rightSplat.parentSplat = this;
 	}
 	return this.rightSplat;
@@ -437,6 +456,7 @@ var sytyToPopChar_ = {
 
 var sytyToPopChar = syty=>(sytyToPopChar_[syty] || 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
 
+/*
 Splat.prototype.updateSelfDivStyle = function(){
 	let sty = this.dobs.self.style;
 	sty.borderStyle = 'outset';
@@ -451,7 +471,7 @@ Splat.prototype.updateSelfDivStyle = function(){
 	sty.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
 	sty.borderWidth = '15px';
 	sty.borderColor = colorStr(red,green,blue);
-};
+};*/
 
 Splat.prototype.createDobsIfNotExist = function(){
 	if(!this.dobs.self){
@@ -470,9 +490,16 @@ Splat.prototype.createDobsIfNotExist = function(){
 };
 
 var options = {};
-options.displayWholeTostringAtEachRect = true;
-options.displaySplateDetailExceptFnAtEachRect = true;
+//options.displayWholeTostringAtEachRect = true;
+options.displayWholeTostringAtEachRect = false;
+//options.displaySplateDetailExceptFnAtEachRect = true;
+options.displaySplateDetailExceptFnAtEachRect = false;
+//options.displayOnly_setSplit_inLiteral = true;
+options.displayOnly_setSplit_inLiteral = false;
+//options.display_isSelected_afterName = true;
+options.display_isSelected_afterName = false;
 
+/*
 Splat.prototype.displayLocal = function(){
 	console.log('Splat displayLocal this='+this);
 	if(!this.dobs.self) throw 'No self dob';
@@ -484,11 +511,11 @@ Splat.prototype.displayLocal = function(){
 		}
 		let prefix = sytyToPushChar(syty);
 		let suffix = sytyToPopChar(syty);
-		/*let prefix = syty=='U' ? '' : sytyToPushChar(syty);
-		let suffix = syty=='U' ? '' : sytyToPopChar(syty);
-		if(syty=='U' && !this.splate.isDisplayName){
-			throw 'Must display name if its U
-		}*/
+		//let prefix = syty=='U' ? '' : sytyToPushChar(syty);
+		//let suffix = syty=='U' ? '' : sytyToPopChar(syty);
+		//if(syty=='U' && !this.splate.isDisplayName){
+		//	throw 'Must display name if its U
+		//}
 		if(this.splate.isDisplayName){
 			//suffix += '#TODONAMEHERE';
 			suffix += '#'+this.splate.name();
@@ -509,12 +536,13 @@ Splat.prototype.displayLocal = function(){
 			}
 		}
 	}
-};
+};*/
 
 Splat.prototype.toString = function(){
 	return '[Splat splate='+this.splate+' isSelected='+this.isSelected()+']';
 };
 
+/*
 Splat.prototype.removeDobsExceptSelf = function(){
 	for(let dobName in this.dobs){
 		if(dobName !== 'self'){
@@ -555,39 +583,6 @@ Splat.prototype.displayIn = function(dob){
 		this.removeDobs();
 		this.dobs.self = dob;
 		this.createDobsIfNotExist();
-		/*this.updateSelfDivStyle();
-		let syty = this.splate.syty;
-		if(this.splate.isDisplayPushAndPopChars){
-			if(syty == 'U'){
-				throw 'Dont look into the fractal (L U (R U))->U, isDisplayPushAndPopChars should be false and isDisplayName true and name should be U.';
-			}
-			let prefix = sytyToPushChar(syty);
-			let suffix = sytyToPopChar(syty);
-			//let prefix = syty=='U' ? '' : sytyToPushChar(syty);
-			//let suffix = syty=='U' ? '' : sytyToPopChar(syty);
-			//if(syty=='U' && !this.splate.isDisplayName){
-			//	throw 'Must display name if its U
-			//}
-			if(this.splate.isDisplayName){
-				//suffix += '#TODONAMEHERE';
-				suffix += '#'+this.splate.name();
-			}
-			if(options.displayWholeTostringAtEachRect){
-				suffix += '__'+this.splate.fn;
-			}
-			if(options.displaySplateDetailExceptFnAtEachRect){
-				suffix += '__'+this.splate.toStringExceptFn();
-			}
-			this.dobs.prefix.innerHTML = prefix;
-			this.dobs.suffix.innerHTML = suffix;
-		}else{
-			if(syty == 'U'){
-				if(!this.splate.isDisplayName){
-					throw 'Must isDisplayName for leaf/U';
-				}
-			}
-		}
-		*/
 		this.displayLocal();
 	}
 	if(this.splate.isOpen){
@@ -603,9 +598,11 @@ Splat.prototype.displayIn = function(dob){
 		//}
 	}
 };
+*/
 
 Splat.prototype.isSelected = function(){
-	return this===selSplat;
+	return this.splate().isSelected;
+	//return this===selSplat;
 };
 
 
@@ -661,7 +658,7 @@ console.log(`FIXME add all state thats in splat and selSplat etc, including:
 //A fn can be part of an immutable splate cuz (other than some internal optimizations)
 //its an immutable (lazy-deduped, multi fn objects of same shape but different 128 bit localId) forest shape
 //where all paths lead to U/Wikibinator203/TheUniversalCombinator.
-var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isSelected, red, green, blue){
+var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, showDropDobs, isSelected, red, green, blue){
 
 	
 
@@ -704,6 +701,8 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	
 	this.isDisplayPushAndPopChars = !!isDisplayPushAndPopChars;
 	
+	this.showDropDobs = !!showDropDobs;
+	
 	//get name from this.fn.n.nameEtc() which can be this.fn.n.localName or this.fn.n.locid(),
 	//but you can only change this.fn.n.localName, and changing it might contradict the immutable design of Splate
 	//and if so maybe Splate should be redesigned to have a name field. isDisplayName still chooses to display it or not.
@@ -718,11 +717,16 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	
 };
 
+var getSplit = (splate, leftSplit, rightSplit)=>{
+	//TODO? dedup by aSplit.bigHash()? For now just return a new one and compare with aSplit.eq(split) which uses bigHash.
+	return new Split(splate, leftSplit, rightSplit);
+};
+
 //perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
 //caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
 Splate.prototype.bigHash = function(){
-	return '<Splate_'+this.fn.n.locid()+'_'+this.syty+'_'+(this.isOpen?'O':'o')+(this.isOneLine?'L':'l')+(this.isLiteral?'I':'i')+
-		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+'>';
+	return '[Splate_'+this.fn.n.locid()+'_'+this.syty+'_'+(this.isOpen?'O':'o')+(this.isOneLine?'L':'l')+(this.isLiteral?'I':'i')+
+		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+']';
 };
 
 
@@ -833,7 +837,7 @@ Splate.prototype.toString = function(){
 
 //The "except fn" part is cuz displaying a fn could be very big.
 Splate.prototype.toStringExceptFn = function(){
-	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayName='+this.isDisplayName+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' ]';
+	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' isDisplayName='+this.isDisplayName+' name='+this.name()+']';
 };
 
 Splate.prototype.name = function(){
@@ -859,6 +863,7 @@ Splate.prototype.setName = function(name){
 var fnMeta_ = {};
 
 //Example: fnMeta(U(U(U))).numOpenSplates
+//FIXME I'm trying to put all state into Split, so this should be used to choose what Splits to make, not as part of state.
 var fnMeta = fn=>{
 	//let ret = fnMeta.get(fn);
 	let key = fn.n.locid();
@@ -883,8 +888,9 @@ var fnMeta = fn=>{
 //FIXME you shouldnt need to copy a Splate since it should be used as immutable,
 //but in this early prototype of the UI I'm modifying vars in it cuz forkEditing it isnt working yet.
 Splate.prototype.copy = function(){
-	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars, this.isSelected, this.red, this.green, this.blue);
+	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars, this.showDropDobs, this.isSelected, this.red, this.green, this.blue);
 };
+
 
 //makes a Splate of left child of fn, with everything open except if its U then closed.
 //Normally you'll want to create a custom Splate, for custom ways to display it, but this is just to get started fast.
@@ -894,18 +900,6 @@ Splate.prototype.simpleLeftSplate = function(){
 
 Splate.prototype.simpleRightSplate = function(){
 	return this.simpleLeftOrRightSplate(true);
-	/*if(this.fn.n.isLeaf()){
-		return defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable.
-	}else{
-		let fn = this.fn.n.R();
-		let syty = fnToSyty(fn);
-		let isOpen = true;
-		let isOneLine = true;
-		let isLiteral = false;
-		let isDisplayName = false;
-		let isDisplayPushAndPopChars = true;
-		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars);
-	}*/
 };
 
 Splate.prototype.simpleLeftOrRightSplate = function(isRight){
@@ -933,8 +927,6 @@ var randRed = ()=>(.45+.55*Math.random());
 var randGreen = randRed;
 var randBlue = randRed;
 
-//this is for U.
-var defaultSplate = new Splate(U, 'C', false, true, false, true, false);
 
 
 //all 3 params are optional
@@ -1025,6 +1017,11 @@ Split.prototype.bigHash = function(){
 	return this.bigHash_;
 };
 
+Split.prototype.toString = function(){
+	return '[Split_'+(this.leftSplit?'L':'l')+(this.rightSplit?'R':'r')+'_splate='+this.splate+']';
+};
+
+
 //do 2 Splits equal by deep content except fns are compared by their 128 bit localId (fn.n.locid()) not perfect deduped, true or false.
 Split.prototype.eq = function(split){
 	return this.bigHash()==split.bigHash();
@@ -1066,22 +1063,235 @@ Split.prototype.suffix = function(){
 	dob.innerHTML = '';
 	throw 'TODO';
 };*/
-Split.prototype.displayIn = function(splat){
+/*Use Splat.setSplit instead of: Split.prototype.displayIn = function(splat){
 	throw 'TODO';
+};*/
+
+
+Splat.prototype.splate = function(){
+	return this.split.splate;
 };
 
+//displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
+Splat.prototype.setSplit = function(split){
+	if(!split) throw 'No split';
+	var prevSplit = this.split;
+	if(!prevSplit) throw 'No prevSplit';
+	if(!split.eq(prevSplit)){
+		this.split = split;
+		if(!this.dobs.self) throw 'No self dob';
+		let prevSplate = prevSplit.splate;
+		let splate = split.splate;
+		
+		if(options.displayOnly_setSplit_inLiteral){
+			this.dobs.literal.innerHTML = 'setSplit param='+split;
+		}
+		
+		let style = this.dobs.self.style;
+		style.borderStyle = 'outset';
+		let red = splate.red;
+		let green = splate.green;
+		let blue = splate.blue;
+		let brightMul = .85;
+		if(this.isSelected()){
+			console.log('isSelected splat='+this);
+			red = green = blue = 1;
+		}
+		style.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
+		style.borderWidth = '15px';
+		style.borderColor = colorStr(red,green,blue);
+		
+		let syty = splate.syty;
+		if(splate.isDisplayPushAndPopChars){
+			let prefix = sytyToPushChar(syty);
+			let suffix = sytyToPopChar(syty);
+			if(splate.isDisplayName){
+				//suffix += '#TODONAMEHERE';
+				suffix += '#'+splate.name();
+			}
+			if(options.displayWholeTostringAtEachRect){ //for testing
+				suffix += '__'+splate.fn;
+			}
+			if(options.displaySplateDetailExceptFnAtEachRect){ //for testing
+				suffix += '__'+splate.toStringExceptFn();
+			}
+			if(options.display_isSelected_afterName){
+				suffix += '__isSelected='+this.isSelected();
+			}
+			this.dobs.prefix.innerHTML = prefix;
+			this.dobs.suffix.innerHTML = suffix;
+			
+			if(splate.showDropDobs){
+				this.dobs.dropleft.innerHTML = '(dropleft)';
+				this.dobs.dropmid.innerHTML = '(dropmid)';
+				this.dobs.dropright.innerHTML = '(dropright)';
+			}
+		}else{
+			this.dobs.prefix.innerHTML = '';
+			//FIXME should this go in suffix if its name? thats where name usually goes, but if its ONLY name, maybe it should go in literal?
+			let literal = splate.name();
+			this.dobs.literal.innerHTML = literal;
+			this.dobs.suffix.innerHTML = '';
+		}
+		
+		if(this.split.splate.isOpen && this.split.leftSplit && this.split.rightSplit){
+			//this.L() creates or reuses this.leftSplat, similar for .R()
+			console.log('Splat displaying left child');
+			//this.L().displayIn(this.dobs.left);
+			this.L().setSplit(this.split.leftSplit);
+			console.log('Splat displaying right child');
+			//this.R().displayIn(this.dobs.right);
+			this.R().setSplit(this.split.rightSplit);
+		}
+		
+		//throw 'fixmefixme';
+	}
+};
+
+/*
+Splat.prototype.displayLocal = function(){
+	console.log('Splat displayLocal this='+this);
+	if(!this.dobs.self) throw 'No self dob';
+	this.updateSelfDivStyle();
+	let syty = this.splate.syty;
+	if(this.splate.isDisplayPushAndPopChars){
+		if(syty == 'U'){
+			throw 'Dont look into the fractal (L U (R U))->U, isDisplayPushAndPopChars should be false and isDisplayName true and name should be U.';
+		}
+		let prefix = sytyToPushChar(syty);
+		let suffix = sytyToPopChar(syty);
+		//let prefix = syty=='U' ? '' : sytyToPushChar(syty);
+		//let suffix = syty=='U' ? '' : sytyToPopChar(syty);
+		//if(syty=='U' && !this.splate.isDisplayName){
+		//	throw 'Must display name if its U
+		//}
+		if(this.splate.isDisplayName){
+			//suffix += '#TODONAMEHERE';
+			suffix += '#'+this.splate.name();
+		}
+		if(options.displayWholeTostringAtEachRect){
+			suffix += '__'+this.splate.fn;
+		}
+		if(options.displaySplateDetailExceptFnAtEachRect){
+			suffix += '__'+this.splate.toStringExceptFn();
+		}
+		suffix += '__isSelected='+this.isSelected();
+		this.dobs.prefix.innerHTML = prefix;
+		this.dobs.suffix.innerHTML = suffix;
+	}else{
+		if(syty == 'U'){
+			if(!this.splate.isDisplayName){
+				throw 'Must isDisplayName for leaf/U';
+			}
+		}
+	}
+};*/
+
+/*
+Splat.prototype.removeDobs = function(){
+	for(let dobName in this.dobs){
+		this.dobs[dobName].remove(); //remove from dom tree
+		delete this.dobs[dobName];
+	}
+};
+
+Splat.prototype.displayIn = function(dob){
+	if(!dob) throw 'No param dob';
+
+	//TODO merge duplicate code between displayIn and displayLocal
+
+	console.log('Splat displayIn '+dob);
+	const ThisSplat = this;
+	if(this.dobs.self != dob){
+		console.log('Splat replacing its dobs');
+		dob.innerHTML = '';
+		dob.addEventListener(
+			'click',
+			function(event){
+				//console.log('click '+ThisSplat);
+				//requestAnimationFrame(function(){
+					//console.log('ThisSplat_isRoot='+(ThisSplat===rootSplat));
+					setSelSplat(ThisSplat);
+				//});
+				event.stopPropagation();
+			}
+		);
+		this.removeDobs();
+		this.dobs.self = dob;
+		this.createDobsIfNotExist();
+		this.displayLocal();
+	}
+	if(this.splate.isOpen){
+		//if(this.leftSplat){
+			console.log('Splat displaying left child');
+			//this.leftSplat.displayIn(this.dobs.left);
+			this.L().displayIn(this.dobs.left);
+		//}
+		//if(this.rightSplat){
+			console.log('Splat displaying right child');
+			//this.rightSplat.displayIn(this.dobs.right);
+			this.R().displayIn(this.dobs.right);
+		//}
+	}
+};
+*/
+
+/*
 var newSplateForFnAsRoot = function(fn){
 	let syty = fnToSyty(fn);
 	//FIXME should depend on parent syty, or parent of parent of parent... How did VM do it? Check vm.View.prototype.syty.
 	let isDisplayPushAndPopChars = true;
-	return new Splate(fn, syty, true, false, false, false, isDisplayPushAndPopChars); //FIXME which true/falses?
-};
+	return new Splate(fn, syty, true, false, false, false, isDisplayPushAndPopChars, false, randRed(), randGreen(), randBlue()); //FIXME which true/falses?
+};*/
+
+
 
 var fnToView = fn=>vm.getViewer().view(fn);
+
+
 
 //creates sytys all the way down, on L and R childs of fn, but (FIXME verify) not past blob wrappers,
 //and FIXME it should depend on splate.isOpen etc and maybe that of its childs (if parent isOpen but not 1 or both of its childs).
 var fnToSyty = fn=>fnToView(fn).syty();
+
+
+//experimental cuz theres lots of isOpen, which could use alot of screen space with duplicate views of same fn, as fn is a forest.
+//This is replacing newSplateForFnAsRoot but better cuz its stateless and doesnt have to be root, can be for any Splat in tree of Splats.
+//
+//Remember, a Split is immutable and can have many parents,
+//but a Splat is mutable (its only state is Splate and dobs/domObjects derived from Splate) and can have at most 1,
+//and Split and Splat both contain only Splate and childs (of same type, Split vs Splat).1
+//
+var newSplitForFn_experimental = function(fn){
+	let syty = fnToSyty(fn);
+	//FIXME should depend on parent syty, or parent of parent of parent... How did VM do it? Check vm.View.prototype.syty.
+	let isOpen = fn!==U; //aka !fn.n.isLeaf(). U is the universal combinator/lambda.
+	let isOneLine = false;
+	let isLiteral = false;
+	let isDisplayName = true;
+	let isDisplayPushAndPopChars = isOpen;
+	let showDropDobs = isOpen;
+	let isSelected = false;
+	let red = randRed(); //FIXME should be deterministic
+	let green = randGreen(); //FIXME should be deterministic
+	let blue = randBlue(); //FIXME should be deterministic
+	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, showDropDobs, isSelected, red, green, blue);
+	let leftSplit = null;
+	let rightSplit = null;
+	if(isOpen){
+		leftSplit = newSplitForFn_experimental(fn.n.L());
+		rightSplit = newSplitForFn_experimental(fn.n.R());
+	}
+	return getSplit(splate,leftSplit,rightSplit);
+};
+
+
+//this is for U.
+var defaultSplit = newSplitForFn_experimental(U);
+//var defaultSplate = new Splate(U, 'C', false, true, false, true, false);
+
+
+
 
 /*
 //draggable tree node, view of a fn/lambda as a var size list or literal. Literals can be text, sounds, canvas bytes, etc.
@@ -1161,12 +1371,15 @@ var setSelSplat = splat=>{
 	let prevSelSplat = selSplat;
 	selSplat = splat;
 	if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
-	selSplat.displayLocal();
+	throw 'TODO use setSplit but must forkEdit which is selected first';
+	//selSplat.displayLocal();
 	//rootDisplay(true);
 };
 
 //display rootSplat in rootDob, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
-var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
+//var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
+var rootSplat = null; //cuz need rootDob to exist first, and not doing that til window.onload
+//var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
 //rootSplat.split = newSplitForFn(exampleFnToDisplay);
 var rootDob = null; //TODO
 
@@ -1188,6 +1401,7 @@ and maybe later I'll make it be made completely of fns instead of a split just w
 var dragSplat = null; //TODO when dragging
 var dragDob = null; //dragSplat.displayIn(dragDob). rootSplat.displayIn(rootDob).
 
+/*
 //expensive calculation
 Splat.prototype.displayDeep = function(){
 	if(!this.dobs.self) throw 'No self dob in '+this;
@@ -1198,7 +1412,9 @@ Splat.prototype.displayDeep = function(){
 		this.R().displayIn(this.dobs.right);
 	}
 };
+*/
 
+/*
 var rootDisplay = ()=>{
 	console.log('rootDisplay');
 	if(rootSplat.dobs.self){
@@ -1207,12 +1423,27 @@ var rootDisplay = ()=>{
 		rootDob = Dob('rootDob');
 		rootSplat.displayIn(rootDob); //FIXME is this compatible with split.displayIn(splat)?
 	}
-};
+};*/
+
+
+
 
 var Dob = id=>document.getElementById(id);
 
+//display rootSplat in rootDob, the main rectangle that Wikibinator203 fns/lambdas are viewed and drag-and-drop to call in.
+//var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
+var rootSplat = null; //cuz need rootDob to exist first, and not doing that til window.onload
+//var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
+//rootSplat.split = newSplitForFn(exampleFnToDisplay);
+var rootDob = null; //TODO
+
 window.onload = ()=>{
-	rootDisplay();
+	rootDob = Dob('rootDob');
+	rootSplat = new Splat(null, rootDob);
+	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
+	let fn = exampleFnToDisplay;
+	let split = newSplitForFn_experimental(fn);
+	rootSplat.setSplit(split); //display it recursively
 };
 
 
@@ -1232,7 +1463,7 @@ window.onload = ()=>{
 	<br><br>
 	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
-	<div id=rootDob>(rootDob)</div>
+	<div id=rootDob></div>
 	
 	
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
