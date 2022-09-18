@@ -232,6 +232,8 @@ var unicode = {
 
 //drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 
+'use strict';
+
 const U = Wikibinator203; //the universal function
 if(U(U(U))(U) !== U(U(U))(U)) throw 'Lambda equality is broken';
 const vm = Wikibinator203.n.vm; //anyWikibinator203Lambda.n is its vm.Node instance, wrapped in a lambda by vm.lambdize(node)
@@ -273,7 +275,7 @@ var colorStr = function(redFraction, greenFraction, blueFraction){
 
 var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 
-/*const firstCode =
+const firstCode =
 `[
 I#(F U)
 Sqr#{(T *) I I}
@@ -291,8 +293,8 @@ Hypot#(
 )
 the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func is Hypot and as a 1 param func is (Hypot 6)
 ]`;
-*/
-const firstCode = '[I#(F U) Sqr#{(T *) I I}]';
+
+//const firstCode = '[I#(F U) Sqr#{(T *) I I}]';
 
 const exampleFnToDisplay = vm.eval(firstCode); //a Wikibinator203 fn/lambda (which is a js lambda)
 
@@ -380,6 +382,19 @@ var Splat = function(parentSplatOrNull, selfDob){
 		self: selfDob,
 	};
 	
+	const ThisSplat = this;
+	selfDob.addEventListener(
+		'click',
+		function(event){
+			//console.log('click '+ThisSplat);
+			//requestAnimationFrame(function(){
+				//console.log('ThisSplat_isRoot='+(ThisSplat===rootSplat));
+				setSelSplat(ThisSplat);
+			//});
+			event.stopPropagation();
+		}
+	);
+	
 	this.parentSplat = parentSplatOrNull || null; //null if this is a top Splat (probably just these 2: rootSplat and dragSplat)
 	this.leftSplat = null; //null if not viewing left child
 	this.rightSplat = null; //null if not viewing right child
@@ -436,7 +451,7 @@ Splat.prototype.parentDob = function(){
 };
 
 //Keys in splat.dobs, except 'self' which contains all those.
-var childDobNames = 'prefix dropleft left dropmid literal right dropright suffix'.split(' ');
+var childDobNames = 'controls prefix dropleft left dropmid literal right dropright suffix'.split(' ');
 
 var sytyToPushChar_ = {
 	'IC0': '[',
@@ -478,7 +493,7 @@ Splat.prototype.createDobsIfNotExist = function(){
 		console.log('splat creating this.dobs.self, which contains the other dobs of this splat');
 		this.dobs.self = Nob('div', this.parentDob());
 	}
-	for(let dobName of childDobNames){
+	/*for(let dobName of childDobNames){
 		if(!this.dobs[dobName]){
 			//let text = 'x_syty='+this.splate.syty;
 			let text = null;
@@ -486,18 +501,53 @@ Splat.prototype.createDobsIfNotExist = function(){
 			dob.classList.add('wikib_'+dobName);
 			this.dobs[dobName] = dob;
 		}
+	}*/
+	//var childDobNames = 'controls prefix dropleft left dropmid literal right dropright suffix'.split(' ');
+	//
+	//prefix	left
+	//
+	//
+	//suffix	right
+	//and the others go around left and right etc, but might just need a 2x2 table.
+	let d = this.dobs;
+	d.controls = Nob('div', d.self);
+	d.table = Nob('table',d.self);
+	d.rowa = Nob('tr', d.table);
+	d.rowb = Nob('tr', d.table);
+	
+	d.prefix = Nob('td', d.rowa);
+	d.prefix.style.verticalAlign = 'top';
+	d.upright = Nob('td', d.rowa);
+	d.suffix = Nob('td', d.rowb);
+	d.suffix.style.verticalAlign = 'bottom';
+	d.downright = Nob('td', d.rowb);
+	
+	d.dropleft = Nob('div', d.upright);
+	d.left = Nob('div', d.upright);
+	d.dropmid = Nob('div', d.upright);
+	
+	d.literal = Nob('div', d.downright);
+	d.right = Nob('div', d.downright);
+	d.dropright = Nob('div', d.downright);
+	
+	for(let dobName in d){
+		d[dobName].classList.add('wikib_'+dobName);
 	}
+	
 };
 
 var options = {};
+//UPDATE: some of these are displayed in popup title when mouse hover, instead of where they say they're displayed.
 //options.displayWholeTostringAtEachRect = true;
 options.displayWholeTostringAtEachRect = false;
-//options.displaySplateDetailExceptFnAtEachRect = true;
-options.displaySplateDetailExceptFnAtEachRect = false;
+options.displaySplateDetailExceptFnAtEachRect = true;
+//options.displaySplateDetailExceptFnAtEachRect = false;
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
 //options.display_isSelected_afterName = true;
 options.display_isSelected_afterName = false;
+options.displaySplatHeight = true;
+//options.displaySplatHeight = false;
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -840,6 +890,10 @@ Splate.prototype.toStringExceptFn = function(){
 	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' isDisplayName='+this.isDisplayName+' name='+this.name()+']';
 };
 
+//if you call .name, it starts with A-Z (then any unicode chars) or Λ (locid). Locid is a 128 bit id created when the fn is created, but its string form is lazyEvaled.
+//If its locid, then user hasnt given it a name. Doesnt trigger lazyeval of that string.
+var nameOfFnIsLocid = fn=>fn.n.nameEtc_isLocid();
+
 Splate.prototype.name = function(){
 	return this.fn.n.nameEtc();
 };
@@ -892,6 +946,7 @@ Splate.prototype.copy = function(){
 };
 
 
+/*
 //makes a Splate of left child of fn, with everything open except if its U then closed.
 //Normally you'll want to create a custom Splate, for custom ways to display it, but this is just to get started fast.
 Splate.prototype.simpleLeftSplate = function(){
@@ -917,13 +972,17 @@ Splate.prototype.simpleLeftOrRightSplate = function(isRight){
 		let isOneLine = true;
 		let isLiteral = false;
 		let isDisplayPushAndPopChars = !this.fn.n.isLeaf();
+		//let showDropDobs = isOpen;
+		let showDropDobs = false;
 		let isSelected = false;
 		//FIXME dont use random
-		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isSelected, randRed(), randGreen(), randBlue());
+		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, showDropDobs, isSelected, randRed(), randGreen(), randBlue());
 	}
 };
+*/
 
-var randRed = ()=>(.45+.55*Math.random());
+//var randRed = ()=>(.45+.55*Math.random());
+var randRed = ()=>(.55+.45*Math.random());
 var randGreen = randRed;
 var randBlue = randRed;
 
@@ -1072,6 +1131,15 @@ Splat.prototype.splate = function(){
 	return this.split.splate;
 };
 
+let tabSizeInSpaces = 4;
+
+let borderWidth = 0;
+
+//A root is height 0. Direct child of root is height 1, and so on.
+Splat.prototype.height = function(){
+	return this.parentSplat ? (1+this.parentSplat.height()) : 0;
+};
+
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
 Splat.prototype.setSplit = function(split){
 	if(!split) throw 'No split';
@@ -1098,28 +1166,66 @@ Splat.prototype.setSplit = function(split){
 			red = green = blue = 1;
 		}
 		style.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
-		style.borderWidth = '15px';
+		//style.borderWidth = '15px';
+		style.borderWidth = borderWidth+'px';
+		//FIXME borderWidth of 0 is still getting a little tilt, is not displayed as 0
 		style.borderColor = colorStr(red,green,blue);
 		
+		//this.dobs.self.title = 'test';
+		let popupTitle = '';
+		
 		let syty = splate.syty;
-		if(splate.isDisplayPushAndPopChars){
+		let fn = splate.fn;
+		if(splate.isLiteral){
+			let literal;
+			if(fn.n.isDouble()){
+				//normal javascript double toString, which is same as java double toString except maybe how exponent
+				//is displayed with or without + and leading zeros in it etc, todo verify.
+				literal = ''+fn.n.d();
+			}else if(fn.n.isTypeUtf8()){
+				let content = fn.n.r;
+				let utf8Bytes = content.n.bytes();
+				
+				//The next 3 comment lines are copied from VM:
+				//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
+				//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
+				//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
+				
+				literal = vm.utf8AsUint8ArrayToString(utf8Bytes);
+			}else if(fn.n.isCbt()){
+				literal = '0x'+vm.cbtToHex(fn);
+			}else{
+				throw 'TODO what literal type? fn='+fn;
+			}
+			this.dobs.literal.innerHTML = literal;
+		}else if(splate.isDisplayPushAndPopChars){
 			let prefix = sytyToPushChar(syty);
+			for(let i=tabSizeInSpaces-prefix.length; i>0; i--) prefix += '&nbsp;'; //TODO optimize all one string, not loop
 			let suffix = sytyToPopChar(syty);
+			for(let i=tabSizeInSpaces-suffix.length; i>0; i--) suffix += '&nbsp;'; //TODO optimize all one string, not loop
 			if(splate.isDisplayName){
 				//suffix += '#TODONAMEHERE';
 				suffix += '#'+splate.name();
 			}
 			if(options.displayWholeTostringAtEachRect){ //for testing
-				suffix += '__'+splate.fn;
+				//suffix += '__'+splate.fn;
+				popupTitle += '__'+splate.fn;
 			}
 			if(options.displaySplateDetailExceptFnAtEachRect){ //for testing
-				suffix += '__'+splate.toStringExceptFn();
+				//suffix += '__'+splate.toStringExceptFn();
+				popupTitle += '__'+splate.toStringExceptFn();
 			}
 			if(options.display_isSelected_afterName){
-				suffix += '__isSelected='+this.isSelected();
+				//suffix += '__isSelected='+this.isSelected();
+				popupTitle += '__isSelected='+this.isSelected();
+			}
+			if(options.displaySplatHeight){
+				popupTitle += '__height='+this.height();
 			}
 			this.dobs.prefix.innerHTML = prefix;
 			this.dobs.suffix.innerHTML = suffix;
+			
+			if(popupTitle) this.dobs.self.title = popupTitle;
 			
 			if(splate.showDropDobs){
 				this.dobs.dropleft.innerHTML = '(dropleft)';
@@ -1255,6 +1361,8 @@ var fnToView = fn=>vm.getViewer().view(fn);
 var fnToSyty = fn=>fnToView(fn).syty();
 
 
+var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
+
 //experimental cuz theres lots of isOpen, which could use alot of screen space with duplicate views of same fn, as fn is a forest.
 //This is replacing newSplateForFnAsRoot but better cuz its stateless and doesnt have to be root, can be for any Splat in tree of Splats.
 //
@@ -1266,11 +1374,19 @@ var newSplitForFn_experimental = function(fn){
 	let syty = fnToSyty(fn);
 	//FIXME should depend on parent syty, or parent of parent of parent... How did VM do it? Check vm.View.prototype.syty.
 	let isOpen = fn!==U; //aka !fn.n.isLeaf(). U is the universal combinator/lambda.
+	//FIXME should there be a level of isOpen that just displays literal but not childs? literal could be big, so closed, literalOnly, open, could be 3 levels?
 	let isOneLine = false;
-	let isLiteral = false;
-	let isDisplayName = true;
-	let isDisplayPushAndPopChars = isOpen;
-	let showDropDobs = isOpen;
+	//let isLiteral = false;
+	let isLiteral = fnIsLiteral(fn);
+	//let isDisplayName = true;
+	//FIXME, use name anyways (locid) if need a name to display the same fn multiple places (split can have multi parents, splat cant).
+	let isDisplayName = !nameOfFnIsLocid(fn);
+	if(isDisplayName){
+		isOpen = false;
+	}
+	let isDisplayPushAndPopChars = isOpen && !isLiteral;
+	//let showDropDobs = isOpen;
+	let showDropDobs = false;
 	let isSelected = false;
 	let red = randRed(); //FIXME should be deterministic
 	let green = randGreen(); //FIXME should be deterministic
@@ -1278,7 +1394,7 @@ var newSplitForFn_experimental = function(fn){
 	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, showDropDobs, isSelected, red, green, blue);
 	let leftSplit = null;
 	let rightSplit = null;
-	if(isOpen){
+	if(isOpen && isDisplayPushAndPopChars){
 		leftSplit = newSplitForFn_experimental(fn.n.L());
 		rightSplit = newSplitForFn_experimental(fn.n.R());
 	}
@@ -1362,6 +1478,29 @@ Branch.prototype.display = function(){
 	throw 'TODO';
 };
 */
+
+//UPDATE: param is a split, not a splate. If you want a splate instead, you can reuse the 2 child splits with a different splate here.
+//goes all the way up to a root splate (such as rootSplat or dragSplat).
+//Returns a Split that you'd use in thatRoot.setSplit, that has deep inside it this splat's splate set to the given splate.
+//Split is (used as) immutable and can have multi parents. Splat is mutable and has at most 1. Both have a splate.
+Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
+	if(!this.parentSplat){ //this is root
+		return replaceWithThisSplit;
+	}
+	let isRightChild = this.parentSplat.rightSplat===this;
+	let nextSplit;
+	if(isRightChild){
+		nextSplit = getSplit(this.parentSplat.split.splate, this.parentSplat.leftSplat.split, replaceWithThisSplit);
+	}else{ //is left child
+		nextSplit = getSplit(this.parentSplat.split.splate, replaceWithThisSplit, this.parentSplat.rightSplat.split);
+	}
+	return this.forkRootSplit(nextSplit);
+	//throw 'TODO use this when "TODO use setSplit but must forkEdit which is selected first"';
+};
+
+Splat.prototype.forkRootSplate = function(replaceWithThisSplate){
+	throw 'TODO call forkRootSplit with the existing 2 child splits, if they exist, else nulls for those';
+};
 
 //selected splat else null if none is selected
 var selSplat = null;
@@ -1463,7 +1602,9 @@ window.onload = ()=>{
 	<br><br>
 	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
-	<div id=rootDob></div>
+	<center>
+		<div id=rootDob style="width:90%"></div>
+	</center>
 	
 	
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>

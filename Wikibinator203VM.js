@@ -3991,6 +3991,11 @@ const Wikibinator203 = (()=>{
 		vm.Node.prototype.nameEtc = function(){
 			return this.lam.localName || this.locid();
 		};
+		
+		//Would nameEtc return a string that starts with Λ? else its probably human readable. its text either way.
+		vm.Node.prototype.nameEtc_isLocid = function(){
+			return !this.lam.localName;
+		};
 
 		//local id, either 64 or 128 bits depending if those 128 bits are all 0s they can be ignored or not. Its prefixed by λ then hex.
 		vm.Node.prototype.locid = function(){
@@ -6825,6 +6830,10 @@ const Wikibinator203 = (()=>{
 		//Example: view (TypevalC application/x-IEEE754-double 0x4002b851eb851eb8) as 2.34
 		vm.isDisplayDoubleLiterals = true;
 		
+		vm.Node.prototype.isTypeUtf8 = function(){
+			return this.l===vm.utf8Prefix; //If its a blob (Node.blob) then l and r may be null, but still return false cuz it has to be a TypevalB
+		};
+		
 		//TODO syntax ## (see OpCommentedFuncOfOneParam)
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
@@ -6843,7 +6852,7 @@ const Wikibinator203 = (()=>{
 			
 			//WARNING: this only works if deduped and is not a lazy blob,
 			//which is true in this prototype VM. Using o8() is the more general way.
-			let isUtf8String = FN.l===vm.utf8Prefix;
+			let isUtf8String = FN.l===vm.utf8Prefix; //TODO merge this with Node.isTypeUtf8
 			//FN.r() would normally be a cbt, but does not technically have to be. Its only useful if its a cbt.
 			let isSmallUtf8String = isUtf8String && FN.r().cbtSize() <= 256;
 			
