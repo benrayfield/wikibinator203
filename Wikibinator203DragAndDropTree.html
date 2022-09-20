@@ -295,7 +295,9 @@ the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func
 {[hello world] {abc def ghi}}
 (Pair L R)
 (T (Pair (T L) R))
+2.34
 ]`;
+//TODO 0xf922 aka cbt literal
 
 //const firstCode = '[I#(F U) Sqr#{(T *) I I}]';
 
@@ -583,6 +585,18 @@ options.displayVarargNormalCallPairs = true;
 //foldT is like displayVarargS, displayVarargNormalCallPairs, and displayVarargLists, but its not vararg. It makes (T abc) appear as ,abc .
 options.foldT = true;
 //options.foldT = false;
+
+//options.numlitPrefix = 'NUMLIT:';
+options.numlitPrefix = '';
+
+//options.stringlitPrefix = 'STRINGLIT:';
+options.stringlitPrefix = '';
+
+//options.namelitPrefix = 'NAMELIT:';
+options.namelitPrefix = '';
+
+options.cbtlitPrefix = 'CBTLIT:0x';
+//options.cbtlitPrefix = '';
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1273,6 +1287,7 @@ Splat.prototype.setSplit = function(split){
 		
 		let style = this.dobs.self.style;
 		style.borderStyle = 'outset';
+		style.display = 'inline-block';
 		let red = splate.red;
 		let green = splate.green;
 		let blue = splate.blue;
@@ -1298,7 +1313,7 @@ Splat.prototype.setSplit = function(split){
 			if(fn.n.isDouble()){
 				//normal javascript double toString, which is same as java double toString except maybe how exponent
 				//is displayed with or without + and leading zeros in it etc, todo verify.
-				literal = 'NUMLIT:'+fn.n.d();
+				literal = options.numlitPrefix+fn.n.d();
 			}else if(fn.n.isTypeUtf8()){
 				let content = fn.n.r;
 				let utf8Bytes = content.n.bytes();
@@ -1308,9 +1323,9 @@ Splat.prototype.setSplit = function(split){
 				//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
 				//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
 				
-				literal = 'STRINGLIT:'+vm.utf8AsUint8ArrayToString(utf8Bytes);
+				literal = options.stringlitPrefix+vm.utf8AsUint8ArrayToString(utf8Bytes);
 			}else if(fn.n.isCbt()){
-				literal = 'CBTLIT:0x'+vm.cbtToHex(fn);
+				literal = options.cbtlitPrefix+vm.cbtToHex(fn);
 			}else{
 				throw 'TODO what literal type? fn='+fn;
 			}
@@ -1349,7 +1364,7 @@ Splat.prototype.setSplit = function(split){
 			this.dobs.prefix.innerHTML = '';
 			//FIXME should this go in suffix if its name? thats where name usually goes, but if its ONLY name, maybe it should go in literal?
 			let literal = splate.name();
-			this.dobs.literal.innerHTML = 'NAMELIT:'+literal;
+			this.dobs.literal.innerHTML = options.namelitPrefix+literal;
 			this.dobs.suffix.innerHTML = '';
 		}//else{
 		//	this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
@@ -1844,13 +1859,21 @@ window.onload = ()=>{
 	
 </script>
 </head><body>
-	drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
+	Wikibinator203 widget: drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 	<br><br>
-	Doesnt work yet. Use Wikibinator203DirectedGraphUI.html instead.
+	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
-	<center>
-		<div id=rootDob style="width:90%"></div>
-	</center><br>
+	
+	<center><div id=rootDob></div></center>
+	<br>
+	TODO canvas or img src= changing the image each time (canvas literals in code)<br>
+	TODO webAudioAPI<br>
+	TODO gamepads<br>
+	TODO drag and drop to call lambda on lambda to find/create lambdas, including between multiple widgets and across different webpages using the 256 bit ids to copy all reachable lambdas not copied so far<br>
+	TODO open/close branch<br>
+	TODO checkboxes to change displayVarargS etc so users can see what is being hidden to make it more intuitive, even though whats hidden can be derived from contents of the prefix and suffix dobs, other than isLiteral displaying as canvas or webAudioAPI etc cuz that could be hard to see exact pixel brightness etc, or splate.isOpen being false.<br>
+	<br>
+	
 	<input type=button onclick="rootSplat.putThisStringInAllEmptyDobsDeep('.');" value="show all dobs put . in them if empty":></input>
 	
 	
