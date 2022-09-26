@@ -276,6 +276,29 @@ var colorStr = function(redFraction, greenFraction, blueFraction){
 var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 
 const firstCode =
+`[((Pair [L R]) [[[[
+I#(F U)
+Sqr#{(T *) I I}
+Hypot#(
+	λ [x y]
+	[this is [a comment] with a function Sqr in it]
+	{
+		(T Sqrt)
+		{
+			(T +)
+			{(T Sqr) (P x)}
+			{(T Sqr) (P y)}
+		}
+	}
+)
+[the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func is Hypot and as a 1 param func is (Hypot 6)]
+{[hello world] {abc def ghi}}
+(Pair L R)
+(T (Pair (T L) R))
+2.34
+]]]])]`;
+
+/*const firstCode =
 `[
 I#(F U)
 Sqr#{(T *) I I}
@@ -297,6 +320,8 @@ the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func
 (T (Pair (T L) R))
 2.34
 ]`;
+*/
+
 //TODO 0xf922 aka cbt literal
 
 //const firstCode = '[I#(F U) Sqr#{(T *) I I}]';
@@ -417,7 +442,7 @@ Splat.prototype.L = function(){
 		//this.leftSplat = new Splat(this, leftSplate);
 		//this.leftSplat = new Splat(this, leftSplate);
 		if(!this.dobs.left) throw 'No left dob';
-		this.leftSplat = new Splat(this, this.dobs.left);
+		this.leftSplat = new Splat(this, Pob('div',this.dobs.left)); //so no dobs are shared between parent.dobs and child.dobs
 		this.leftSplat.parentSplat = this;
 	}
 	return this.leftSplat;
@@ -429,15 +454,39 @@ Splat.prototype.R = function(){
 		//let rightSplate = defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable. Also, this shouldnt be defaultSplate.
 		//let rightSplate = this.splate.simpleRightSplate();
 		if(!this.dobs.right) throw 'No right dob';
-		this.rightSplat = new Splat(this, this.dobs.right);
+		this.rightSplat = new Splat(this, Pob('div',this.dobs.right)); //so no dobs are shared between parent.dobs and child.dobs
 		this.rightSplat.parentSplat = this;
 	}
 	return this.rightSplat;
 };
 
+//get or set attribute of dob. If dont give a value, just reads it. If give value, writes it then returns same dob. Use null to remove attribute.
+var attr = (dob,attrName,optionalAttrVal)=>{
+	if(optionalAttrVal === undefined){ //read attr
+		return dob.getAttribute(attrName);
+	}else{ //write attr
+		if(optionalAttrVal === null){
+			dob.removeAttribute(attrName);
+		}else{
+			dob.setAttribute(attrName, optionalAttrVal);
+		}
+		return dob;
+	}
+};
+
 //new dob/domObject
 var Nob = (tag,optionalParent,optionalInnerHtml)=>{
 	let dob = document.createElement(tag);
+	if(optionalInnerHtml) dob.innerHTML = optionalInnerHtml;
+	if(optionalParent) optionalParent.appendChild(dob);
+	return dob;
+};
+
+//unPadded New dOB/domObject
+var Pob = (tag, optionalParent, optionalInnerHtml)=>{
+	//unpad(Nob(tag,optionalParent,optionalInnerHtml));
+	let dob = document.createElement(tag);
+	unpad(dob);
 	if(optionalInnerHtml) dob.innerHTML = optionalInnerHtml;
 	if(optionalParent) optionalParent.appendChild(dob);
 	return dob;
@@ -504,16 +553,72 @@ Splat.prototype.updateSelfDivStyle = function(){
 };*/
 
 Splat.prototype.createDobsIfNotExist = function(){
+
+
+	/*
+	TODO make table have fewer rows/cols and put a flex layout in 1 of them to
+	change between vertical and horizontal of: dropleft left dropmid mid dropright right.
+	Leave prefix and suffix as they are in table.
+	
+	TABLE:
+	[prefix]/ flex      \/ suffix2   \
+	[suffix]\ colspan=2 /\ colspan=2 /
+	
+	This has to handle isOneLine being true or false, and empty dobs not taking space.
+	
+	Only need to handle these 4 cases with table/flexlayout/gridlayout/etc...
+	
+	prefix dropleft
+	       left
+	       dropmid
+	       literal
+	       right
+	       dropright
+	bigSuffixWithName
+	
+	prefix dropleft
+	       left
+	       dropmid
+	       literal
+	       right
+	suffix dropright
+	
+	prefix dropleft left dropmid literal right dropright suffix
+	
+	prefix dropleft left dropmid literal right dropright bigSuffixWithName
+	
+	//dont do this one cuz #Name should always be on same line as suffix.
+	//prefix dropleft
+	//       left
+	//       dropmid
+	//       right
+	//suffix dropright
+	//#NameBIGBIGBIGBIG
+	
+	
+	Maybe should get rid of dropleft dropmid and dropright and just put a separate drop icon with zIndex to display it above things.
+	
+	prefix left literal right suffix
+	
+	Literals will go in <...> such as canvas or text, other than #Names.
+	
+	*/
+
+
+
+
+
+
 	if(!this.dobs.self){
 		//this usually doesnt happen (if ever?). instead self is normally filled in by caller first.
 		console.log('splat creating this.dobs.self, which contains the other dobs of this splat');
-		this.dobs.self = Nob('div', this.parentDob());
+		this.dobs.self = Pob('div', this.parentDob());
 	}
 	/*for(let dobName of childDobNames){
 		if(!this.dobs[dobName]){
 			//let text = 'x_syty='+this.splate.syty;
 			let text = null;
-			let dob = Nob('div', this.dobs.self, text);
+			let dob = Pob('div', this.dobs.self, text);
 			dob.classList.add('wikib_'+dobName);
 			this.dobs[dobName] = dob;
 		}
@@ -526,28 +631,52 @@ Splat.prototype.createDobsIfNotExist = function(){
 	//suffix	right
 	//and the others go around left and right etc, but might just need a 2x2 table.
 	let d = this.dobs;
-	//d.controls = Nob('div', d.self);
-	d.table = Nob('table',d.self);
-	d.rowa = Nob('tr', d.table);
-	d.rowb = Nob('tr', d.table);
-	
-	d.prefix = Nob('td', d.rowa);
-	d.prefix.style.verticalAlign = 'top';
-	d.upright = Nob('td', d.rowa);
-	d.suffix = Nob('td', d.rowb);
-	d.suffix.style.verticalAlign = 'bottom';
-	d.downright = Nob('td', d.rowb);
-	
-	d.dropleft = Nob('div', d.upright);
-	d.left = Nob('div', d.upright);
-	d.dropmid = Nob('div', d.upright);
-	
-	d.literal = Nob('div', d.downright);
-	d.right = Nob('div', d.downright);
-	d.dropright = Nob('div', d.downright);
-	
-	for(let dobName in d){
-		d[dobName].classList.add('wikib_'+dobName);
+	if(!d.table){
+		//d.controls = Pob('div', d.self);
+		d.table = Pob('table',d.self);
+		attr(d.table,'border',5);
+		d.rowa = Pob('tr', d.table);
+		d.rowb = Pob('tr', d.table);
+		d.rowc = Pob('tr', d.table);
+		
+		d.prefix = Pob('td', d.rowa); //upleft
+		d.prefix.style.verticalAlign = 'top';
+		d.upright = Pob('td', d.rowa); //upright (up mid, if using upfarright)
+		attr(d.upright,'rowspan',2); //rowa and rowb. In upright theres flex layout thats either horizontal or vertical, and has both childs and 3 drop areas etc
+		d.upright.style.display = 'flex';
+		//flex-direction: row row-reverse column colum-reverse
+		d.upright.style['flex-direction'] = 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
+		//d.right2 = Pob('td', d.rowa); //if isOneLine, rowa is: prefix left right2 suffix2/upfarright
+		//TODO rename upfarright to suffix2
+		//d.upfarright = Pob('td', d.rowa); //upfarright, used if isOneLine, the suffix text goes here instead
+		//d.upfarright.style.verticalAlign = 'top';
+		
+		d.suffixb = Pob('td', d.rowb); //left, mid height
+		d.suffixb.style.verticalAlign = 'bottom';
+		//d.downright = Pob('td', d.rowb); //downright (and colspan to go all the way to the right, under upright and under upfarright).
+		//attr(d.downright,'colspan',2);
+		//attr(d.downright,'colspan',3); //if isOneLine, rowa is: prefix left right2 suffix2. If not, its just prefix left and ignore the other 2
+		
+		d.suffixc = Pob('td', d.rowc); //whole rowc, on bottom. Used only if suffix is big, such as }#NameABC instead of }
+		d.suffixc.style.verticalAlign = 'bottom';
+		attr(d.suffixc,'colspan',2);
+		
+		
+		d.dropleft = Pob('div', d.upright);
+		d.left = Pob('div', d.upright);
+		d.dropmid = Pob('div', d.upright);
+		
+		d.literal = Pob('div', d.upright);
+		d.right = Pob('div', d.upright);
+		d.dropright = Pob('div', d.upright);
+		
+		d.suffixfarright = Pob('div', d.upright);
+		
+		
+		
+		for(let dobName in d){
+			d[dobName].classList.add('wikib_'+dobName);
+		}
 	}
 	
 };
@@ -586,17 +715,32 @@ options.displayVarargNormalCallPairs = true;
 options.foldT = true;
 //options.foldT = false;
 
-//options.numlitPrefix = 'NUMLIT:';
-options.numlitPrefix = '';
+//options.numlitPrefix = '&nbsp;NUMLIT:';
+options.numlitPrefix = '&nbsp;';
 
-//options.stringlitPrefix = 'STRINGLIT:';
-options.stringlitPrefix = '';
+//options.stringlitPrefix = '&nbsp;STRINGLIT:';
+options.stringlitPrefix = '&nbsp;';
 
-//options.namelitPrefix = 'NAMELIT:';
-options.namelitPrefix = '';
+//options.namelitPrefix = '&nbsp;NAMELIT:';
+options.namelitPrefix = '&nbsp;';
 
-options.cbtlitPrefix = 'CBTLIT:0x';
-//options.cbtlitPrefix = '';
+//options.cbtlitPrefix = '&nbsp;CBTLIT:0x';
+options.cbtlitPrefix = '&nbsp;';
+
+options.literalSuffix = '&nbsp;'; //add space cuz div didnt pad enough space on right side compared to the other 3 sides.
+
+//affects splate.isOneLine. this is for testing.
+//options.displayAllAsOneLine = true;
+options.displayAllAsOneLine = false;
+
+//overpowers options.displayAllAsOneLine. this is for testingt.
+options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = true;
+//options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = false;
+
+//this is for testing.
+//has no effect if options.displayAllAsOneLine since its an experiment in varying isOneLine per branch based on its width
+options.do_forkTryMaxWidth_experimentOnWindowLoad = true;
+//options.do_forkTryMaxWidth_experimentOnWindowLoad = false;
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1157,6 +1301,80 @@ var Split = function(splate, leftSplit, rightSplit){
 	//this.dobs = {};
 };
 
+//in pixels. doesnt have to be displayed. This is for use with isOneLine etc for first n childs in a []{}().
+Split.prototype.estimateWidth = function(includeChildsIfExist){
+	//cached from earlier call. Can do that cuz Split and Splate are used as immutable,
+	//except for fn #LocalNames which are mutable but dont affect fn ids.
+	if(includeChildsIfExist){
+		if(this.estimateWidthWithChilds_ !== undefined) return this.estimateWidthWithChilds_;
+	}else{
+		if(this.estimateWidthWithoutChilds_ !== undefined) return this.estimateWidthWithoutChilds_;
+	}
+	let est = 0;
+	let estimatedFontWidth = 12; //pixels
+	if(this.splate.isLiteral){
+		//FIXME better estimate literal size (could be 2.34 helloworld canvasbytes etc). Just making something up for now...
+		let badlyEstimatedLiteralSize = estimatedFontWidth*8;
+		est += badlyEstimatedLiteralSize;
+	}else{
+		if(this.splate.isOneLine){
+			est += estimatedFontWidth*2; //{ and a later }, or [ and a later ], etc.
+		}else{
+			est += estimatedFontWidth*tabSizeInSpaces; //"{   " or "[   " etc.
+		}
+		if(this.splate.isOpen && this.leftSplit && this.rightSplit){
+			if(includeChildsIfExist){
+				if(this.splate.isOneLine){
+					est += this.leftSplit.estimateWidth(includeChildsIfExist)+this.rightSplit.estimateWidth(includeChildsIfExist);
+				}else{
+					est += Math.max(this.leftSplit.estimateWidth(includeChildsIfExist),this.rightSplit.estimateWidth(includeChildsIfExist));
+				}
+			}
+		}else{ //closed
+			let nameSizeInChars = this.splate.name().length; //FIXME should this lazyeval of name be triggered?
+			est += estimatedFontWidth; //FIXME what does a closed branch look like? Just its name?
+		}
+	}
+	if(includeChildsIfExist){
+		this.estimateWidthWithChilds_ = est;
+	}else{
+		this.estimateWidthWithoutChilds_ = est;
+	}
+	return est;
+};
+
+//in pixels. doesnt have to be displayed. This is for use with isOneLine etc for first n childs in a []{}().
+Split.prototype.estimateHeight = function(){
+	throw 'TODO cache this in estimateHeight_, lazyevaled';
+};
+
+//Returns a Split with everything the same as this one except some of the isOneLine might be changed (and maybe related things? are there any?).
+//Using estimateWidth recursively, will set isOneLine where it can to try to not exceed the given maxWidth,
+//but since a single thing can be wider than that, it might not be able to, but usually it will.
+Split.prototype.forkTryMaxWidth = function(maxWidth){
+	let localWidth = this.estimateWidth(false);
+	let maxChildsWidthAllowed = maxWidth-localWidth; //but still might be bigger than this if theres 1 literal deep in it thats bigger than this max
+	//If this.splate.isOneLine then add both childs to width, else add max of 2 child widths to width.
+	//Calling forkTryMaxWidth (this recursively) on a child may return a less wide child by changing isOneLine in some parts of it.
+	//FIXME how to know which to do isOneLine? Try to make them as wide as possible without going over the allowed max width?
+	let iShouldBeOneLine;
+	let forkMe = this;
+	if(this.splate.isOpen && this.leftSplit && this.rightSplit){
+		let forkLeft = this.leftSplit.forkTryMaxWidth(maxChildsWidthAllowed);
+		let forkRight = this.rightSplit.forkTryMaxWidth(maxChildsWidthAllowed);
+		let forkLeftSize = forkLeft.estimateWidth(true); //true include child splits if exist
+		let forkRightSize = forkRight.estimateWidth(true);
+		iShouldBeOneLine = (forkLeft+forkRight <= maxChildsWidthAllowed);
+		//TODO optimize by doing setIsOneLine before getSplit makes another split.
+		forkMe = getSplit(this.splate,forkLeft,forkRight);
+	}else{
+		//FIXME should set (by forkEdit) this.splate.isOneLine to true?
+		iShouldBeOneLine = true;
+	}
+	console.log('forkTryMaxWidth iShouldBeOneLine='+iShouldBeOneLine+' fn='+this.splate.fn);
+	return forkMe.changeSplate(s=>s.setIsOneLine(iShouldBeOneLine));
+};
+
 
 //perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
 //caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
@@ -1188,6 +1406,12 @@ Split.prototype.setSplate = function(splate){
 		//leftSplit and rightSplit may be null (if !this.isOpen, TODO verify?), but splate cant be.
 		return getSplit(this.splate, this.leftSplit, this.rightSplit);
 	}
+};
+
+//Example: aSplit.changeSplate(s=>s.setIsOneLine(true)) returns forkEdited aSplit whose splate.isOneLine is true,
+//(TODO return that same aSplit if that was already true???)
+Split.prototype.changeSplate = function(splateInSplateOut){
+	return this.setSplate(splateInSplateOut(this.splate));
 };
 
 
@@ -1270,11 +1494,45 @@ Splat.prototype.height = function(){
 	return this.parentSplat ? (1+this.parentSplat.height()) : 0;
 };
 
+//remove padding from dob/domObject, then return that same dob
+var unpad = function(dob){
+	let s = dob.style;
+	//s.color = 'blue';
+	s.paddingTop = 0;
+	s.paddingRight = 0;
+	s.paddingBottom = 0;
+	s.paddingLeft = 0;
+	/*s['padding-top'] = '0px';
+	s['padding-right'] = '0px';
+	s['padding-bottom'] = '0px';
+	s['padding-left'] = '0px';
+	*/
+	//s.padding = '0px';
+	switch(dob.tagName){
+		case 'TABLE':
+			attr(dob,'cellSpacing',0);
+			//dob.border = 0;
+		break;case 'TR':case 'TD':
+			
+			
+		break;case 'DIV':
+		default:
+	}
+	return dob;
+};
+
+
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
+//
+//WARNING: When left child is vm.ops.Infcur (aka displayed as [] by itself, or [a b c] to mean ([] a b c)) theres no this.leftSplat
+//but there is this.rightSplat, but both Split childs are there. The left split child is normally closed if its [].
+//Also could that happen in a rightSplat too if that happens to be []?
+//
 Splat.prototype.setSplit = function(split){
 	if(!split) throw 'No split';
 	var prevSplit = this.split;
 	if(!prevSplit) throw 'No prevSplit';
+	const isAllNbsp = /^(\&nbsp\;)*$/;
 	if(!split.eq(prevSplit)){
 		this.split = split;
 		if(!this.dobs.self) throw 'No self dob';
@@ -1329,10 +1587,11 @@ Splat.prototype.setSplit = function(split){
 			}else{
 				throw 'TODO what literal type? fn='+fn;
 			}
-			this.dobs.literal.innerHTML = literal;
+			this.dobs.literal.innerHTML = literal+options.literalSuffix;
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
 			let prefix = '<b>'+sytyToPushChar(syty)+'</b>';
+			let suffixfarright = '';
 			for(let i=tabSizeInSpaces-prefix.length; i>0; i--) prefix += '&nbsp;'; //TODO optimize all one string, not loop
 			let suffix = '<b>'+sytyToPopChar(syty)+'</b>';
 			for(let i=tabSizeInSpaces-suffix.length; i>0; i--) suffix += '&nbsp;'; //TODO optimize all one string, not loop
@@ -1341,19 +1600,50 @@ Splat.prototype.setSplit = function(split){
 				suffix += '#'+splate.name();
 			}
 			
-			let suffixVerticalAlign = 'bottom';
-			if(splate.isUnary && splate.isDisplayChilds){
-				//Example: prefix is ',' as in (T abc) being displayed as ,abc but the ',' is displayed at top of suffix dob
-				//instead of top of prefix dob, so the 2x2 table that has prefix at topleft and suffix at bottomleft, has empty top row,
-				//and at topright would be T aka , but cuz of isFoldL it doesnt display that. See options.isFoldT.
-				suffix = prefix;
-				prefix = '';
-				suffixVerticalAlign = 'top';
+			if(splate.isOneLine){
+				//put suffix in dobs.upfarright (rightmost of 3 tds in same tr) instead of dobs.suffix (aka downleft)
+				suffixfarright = suffix;
+				suffix = '';
+			}else{
+				//let suffixVerticalAlign = 'bottom';
+				if(splate.isUnary && splate.isDisplayChilds){
+					//Example: prefix is ',' as in (T abc) being displayed as ,abc but the ',' is displayed at top of suffix dob
+					//instead of top of prefix dob, so the 2x2 table that has prefix at topleft and suffix at bottomleft, has empty top row,
+					//and at topright would be T aka , but cuz of isFoldL it doesnt display that. See options.isFoldT.
+					//suffix = prefix;
+					//prefix = '';
+					//suffixVerticalAlign = 'top';
+					suffix = '';
+				}
+				//this.dobs.suffix.style.verticalAlign = suffixVerticalAlign;
+				
+				let isBigSuffix = splate.isDisplayName;
+				if(isAllNbsp.test(suffix)){
+					suffix = '';
+				}
+				if(isBigSuffix){
+					this.dobs.suffixb.innerHTML = '';
+					this.dobs.suffixc.innerHTML = suffix;
+				}else{
+					this.dobs.suffixb.innerHTML = suffix;
+					this.dobs.suffixc.innerHTML = '';
+				}
 			}
-			this.dobs.suffix.style.verticalAlign = suffixVerticalAlign;
+			
+			// /^(\&nbsp\;)*$/.test('&nbsp;&nbsp;&nbsp;') returns true
+			if(isAllNbsp.test(suffixfarright)){
+				//Is all nobreakspaces, so dont put that in dobs.upfarright so it wastes less screen space.
+				//This happens when isUnary.
+				
+				suffixfarright = '';
+				
+			}
 			
 			this.dobs.prefix.innerHTML = prefix;
-			this.dobs.suffix.innerHTML = suffix;
+			this.dobs.suffixfarright.innerHTML = suffixfarright;
+			
+			//this.dobs.suffixfarright = suffix;
+			
 			
 			if(splate.showDropDobs){
 				this.dobs.dropleft.innerHTML = '(dropleft)';
@@ -1362,13 +1652,17 @@ Splat.prototype.setSplit = function(split){
 			}
 		}else if(!splate.isFoldL && splate.isDisplayName){ //FIXME set isDisplayName to false when making splate, depending on what, instead of checking isFoldL here?
 			this.dobs.prefix.innerHTML = '';
+			this.dobs.suffixfarright.innerHTML = ''; //where suffix text goes (instead of dobs.suffix) if isOneLine
 			//FIXME should this go in suffix if its name? thats where name usually goes, but if its ONLY name, maybe it should go in literal?
 			let literal = splate.name();
-			this.dobs.literal.innerHTML = options.namelitPrefix+literal;
-			this.dobs.suffix.innerHTML = '';
+			this.dobs.literal.innerHTML = options.namelitPrefix+literal+options.literalSuffix;
+			//this.dobs.suffix.innerHTML = '';
 		}//else{
 		//	this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
 		//}
+		
+		//flex-direction: row row-reverse column colum-reverse
+		this.dobs.upright.style['flex-direction'] = splate.isOneLine ? 'row' : 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
 		
 		if(options.displayWholeTostringAtEachRect){ //for testing
 			//suffix += '__'+splate.fn;
@@ -1536,13 +1830,20 @@ var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
 //
 //optionalCallerSyty defaults to 'C'. VM says "C is normal call (a b c d e) aka ((((a b) c) d) e)".
 //
-var newSplitForFn_experimental = function(fn, optionalCallerSyty){
+//the callerSyty and isRightRecursion are similar to this code in prototype VM:
+//	vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
+//
+var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRightRecursion){
 	let callerSyty = optionalCallerSyty || 'C';
+	let isRightRecursion = !!optionalIsRightRecursion;
 	let syty = fnToSyty(fn);
 	//FIXME should depend on parent syty, or parent of parent of parent... How did VM do it? Check vm.View.prototype.syty.
 	let isOpen = fn!==U; //aka !fn.n.isLeaf(). U is the universal combinator/lambda.
 	//FIXME should there be a level of isOpen that just displays literal but not childs? literal could be big, so closed, literalOnly, open, could be 3 levels?
 	let isOneLine = false;
+	if(options.displayAllAsOneLine || (options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch && Math.random()<.6)){
+		isOneLine = true;
+	}
 	//let isLiteral = false;
 	let isLiteral = fnIsLiteral(fn);
 	//let isDisplayName = true;
@@ -1555,7 +1856,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty){
 	let isDisplayChilds = isDisplayPushAndPopChars; //FIXME
 	let isFoldL = false;
 	let isUnary = false; //if true, display (T abc) as ,abc
-	if(options.displayVarargLists && syty == callerSyty && syty == 'IC+'){
+	if(options.displayVarargLists && (syty=='IC+' || syty=='IC0') && syty == 'IC+' && !isRightRecursion){
 		isDisplayPushAndPopChars = false;
 		/*
 		switch(syty){
@@ -1597,7 +1898,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty){
 	
 	
 	
-	if(options.displayVarargLists && callerSyty=='IC+' && isDisplayChilds){
+	if(options.displayVarargLists && (syty=='IC0' || syty=='IC+') /*&& callerSyty=='IC+'*/ && isDisplayChilds){
 		//FIXME should have 3 sytys for Infcur/[] (IC0 and IC1 and IC2+), instead of 2 (IC0 and IC+),
 		//so dont have to check if left is IC0 here.
 		
@@ -1625,8 +1926,8 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty){
 	let rightSplit = null;
 	//if(isOpen && isDisplayPushAndPopChars){
 	if(isDisplayChilds){
-		leftSplit = newSplitForFn_experimental(fn.n.L(),syty); //callerSyty
-		rightSplit = newSplitForFn_experimental(fn.n.R(),syty); //callerSyty
+		leftSplit = newSplitForFn_experimental(fn.n.L(),syty,false); //callerSyty
+		rightSplit = newSplitForFn_experimental(fn.n.R(),syty,true); //callerSyty
 	}
 	return getSplit(splate,leftSplit,rightSplit);
 };
@@ -1837,12 +2138,93 @@ var rootSplat = null; //cuz need rootDob to exist first, and not doing that til 
 //rootSplat.split = newSplitForFn(exampleFnToDisplay);
 var rootDob = null; //TODO
 
+
+/*/////////////////////////////////////////////////////////////////////////////////////
+
+//This script is under the Wikibinator203 license.
+
+//This is a different wikibinator203 tree UI I'm trying, where each UI node knows its exact pixel width and height
+//and literals (including canvas bytes, #Names, 2.34 numbers, stringLiterals 'string literals' etc,
+//can be displayed using dom nodes (dobs) but still must be an exact size,
+//and I want to redesign the localName system so its not used here as a mutable string var in fn/lambda but is
+//a specific data in these UI nodes (even if its still used that way in fns, all data in these UI nodes must be used as immutable,
+//so if you change that localName in the fn this UI is still displayed correctly.
+//Or maybe I want per pixel precision everywhere instead of using dom nodes at all? Start coding this and figure it out... (TODO)
+//and maybe it should just store the 128 bit localId of fn instead of the fn itself?
+//(but vm.cp(fn,fn) looks up fn by its 2 child fns for dedup, using 2 id128s, not a single id128)
+
+//or maybe... NEVERMIND, JUST USE Split and Splate and Splat mostly as they are, but with exact width and height.
+//If I know exact width and height, then dont need a table tr td etc to position childs and prefix suffix etc
+//and instead could set the exact 2d positions and sizes of all those as child divs.
+//It might create a problem putting normal dom objects inside it, like an iframe to view a pdf (as bytes, not file)
+//but for sandboxing, it shouldnt have anything that can infinite loop etc (even if otherwise sandboxed)
+//so canvas and text and a few other "literal viewers" are probably
+//all it needs (and could still generate a pdf editor in canvas since its turing complete, if wanted that for example).
+TODO that... Get rid of the table tr td but still use the same Splat.dobs (with less stuff in it),
+and use overflow:hidden (or what was that) on everything, and position everything deterministicly.
+Maybe have just 1 drop dob per Splat and move it around as needed, since drop events will be at a (y,x) at root dob
+instead of its tree of child dobs/Splats.
+
+TODO merge this into existing Splate
+
+TODO change to all divs with overflow:hidden and being made an exact size, and get rid of the table tr td in splatdobs.
+
+TODO only display literals as dobs, dont display splats as dobs. Have 1 div containing all of them to get dom events
+and do math to figure out which part of the tree (which is not made of dom nodes except the literals) that (y,x) is at.
+Have recursive 2d (so 6 numbers) affine transform recursively (or just dy and dx, 2 numbers? that would be simpler)
+tree nodes. Also have css clip path so could for example display a 2d triangle polygon or scroll window etc.
+For now, just 2 numbers (dy and dx) per child should be enough,
+and have a func (only compute it on first call) for width and func for height. Per child.
+
+
+//MovedOb of a SplitB or a SplatetB, at a y and x offset like a subwindow.
+var MovedOb = function(dy, dx, ob){
+	this.dy = dy;
+	this.dx = dx;
+	this.ob = ob;
+};
+
+var SplitB = function(){
+	//map of string to MovedOb of child SplitB. Those strings are like 'left' 'right' 'prefix' dropmid' etc.
+	this.childs = {};
+	//this.data = null; //TODO if its canvas bytes or text etc, what to display instead of childs, if isLiteral.
+};
+
+var SplateB = function(){
+	FIXME these comments may have got split splate splat etc mixed up, rewrite...
+	same stuff as Splate (doesnt need redesign?) plus I'm moving SplitB.data to be SplateB.data instead
+	//or maybe leave this in splate.fn.n.blob in byte range splate.fn.n.blobFrom or splate.fn.n.blobTo-1
+	//(or it may not have a blob and be the slow way of computing that blob from the universal lambda,
+	//tree expanded instead of wrapping a blob, or even if there is a blob it can be both sparsely).
+	this.data = null; //TODO if its canvas bytes or text etc, what to display instead of childs, if isLiteral.
+};
+SplatB.prototype.setSplate
+
+/*
+
+//like a Split (in other code), immutable, can have many parents, no parent ptr. Knows its exact pixel size.
+var Branch = function(h, w){
+	this.h = h; //height
+	this.w = w; //width
+	TODO y and x offsets per child. or what about using css transform numbers (such as 6 numbers, or 16 numbers?) to scale rotate etc each child?
+	this.c = []; //child Branches
+	//this.l = null; //TODO: left child Branch, or may be null (or nonnull) if !isOpen
+	//this.r = null; //TODO: right child Branch, or may be null (or nonnull) if !isOpen
+	TODO where does the literal data go such as canvas, 2.34, stringLiteral, etc?
+	TODO how do drag events work? How could it be used to make a canvas inside this tree, that implements some other UI system?
+};
+/////////////////////////////////////////////////////////////////////////////////////
+*/
+
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
 	let split = newSplitForFn_experimental(fn);
+	if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
+		split = split.forkTryMaxWidth(12500); //FIXME this is just a test
+	}
 	rootSplat.setSplit(split); //display it recursively
 };
 
@@ -1866,6 +2248,19 @@ window.onload = ()=>{
 	
 	<center><div id=rootDob></div></center>
 	<br>
+	DONE/FIXED: [[[]]] etc is only showing 1 []. options.displayVarargLists is probably buggy.<br>
+	<br>
+	TODO make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
+	TODO dobs.suffixb is displaying too low. rowspan and colspan used in same table might be confusing it??<br>
+	TODO do_forkTryMaxWidth_experimentOnWindowLoad make some be isOneLine and some not depending on estimateWidth(true) recursively, to make good use of screen space.<br>
+	TODO forkTryMaxWidth, add estimateWidth and estimateHeight funcs to Split.prototype (added those already but theres throw todo in it), for use with isOneLine, so it doesnt get too long, and use it recursively.<br>
+	TODO addDolayoutFuncToWikibTreeUINodesAndSeparateLayoutDobsFromSelfDobsWhichGetReparentedInLayoutNodesAndOnlyCreateLayoutNodesIfNotAlreadyExist<br>
+	TODO eachFirstLineCanHaveMultiThingsInIt, an isOneLine syntax/layout for the first n params in a {} [] () but after that each thing is on its own line,
+	cuz it has to be that way to be 2 child rectangles in each rectangle, (but later can do it without "2 child rectangles in each rectangle" and vararg number of childs per rectangle).
+	This will need to at least estimate the horizontal size of the first n things, to choose n to display that way to not be wider than the window, considering how far its already tabbed over.<br>
+	TODO <> for canvas literals etc.<br>
+	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
+	TODO estimate size of each rectangle by how many splits are open in it etc and set isOneLine<br>
 	TODO canvas or img src= changing the image each time (canvas literals in code)<br>
 	TODO webAudioAPI<br>
 	TODO gamepads<br>

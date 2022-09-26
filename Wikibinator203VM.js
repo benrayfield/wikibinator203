@@ -2700,7 +2700,7 @@ const Wikibinator203 = (()=>{
 		vm.isBigEndian = ()=>{
 			let bytes = new Uint8Array(8);
 			//java at https://www.tutorialspoint.com/compile_java_online.php
-			//says Long.toHexString(Double.doubleToLongBits(5)) is 400921fb54442d18L, and thats a bigEndian tostring of the long (regardless of how it is in memory).
+			//says Long.toHexString(Double.doubleToLongBits(5 FIXME THIS COMMENT IS OLD)) is 400921fb54442d18L, and thats a bigEndian tostring of the long (regardless of how it is in memory).
 			bytes[0] = 0x40;
 			bytes[1] = 0x09;
 			bytes[2] = 0x21;
