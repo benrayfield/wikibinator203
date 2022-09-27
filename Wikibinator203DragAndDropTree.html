@@ -275,6 +275,16 @@ var colorStr = function(redFraction, greenFraction, blueFraction){
 
 var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 
+/*const firstCode =
+`{
+	(T Sqrt)
+	{
+		(T +)
+		{(T Sqr#{(T *) I#(F U) I}) (P x)}
+		{(T Sqr) (P y)}
+	}
+}`;*/
+
 const firstCode =
 `[((Pair [L R]) [[[[
 I#(F U)
@@ -297,6 +307,7 @@ Hypot#(
 (T (Pair (T L) R))
 2.34
 ]]]])]`;
+
 
 /*const firstCode =
 `[
@@ -634,7 +645,8 @@ Splat.prototype.createDobsIfNotExist = function(){
 	if(!d.table){
 		//d.controls = Pob('div', d.self);
 		d.table = Pob('table',d.self);
-		attr(d.table,'border',5);
+		//attr(d.table,'border',5);
+		attr(d.table,'border',options.borderWidth);
 		d.rowa = Pob('tr', d.table);
 		d.rowb = Pob('tr', d.table);
 		d.rowc = Pob('tr', d.table);
@@ -734,13 +746,18 @@ options.literalSuffix = '&nbsp;'; //add space cuz div didnt pad enough space on 
 options.displayAllAsOneLine = false;
 
 //overpowers options.displayAllAsOneLine. this is for testingt.
-options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = true;
-//options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = false;
+//options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = true;
+options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = false;
 
 //this is for testing.
 //has no effect if options.displayAllAsOneLine since its an experiment in varying isOneLine per branch based on its width
 options.do_forkTryMaxWidth_experimentOnWindowLoad = true;
 //options.do_forkTryMaxWidth_experimentOnWindowLoad = false;
+
+options.displayEstimateWidth = true;
+//options.displayEstimateWidth = false;
+
+options.estimatedFontWidth = 12; //pixels
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1311,28 +1328,31 @@ Split.prototype.estimateWidth = function(includeChildsIfExist){
 		if(this.estimateWidthWithoutChilds_ !== undefined) return this.estimateWidthWithoutChilds_;
 	}
 	let est = 0;
-	let estimatedFontWidth = 12; //pixels
 	if(this.splate.isLiteral){
 		//FIXME better estimate literal size (could be 2.34 helloworld canvasbytes etc). Just making something up for now...
-		let badlyEstimatedLiteralSize = estimatedFontWidth*8;
+		let badlyEstimatedLiteralSize = options.estimatedFontWidth*8;
 		est += badlyEstimatedLiteralSize;
 	}else{
 		if(this.splate.isOneLine){
-			est += estimatedFontWidth*2; //{ and a later }, or [ and a later ], etc.
+			est += options.estimatedFontWidth*2; //{ and a later }, or [ and a later ], etc.
 		}else{
-			est += estimatedFontWidth*tabSizeInSpaces; //"{   " or "[   " etc.
+			est += options.estimatedFontWidth*tabSizeInSpaces; //"{   " or "[   " etc.
 		}
 		if(this.splate.isOpen && this.leftSplit && this.rightSplit){
-			if(includeChildsIfExist){
-				if(this.splate.isOneLine){
-					est += this.leftSplit.estimateWidth(includeChildsIfExist)+this.rightSplit.estimateWidth(includeChildsIfExist);
-				}else{
-					est += Math.max(this.leftSplit.estimateWidth(includeChildsIfExist),this.rightSplit.estimateWidth(includeChildsIfExist));
+			if(this.splate.isFoldL){ //foldL means dont display left child (probably cuz prefix/suffix implies it. left child might be T or S)
+				est += this.rightSplit.estimateWidth(includeChildsIfExist);
+			}else{
+				if(includeChildsIfExist){
+					if(this.splate.isOneLine){
+						est += this.leftSplit.estimateWidth(includeChildsIfExist)+this.rightSplit.estimateWidth(includeChildsIfExist);
+					}else{
+						est += Math.max(this.leftSplit.estimateWidth(includeChildsIfExist),this.rightSplit.estimateWidth(includeChildsIfExist));
+					}
 				}
 			}
 		}else{ //closed
 			let nameSizeInChars = this.splate.name().length; //FIXME should this lazyeval of name be triggered?
-			est += estimatedFontWidth; //FIXME what does a closed branch look like? Just its name?
+			est += options.estimatedFontWidth*nameSizeInChars; //FIXME what does a closed branch look like? Just its name?
 		}
 	}
 	if(includeChildsIfExist){
@@ -1343,36 +1363,134 @@ Split.prototype.estimateWidth = function(includeChildsIfExist){
 	return est;
 };
 
+Split.prototype.isDisplayLeftChild = function(){
+	let splate = this.splate;
+	return splate.isOpen && this.leftSplit && !splate.isFoldL && !splate.isLiteral; //FIXME what if !isOpen and isLiteral?
+};
+
+Split.prototype.isDisplayRightChild = function(){
+	let splate = this.splate;
+	return splate.isOpen && this.rightSplit && !splate.isLiteral; //FIXME what if !isOpen and isLiteral?
+};
+
+//only computes it the first time.
+//To clear that cache, set this.estimateWidthIfOneLine_ to null or undefined, but you'd only need that if name changed size (mutable localName in fn, FIXME).
+Split.prototype.estimateWidthIfOneLine = function(){
+	if(!this.estimateWidthIfOneLine_){
+		let est = 0;
+		let splate = this.splate;
+		if(splate.isDisplayPushAndPopChars){
+			est += options.estimatedFontWidth*2;
+		}
+		if(this.isDisplayLeftChild()){
+			if(!this.leftSplit) throw 'No leftSplit but isDisplayLeftChild said to display it';
+			est += this.leftSplit.estimateWidthIfOneLine();
+		}
+		if(this.isDisplayRightChild()){
+			if(!this.rightSplit) throw 'No rightSplit but isDisplayRightChild said to display it';
+			est += this.rightSplit.estimateWidthIfOneLine();
+		}
+		if(splate.isLiteral){
+			let badEstimateOfLiteralWidth = 80;
+			est += badEstimateOfLiteralWidth;
+		}
+		if(splate.isDisplayName){
+			let nameSizeInChars = this.splate.name().length; //FIXME should this lazyeval of name be triggered?
+			est += options.estimatedFontWidth*(1+nameSizeInChars); //1+ cuz #. FIXME what does a closed branch look like? Just its name?
+		}
+		this.estimateWidthIfOneLine_ = est;
+	}
+	return this.estimateWidthIfOneLine_;
+};
+
+/*
 //in pixels. doesnt have to be displayed. This is for use with isOneLine etc for first n childs in a []{}().
 Split.prototype.estimateHeight = function(){
 	throw 'TODO cache this in estimateHeight_, lazyevaled';
+};
+*/
+
+Split.prototype.isOneLineDeep = function(){
+	if(!this.isOneLineDeep_){
+		let ret = this.splate.isOneLine;
+		if(this.isDisplayLeftChild() && !this.leftSplit.isOneLineDeep()) ret = false;
+		if(this.isDisplayRightChild() && !this.rightSplit.isOneLineDeep()) ret = false;
+		//FIXME what if it cant be oneline cuz its a big canvas bytes literal etc?
+		this.isOneLineDeep_ = ret;
+	}
+	return this.isOneLineDeep_;
+}
+
+Split.prototype.asOneLineDeep = function(){
+	if(this.isOneLineDeep()) return this;
+	let forkSplate = this.splate.setIsOneLine(true); //FIXME setIsOneLine should return same splate if already that way.
+	let forkLeft = this.isDisplayLeftChild() ? this.leftSplit.asOneLineDeep() : this.leftSplit; //leave leftSplit as it is if not display it
+	let forkRight = this.isDisplayRightChild() ? this.rightSplit.asOneLineDeep() : this.rightSplit; //leave rightSplit as it is if not display it
+	return getSplit(forkSplate,forkLeft,forkRight);
 };
 
 //Returns a Split with everything the same as this one except some of the isOneLine might be changed (and maybe related things? are there any?).
 //Using estimateWidth recursively, will set isOneLine where it can to try to not exceed the given maxWidth,
 //but since a single thing can be wider than that, it might not be able to, but usually it will.
 Split.prototype.forkTryMaxWidth = function(maxWidth){
+	/*Fixing this with estimateWidthIfOneLine...
+	FIXME todo make separate func to check if would fit as 1 line (optimize by giving maxWidth in case its big)
+		and compare that to if it was displayed as multiline (which takes max of 2 child widths plus a bigger "tabbed over" prefix/suffix on left).
+		If parent isOneLine then self must also be isOneLine. If parent is !isOneLine then self can be either.
+		Also, some things cant be isOneLine, like a big canvas literal.
+		Also, if self isOneLine and self isDisplayPushAndPopChars, that might make it a different size cuz of the "tabbed over"
+			vs no added whitespace plus a prefix, the child(s), then suffix.
+	*/
+	console.log('forkTryMaxWidth maxWidth='+maxWidth+' fn='+this.splate.fn);
+	let estSelfWidthIfOneLine = this.estimateWidthIfOneLine();
+	//let estLeftWidthIfOneLine = this.leftSplit ? this.leftSplit.estimateWidthIfOneLine() : null;
+	//let estRightWidthIfOneLine = this.rightSplit ? this.rightSplit.estimateWidthIfOneLine() : null;
+	if(estSelfWidthIfOneLine <= maxWidth){
+		return this.asOneLineDeep();
+	}else{
+		let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
+		let forkSplate = this.splate.setIsOneLine(false);
+		let forkLeft = this.isDisplayLeftChild() ? this.leftSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.leftSplit; //leave leftSplit as it is if not display it
+		let forkRight = this.isDisplayRightChild() ? this.rightSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.rightSplit; //leave rightSplit as it is if not display it
+		return getSplit(forkSplate,forkLeft,forkRight);
+	}
+	
+	
+	
+
+	/*
+	console.log('forkTryMaxWidth maxWidth='+maxWidth+' fn='+this.splate.fn);
 	let localWidth = this.estimateWidth(false);
 	let maxChildsWidthAllowed = maxWidth-localWidth; //but still might be bigger than this if theres 1 literal deep in it thats bigger than this max
+	console.log('forkTryMaxWidth localWidth='+localWidth+' maxChildsWidthAllowed='+maxChildsWidthAllowed);
 	//If this.splate.isOneLine then add both childs to width, else add max of 2 child widths to width.
 	//Calling forkTryMaxWidth (this recursively) on a child may return a less wide child by changing isOneLine in some parts of it.
 	//FIXME how to know which to do isOneLine? Try to make them as wide as possible without going over the allowed max width?
 	let iShouldBeOneLine;
-	let forkMe = this;
+	//let forkMe = this;
+	//let mul = 1; //TODO
+	let mul = .7; //FIXME
+	let forkLeft = this.leftSplit ? this.leftSplit.forkTryMaxWidth(maxChildsWidthAllowed*mul) : null;
+	let forkRight = this.rightSplit ? this.rightSplit.forkTryMaxWidth(maxChildsWidthAllowed*mul) : null;
 	if(this.splate.isOpen && this.leftSplit && this.rightSplit){
-		let forkLeft = this.leftSplit.forkTryMaxWidth(maxChildsWidthAllowed);
-		let forkRight = this.rightSplit.forkTryMaxWidth(maxChildsWidthAllowed);
+		console.log('forkTryMaxWidth ISOPEN');
 		let forkLeftSize = forkLeft.estimateWidth(true); //true include child splits if exist
 		let forkRightSize = forkRight.estimateWidth(true);
-		iShouldBeOneLine = (forkLeft+forkRight <= maxChildsWidthAllowed);
-		//TODO optimize by doing setIsOneLine before getSplit makes another split.
-		forkMe = getSplit(this.splate,forkLeft,forkRight);
+		iShouldBeOneLine = (forkLeftSize+forkRightSize <= maxChildsWidthAllowed);
+		console.log('forkTryMaxWidth ISOPEN forkLeftSize='+forkLeftSize+' forkRightSize='+forkRightSize+' iShouldBeOneLine='+iShouldBeOneLine);
 	}else{
 		//FIXME should set (by forkEdit) this.splate.isOneLine to true?
-		iShouldBeOneLine = true;
+		iShouldBeOneLine = true;		
+		console.log('forkTryMaxWidth ELSE');
 	}
-	console.log('forkTryMaxWidth iShouldBeOneLine='+iShouldBeOneLine+' fn='+this.splate.fn);
-	return forkMe.changeSplate(s=>s.setIsOneLine(iShouldBeOneLine));
+	//TODO optimize by doing setIsOneLine before getSplit makes another split.
+	console.log('forkTryMaxWidth iShouldBeOneLine='+iShouldBeOneLine);
+	let forkSplate = this.splate.setIsOneLine(iShouldBeOneLine);
+	return getSplit(forkSplate,forkLeft,forkRight);
+	//console.log('forkTryMaxWidth iShouldBeOneLine='+iShouldBeOneLine+' fn='+this.splate.fn);
+	//return forkMe.setSplate(forkMe.splate.setIsOneLine(iShouldBeOneLine));
+	//return forkMe.changeSplate(s=>s.setIsOneLine(iShouldBeOneLine));
+	*/
 };
 
 
@@ -1404,7 +1522,7 @@ Split.prototype.setSplate = function(splate){
 		return this; //cuz Split and Splate should be used as immutable
 	}else{
 		//leftSplit and rightSplit may be null (if !this.isOpen, TODO verify?), but splate cant be.
-		return getSplit(this.splate, this.leftSplit, this.rightSplit);
+		return getSplit(splate, this.leftSplit, this.rightSplit);
 	}
 };
 
@@ -1459,10 +1577,13 @@ Splat.prototype.splate = function(){
 	return this.split.splate;
 };
 
+//FIXME move this to options.tabSizeInSpaces
 let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
 
-let borderWidth = 0;
+//let borderWidth = 0;
 //let borderWidth = 5;
+let borderWidth = 9;
+//let borderWidth = 13;
 
 //only the dobs named in childDobNames per Splat.
 Splat.prototype.putThisStringInAllEmptyDobsDeep = function(str){
@@ -1663,6 +1784,10 @@ Splat.prototype.setSplit = function(split){
 		
 		//flex-direction: row row-reverse column colum-reverse
 		this.dobs.upright.style['flex-direction'] = splate.isOneLine ? 'row' : 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
+		
+		if(options.displayEstimateWidth){
+			popupTitle += '__estimateWidthIfOneLine='+this.split.estimateWidthIfOneLine();
+		}
 		
 		if(options.displayWholeTostringAtEachRect){ //for testing
 			//suffix += '__'+splate.fn;
@@ -2223,7 +2348,8 @@ window.onload = ()=>{
 	let fn = exampleFnToDisplay;
 	let split = newSplitForFn_experimental(fn);
 	if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
-		split = split.forkTryMaxWidth(12500); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(12500); //FIXME this is just a test
+		split = split.forkTryMaxWidth(2800); //FIXME this is just a test
 	}
 	rootSplat.setSplit(split); //display it recursively
 };
