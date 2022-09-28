@@ -2396,26 +2396,34 @@ window.onload = ()=>{
 	<br><br>
 	
 	<center><div id=rootDob></div></center>
-	<br>
+	<br><font color=gray>
 	DONE/FIXED: [[[]]] etc is only showing 1 []. options.displayVarargLists is probably buggy.<br>
-	<br>
-	TODO make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
-	TODO dobs.suffixb is displaying too low. rowspan and colspan used in same table might be confusing it??<br>
-	TODO do_forkTryMaxWidth_experimentOnWindowLoad make some be isOneLine and some not depending on estimateWidth(true) recursively, to make good use of screen space.<br>
-	TODO forkTryMaxWidth, add estimateWidth and estimateHeight funcs to Split.prototype (added those already but theres throw todo in it), for use with isOneLine, so it doesnt get too long, and use it recursively.<br>
-	TODO addDolayoutFuncToWikibTreeUINodesAndSeparateLayoutDobsFromSelfDobsWhichGetReparentedInLayoutNodesAndOnlyCreateLayoutNodesIfNotAlreadyExist<br>
-	TODO eachFirstLineCanHaveMultiThingsInIt, an isOneLine syntax/layout for the first n params in a {} [] () but after that each thing is on its own line,
+	DONE ENOUGH: make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
+	DONE, it was conflict between flex layout and rowspan andOr colspan: dobs.suffixb is displaying too low. rowspan and colspan used in same table might be confusing it??<br>
+	DONE enough, but still some vertical padding to get rid of: do_forkTryMaxWidth_experimentOnWindowLoad make some be isOneLine and some not depending on estimateWidth(true) recursively, to make good use of screen space.<br>
+	DONE: forkTryMaxWidth, add estimateWidth and estimateHeight funcs to Split.prototype (added those already but theres throw todo in it), for use with isOneLine, so it doesnt get too long, and use it recursively.<br>
+	CANCELLED cuz dont need to reparent dobs when using flex layout: addDolayoutFuncToWikibTreeUINodesAndSeparateLayoutDobsFromSelfDobsWhichGetReparentedInLayoutNodesAndOnlyCreateLayoutNodesIfNotAlreadyExist<br>
+	DONE: eachFirstLineCanHaveMultiThingsInIt, an isOneLine syntax/layout for the first n params in a {} [] () but after that each thing is on its own line,
 	cuz it has to be that way to be 2 child rectangles in each rectangle, (but later can do it without "2 child rectangles in each rectangle" and vararg number of childs per rectangle).
 	This will need to at least estimate the horizontal size of the first n things, to choose n to display that way to not be wider than the window, considering how far its already tabbed over.<br>
+	</font>
+	<br>
+	TODO keyboard left right down buttons navigate split tree, and show which is selected.<br>
+	TODO Whichever split/splat is selected, have a few fast ways to insert, remove, etc from it, as code editor, but only allow changes that leave splat.fn.n.curriesLeft() (is that the right func?) being at least 1 aka CAN ONLY EDIT THE CODE IN WAYS THAT DONT CAUSE IT TO EVAL YET. Cuz there will be a separate way in UI to eval things so you dont do it by accident.<br>
+	TODO given that the code editor (by selection in the tree) wont let you cause eval, make a separate way of using UI to do evals, maybe similar to iotavm/iotadesktop (an experiment on my github) where you grab a lambda with mouse, drag it to another lambda, which calls it and you are then dragging (holding with mouse) what that lambda call returned and can keep dragging.<br>
+	TODO open/close branch<br>
 	TODO <> for canvas literals etc.<br>
-	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
-	TODO estimate size of each rectangle by how many splits are open in it etc and set isOneLine<br>
 	TODO canvas or img src= changing the image each time (canvas literals in code)<br>
 	TODO webAudioAPI<br>
 	TODO gamepads<br>
 	TODO drag and drop to call lambda on lambda to find/create lambdas, including between multiple widgets and across different webpages using the 256 bit ids to copy all reachable lambdas not copied so far<br>
-	TODO open/close branch<br>
 	TODO checkboxes to change displayVarargS etc so users can see what is being hidden to make it more intuitive, even though whats hidden can be derived from contents of the prefix and suffix dobs, other than isLiteral displaying as canvas or webAudioAPI etc cuz that could be hard to see exact pixel brightness etc, or splate.isOpen being false.<br>
+	<br>
+	TODO the "some kind of simple game" mentioned in other TODO, start with just canvas/pic literals, not moving, made by drag and drop lambda onto lambda to find/create lambda that is or contains such graphics. When it starts to look like a screenshot of a game, then mark this as done and move on to the other TODO which is to make it move and playable by gamepad etc.<br>
+	<br>
+	TODO some kind of simple game, pacman-like or tetris-like etc, make that game by using the tree UI then play it with gamepad. Record a video of the whole thing and put up website where ppl can do that same thing or variants of it, with lambdas in general, but website wont store what they make yet as the p2p network isnt built yet.<br>
+	<br>
+	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
 	<br>
 	
 	<input type=button onclick="rootSplat.putThisStringInAllEmptyDobsDeep('.');" value="show all dobs put . in them if empty":></input>
