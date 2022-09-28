@@ -301,7 +301,7 @@ Hypot#(
 		}
 	}
 )
-[the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func is Hypot and as a 1 param func is (Hypot 6)]
+[the hypotenuse of [a right triangle of sides 6 and 8] is (Hypot 6 8) and [that func is Hypot] and [as a 1 param func is (Hypot 6)]]
 {[hello world] {abc def ghi}}
 (Pair L R)
 (T (Pair (T L) R))
@@ -653,8 +653,9 @@ Splat.prototype.createDobsIfNotExist = function(){
 		
 		d.prefix = Pob('td', d.rowa); //upleft
 		d.prefix.style.verticalAlign = 'top';
-		d.upright = Pob('td', d.rowa); //upright (up mid, if using upfarright)
-		attr(d.upright,'rowspan',2); //rowa and rowb. In upright theres flex layout thats either horizontal or vertical, and has both childs and 3 drop areas etc
+		d.uprightTd = Pob('td', d.rowa); //upright (up mid, if using upfarright)
+		attr(d.uprightTd,'rowspan',2); //rowa and rowb. In upright theres flex layout thats either horizontal or vertical, and has both childs and 3 drop areas etc
+		d.upright = Pob('div',d.uprightTd); //cuz rowspan of 2 is interfering with flex layout, making other table cells down left of it too low.
 		d.upright.style.display = 'flex';
 		//flex-direction: row row-reverse column colum-reverse
 		d.upright.style['flex-direction'] = 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
@@ -728,16 +729,18 @@ options.foldT = true;
 //options.foldT = false;
 
 //options.numlitPrefix = '&nbsp;NUMLIT:';
-options.numlitPrefix = '&nbsp;';
+options.numlitPrefix = '';
 
 //options.stringlitPrefix = '&nbsp;STRINGLIT:';
-options.stringlitPrefix = '&nbsp;';
+options.stringlitPrefix = '';
 
 //options.namelitPrefix = '&nbsp;NAMELIT:';
-options.namelitPrefix = '&nbsp;';
+options.namelitPrefix = '';
 
 //options.cbtlitPrefix = '&nbsp;CBTLIT:0x';
-options.cbtlitPrefix = '&nbsp;';
+options.cbtlitPrefix = '';
+
+options.literalPrefix = '&nbsp;';
 
 options.literalSuffix = '&nbsp;'; //add space cuz div didnt pad enough space on right side compared to the other 3 sides.
 
@@ -757,7 +760,7 @@ options.do_forkTryMaxWidth_experimentOnWindowLoad = true;
 options.displayEstimateWidth = true;
 //options.displayEstimateWidth = false;
 
-options.estimatedFontWidth = 12; //pixels
+options.estimatedFontWidth = 10; //pixels
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1318,6 +1321,7 @@ var Split = function(splate, leftSplit, rightSplit){
 	//this.dobs = {};
 };
 
+/*
 //in pixels. doesnt have to be displayed. This is for use with isOneLine etc for first n childs in a []{}().
 Split.prototype.estimateWidth = function(includeChildsIfExist){
 	//cached from earlier call. Can do that cuz Split and Splate are used as immutable,
@@ -1362,6 +1366,7 @@ Split.prototype.estimateWidth = function(includeChildsIfExist){
 	}
 	return est;
 };
+*/
 
 Split.prototype.isDisplayLeftChild = function(){
 	let splate = this.splate;
@@ -1379,7 +1384,9 @@ Split.prototype.estimateWidthIfOneLine = function(){
 	if(!this.estimateWidthIfOneLine_){
 		let est = 0;
 		let splate = this.splate;
+		est += borderWidth*2;
 		if(splate.isDisplayPushAndPopChars){
+			if(splate.isLiteral) throw 'isLiteral AND isDisplayPushAndPopChars, splate='+splate;
 			est += options.estimatedFontWidth*2;
 		}
 		if(this.isDisplayLeftChild()){
@@ -1391,8 +1398,10 @@ Split.prototype.estimateWidthIfOneLine = function(){
 			est += this.rightSplit.estimateWidthIfOneLine();
 		}
 		if(splate.isLiteral){
-			let badEstimateOfLiteralWidth = 80;
-			est += badEstimateOfLiteralWidth;
+			let literalString = toLiteralString(splate.fn);
+			est += literalString.length*options.estimatedFontWidth;
+			//let badEstimateOfLiteralWidth = 80;
+			//est += badEstimateOfLiteralWidth;
 		}
 		if(splate.isDisplayName){
 			let nameSizeInChars = this.splate.name().length; //FIXME should this lazyeval of name be triggered?
@@ -1578,11 +1587,15 @@ Splat.prototype.splate = function(){
 };
 
 //FIXME move this to options.tabSizeInSpaces
+//let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
+//let tabSizeInSpaces = 2; //cuz the spaces are really small for some reason. FIXME why are they so small.
 let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
 
 //let borderWidth = 0;
+let borderWidth = 2;
+//let borderWidth = 3;
 //let borderWidth = 5;
-let borderWidth = 9;
+//let borderWidth = 9;
 //let borderWidth = 13;
 
 //only the dobs named in childDobNames per Splat.
@@ -1642,6 +1655,31 @@ var unpad = function(dob){
 	return dob;
 };
 
+//FIXME should have max chars to return, in case very big, dont want to recurse deep making a huge string.
+var toLiteralString = fn=>{
+	let literal;
+	if(fn.n.isDouble()){
+		//normal javascript double toString, which is same as java double toString except maybe how exponent
+		//is displayed with or without + and leading zeros in it etc, todo verify.
+		literal = ''+fn.n.d();
+	}else if(fn.n.isTypeUtf8()){
+		let content = fn.n.r;
+		let utf8Bytes = content.n.bytes();
+		
+		//The next 3 comment lines are copied from VM:
+		//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
+		//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
+		//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
+		
+		literal = vm.utf8AsUint8ArrayToString(utf8Bytes);
+	}else if(fn.n.isCbt()){
+		literal = vm.cbtToHex(fn);
+	}else{
+		throw 'TODO what literal type? fn='+fn;
+	}
+	return literal;
+};
+
 
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
 //
@@ -1688,27 +1726,8 @@ Splat.prototype.setSplit = function(split){
 		let fn = splate.fn;
 		
 		if(splate.isLiteral){
-			let literal;
-			if(fn.n.isDouble()){
-				//normal javascript double toString, which is same as java double toString except maybe how exponent
-				//is displayed with or without + and leading zeros in it etc, todo verify.
-				literal = options.numlitPrefix+fn.n.d();
-			}else if(fn.n.isTypeUtf8()){
-				let content = fn.n.r;
-				let utf8Bytes = content.n.bytes();
-				
-				//The next 3 comment lines are copied from VM:
-				//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
-				//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
-				//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
-				
-				literal = options.stringlitPrefix+vm.utf8AsUint8ArrayToString(utf8Bytes);
-			}else if(fn.n.isCbt()){
-				literal = options.cbtlitPrefix+vm.cbtToHex(fn);
-			}else{
-				throw 'TODO what literal type? fn='+fn;
-			}
-			this.dobs.literal.innerHTML = literal+options.literalSuffix;
+			let literal = toLiteralString(splate.fn); //FIXME with max size in chars
+			this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
 			let prefix = '<b>'+sytyToPushChar(syty)+'</b>';
@@ -2349,7 +2368,11 @@ window.onload = ()=>{
 	let split = newSplitForFn_experimental(fn);
 	if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
 		//split = split.forkTryMaxWidth(12500); //FIXME this is just a test
-		split = split.forkTryMaxWidth(2800); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(1400); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(1800); //FIXME this is just a test
+		split = split.forkTryMaxWidth(2200); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(400); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(200); //FIXME this is just a test
 	}
 	rootSplat.setSplit(split); //display it recursively
 };
