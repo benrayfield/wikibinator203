@@ -251,6 +251,7 @@ if(loadOpsByName) for(let op in vm.ops){
 	window[op] = vm.ops[op];
 	console.log('Created var for opcode as lambda: window.'+op);
 }
+vm.loglev = 1;
 
 //sha256hex of text. TODO optimize by using a normal hashtable to dedup Splits
 var hashText = text=>vm.bytesToHex(sha256(unicode.stringToUtf8AsUint8Array(text)));
@@ -339,6 +340,10 @@ the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func
 
 const exampleFnToDisplay = vm.eval(firstCode); //a Wikibinator203 fn/lambda (which is a js lambda)
 
+const fnForTestingAction = vm.eval('[for testing action 3.456]');
+
+
+
 
 //START Splat.dobs keys:
 
@@ -386,6 +391,10 @@ const SUFFIX = 'suffix';
 
 //END Splat.dobs keys.
 
+var controls = {};
+
+controls.mouseY = 0;
+controls.mouseX = 0;
 
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
@@ -423,7 +432,29 @@ var Splat = function(parentSplatOrNull, selfDob){
 		self: selfDob,
 	};
 	
+	
 	const ThisSplat = this;
+	
+	selfDob.addEventListener(
+		'mousemove',
+		function(event){
+			controls.mouseY = event.pageY;
+			controls.mouseX = event.pageX;
+			if(vm.loglev>=2) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
+			event.stopPropagation();
+			ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
+			if(options.fillDropDobWithTestWhenNearestToMouse){
+				//let dob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+				let splatdob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+				//dob.innerHTML = 'DROP'+Date.now();
+				if(splatdob){
+					splatdob.splat.dobs[splatdob.dobName].innerHTML = 'DROP';
+				}
+			}
+		}
+	);
+	
+	
 	selfDob.addEventListener(
 		'click',
 		function(event){
@@ -445,6 +476,19 @@ var Splat = function(parentSplatOrNull, selfDob){
 
 };
 
+//This takes 3 possible params: 'dropleft', 'dropmid', or 'dropright', and creates/reuses a child Splat.
+//This is for the 3 possible child Splats for Action, in dobs.dropleft dobs.dropmid or dobs.dropright.
+//TODO should L() and R() call this?
+Splat.prototype.Child = function(dobName){
+	if(!this[dobName]){
+		if(dobName != 'dropleft' && dobName != 'dropmid' && dobName != 'dropright') throw 'dobName='+dobName;
+		if(!this.dobs[dobName]) throw 'No '+dobName+' dob';
+		this[dobName] = new Splat(this, Pob('div',this.dobs[dobName])); //div so no dobs are shared between parent.dobs and child.dobs
+		this[dobName].parentSplat = this;
+	}
+	return this[dobName];
+};
+
 //lazy create left splat with defaultSplate (waiting for setSplate to cause display of nontrivial contents)
 Splat.prototype.L = function(){
 	if(!this.leftSplat){
@@ -453,7 +497,7 @@ Splat.prototype.L = function(){
 		//this.leftSplat = new Splat(this, leftSplate);
 		//this.leftSplat = new Splat(this, leftSplate);
 		if(!this.dobs.left) throw 'No left dob';
-		this.leftSplat = new Splat(this, Pob('div',this.dobs.left)); //so no dobs are shared between parent.dobs and child.dobs
+		this.leftSplat = new Splat(this, Pob('div',this.dobs.left)); //div so no dobs are shared between parent.dobs and child.dobs
 		this.leftSplat.parentSplat = this;
 	}
 	return this.leftSplat;
@@ -465,7 +509,7 @@ Splat.prototype.R = function(){
 		//let rightSplate = defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable. Also, this shouldnt be defaultSplate.
 		//let rightSplate = this.splate.simpleRightSplate();
 		if(!this.dobs.right) throw 'No right dob';
-		this.rightSplat = new Splat(this, Pob('div',this.dobs.right)); //so no dobs are shared between parent.dobs and child.dobs
+		this.rightSplat = new Splat(this, Pob('div',this.dobs.right)); //div so no dobs are shared between parent.dobs and child.dobs
 		this.rightSplat.parentSplat = this;
 	}
 	return this.rightSplat;
@@ -707,6 +751,9 @@ options.display_isSelected_afterName = false;
 options.displaySplatHeight = true;
 //options.displaySplatHeight = false;
 
+//options.alwaysShowDropDobs = true;
+options.alwaysShowDropDobs = false;
+
 //a path of L R L L R...
 options.displaySplatPathFromRoot = true;
 //options.displaySplatPathFromRoot = false;
@@ -757,10 +804,16 @@ options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = false;
 options.do_forkTryMaxWidth_experimentOnWindowLoad = true;
 //options.do_forkTryMaxWidth_experimentOnWindowLoad = false;
 
+options.testActionOnWindowLoad = true;
+//options.testActionOnWindowLoad = false;
+
 options.displayEstimateWidth = true;
 //options.displayEstimateWidth = false;
 
 options.estimatedFontWidth = 10; //pixels
+
+options.fillDropDobWithTestWhenNearestToMouse = true;
+//options.fillDropDobWithTestWhenNearestToMouse = false;
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -990,9 +1043,9 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	
 };
 
-var getSplit = (splate, leftSplit, rightSplit)=>{
+var getSplit = (splate, leftSplit, rightSplit, optionalAction)=>{
 	//TODO? dedup by aSplit.bigHash()? For now just return a new one and compare with aSplit.eq(split) which uses bigHash.
-	return new Split(splate, leftSplit, rightSplit);
+	return new Split(splate, leftSplit, rightSplit, optionalAction||null);
 };
 
 //perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
@@ -1244,13 +1297,36 @@ var randRed = ()=>(.55+.45*Math.random());
 var randGreen = randRed;
 var randBlue = randRed;
 
+var Action = function(split, dobName, action){
+	this.split = split; //Split
+	this.dobName = dobName; //string
+	this.action = action; //string
+};
 
+Action.prototype.toString = function(){
+	return this.bigHash();
+};
+
+Action.prototype.bigHash = function(){
+	if(!this.bigHash_) this.bigHash_ = '[Action_S'+this.split.bigHash()+'_D'+this.dobName+'_A'+this.action+']';
+	return this.bigHash_;
+};
+
+Action.prototype.eq = function(action){
+	return this.bigHash()==action.bigHash();
+};
 
 //all 3 params are optional
 //TODO write new description now that theres both Split and Splat (old Split code was divided into that).
 //var Split = function(fn, leftSplit, rightSplit, displayType, isOneLine){
 //Renaming ViewType to Splate.
-var Split = function(splate, leftSplit, rightSplit){
+//
+//optionalAction is a {split: aSplit, dobName: 'dropmid', action: 'dragging'} or action: 'drop', or action: 'deleteMe'.
+//Its a way to display a split thats being dragged, or after dragging, or to mark this split as to be deleted on a soon forkEdit.
+//If theres no action, then just displays as usual without involving dropleft dropmid dropright etc.
+//TODO should Action be a class instead of a {}?
+//
+var Split = function(splate, leftSplit, rightSplit, optionalAction){
 
 	this.splate = splate ? splate : defaultSplate.copy(); //FIXME shouldnt need to copy, cuz should use as immutable.
 	
@@ -1259,6 +1335,9 @@ var Split = function(splate, leftSplit, rightSplit){
 	//A Split is itself open or closed
 	this.leftSplit = leftSplit || null;
 	this.rightSplit = rightSplit || null;
+	
+	//TODO
+	this.action = optionalAction || null;
 	
 	
 	/*
@@ -1459,9 +1538,15 @@ Split.prototype.forkTryMaxWidth = function(maxWidth){
 	}else{
 		let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
 		let forkSplate = this.splate.setIsOneLine(false);
+		//TODO optimize by reusing same Splits if they're already not too wide (does it do that yet? theres some code that does and some that doesnt...)
 		let forkLeft = this.isDisplayLeftChild() ? this.leftSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.leftSplit; //leave leftSplit as it is if not display it
 		let forkRight = this.isDisplayRightChild() ? this.rightSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.rightSplit; //leave rightSplit as it is if not display it
-		return getSplit(forkSplate,forkLeft,forkRight);
+		let forkActionsSplit = this.action ? this.action.split.forkTryMaxWidth(maxWidthMinusTabbedOver) : null;
+		let forkAction = this.action;
+		if(forkAction && !forkAction.split.eq(forkActionsSplit)){
+			forkAction = new Action(forkActionsSplit,forkAction.dobName,forkAction.action); //TODO make an Action.prototype.setSplit func in case it gets more fields later.
+		}
+		return getSplit(forkSplate,forkLeft,forkRight,forkAction);
 	}
 	
 	
@@ -1510,19 +1595,38 @@ Split.prototype.bigHash = function(){
 		let hashMe = this.splate.bigHash();
 		hashMe += this.leftSplit ? this.leftSplit.bigHash() : 'l';
 		hashMe += this.rightSplit ? this.rightSplit.bigHash() : 'r';
+		hashMe += this.action ? this.action.bigHash() : 'a';
 		this.bigHash_ = 'Split_'+hashText(hashMe); //expensive calculation, todo use normal hashtable instead for speed.
 	}
 	return this.bigHash_;
 };
 
 Split.prototype.toString = function(){
-	return '[Split_'+(this.leftSplit?'L':'l')+(this.rightSplit?'R':'r')+'_splate='+this.splate+']';
+	return '[Split_'+(this.leftSplit?'L':'l')+(this.rightSplit?'R':'r')+'_splate='+this.splate+'_action='+this.action+']';
 };
 
 
 //do 2 Splits equal by deep content except fns are compared by their 128 bit localId (fn.n.locid()) not perfect deduped, true or false.
 Split.prototype.eq = function(split){
 	return this.bigHash()==split.bigHash();
+};
+
+//they can be null
+var actionsEq = (actionA,actionB)=>{
+	if(actionA == null){
+		return actionB==null;
+	}else{
+		if(actionB==null) return false;
+		return actionA.eq(actionB);
+	}
+};
+
+Split.prototype.setAction = function(action){
+	if(actionsEq(this.action,action)){
+		return this; //cuz Split and Splate should be used as immutable
+	}else{
+		return getSplit(this.splate, this.leftSplit, this.rightSplit, action);
+	}
 };
 
 //forkEdits this Split
@@ -1680,6 +1784,115 @@ var toLiteralString = fn=>{
 	return literal;
 };
 
+//should the dropleft dob light up if mouse is dragging near it?
+Splate.prototype.isAttractDropLeft = function(){
+	return !this.isLiteral && this.isDisplayPushAndPopChars;
+	//FIXME also check for foldL?
+};
+
+//should the dropmid dob light up if mouse is dragging near it?
+Splate.prototype.isAttractDropMid = function(){
+	return false; //TODO should dropmid be removed? I might use it for something later... Thought i would use all 3 but might just use dropleft and dropright.
+};
+
+//should the dropright dob light up if mouse is dragging near it?
+Splate.prototype.isAttractDropRight = function(){
+	return !this.isLiteral;
+	//FIXME also check for foldL?
+};
+
+var SplatDob = function(splat, dobName){
+	this.splat = splat;
+	this.dobName = dobName;
+};
+
+SplatDob.prototype.dob = function(){
+	return this.splat.dobs[this.dobName];
+};
+
+//allows nulls
+var splat_meOrThemWhicheversCloserToYX = function(splatdobA, splatdobB, y, x){
+	if(!splatdobA) return splatdobB;
+	if(!splatdobB) return splatdobA;
+	return splatdobA.meOrThemWhicheversCloserToYX(splatdobB, y, x);
+};
+
+//not allows nulls
+SplatDob.prototype.meOrThemWhicheversCloserToYX = function(splatdob, y, x){
+	let myDist = dobDist(this.dob(), y, x);
+	let paramDist = dobDist(splatdob.dob(), y, x);
+	return myDist<=paramDist ? this : splatdob;
+};
+
+//These are top left corner.
+//TODO can this be done without checking scroll position?
+var dobY = dob=>(dob.getBoundingClientRect().top+window.pageYOffset);
+var dobX = dob=>(dob.getBoundingClientRect().left+window.pageXOffset);
+
+var dobDist = (dob,y,x)=>Math.hypot(dobY(dob)-y, dobX(dob)-x);
+
+//this will keep whichever is nonnull if only 1 is, else compare them by distance. can return null if both are null.
+var nearestDobOf2AndEitherMayBeNull = (dobA,dobB,y,x)=>{
+	if(!dobA) return dobB; //may be null
+	if(!dobB) return dobA; //may be null
+	let distA = dobDist(dobA,y,x);
+	let distB = dobDist(dobB,y,x);
+	return distA<distB ? dobA : dobB;
+};
+
+//caches it so not creating alot of extra objects (FIXME dont do string concat. make a few {} maps in Splat for this and other things cached);
+Splat.prototype.splatdobForDobName = function(dobName){
+	let key = 'splatdob_'+dobName;
+	if(!this[key]){
+		this[key] = new SplatDob(this,dobName);
+	}
+	return this[key];
+};
+
+//returns a SplatDob nearest to (y,x), but only of the Splats where splat.splate().isAttractDropLeft() or .isAttractDropMid() or .isAttractDropRight().
+Splat.prototype.nearestDrop = function(y,x){
+	//let dob = null;
+	let splatdob = null;
+	let splate = this.splate();
+	
+	if(splate.isAttractDropLeft()){
+		splatdob = splat_meOrThemWhicheversCloserToYX(splatdob, this.splatdobForDobName('dropleft'));
+	}
+	if(splate.isAttractDropMid()){
+		splatdob = splat_meOrThemWhicheversCloserToYX(splatdob, this.splatdobForDobName('dropmid'));
+	}
+	if(splate.isAttractDropRight()){
+		splatdob = splat_meOrThemWhicheversCloserToYX(splatdob, this.splatdobForDobName('dropright'));
+	}
+	if(this.leftSplat){
+		splatdob = splat_meOrThemWhicheversCloserToYX(splatdob, this.leftSplat.nearestDrop(y,x), y, x);
+	}
+	if(this.rightSplat){
+		splatdob = splat_meOrThemWhicheversCloserToYX(splatdob, this.rightSplat.nearestDrop(y,x), y, x);
+	}
+	return splatdob;
+	
+	/*
+	
+	if(splate.isAttractDropLeft()){
+		dob = nearestDobOf2AndEitherMayBeNull(dob, this.dobs.dropleft, y, x);
+	}
+	if(splate.isAttractDropMid()){
+		dob = nearestDobOf2AndEitherMayBeNull(dob, this.dobs.dropmid, y, x);
+	}
+	if(splate.isAttractDropRight()){
+		dob = nearestDobOf2AndEitherMayBeNull(dob, this.dobs.dropright, y, x);
+	}
+	if(this.leftSplat){
+		dob = nearestDobOf2AndEitherMayBeNull(dob, this.leftSplat.nearestDrop(y,x), y, x);
+	}
+	if(this.rightSplat){
+		dob = nearestDobOf2AndEitherMayBeNull(dob, this.rightSplat.nearestDrop(y,x), y, x);
+	}
+	return dob;
+	*/
+};
+
 
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
 //
@@ -1725,9 +1938,13 @@ Splat.prototype.setSplit = function(split){
 		let syty = splate.syty;
 		let fn = splate.fn;
 		
+		//let showDropDobs = splate.showDropDobs;
+		
+		
 		if(splate.isLiteral){
 			let literal = toLiteralString(splate.fn); //FIXME with max size in chars
 			this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
+			//showDropDobs = false;
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
 			let prefix = '<b>'+sytyToPushChar(syty)+'</b>';
@@ -1785,11 +2002,7 @@ Splat.prototype.setSplit = function(split){
 			//this.dobs.suffixfarright = suffix;
 			
 			
-			if(splate.showDropDobs){
-				this.dobs.dropleft.innerHTML = '(dropleft)';
-				this.dobs.dropmid.innerHTML = '(dropmid)';
-				this.dobs.dropright.innerHTML = '(dropright)';
-			}
+			
 		}else if(!splate.isFoldL && splate.isDisplayName){ //FIXME set isDisplayName to false when making splate, depending on what, instead of checking isFoldL here?
 			this.dobs.prefix.innerHTML = '';
 			this.dobs.suffixfarright.innerHTML = ''; //where suffix text goes (instead of dobs.suffix) if isOneLine
@@ -1845,13 +2058,38 @@ Splat.prototype.setSplit = function(split){
 			//if(this.split.splate.isOpen && this.split.leftSplit && this.split.rightSplit){
 			if(this.split.splate.isDisplayChilds && this.split.leftSplit && this.split.rightSplit){
 				//this.L() creates or reuses this.leftSplat, similar for .R()
-				console.log('Splat displaying left child');
+				if(vm.loglev>=2) console.log('Splat displaying left child');
 				//this.L().displayIn(this.dobs.left);
 				this.L().setSplit(this.split.leftSplit);
-				console.log('Splat displaying right child');
+				//console.log('Splat displaying right child');
 				//this.R().displayIn(this.dobs.right);
 				this.R().setSplit(this.split.rightSplit);
 			}
+		}
+		
+		if(splate.showDropDobs){
+			if(splate.isAttractDropLeft()){
+				this.dobs.dropleft.innerHTML = '(dropleft)';
+			}
+			if(splate.isAttractDropMid()){
+				this.dobs.dropmid.innerHTML = '(dropmid)';
+			}
+			if(splate.isAttractDropRight()){
+				this.dobs.dropright.innerHTML = '(dropright)';
+			}
+		}
+		
+		//Action stuff goes in dropleft dropmid or dropright. Action hasnt acted yet, is just here to say action should be done as a forkEdit of this Split...
+		
+		let a = this.split.action;
+		//this.dobs.dropleft.innerHTML = ''; //FIXME should child Splats do that instead?
+		//this.dobs.dropmid.innerHTML = ''; //FIXME should child Splats do that instead?
+		//this.dobs.dropright.innerHTML = ''; //FIXME should child Splats do that instead?
+		if(a){
+			let dropdob = this.dobs[a.dobName];
+			if(!dropdob) throw 'Dob in Action not found: '+a.dobName+' Action='+a;
+			let childSplat = this.Child(a.dobName);
+			childSplat.setSplit(a.split);
 		}
 	}
 };
@@ -2060,7 +2298,9 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	}
 	
 	//let showDropDobs = isOpen;
-	let showDropDobs = false;
+	//let showDropDobs = false;
+	let showDropDobs = options.alwaysShowDropDobs;
+	//let showDropDobs = true;
 	let isSelected = false;
 	let red = randRed(); //FIXME should be deterministic
 	let green = randGreen(); //FIXME should be deterministic
@@ -2168,32 +2408,48 @@ Splat.prototype.pathFromRoot = function(){
 	return this.parentSplat.pathFromRoot()+(this.isRightChild() ? 'R' : 'L');
 };
 
+//returns a Split to set in a root Splat.
+//Use this way: rootSplat.setSplit(aSplat.forkRootSplit_randomizeColor())
+Splat.prototype.forkRootSplit_randomizeColor = function(){
+	return this.forkRootSplate(this.splate().setRGB(randRed(),randGreen(),randBlue()));
+};
+
+Splat.prototype.forkRootSplit_randomizeColor_inRootSplat = function(){
+	rootSplat.setSplit(this.forkRootSplit_randomizeColor());
+};
+
 //returns a Split for use in a root Splat, cuz Splat is mutable and Split and Splate are used as immutable.
 //UPDATE: param is a split, not a splate. If you want a splate instead, you can reuse the 2 child splits with a different splate here.
 //goes all the way up to a root splate (such as rootSplat or dragSplat).
 //Returns a Split that you'd use in thatRoot.setSplit, that has deep inside it this splat's splate set to the given splate.
 //Split is (used as) immutable and can have multi parents. Splat is mutable and has at most 1. Both have a splate.
 Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
+	if(vm.loglev>=2) console.log('forkRootSplit height='+this.height());
 	if(!this.parentSplat){ //this is root
 		return replaceWithThisSplit;
 	}
 	let isRightChild = this.parentSplat.rightSplat===this;
 	let nextSplit;
+	let oldParentSplit = this.parentSplat.split;
 	if(isRightChild){
-		nextSplit = getSplit(this.parentSplat.split.splate, this.parentSplat.leftSplat.split, replaceWithThisSplit);
+		//nextSplit = getSplit(this.parentSplat.split.splate, this.parentSplat.leftSplat.split, replaceWithThisSplit, this.parentSplat.split.action);
+		nextSplit = getSplit(oldParentSplit.splate, oldParentSplit.leftSplit, replaceWithThisSplit, oldParentSplit.action);
 	}else{ //is left child
-		nextSplit = getSplit(this.parentSplat.split.splate, replaceWithThisSplit, this.parentSplat.rightSplat.split);
+		//nextSplit = getSplit(this.parentSplat.split.splate, replaceWithThisSplit, this.parentSplat.rightSplat.split, this.parentSplat.split.action);
+		nextSplit = getSplit(oldParentSplit.splate, replaceWithThisSplit, oldParentSplit.rightSplit, oldParentSplit.action);
 	}
-	return this.forkRootSplit(nextSplit);
+	//return this.forkRootSplit(nextSplit);
+	return this.parentSplat.forkRootSplit(nextSplit);
 	//throw 'TODO use this when "TODO use setSplit but must forkEdit which is selected first"';
 };
 
 //returns a Split for use in a root Splat, cuz Splat is mutable and Split and Splate are used as immutable.
 Splat.prototype.forkRootSplate = function(replaceWithThisSplate){
+	return this.forkRootSplit(this.split.setSplate(replaceWithThisSplate));
 	/*fixmefixme return this.setSplate(replaceWithThisSplate)
 	Split.prototype.setSplate = function(splate){
 	*/
-	throw 'TODO call forkRootSplit with the existing 2 child splits, if they exist, else nulls for those';
+	//throw 'TODO call forkRootSplit with the existing 2 child splits, if they exist, else nulls for those';
 };
 
 //get a string of js code that returns me, something like 'rootSplat.L().R().R()'
@@ -2215,8 +2471,9 @@ var setSelSplat = splat=>{
 	console.log(splat.ptr());
 	let prevSelSplat = selSplat;
 	selSplat = splat;
-	if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
-	throw 'TODO use setSplit but must forkEdit which is selected first';
+	selSplat.forkRootSplit_randomizeColor_inRootSplat();
+	//if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
+	//throw 'TODO use setSplit but must forkEdit which is selected first';
 	//selSplat.displayLocal();
 	//rootDisplay(true);
 };
@@ -2366,6 +2623,16 @@ window.onload = ()=>{
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
 	let split = newSplitForFn_experimental(fn);
+	
+	if(options.testActionOnWindowLoad){
+		let splitForAction = newSplitForFn_experimental(fnForTestingAction);
+		//let whichDropDob = 'dropleft';
+		let whichDropDob = 'dropmid';
+		//let whichDropDob = 'dropright';
+		let a = new Action(splitForAction, whichDropDob, 'insert');
+		split = split.setAction(a);
+	}
+	
 	if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
 		//split = split.forkTryMaxWidth(12500); //FIXME this is just a test
 		//split = split.forkTryMaxWidth(1400); //FIXME this is just a test
@@ -2395,7 +2662,34 @@ window.onload = ()=>{
 	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
 	
-	<center><div id=rootDob></div></center>
+	<center>
+		<table border=3><tr><td width=30% valign=top>
+			TODO the mutableWrapperLambda system... (this doesnt work yet)...<br><br>
+			<nobr><b>Password creates publickey:</b><input id=passwordInput type=password cols=40 placeholder="password creates publicKey"></input></nobr>
+			<div id=publickeyDob>TODO a specific YourPublicKey appears here<div>
+			<div id=lambdamailDob>
+				<div style="background-color:#4b0">✕ (YourPublicKey [hello YourPublicKey]) -> <nobr>???drag and drop to here???</nobr></div>
+				<div style="background-color:#4bf">✕ (YourPublicKey [some game quicksave is... [the thing...]]) -> <nobr>???drag and drop to here???</nobr></div>
+			</div>
+			<br>
+			About the above^... You can use wikibinator anonymously with no user account/publickey at all, or with a publickey, and you can hook that to an identity in external systems if you want, or not.
+			This is for incoming messages. When anyone in the peer to peer network (TODO) calls (YourPublicKey IncomingMessage),
+			its checked against your local filter (any Lambda you choose, TODO) and if it passes, it appears here,
+			and you can drag a lambda as the response to it or click X on it to not respond.
+			So YourPublicKey acts like a lambda when others call it, including that multiple calls for the same param
+			are cached potentially forever and shouldnt repeat here (but may if not deduped yet?, TODO).
+			(YourPublicKey IncomingMessage) -> OutgoingResponse.
+			To get a publickey, type any password here, which gets hashed to make an ed25519 publickey, that will appear below (TODO).
+			The lambdas can do any algorithm, so doesnt have to be ed25519 but thats what the prototype will start with.
+			This password is not (TODO verify security) copied outside this browser window, unless your browser or its plugins or OS etc is spying on it.
+			Only digital signatures of it are normally shared.
+			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
+		</td><td>
+			<div id=rootDob></div>
+		</td></tr></table>
+	</center>
+	
+	
 	<br><font color=gray>
 	DONE/FIXED: [[[]]] etc is only showing 1 []. options.displayVarargLists is probably buggy.<br>
 	DONE ENOUGH: make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
@@ -2408,6 +2702,17 @@ window.onload = ()=>{
 	This will need to at least estimate the horizontal size of the first n things, to choose n to display that way to not be wider than the window, considering how far its already tabbed over.<br>
 	</font>
 	<br>
+	TODO [[[Could potentially swarm 1000 players onto 1 shared screen, seen remotely (very compressed, just sharing their gamepad movements among eachother for speed, mostly)
+Tip
+wikibinator
+@wikibinator
+·
+2m
+thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
+	<br>
+	TODO display (dropleft) (dropmid) and (dropright) in every node and find some way to make it unambiguous which (y,x) on screen would drop into which of those (3 of them in every node). Then use a copy of selSplat, that has some parts closed so its small enuf to see while dragging, to put in Action of where dragging near, and do the drop when release button, but show if its going to cause an eval vs waiting on more params.<br>
+	TODO add a dragdrop field to Split thats a dragged split, and it chooses 1 of 3 drag places.<br>
+	TODO hook in gamepad mouse keyboard etc, in a certain mode, to do this https://twitter.com/wikibinator/status/1575486566587170818 but very basic lambdas to get started, just update a sum of whatever numbers come in to verify it sees and is forkEdited by the params.<br>
 	TODO keyboard left right down buttons navigate split tree, and show which is selected.<br>
 	TODO Whichever split/splat is selected, have a few fast ways to insert, remove, etc from it, as code editor, but only allow changes that leave splat.fn.n.curriesLeft() (is that the right func?) being at least 1 aka CAN ONLY EDIT THE CODE IN WAYS THAT DONT CAUSE IT TO EVAL YET. Cuz there will be a separate way in UI to eval things so you dont do it by accident.<br>
 	TODO given that the code editor (by selection in the tree) wont let you cause eval, make a separate way of using UI to do evals, maybe similar to iotavm/iotadesktop (an experiment on my github) where you grab a lambda with mouse, drag it to another lambda, which calls it and you are then dragging (holding with mouse) what that lambda call returned and can keep dragging.<br>
@@ -2422,6 +2727,9 @@ window.onload = ()=>{
 	TODO the "some kind of simple game" mentioned in other TODO, start with just canvas/pic literals, not moving, made by drag and drop lambda onto lambda to find/create lambda that is or contains such graphics. When it starts to look like a screenshot of a game, then mark this as done and move on to the other TODO which is to make it move and playable by gamepad etc.<br>
 	<br>
 	TODO some kind of simple game, pacman-like or tetris-like etc, make that game by using the tree UI then play it with gamepad. Record a video of the whole thing and put up website where ppl can do that same thing or variants of it, with lambdas in general, but website wont store what they make yet as the p2p network isnt built yet.<br>
+	<br>
+	In theory, #wikibinator will be the first system to allow fork-editing of multiplayer games while they're being played, like if half the players kick out the other half, 
+ would seamlessly fork into 2 games. AIs could be made to automatically fork and merge as way of negotiating -- https://twitter.com/wikibinator/status/1575500016558690308<br>
 	<br>
 	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
 	<br>

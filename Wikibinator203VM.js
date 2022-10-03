@@ -6918,7 +6918,7 @@ const Wikibinator203 = (()=>{
 					//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
 					//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
 					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
-					console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
+					if(2<=vm.loglev) console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
 					//viewing.tokens.push('SMALLSTRING_'+smallString);
 					viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
 					
