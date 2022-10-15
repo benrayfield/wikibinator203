@@ -20,6 +20,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
 
+How #wikibinator will allow you to safely share libelous info and misinformation:
+If everything you say is true, you are not guilty of libel or of spreading misinformation.
+A true statement can contain many false statements, we know from turing machines.
+m = some misinformation;
+w = "m is information, but Im not saying its true or false";
+Its not a lie to say w is true, but its a lie to say m is true.
+If w contains a web of debates using public-keys, some telling truth & some lying,
+thats all inside w, so can share w (contains m).
+
 It may be illegal in some countries to say certain things,
 such as "the holocaust didnt happen" for example.
 This license protects free speech in evilbit=true namespace
