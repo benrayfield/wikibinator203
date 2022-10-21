@@ -12,6 +12,9 @@ This license contains the 3 paragraphs of the MIT license and some extra copylef
 
 This is experimental software.
 
+This software and license is not under the laws of any specific physical location
+but whoever is using it together can work that out among eachother.
+
 [THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,6 +22,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+
+How #wikibinator will allow you to safely share libelous info and misinformation:
+If everything you say is true, you are not guilty of libel or of spreading misinformation.
+A true statement can contain many false statements, we know from turing machines.
+m = some misinformation;
+w = "m is information, but Im not saying its true or false";
+Its not a lie to say w is true, but its a lie to say m is true.
+If w contains a web of debates using public-keys, some telling truth & some lying,
+thats all inside w, so can share w (contains m).
 
 It may be illegal in some countries to say certain things,
 such as "the holocaust didnt happen" for example.
