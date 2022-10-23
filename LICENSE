@@ -15,6 +15,18 @@ This is experimental software.
 This software and license is not under the laws of any specific physical location
 but whoever is using it together can work that out among eachother.
 
+The wikibinator opensource peer to peer compute clouds
+will do many things including free speech (and games, musical instruments, AI, etc).
+To reduce risk of being attacked/sued/fined/stalked/etc,
+normally you wouldnt claim outside the system that contents of the system are true or false.
+Its near certain to contain lots of false and lots of true info. Debate freely inside.
+Lambdas tend to generate random text, partially random text, partially random algorithms,
+and all kinds of hard to predict things. In addition to that, peoples opinions are not always right,
+and it would be an impractical cost to prove everything that everyone says within the system.
+The lambdas themselves will not, unless the VM(s) are buggy (and if so please fix it),
+ever lie about math, but when you view text as statements about the outside world,
+thats beyond what math has direct access to.
+
 [THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
