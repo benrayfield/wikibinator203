@@ -400,8 +400,28 @@ controls.mouseX = 0;
 controls.mouseXDragFrom = 0;
 controls.mouseXDragFrom = 0;
 
+//returns [fromY fromX toY toX] or null, depending if theres a drag in progress.
+var dragLineFromYXToYX = ()=>{
+	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
+	let wouldtoOrTo = findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo');
+	if(wouldfromOrFrom && wouldtoOrTo){
+		let dobFrom = wouldfromOrFrom.dobs.self;
+		let dobTo = wouldtoOrTo.dobs.self;
+		return [ //drag line
+			dobY(dobFrom)+dobHeight(dobFrom)*wouldfromOrFrom.splate().looseIconYFraction, //fromY
+			dobX(dobFrom)+dobWidth(dobFrom)*wouldfromOrFrom.splate().looseIconXFraction, //fromX
+			dobY(dobTo)+dobHeight(dobTo)*wouldtoOrTo.splate().looseIconYFraction, //toY
+			dobX(dobTo)+dobWidth(dobTo)*wouldtoOrTo.splate().looseIconXFraction //toX
+		];
+	}else{
+		return null; //dont display drag line
+	}
+};
+
 //draggingStep is 0 for not dragging, 1 for started dragging, 2 to schedule ending of drag asap, and 3 for ended dragging (or maybe should be 0 instead of 3?).
 controls.draggingStep = 0;
+
+const dragButton = 'mouseButton0'; //controls[dragButton] is 0 (up) or 1 (down)
 
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
@@ -444,20 +464,24 @@ var Splat = function(parentSplatOrNull, selfDob){
 	
 	selfDob.addEventListener(
 		'mousemove',
-		function(event){
+		this.eventListenerMouseMove = function(event){
 			controls.mouseY = event.pageY;
 			controls.mouseX = event.pageX;
 			
+			let isDragButtonDown = controls[dragButton];
+			
+			//TODO use options.doMainDragging
 			if(options.basicTestOfLooseIconWhenMouseMoves){
 				//FIXME unset this in anything not currently dragging FROM or TO
 				//(so at most should be 2 splats with this true in the main/rootSplat tree excluding Action/thirdchilds if those are even used)
-				let isDisplayIcon = true;
+				//let isDisplayIcon = true;
+				let isDisplayIcon = ThisSplat.splate().isDisplayIcon;
 				//let isDisplayIcon = false;
 				let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
 				let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
-				if(vm.loglev>=2) console.log('setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
-				ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon))
-				if(vm.loglev>=2) console.log('did transformSplate with new icon position etc');
+				if(vm.loglev>=2) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
+				ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
+				if(vm.loglev>=2) console.log('mousemove did transformSplate with new icon position etc');
 				
 				//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
 				//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
@@ -482,23 +506,52 @@ var Splat = function(parentSplatOrNull, selfDob){
 					splatdob.dob().innerHTML = txt;
 				}
 			}
+			
+			if(options.doMainDragging){
+				if(isDragButtonDown){
+					ThisSplat.doDuringDrag(
+						ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
+				}else{
+					//FIXME this is happening after release mouse button, as if drag hadnt just happened.
+					ThisSplat.doBeforeDrag(
+						ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+				}
+			}
 		}
 	);
 	
 	
 	selfDob.addEventListener(
-		'click',
-		function(event){
-			//console.log('click '+ThisSplat);
+		'mousedown',
+		this.eventListenerMouseDown = function(event){
+			//console.log('mousedown '+ThisSplat);
 			event.stopPropagation();
-			//requestAnimationFrame(function(){
-				//console.log('ThisSplat_isRoot='+(ThisSplat===rootSplat));
-				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-					setSelSplat(ThisSplat);
-				}
-				//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
-			//});
-			//event.stopPropagation();
+			controls['mouseButton'+event.button] = 1;
+			if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+				setSelSplat(ThisSplat);
+			}
+			if(options.doMainDragging){
+				ThisSplat.doStartDrag(
+					ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+				console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+			}
+		}
+	);
+	
+	selfDob.addEventListener(
+		'mouseup',
+		this.eventListenerMouseUp = function(event){
+			//console.log('mouseup '+ThisSplat);
+			event.stopPropagation();
+			controls['mouseButton'+event.button] = 0;
+			//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+			//	setSelSplat(ThisSplat);
+			//}
+			if(options.doMainDragging){
+				doEndDrag();
+			}
 		}
 	);
 	
@@ -508,6 +561,18 @@ var Splat = function(parentSplatOrNull, selfDob){
 	
 	this.createDobsIfNotExist(); //other than selfDob which is given
 
+};
+
+//If mouseY is not given, uses controls.mouseY. Returns a fraction if mouse is inside my rect, else it might be outside that range.
+Splat.prototype.looseIconYFractionAtMouseY = function(mouseY){
+	if(mouseY === undefined) mouseY = controls.mouseY;
+	return (mouseY-dobY(this.dobs.self))/dobHeight(this.dobs.self); //FIXME what if height is 0?
+};
+
+//If mouseX is not given, uses controls.mouseX. Returns a fraction if mouse is inside my rect, else it might be outside that range.
+Splat.prototype.looseIconXFractionAtMouseX = function(mouseX){
+	if(mouseX === undefined) mouseX = controls.mouseX;
+	return (mouseX-dobX(this.dobs.self))/dobWidth(this.dobs.self); //FIXME what if width is 0?
 };
 
 //This takes 3 possible params: 'dropleft', 'dropmid', or 'dropright', and creates/reuses a child Splat.
@@ -641,6 +706,15 @@ Splat.prototype.updateSelfDivStyle = function(){
 	sty.borderColor = colorStr(red,green,blue);
 };*/
 
+Splat.prototype.copyEventListenersIntoDob = function(dob){
+	if(!this.eventListenerMouseMove) throw 'No this.eventListenerMouseMove';
+	if(!this.eventListenerMouseDown) throw 'No this.eventListenerMouseDown';
+	if(!this.eventListenerMouseUp) throw 'No this.eventListenerMouseUp';
+	dob.addEventListener('mousemove', this.eventListenerMouseMove);
+	dob.addEventListener('mousedown', this.eventListenerMouseDown);
+	dob.addEventListener('mouseup', this.eventListenerMouseUp);
+};
+
 Splat.prototype.createDobsIfNotExist = function(){
 
 
@@ -725,14 +799,30 @@ Splat.prototype.createDobsIfNotExist = function(){
 		//d.controls = Pob('div', d.self);
 		
 		d.looseIcon = Pob('img', d.self);
+		//attr(d.looseIcon, 'unselectable', 'on');
+		attr(d.looseIcon, 'draggable', 'false');
+		//d.looseIcon.style.userSelect = 'none';
 		attr(d.looseIcon,'src',options.fromIconRelPath);
 		d.looseIcon.style.position = 'absolute';
-		d.looseIcon.style.verticalAlign = '50%'; //change later based on splat.looseIconYFraction etc
-		d.looseIcon.style.horizontalAlign = '50%'; //change later based on splat.looseIconYFraction etc
+		d.looseIcon.style.left = '0px'; //change later based on splat.looseIconYFraction etc
+		d.looseIcon.style.top = '0px'; //change later based on splat.looseIconYFraction etc
 		d.looseIcon.style.height = options.iconSize;
 		d.looseIcon.style.width = options.iconSize;
-		d.looseIcon.style.display = 'hidden';
+		d.looseIcon.style.visibility = 'hidden';
 		//this.updateDobIconsVisibility(false); //set looseIcon.style.visibility to 'visible' or 'hidden' and (TODO) maybe same for hardIcon
+		this.copyEventListenersIntoDob(d.looseIcon); //Without this, the icon waits to move until mouse goes outside the icon, so it looks jumpy.
+		
+		
+		//line from an icon in the FROM splat to here (the TO splat), an icon in each.
+		//TODO these might be possible to be the same splat, but for now 2022-10-30 the from and to cant be the same splat.
+		d.dragLine = Pob('div', d.self);
+		d.dragLine.style.width = options.dragLineThick+'px';
+		d.dragLine.style.height = '20px'; //FIXME start as height 0
+		d.dragLine.style.position = 'absolute';
+		d.dragLine.style.left = '0px'; //change later based on splat.looseIconYFraction etc
+		d.dragLine.style.top = '0px'; //change later based on splat.looseIconYFraction etc
+		d.dragLine.style.backgroundColor = 'blue'; //FIXME start as height 0
+		
 		
 		//displays left/up from the whole thing. FIXME this should just be left of prefix, so fix some dobs and css to do that in both horizontal and vertical cases.
 		d.dropouterleft = Pob('div', d.self);
@@ -864,20 +954,39 @@ options.estimatedFontWidth = 10; //pixels
 //options.fillDropDobWithTestWhenNearestToMouse = true;
 options.fillDropDobWithTestWhenNearestToMouse = false;
 
-//options.simple_setSelSplat_ofWhateverDobMouseTouches = true;
-options.simple_setSelSplat_ofWhateverDobMouseTouches = false;
+options.simple_setSelSplat_ofWhateverDobMouseTouches = true;
+//options.simple_setSelSplat_ofWhateverDobMouseTouches = false;
 
 //options.simple_randomizeColor_ofWhateverDobMouseTouches = true;
 options.simple_randomizeColor_ofWhateverDobMouseTouches = false;
 
-options.fromIconRelPath = 'pic/from.png';
+options.fromIconRelPath = 'pic/from_transparent.png';
 
 //options.iconSize = '16px';
-options.iconSize = '8px';
+//options.iconSize = '8px';
+//options.iconSize = '12px';
+options.iconSize = 12;
+
+options.dragLineThick = 3; //px
 
 //if true, moves splat.dobs.looseIcon to where mouse is (not the recursive parent of parent thing (yet?)).
-options.basicTestOfLooseIconWhenMouseMoves = true;
-//options.basicTestOfLooseIconWhenMouseMoves = false;
+//WARNING this can interfere with dragging. should probably stop using this as of 2022-10-30 or soon after,
+//as I'm about to make the main drag code.
+//I put code in for that "if(options.doMainDragging) options.basicTestOfLooseIconWhenMouseMoves = false;".
+//options.basicTestOfLooseIconWhenMouseMoves = true;
+options.basicTestOfLooseIconWhenMouseMoves = false;
+
+options.doMainDragging = true;
+//options.doMainDragging = false;
+if(options.doMainDragging) options.basicTestOfLooseIconWhenMouseMoves = false;
+
+//If true, uses splitA.eq(splitB) and splitA.splate.eq(splitB.splate) and splitA.leftSplit.eq(splitB.leftSplit) etc,
+//which uses split.bigHash() and splate.bigHash() to compare them by sha256,
+//and if they're equal (even if not by ===) then dont update those parts of splat.dobs.
+//TODO as of 2022-10-22 this is only checking splitA.eq(splitB) so is updating height number of parents unnecessarily
+//despite their splates are equal, when update a splate somewhere in the tree, from there up to rootSplat.
+options.optimizeUIByDedupSplit = true;
+//options.optimizeUIByDedupSplit = false;
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1058,9 +1167,15 @@ DO this, add these fields to split:
 ...
 Add dobs to splat for all that: 2 icons, 1 div for an angled line, and 1 partly transparent overlay div.
 ]
+dragStep is 'no' (not dragging, not displaying the icon where it would drag if mousedown),
+'wouldFrom' (displaying the icon where it would drag if mousedown next),
+'from' (icon here is at constant position, mouse is down, looking for what splat to drag to, where another icon will be displayed),
+'wouldTo' (second splat (or possibly could be same splat from and to) is displaying an icon that follows mouse, where it would drag to if release mouse button, line between from and wouldTo),
+'to' (the from and to splats and icons are decided, ready to do the drag, which causes lambda called on lambda finds/creates lambda, then all dragSteps become 'no' again).
 */
-var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
-		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath){
+var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds,
+		isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
+		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep){
 
 	
 
@@ -1130,6 +1245,8 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	this.looseIconXFraction = between(0, looseIconXFraction||0, 1);
 	this.linePath = linePath || ''; //something like 'UUUULRLL', or '' if none. If this doesnt select a displayed splat then the line doesnt appear.
 	
+	this.dragStep = dragStep || 'no';
+	
 };
 
 var getSplit = (splate, leftSplit, rightSplit, optionalAction)=>{
@@ -1137,13 +1254,14 @@ var getSplit = (splate, leftSplit, rightSplit, optionalAction)=>{
 	return new Split(splate, leftSplit, rightSplit, optionalAction||null);
 };
 
+
 //perfect dedup of UI parts (not perfect deduping fn which is still using locid (128 bit localId) so only dedups by that)
 //caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
 Splate.prototype.bigHash = function(){
 	return '[Splate_'+this.fn.n.locid()+'_'+this.syty+'_'+(this.isOpen?'O':'o')+(this.isOneLine?'L':'l')+(this.isLiteral?'I':'i')+
 		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isDisplayChilds?'C':'c')+(this.isFoldL?'S':'s')+
-		(this.isUnary?'T':'t')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+']'+
-		(this.isDisplayIcon?'I':'i')+('Iy'+this.looseIconYFraction)+('Ix'+this.looseIconXFraction)+('Path'+this.linePath);
+		(this.isUnary?'T':'t')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+
+		(this.isDisplayIcon?'I':'i')+('Iy'+this.looseIconYFraction)+('Ix'+this.looseIconXFraction)+('Path'+this.linePath)+('Ds'+this.dragStep)+']';
 };
 
 //compare splate to splate only.
@@ -1154,6 +1272,9 @@ Splate.prototype.eq = function(splate){
 
 //forkEdit. You probably should change syty and maybe some other things too if you change fn.
 Splate.prototype.setFn = function(fn){
+	//Many (but not all) fn that are equal match this way, and none that are not equal match this way. See some equals
+	//function (TODO what was it called) in vm? But since this is just an optimization, dont need that.
+	if(this.fn === fn) return this;
 	let ret = this.copy();
 	ret.fn = fn;
 	delete ret.bigHash_;
@@ -1162,6 +1283,7 @@ Splate.prototype.setFn = function(fn){
 
 //forkEdit
 Splate.prototype.setSyty = function(syty){
+	if(this.syty === syty) return this;
 	let ret = this.copy();
 	ret.syty = syty;
 	delete ret.bigHash_;
@@ -1170,6 +1292,7 @@ Splate.prototype.setSyty = function(syty){
 
 //forkEdit
 Splate.prototype.setIsOpen = function(isOpen){
+	if(this.isOpen === isOpen) return this;
 	let ret = this.copy();
 	ret.isOpen = !!isOpen;
 	delete ret.bigHash_;
@@ -1178,6 +1301,7 @@ Splate.prototype.setIsOpen = function(isOpen){
 
 //forkEdit
 Splate.prototype.setIsOneLine = function(isOneLine){
+	if(this.isOneLine === isOneLine) return this;
 	let ret = this.copy();
 	ret.isOneLine = !!isOneLine;
 	delete ret.bigHash_;
@@ -1186,6 +1310,7 @@ Splate.prototype.setIsOneLine = function(isOneLine){
 
 //forkEdit
 Splate.prototype.setIsLiteral = function(isLiteral){
+	if(this.isLiteral === isLiteral) return this;
 	let ret = this.copy();
 	ret.isLiteral = !!isLiteral;
 	delete ret.bigHash_;
@@ -1194,6 +1319,7 @@ Splate.prototype.setIsLiteral = function(isLiteral){
 
 //forkEdit
 Splate.prototype.setIsDisplayName = function(isDisplayName){
+	if(this.isDisplayName === isDisplayName) return this;
 	let ret = this.copy();
 	ret.isDisplayName = !!isDisplayName;
 	delete ret.bigHash_;
@@ -1202,6 +1328,7 @@ Splate.prototype.setIsDisplayName = function(isDisplayName){
 
 //forkEdit
 Splate.prototype.setIsDisplayPushAndPopChars = function(isDisplayPushAndPopChars){
+	if(this.isDisplayPushAndPopChars === isDisplayPushAndPopChars) return this;
 	let ret = this.copy();
 	ret.isDisplayPushAndPopChars = !!isDisplayPushAndPopChars;
 	delete ret.bigHash_;
@@ -1210,6 +1337,7 @@ Splate.prototype.setIsDisplayPushAndPopChars = function(isDisplayPushAndPopChars
 
 //forkEdit
 Splate.prototype.setIsDisplayChilds = function(isDisplayChilds){
+	if(this.isDisplayChilds === isDisplayChilds) return this;
 	let ret = this.copy();
 	ret.isDisplayChilds = !!isDisplayChilds;
 	delete ret.bigHash_;
@@ -1218,6 +1346,7 @@ Splate.prototype.setIsDisplayChilds = function(isDisplayChilds){
 
 //forkEdit
 Splate.prototype.setIsFoldL = function(isFoldL){
+	if(this.isFoldL === isFoldL) return this;
 	let ret = this.copy();
 	ret.isFoldL = !!isFoldL;
 	if(ret.isFoldL && !ret.isDisplayChilds) throw 'can only isFoldL if isDisplayChilds, splate='+ret;
@@ -1227,6 +1356,7 @@ Splate.prototype.setIsFoldL = function(isFoldL){
 
 //forkEdit
 Splate.prototype.setIsUnary = function(isUnary){
+	if(this.isUnary === isUnary) return this;
 	let ret = this.copy();
 	ret.isUnary = !!isUnary;
 	if(ret.isUnary && !ret.isDisplayChilds) throw 'can only isUnary if isDisplayChilds, splate='+ret;
@@ -1238,6 +1368,7 @@ Splate.prototype.setIsUnary = function(isUnary){
 
 //forkEdit
 Splate.prototype.setIsSelected = function(isSelected){
+	if(this.isSelected === isSelected) return this;
 	let ret = this.copy();
 	ret.isSelected = !!isSelected;
 	delete ret.bigHash_;
@@ -1246,6 +1377,7 @@ Splate.prototype.setIsSelected = function(isSelected){
 
 //forkEdit
 Splate.prototype.setRed = function(red){
+	if(this.red === red) return this;
 	let ret = this.copy();
 	ret.red = red;
 	delete ret.bigHash_;
@@ -1254,6 +1386,7 @@ Splate.prototype.setRed = function(red){
 
 //forkEdit
 Splate.prototype.setGreen = function(green){
+	if(this.green === green) return this;
 	let ret = this.copy();
 	ret.green = green;
 	delete ret.bigHash_;
@@ -1262,6 +1395,7 @@ Splate.prototype.setGreen = function(green){
 
 //forkEdit
 Splate.prototype.setBlue = function(blue){
+	if(this.blue === blue) return this;
 	let ret = this.copy();
 	ret.blue = blue;
 	delete ret.bigHash_;
@@ -1270,6 +1404,7 @@ Splate.prototype.setBlue = function(blue){
 
 //forkEdit
 Splate.prototype.setRGB = function(red, green, blue){
+	if(this.red===red && this.green===green && this.blue===blue) return this;
 	let ret = this.copy();
 	ret.red = red;
 	ret.green = green;
@@ -1280,6 +1415,7 @@ Splate.prototype.setRGB = function(red, green, blue){
 
 //forkEdit
 Splate.prototype.setIsDisplayIcon = function(isDisplayIcon){
+	if(this.isDisplayIcon === isDisplayIcon) return this;
 	let ret = this.copy();
 	ret.isDisplayIcon = !!isDisplayIcon;
 	delete ret.bigHash_;
@@ -1288,6 +1424,7 @@ Splate.prototype.setIsDisplayIcon = function(isDisplayIcon){
 
 //forkEdit
 Splate.prototype.setLooseIconYFraction = function(looseIconYFraction){
+	if(this.looseIconYFraction === looseIconYFraction) return this;
 	let ret = this.copy();
 	ret.looseIconYFraction = between(0,looseIconYFraction||0,1);
 	delete ret.bigHash_;
@@ -1296,6 +1433,7 @@ Splate.prototype.setLooseIconYFraction = function(looseIconYFraction){
 
 //forkEdit
 Splate.prototype.setLooseIconXFraction = function(looseIconXFraction){
+	if(this.looseIconXFraction === looseIconXFraction) return this;
 	let ret = this.copy();
 	ret.looseIconXFraction = between(0,looseIconXFraction||0,1);
 	delete ret.bigHash_;
@@ -1304,8 +1442,19 @@ Splate.prototype.setLooseIconXFraction = function(looseIconXFraction){
 
 //forkEdit
 Splate.prototype.setLinePath = function(linePath){
+	if(this.linePath === linePath) return this;
 	let ret = this.copy();
 	ret.linePath = linePath;
+	delete ret.bigHash_;
+	return ret;
+};
+
+
+//forkEdit
+Splate.prototype.setDragStep = function(dragStep){
+	if(this.dragStep === dragStep) return this;
+	let ret = this.copy();
+	ret.dragStep = dragStep;
 	delete ret.bigHash_;
 	return ret;
 };
@@ -1319,7 +1468,7 @@ Splate.prototype.toString = function(){
 
 //The "except fn" part is cuz displaying a fn could be very big.
 Splate.prototype.toStringExceptFn = function(){
-	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' isDisplayChilds='+this.isDisplayChilds+' isFoldL='+this.isFoldL+' isUnary='+this.isUnary+' isDisplayName='+this.isDisplayName+' name='+this.name()+']';
+	return '[Splate syty='+this.syty+' isOpen='+this.isOpen+' isOneLine='+this.isOneLine+' isLiteral='+this.isLiteral+' isDisplayPushAndPopChars='+this.isDisplayPushAndPopChars+' isDisplayChilds='+this.isDisplayChilds+' isFoldL='+this.isFoldL+' isUnary='+this.isUnary+' isDisplayName='+this.isDisplayName+' name='+this.name()+' isDisplayIcon='+this.isDisplayIcon+' looseIconYFraction='+this.looseIconYFraction+' looseIconXFraction='+this.looseIconXFraction+' linePath='+this.linePath+' dragStep='+this.dragStep+']';
 };
 
 //if you call .name, it starts with A-Z (then any unicode chars) or Λ (locid). Locid is a 128 bit id created when the fn is created, but its string form is lazyEvaled.
@@ -1376,7 +1525,7 @@ var fnMeta = fn=>{
 Splate.prototype.copy = function(){
 	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars,
 		this.isDisplayChilds, this.isFoldL, this.isUnary, this.showDropDobs, this.isSelected, this.red, this.green, this.blue,
-		this.isDisplayIcon, this.looseIconYFraction, this.looseIconXFraction, this.linePath);
+		this.isDisplayIcon, this.looseIconYFraction, this.looseIconXFraction, this.linePath, this.dragStep);
 };
 
 
@@ -1570,14 +1719,22 @@ Split.prototype.estimateWidth = function(includeChildsIfExist){
 };
 */
 
-Split.prototype.isDisplayLeftChild = function(){
+Split.prototype.isDisplayL = function(){
 	let splate = this.splate;
 	return splate.isOpen && this.leftSplit && !splate.isFoldL && !splate.isLiteral; //FIXME what if !isOpen and isLiteral?
 };
 
-Split.prototype.isDisplayRightChild = function(){
+Split.prototype.isDisplayR = function(){
 	let splate = this.splate;
 	return splate.isOpen && this.rightSplit && !splate.isLiteral; //FIXME what if !isOpen and isLiteral?
+};
+
+Splat.prototype.isDisplayL = function(){
+	return this.split.isDisplayL();
+};
+
+Splat.prototype.isDisplayR = function(){
+	return this.split.isDisplayR();
 };
 
 //only computes it the first time.
@@ -1591,12 +1748,12 @@ Split.prototype.estimateWidthIfOneLine = function(){
 			if(splate.isLiteral) throw 'isLiteral AND isDisplayPushAndPopChars, splate='+splate;
 			est += options.estimatedFontWidth*2;
 		}
-		if(this.isDisplayLeftChild()){
-			if(!this.leftSplit) throw 'No leftSplit but isDisplayLeftChild said to display it';
+		if(this.isDisplayL()){
+			if(!this.leftSplit) throw 'No leftSplit but isDisplayL said to display it';
 			est += this.leftSplit.estimateWidthIfOneLine();
 		}
-		if(this.isDisplayRightChild()){
-			if(!this.rightSplit) throw 'No rightSplit but isDisplayRightChild said to display it';
+		if(this.isDisplayR()){
+			if(!this.rightSplit) throw 'No rightSplit but isDisplayR said to display it';
 			est += this.rightSplit.estimateWidthIfOneLine();
 		}
 		if(splate.isLiteral){
@@ -1624,8 +1781,8 @@ Split.prototype.estimateHeight = function(){
 Split.prototype.isOneLineDeep = function(){
 	if(!this.isOneLineDeep_){
 		let ret = this.splate.isOneLine;
-		if(this.isDisplayLeftChild() && !this.leftSplit.isOneLineDeep()) ret = false;
-		if(this.isDisplayRightChild() && !this.rightSplit.isOneLineDeep()) ret = false;
+		if(this.isDisplayL() && !this.leftSplit.isOneLineDeep()) ret = false;
+		if(this.isDisplayR() && !this.rightSplit.isOneLineDeep()) ret = false;
 		//FIXME what if it cant be oneline cuz its a big canvas bytes literal etc?
 		this.isOneLineDeep_ = ret;
 	}
@@ -1635,8 +1792,8 @@ Split.prototype.isOneLineDeep = function(){
 Split.prototype.asOneLineDeep = function(){
 	if(this.isOneLineDeep()) return this;
 	let forkSplate = this.splate.setIsOneLine(true); //FIXME setIsOneLine should return same splate if already that way.
-	let forkLeft = this.isDisplayLeftChild() ? this.leftSplit.asOneLineDeep() : this.leftSplit; //leave leftSplit as it is if not display it
-	let forkRight = this.isDisplayRightChild() ? this.rightSplit.asOneLineDeep() : this.rightSplit; //leave rightSplit as it is if not display it
+	let forkLeft = this.isDisplayL() ? this.leftSplit.asOneLineDeep() : this.leftSplit; //leave leftSplit as it is if not display it
+	let forkRight = this.isDisplayR() ? this.rightSplit.asOneLineDeep() : this.rightSplit; //leave rightSplit as it is if not display it
 	return getSplit(forkSplate,forkLeft,forkRight);
 };
 
@@ -1662,8 +1819,8 @@ Split.prototype.forkTryMaxWidth = function(maxWidth){
 		let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
 		let forkSplate = this.splate.setIsOneLine(false);
 		//TODO optimize by reusing same Splits if they're already not too wide (does it do that yet? theres some code that does and some that doesnt...)
-		let forkLeft = this.isDisplayLeftChild() ? this.leftSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.leftSplit; //leave leftSplit as it is if not display it
-		let forkRight = this.isDisplayRightChild() ? this.rightSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.rightSplit; //leave rightSplit as it is if not display it
+		let forkLeft = this.isDisplayL() ? this.leftSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.leftSplit; //leave leftSplit as it is if not display it
+		let forkRight = this.isDisplayR() ? this.rightSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.rightSplit; //leave rightSplit as it is if not display it
 		let forkActionsSplit = this.action ? this.action.split.forkTryMaxWidth(maxWidthMinusTabbedOver) : null;
 		let forkAction = this.action;
 		if(forkAction && !forkAction.split.eq(forkActionsSplit)){
@@ -1809,6 +1966,22 @@ Split.prototype.suffix = function(){
 };*/
 
 
+//forkEdits
+Split.prototype.setL = function(newLeftSplit){
+	return getSplit(this.splate,newLeftSplit,this.rightSplit);
+};
+
+//forkEdits
+Split.prototype.setR = function(newRightSplit){
+	return getSplit(this.splate,this.leftSplit,newRightSplit);
+};
+
+//forkEdits
+Split.prototype.transformSplate = function(transformer){
+	return this.setSplate(transformer(this.splate));
+};
+
+
 Splat.prototype.splate = function(){
 	return this.split.splate;
 };
@@ -1907,6 +2080,11 @@ var toLiteralString = fn=>{
 	return literal;
 };
 
+Splate.prototype.isDisplayDragLine = function(){
+	//FIXME get rid of isDisplayIcon?
+	return this.isDisplayIcon && (this.dragStep=='to' || this.dragStep=='wouldTo');
+};
+
 //Used with isUnary such as (T x) which doesnt display the T as splat but displays T as a prefix "T" instead, similar to a prefix "{" or prefix "[" or prefix "(".
 Splate.prototype.isAttractDropOuterLeft = function(){
 	return this.isUnary || this.syty=='S2';
@@ -1940,7 +2118,7 @@ var SplatPart = function(splat, part){
 
 //part is a string for different kinds of drag (such as naming its 4 corners)
 Splat.prototype.partY = function(part){
-	fixmefixme
+	throw 'TODO';
 };
 
 var SplatDob = function(splat, dobName){
@@ -1976,7 +2154,7 @@ SplatYX.prototype.jump = function(){
 	todo
 };*/
 var screenYXToSplatfyfx = function(screenY, screenX){
-	fixmefixme
+	throw 'TODO';
 };
 
 //Fy and fx are fractions, coordinates in splat rectangle.
@@ -2025,9 +2203,9 @@ Splat.prototype.splatdobForDobName = function(dobName){
 var splatAtYX = function(y, x, optionalSplatFrom){
 	let splat = optionalSplatFrom || rootSplat;
 	if(!splat.containsYX(y,x)) return null;
-	let l = splat.isDisplayLeftChild() ? splat.leftSplat.splatAtYX : null;
+	let l = splat.isDisplayL() ? splat.leftSplat.splatAtYX : null;
 	if(l) return l;
-	let r = splat.isDisplayRightChild() ? splat.rightSplat.splatAtYX : null;
+	let r = splat.isDisplayR() ? splat.rightSplat.splatAtYX : null;
 	if(r) return r;
 	return splat;
 };
@@ -2079,7 +2257,8 @@ Splat.prototype.setSplit = function(split){
 	var prevSplit = this.split;
 	if(!prevSplit) throw 'No prevSplit';
 	const isAllNbsp = /^(\&nbsp\;)*$/;
-	if(!split.eq(prevSplit)){
+	if(!options.optimizeUIByDedupSplit || !split.eq(prevSplit)){
+		if(vm.loglev>=2) console.log('Is updating splat (height='+this.height()+') cuz split changed, newSplit='+split+' prevSplit='+prevSplit);
 		this.split = split;
 		if(!this.dobs.self) throw 'No self dob';
 		let prevSplate = prevSplit.splate;
@@ -2267,11 +2446,148 @@ Splat.prototype.setSplit = function(split){
 			//this.dobs.looseIcon.style.verticalAlign = (splate.looseIconYFraction*100)+'%';
 			//this.dobs.looseIcon.style.horizontalAlign = (splate.looseIconXFraction*100)+'%';
 			
-			this.dobs.looseIcon.style.height = options.iconSize; //example: '16px'
-			this.dobs.looseIcon.style.width = options.iconSize;
+			this.dobs.looseIcon.style.height = options.iconSize+'px';
+			this.dobs.looseIcon.style.width = options.iconSize+'px';
 			//TODO adjust by half width and height of icon.
-			this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
-			this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
+			this.dobs.looseIcon.style.top = Math.round(dobY(self)+dobHeight(self)*splate.looseIconYFraction-options.iconSize/2)+'px';
+			this.dobs.looseIcon.style.left = Math.round(dobX(self)+dobWidth(self)*splate.looseIconXFraction-options.iconSize/2)+'px';
+		}
+		if(splate.isDisplayDragLine()){
+		
+		
+		
+		
+			/* This code in the directed graph UI html displays angled lines.
+			UIEdge.prototype.display = function(){
+				if(!displayUiedges) return;
+				if(!this.dob){
+					let parentDob = mainDiv;
+					//let parentDob = document.body;
+					//let parentDob = this.from.dob;
+					//if(!parentDob) throw 'UINode hasnt displayed yet so cant display edge from it, this='+this;
+				
+					//this.dob = Dob(parentDob,'div'); //put edge's div it in the div of the UINode its from.
+					this.dob = Dob(parentDob,'div');
+					this.dob.style.position = cssPositionType;
+					//this.dob.style.height = '50px';
+					//this.dob.style.width = '13px';
+					//this.dob.style.width = '5px';
+					//this.dob.style.width = '2px';
+					//this.dob.style.height = '154px';
+					//TODO css for angle
+					//this.dob.style['background-color'] = randColorStr();
+					this.dob.style.background = 'url('+typeToPic[this.type]+')';
+					this.dob.style['z-index'] = -1;
+				}
+				
+
+				
+				//https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix
+				let diffY = this.to.pos[0]-this.from.pos[0];
+				let diffX = this.to.pos[1]-this.from.pos[1];
+				let diffLen = Math.hypot(diffY,diffX);
+				this.dob.style.height = '2px';
+				this.dob.style.width = Math.ceil(diffLen)+'px';
+				let normY = between(-1,diffY/diffLen,1);
+				let normX = between(-1,diffX/diffLen,1);
+				//let angle = Math.asin(normY);
+				
+				
+				let a = normX;
+				let b = normY;
+				let c = -normY;
+				let d = normX;
+				
+				
+				//let a = 1/Math.sqrt(2), b = 0, c = 0, d = 1/Math.sqrt(2);
+				//let a = 1, b = 0, c = 0, d = 1;
+				//let a = Math.sin(angle), b = Math.cos(angle), c = -Math.cos(angle), d = Math.sin(angle);
+				//this.dob.style.width = '90px';
+				//let a = -1, b = 0, c = 0, d = -1;
+				//let a = 5, b = 0, c = 0, d = 5;
+				
+				//let a = 1;
+				//let b = 2.1;//let b = .3;
+				//let c = 0; //let c = -.1;
+				//let d = 1;
+				
+				//let tx = 0;
+				//let ty = 0;
+				
+				//midpoint cuz [style.transform matrix or matrix3d] uses center of dob as (0,0,0) instead of top left corner as usual in html and as usual in opengl and other 3d frameworks.
+				//let ty = this.from.pos[0]+diffY/2;
+				//let tx = this.from.pos[1]+diffX/2;
+				let ty = (this.from.pos[0]+this.to.pos[0])/2;
+				let tx = (this.from.pos[1]+this.to.pos[1])/2;
+				//let ty = this.from.pos[0];
+				//let tx = this.from.pos[1];
+				//let ty = this.to.pos[0];
+				//let tx = this.to.pos[1];
+				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+				
+				
+				//a = diffY*.01;
+				//d = diffX*.01;
+				
+				//if(this.type == 'l'){ ty += 20; tx += 20; }
+				//if(this.type == 'r'){ ty += 35; tx += 35; }
+				//if(this.type == 'e'){ ty += 50; tx += 50; }
+				this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+				//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
+				
+				this.dob.style['background-position'] = edgeBackgroundOffset+'px';
+				
+			};
+			*/
+		
+		
+		
+		
+		
+		
+		
+			let dob = this.dobs.dragLine;		
+			//this splate should be the TO, and another splate should be the FROM. Max 1 dragLine displayed at once on screen.
+			let yxyx = dragLineFromYXToYX();
+			if(!yxyx) throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
+			
+			let diffY = yxyx[2]-yxyx[0];
+			let diffX = yxyx[3]-yxyx[1];
+			let diffLen = Math.hypot(diffY,diffX);
+			if(diffLen > 0){
+				//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
+				dob.style.height = options.dragLineThick+'px';
+				dob.style.width = Math.ceil(diffLen)+'px';
+				dob.style.visibility = 'visible';
+				let normY = between(-1,diffY/diffLen,1);
+				let normX = between(-1,diffX/diffLen,1);
+				let a = normX;
+				let b = normY;
+				let c = -normY;
+				let d = normX;
+				let ty = (yxyx[0]+yxyx[2])/2;
+				let tx = (yxyx[1]+yxyx[3])/2;
+				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+				
+				/*
+				let len = Math.hypot(yxyx[0]-yxyx[2], yxyx[1]-yxyx[3]);
+				//width is already set by something in options, when that dob is created.
+				//TODO update it here every time in case options changes?
+				dob.style.height = len+'px';
+				let a = 1;
+				let b = 0;
+				let c = 0;
+				let d = 1;
+				let e = yxyx[3];
+				let f = yxyx[2];
+				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+e+','+f+')';
+				*/
+			}else{
+				console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
+			}
+		}else{
+			this.dobs.dragLine.style.visibility = 'hidden';
 		}
 		
 		this.updateDobIconsVisibility();
@@ -2291,6 +2607,8 @@ Splat.prototype.setSplit = function(split){
 			let childSplat = this.Child(a.dobName);
 			childSplat.setSplit(a.split);
 		}
+	}else{
+		if(vm.loglev>=2) console.log('Not updating splat (height='+this.height()+') cuz split didnt change, split='+split);
 	}
 };
 
@@ -2298,7 +2616,7 @@ Splat.prototype.updateDobIconsVisibility = function(forceThisValTrueOrFalse){
 	let isVisible = (forceThisValTrueOrFalse!==undefined) ? forceThisValTrueOrFalse : this.splate().isDisplayIcon;
 	//TODO if theres also a hardIcon (that snaps onto any corner or maybe few other places), do that too here.
 	//this.dobs.looseIcon.style.display = this.splate().isDisplayIcon ? 'visible' : 'hidden';
-	this.dobs.looseIcon.style.display = isVisible ? 'visible' : 'hidden';
+	this.dobs.looseIcon.style.visibility = isVisible ? 'visible' : 'hidden';
 }
 
 /*
@@ -2517,8 +2835,9 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	let looseIconYFraction = Math.random(); //FIXME
 	let looseIconXFraction = Math.random(); //FIXME
 	let linePath = ''; //FIXME
+	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to.
 	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
-		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath);
+		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep);
 	let leftSplit = null;
 	let rightSplit = null;
 	//if(isOpen && isDisplayPushAndPopChars){
@@ -2528,6 +2847,213 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	}
 	return getSplit(splate,leftSplit,rightSplit);
 };
+
+/*
+//After you add a dragStep to some splat, call this to remove or change dragSteps anywhere reachable from rootSplat.
+//DragStep can be any of 'no', 'wouldFrom', 'from', 'wouldTo', 'to'.
+//TODO find a way to do this without multiple screen updates at once (though might be fast enuf anyways?).
+//
+//The allowed combos of dragStep are:
+//* everything is 'no'
+//* everything is 'no' except 1 is 'wouldFrom'
+//* everything is 'no' except 1 is 'from'
+//* everything is 'no' except 1 is 'from' and 1 is 'wouldTo' (might need to change a 'wouldFrom' to a 'from')
+//* everything is 'no' except 1 is 'from' and 1 is 'to' (from here, its time to call lambda based on the drag, and go back to "everything is 'no'"). (might need to change a 'wouldFrom' to a 'from')
+//
+//There should be at most 1 wouldFrom or from, and at most 1 wouldTo or to, and there are other rules about it.
+var adjustDragStuff = ()=>{
+	//count the number of *froms and *tos etc.
+	let counts = countDragSteps();
+	let countTwoKindsOfFroms = counts.wouldFrom+count.from;
+	let countTwoKindsOfTos = counts.wouldTo+count.to;
+	
+	throw 'TODO';
+	
+	
+	//check if theres a 'to'.
+	throw 'TODO';
+};
+*/
+
+/*
+FIXME it cant be keyed by splits cuz they can exist in multiple places. has to be splats or paths/splat.ptr().
+//ForkEdits a split. Only recurses using isDisplayL and isDisplayR.
+//Example 2 dragSteps: 'from' and 'wouldTo'. ForkEdits rootSplat's split to change all other dragSteps to 'no' and those 2 (if they exist) to the given dragSteps.
+Split.prototype.setDragStuff = (splitA, dragStepA, splitB, dragStepB)=>{
+	if(splitA.eq(splitB) && dragStepA!=dragStepB) throw 'splitA eq splitB but dragStepA='+dragStepA+' and dragStepB='+dragStepB;
+	let ret = this;
+	if(ret.eq(splitA)){
+		ret = ret.setDragStep(dragStepA); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+	}else if(ret.eq(splitB)){
+		ret = ret.setDragStep(dragStepB); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+	}else{
+		ret = ret.setDragStep('no'); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+	}
+	//TODO optimize dont need 2 calls of getSplit if its recursing into both childs.
+	if(ret.isDisplayL()){
+		ret = getSplit(this.splate, this.leftSplit.setDragStuff(splitA, dragStepA, splitB, dragStepB), this.rightSplit);
+	}
+	if(ret.isDisplayR()){
+		ret = getSplit(this.splate, this.leftSplit, this.rightSplit.setDragStuff(splitA, dragStepA, splitB, dragStepB));
+	}
+	return ret;
+};
+*/
+
+
+//no, wouldFrom, from, wouldTo, to.
+var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===splat.splate().dragStep));
+
+//makes dragStep 'wouldFrom' appear here, the drag that would start here if mouse button went down.
+//Normally this happens many times before dragging, many times per second while moving mouse.
+Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
+	console.log('doBeforeDrag looseIconYFraction='+looseIconYFraction);
+	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+	//TODO optimize dont update screen until setDragStuff?
+	setDragStuff(this,'wouldFrom',null,null);
+};
+
+//set my dragStep to 'from'. Normally my prev dragStep is 'wouldFrom' but UI events might if fast enuf skip that
+//or mouse might have moved over a different splat before it had time to create a 'wouldFrom'.
+Splat.prototype.doStartDrag = function(looseIconYFraction,looseIconXFraction){
+	console.log('doStartDrag');
+	console.log('doStartDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+	console.log('doStartDrag from='+findSplatWithDragStep('from'));
+	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+	//TODO optimize dont update screen until setDragStuff?
+	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
+	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doStartDrag';
+	setDragStuff(wouldfromOrFrom,'from',null,null);
+};
+
+//when mouse button down on a splat  (TODO and there might be multiple drag modes?),
+//then it will create wouldFrom dragStep in whatever mouse moves over, before changing that to 'to' when mouse button up.
+var isStartedDrag = ()=>!!findSplatWithDragStep('from');
+
+//makes dragStep 'wouldTo' appear here (and the first 'wouldFrom' or 'from' dragStep becomes the only 'from').
+//A line (TODO) appears between the 'from' and 'wouldTo', of the possible drag that would happen if release mouse button.
+//Normally this happens many times during dragging, many times per second while moving mouse.
+Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
+	console.log('doDuringDrag');
+	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
+	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doDuringDrag';
+	if(wouldfromOrFrom === this){
+		console.log('Not dragging from and to same splat. FIXME that should be allowed (maybe have dragStepFrom and dragStepTo fields instead of just dragStep?), but for now Im just trying to get drag and drop working at all. this='+this);
+	}else{
+		this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+		//TODO optimize dont update screen until setDragStuff?
+		setDragStuff(wouldfromOrFrom,'from',this,'wouldTo');
+	}
+};
+
+//when mouse button up on a splat (TODO and there might be multiple drag modes?).
+//When this is true, call doEndDrag to call fn on fn to find/create fn, of what was dragged.
+//var isAboutToEndDrag = ()=>(findSplatWithDragStep('from') && findSplatWithDragStep('to'));
+
+//After doBeforeDrag, doStartDrag, doDuringDrag, and check isAboutToEndDrag (wait for it to be true), call this doEndDrag.
+//This calls fn on fn to find/create fn, of what was dragged.
+var doEndDrag = ()=>{
+	return;
+	console.log('doEndDrag');
+	//TODO optimize dont update screen until setDragStuff?
+	//if(!isAboutToEndDrag()){
+	//	throw 'Not isAboutToEndDrag so cant doEndDrag';
+	//}
+	let fromSplat = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
+	let toSplat = findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo');
+	if(!fromSplat) throw 'No from or wouldFrom Splat so cant doEndDrag';
+	if(!toSplat) throw 'No to or wouldTo Splat so cant doEndDrag';
+	console.log('TODO doEndDrag');
+};
+
+
+//finds the first Splat, in depth-first order of leftSplat and rightSplat childs (but not past where Split does not display),
+//that matches query(splat)->true, else returns null if none found.
+Splat.prototype.findFirst = function(query){
+	if(query(this)) return this;
+	if(this.isDisplayR()){
+		let findInR = this.R().findFirst(query);
+		if(findInR) return findInR;
+	}
+	if(this.isDisplayL()){
+		let findInL = this.L().findFirst(query);
+		if(findInL) return findInL;
+	}
+	return null; //not found
+};
+
+//replaces rootSplat.split. splatA andOr splatB can be null to ignore those pairs of params.
+var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
+	/*if(!splatA){
+		splatA = rootSplat;
+		dragStepA = 'no';
+	}
+	this might cause problem if splatA and splatB end up being same splat, so do this in forkDragStuff instead.
+	if(!splatB){
+		splatB = rootSplat;
+		dragStepB = 'no';
+	}*/
+	rootSplat.transformSplit(split=>split.forkDragStuff(rootSplat, splatA, dragStepA, splatB, dragStepB));
+};
+
+//returns a Split to replace this one. splatA andOr splatB can be null to ignore those (TODO test),
+//and sets isDisplayIcon to false where dragStep is 'no' and everywhere else (at most 2 splats) sets it to true.
+Split.prototype.forkDragStuff = function(splatSelf, splatA, dragStepA, splatB, dragStepB){
+	//FIXME might need to setIsDisplayIcon(isDisplayIcon) to false. If extra icons appear, this is probably causing it,
+	//but maybe ".setDragStep('no').setIsDisplayIcon(false)" fixes it?
+	if(!this.eq(splatSelf.split)) throw 'splatSelf.split is not me';
+	if(splatA===splatB && dragStepA!=dragStepB){
+		throw 'splatA===splatB but dragStepA='+dragStepA+' and dragStepB='+dragStepB;
+	}
+	let ret = this;
+	//let splitA = (splatA ? splatA.split : null);
+	//let splitB = (splatB ? splatB.split : null);
+	//if(ret.eq(splitA)){
+	if(splatSelf === splatA){
+		//ret = ret.setDragStep(dragStepA); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+		ret = ret.transformSplate(splate=>splate.setDragStep(dragStepA).setIsDisplayIcon(true));
+	//}else if(ret.eq(splitB)){
+	}else if(splatSelf === splatB){
+		//ret = ret.setDragStep(dragStepB); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+		ret = ret.transformSplate(splate=>splate.setDragStep(dragStepB).setIsDisplayIcon(true));
+	}else{
+		//ret = ret.setDragStep('no'); //TODO optimize by setDragStep etc checking if its already that so can return same split if so.
+		ret = ret.transformSplate(splate=>splate.setDragStep('no').setIsDisplayIcon(false));
+	}
+	//TODO optimize dont need 2 calls of getSplit if its recursing into both childs.
+	if(ret.isDisplayL()){
+		//FIXME check if leftSplat exists (instead of creating if it it doesnt)?
+		//ret = getSplit(ret.splate, ret.leftSplit.forkDragStuff(splatSelf.L(), splatA, dragStepA, splatB, dragStepB), ret.rightSplit);
+		ret = ret.setL(ret.leftSplit.forkDragStuff(splatSelf.L(), splatA, dragStepA, splatB, dragStepB));
+	}
+	if(ret.isDisplayR()){
+		//FIXME check if rightSplat exists (instead of creating if it it doesnt)?
+		//ret = getSplit(ret.splate, ret.leftSplit, ret.rightSplit.forkDragStuff(splatSelf.R(), splatA, dragStepA, splatB, dragStepB));
+		ret = ret.setR(ret.rightSplit.forkDragStuff(splatSelf.R(), splatA, dragStepA, splatB, dragStepB));
+	}
+	return ret;
+};
+
+/*
+//both params are optional.
+//returns something like {no: 500, wouldFrom: 0, from: 1, wouldTo: 0, to:1}.
+var countDragSteps = (splat,map)=>{
+	throw 'FIXME isDisplayL etc are in split, not splat.';
+	if(!splat) splat = rootSplat;
+	if(!map) map = {no: 0, wouldFrom: 0, from: 0, wouldTo: 0, to:0};
+	let ds = splat.splate().dragStep;
+	map[ds]++;
+	if(splat.isDisplayL()){
+		countDragSteps(splat.leftSplat,map);
+	}
+	if(splat.isDisplayR()){
+		countDragSteps(splat.rightSplat,map);
+	}
+	return map;
+};*/
+
+//Should there be funcs for start dragging, stop dragging, etc, with a splat param?
+
 
 
 //this is for U.
@@ -2711,10 +3237,14 @@ Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
 //returns a Split for use in a root Splat, cuz Splat is mutable and Split and Splate are used as immutable.
 Splat.prototype.forkRootSplate = function(replaceWithThisSplate){
 	return this.forkRootSplit(this.split.setSplate(replaceWithThisSplate));
-	/*fixmefixme return this.setSplate(replaceWithThisSplate)
+	/*fixme return this.setSplate(replaceWithThisSplate)
 	Split.prototype.setSplate = function(splate){
 	*/
 	//throw 'TODO call forkRootSplit with the existing 2 child splits, if they exist, else nulls for those';
+};
+
+Splat.prototype.transformSplit = function(transformer){
+	this.setSplit(transformer(this.split));
 };
 
 //this is how to change any Splate anywhere on screen quickly and easily,
@@ -2742,10 +3272,11 @@ var selSplat = null;
 
 //null to unselect
 var setSelSplat = splat=>{
-	console.log('setSelSplat '+splat);
-	console.log(splat.ptr());
+	//console.log('setSelSplat '+splat);
+	//console.log(splat.ptr());
 	let prevSelSplat = selSplat;
 	selSplat = splat;
+	selSplat.transformSplate(splate=>splate.setIsDisplayIcon(true));
 	selSplat.forkRootSplit_randomizeColor_inRootSplat();
 	//if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
 	//throw 'TODO use setSplit but must forkEdit which is selected first';
@@ -3017,6 +3548,7 @@ thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
 		<br>(Infcur a b c) dr -> (Infcur a b c dr)
 	</code>
 	<br><br>
+	TODO get setDragStuff working.<br>
 	TODO display (dropleft) (dropmid) and (dropright) in every node and find some way to make it unambiguous which (y,x) on screen would drop into which of those (3 of them in every node). Then use a copy of selSplat, that has some parts closed so its small enuf to see while dragging, to put in Action of where dragging near, and do the drop when release button, but show if its going to cause an eval vs waiting on more params.<br>
 	TODO add a dragdrop field to Split thats a dragged split, and it chooses 1 of 3 drag places.<br>
 	TODO hook in gamepad mouse keyboard etc, in a certain mode, to do this https://twitter.com/wikibinator/status/1575486566587170818 but very basic lambdas to get started, just update a sum of whatever numbers come in to verify it sees and is forkEdited by the params.<br>
@@ -3045,7 +3577,7 @@ thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
 	
 	
 	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
-	LICENSE AT TIME 2022-10-15 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
+	LICENSE AT TIME 2022-10-23 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[<br>
 Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
 <br><br>
 I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
@@ -3062,6 +3594,18 @@ This is experimental software.
 <br><br>
 This software and license is not under the laws of any specific physical location
 but whoever is using it together can work that out among eachother.
+<br><br>
+The wikibinator opensource peer to peer compute clouds
+will do many things including free speech (and games, musical instruments, AI, etc).
+To reduce risk of being attacked/sued/fined/stalked/etc,
+normally you wouldnt claim outside the system that contents of the system are true or false.
+Its near certain to contain lots of false and lots of true info. Debate freely inside.
+Lambdas tend to generate random text, partially random text, partially random algorithms,
+and all kinds of hard to predict things. In addition to that, peoples opinions are not always right,
+and it would be an impractical cost to prove everything that everyone says within the system.
+The lambdas themselves will not, unless the VM(s) are buggy (and if so please fix it),
+ever lie about math, but when you view text as statements about the outside world,
+thats beyond what math has direct access to.
 <br><br>
 [THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

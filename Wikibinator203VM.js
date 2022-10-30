@@ -1,5 +1,5 @@
 /*
-LICENSE AT TIME 2022-9-2 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
+LICENSE AT TIME 2022-10-28 IS THIS BUT TODO COPY CHANGED LICENSE (BEFORE FINALIZING IT SOMEDAY) FROM LICENSE FILE WHEN CHANGED:[[[
 Ben F Rayfield offers the wikibinator203 VM prototype, UI, and various tools, under this license
 
 I (Ben F Rayfield) know this license is a mess and am planning to rewrite it to be much smaller,
@@ -14,6 +14,21 @@ This license contains the 3 paragraphs of the MIT license and some extra copylef
 
 This is experimental software.
 
+This software and license is not under the laws of any specific physical location
+but whoever is using it together can work that out among eachother.
+
+The wikibinator opensource peer to peer compute clouds
+will do many things including free speech (and games, musical instruments, AI, etc).
+To reduce risk of being attacked/sued/fined/stalked/etc,
+normally you wouldnt claim outside the system that contents of the system are true or false.
+Its near certain to contain lots of false and lots of true info. Debate freely inside.
+Lambdas tend to generate random text, partially random text, partially random algorithms,
+and all kinds of hard to predict things. In addition to that, peoples opinions are not always right,
+and it would be an impractical cost to prove everything that everyone says within the system.
+The lambdas themselves will not, unless the VM(s) are buggy (and if so please fix it),
+ever lie about math, but when you view text as statements about the outside world,
+thats beyond what math has direct access to.
+
 [THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,6 +36,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.] (COPIED FROM LAST PARAGRAPH OF MIT LICENSE, APPLIES HERE)
+
+How #wikibinator will allow you to safely share libelous info and misinformation:
+If everything you say is true, you are not guilty of libel or of spreading misinformation.
+A true statement can contain many false statements, we know from turing machines.
+m = some misinformation;
+w = "m is information, but Im not saying its true or false";
+Its not a lie to say w is true, but its a lie to say m is true.
+If w contains a web of debates using public-keys, some telling truth & some lying,
+thats all inside w, so can share w (contains m).
 
 It may be illegal in some countries to say certain things,
 such as "the holocaust didnt happen" for example.
@@ -139,7 +163,6 @@ that when called on [church-pair of themself and themself] evals to one of the r
 and if you tried to insert into that linked-list a value not matching that, it would never halt,
 and if you tried to insert, in parallel a million values matching that,
 you would in each of those million wikib_called_on_wikib get a linked-list with 1 more thing in it.
-
 
 If there is any conflict between the above "Nobody owns wikibs" paragraph and the below 2 paragraphs copied from MIT license,
 then that "Nobody owns wikibs" paragraph wins, overpowers the legal effects, of the 2 paragraphs below,
@@ -3903,12 +3926,15 @@ const Wikibinator203 = (()=>{
 							for(let i=0; i<32; i++){
 								ret[i] = fn.n.byteAt(i);
 							}
-							if(ret[i]>>3 == 0b11110){ //any id that starts with 11110 is the id of itself as 256 literal bits
+							if(ret[0]>>3 == 0b11110){ //any id that starts with 11110 is the id of itself as 256 literal bits
 								console.log('is the id of itself as 256 literal bits, leaving first byte as it is');
 							}else{
 								console.log('is the id of 256 literal bits that are not itself. Adding 1 to first byte to mean "id of id" or "id of id of id", or id of [some 256 bits thats not used as an id].');
-								ret[i]++;
+								ret[0]++;
 							}
+							
+							//FIXME is something missing here?
+							
 							/*switch(ret[0]){
 								case vm.prefixByteOfOther_evilBitOn:
 								case vm.prefixByteOfOther_evilBitOff:
@@ -3919,8 +3945,8 @@ const Wikibinator203 = (()=>{
 								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsA:
 								vm.prefixByteOfIdOfIdOfIdOrOfAny256BitsB:
 							}*/
-							throw 'fixmefixme';
-						default:
+							//throw 'fixmefixme';
+						break;default:
 							throw 'cbtSize='+siz+' which is too big to fit in a 256 bit id (so why did fitsInId256 say it fits?)';
 					}
 				}else{
