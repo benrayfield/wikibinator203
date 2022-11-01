@@ -400,10 +400,14 @@ controls.mouseX = 0;
 controls.mouseXDragFrom = 0;
 controls.mouseXDragFrom = 0;
 
+var anyfromSplat = ()=>(findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom'));
+
+var anytoSplat = ()=>(findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo'));
+
 //returns [fromY fromX toY toX] or null, depending if theres a drag in progress.
 var dragLineFromYXToYX = ()=>{
-	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
-	let wouldtoOrTo = findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo');
+	let wouldfromOrFrom = anyfromSplat();
+	let wouldtoOrTo = anytoSplat();
 	if(wouldfromOrFrom && wouldtoOrTo){
 		let dobFrom = wouldfromOrFrom.dobs.self;
 		let dobTo = wouldtoOrTo.dobs.self;
@@ -509,13 +513,25 @@ var Splat = function(parentSplatOrNull, selfDob){
 			
 			if(options.doMainDragging){
 				if(isDragButtonDown){
-					ThisSplat.doDuringDrag(
-						ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					//ThisSplat.doDuringDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					if(splatfyfx){
+						splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('screenYXToSplatfyfx returned null so cant doDuringDrag');
+					}
 					//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
 				}else{
 					//FIXME this is happening after release mouse button, as if drag hadnt just happened.
-					ThisSplat.doBeforeDrag(
-						ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					//ThisSplat.doBeforeDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					if(splatfyfx){
+						splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('screenYXToSplatfyfx returned null so cant doBeforeDrag');
+					}
 					//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
 				}
 			}
@@ -533,9 +549,15 @@ var Splat = function(parentSplatOrNull, selfDob){
 				setSelSplat(ThisSplat);
 			}
 			if(options.doMainDragging){
-				ThisSplat.doStartDrag(
-					ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-				console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+				//ThisSplat.doStartDrag(
+				//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+				if(splatfyfx){
+					splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+				}else{
+					console.log('screenYXToSplatfyfx returned null so cant doStartDrag');
+				}
+				//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
 			}
 		}
 	);
@@ -830,6 +852,7 @@ Splat.prototype.createDobsIfNotExist = function(){
 		d.table = Pob('table',d.self);
 		//attr(d.table,'border',5);
 		attr(d.table,'border',options.borderWidth);
+		d.table.style.borderSpacing = '0px';
 		d.rowa = Pob('tr', d.table);
 		d.rowb = Pob('tr', d.table);
 		d.rowc = Pob('tr', d.table);
@@ -987,6 +1010,23 @@ if(options.doMainDragging) options.basicTestOfLooseIconWhenMouseMoves = false;
 //despite their splates are equal, when update a splate somewhere in the tree, from there up to rootSplat.
 options.optimizeUIByDedupSplit = true;
 //options.optimizeUIByDedupSplit = false;
+
+//See SplatFxFy
+//options.fractionRecurse = .4;
+options.fractionRecurse = .5;
+//options.fractionRecurse = 1; //1 disables fractionRecursing except maybe for rightmost pixel in a rect.
+//options.fractionRecurse = 2; //1 disables fractionRecursing except maybe for rightmost pixel in a rect.
+
+//used with options.fractionRecurse
+options.screenYXToSplatfyfx_randomizesColorOfSplatItSelects = true;
+//options.screenYXToSplatfyfx_randomizesColorOfSplatItSelects = false;
+
+//This is probably not the best way to put a small extra space under everything,
+//but its how I figured out how to remove that extra space, by removing inline-block on splat.self.dob.style['inline-block'],
+//then I added this option and set it to false to remove that space. Made the whole thing take about 1/3 as much vertical space
+//cuz its so much stuff inside of stuff recursively the few pixels of extra space each adds up.
+//options.putSmallExtraSpaceUnderEverything = true;
+options.putSmallExtraSpaceUnderEverything = false;
 
 /*
 Splat.prototype.displayLocal = function(){
@@ -1743,7 +1783,8 @@ Split.prototype.estimateWidthIfOneLine = function(){
 	if(!this.estimateWidthIfOneLine_){
 		let est = 0;
 		let splate = this.splate;
-		est += borderWidth*2;
+		//est += borderWidth*2;
+		est += borderWidth+1.5;
 		if(splate.isDisplayPushAndPopChars){
 			if(splate.isLiteral) throw 'isLiteral AND isDisplayPushAndPopChars, splate='+splate;
 			est += options.estimatedFontWidth*2;
@@ -1991,8 +2032,8 @@ Splat.prototype.splate = function(){
 //let tabSizeInSpaces = 2; //cuz the spaces are really small for some reason. FIXME why are they so small.
 let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
 
-//let borderWidth = 0;
-let borderWidth = 2;
+let borderWidth = 0;
+//let borderWidth = 2;
 //let borderWidth = 3;
 //let borderWidth = 5;
 //let borderWidth = 9;
@@ -2032,10 +2073,29 @@ Splat.prototype.height = function(){
 var unpad = function(dob){
 	let s = dob.style;
 	//s.color = 'blue';
-	s.paddingTop = 0;
-	s.paddingRight = 0;
-	s.paddingBottom = 0;
-	s.paddingLeft = 0;
+	
+	s.padding = '0px';
+	s.margin = '0px';
+	s.border = '0px';
+	
+	/*
+	//This seems to make padding smaller even though I dont see it in brower element inspector (push F12 then click Elements).
+	s.paddingTop = '0px';
+	s.paddingRight = '0px';
+	s.paddingBottom = '0px';
+	s.paddingLeft = '0px';
+	
+	
+	s.borderSpacing = '0px';
+	s.border = '0px';
+	
+	s.marginTop = '0px';
+	s.marginRight = '0px';
+	s.marginBottom = '0px';
+	s.marginLeft = '0px';
+	*/
+	
+	
 	/*s['padding-top'] = '0px';
 	s['padding-right'] = '0px';
 	s['padding-bottom'] = '0px';
@@ -2044,7 +2104,7 @@ var unpad = function(dob){
 	//s.padding = '0px';
 	switch(dob.tagName){
 		case 'TABLE':
-			attr(dob,'cellSpacing',0);
+			//attr(dob,'cellSpacing',0);
 			//dob.border = 0;
 		break;case 'TR':case 'TD':
 			
@@ -2146,18 +2206,67 @@ SplatDob.prototype.meOrThemWhicheversCloserToYX = function(splatdob, y, x){
 
 
 /*
-//Returns a SplatYX that may have jumped multiple parents deep, so only need this once (y,x) on screen to find what splatpart it means.
+var splatAtYX = function(y, x, optionalSplatFrom){
+	let splat = optionalSplatFrom || rootSplat;
+	if(!splat.containsYX(y,x)) return null;
+	let l = splat.isDisplayL() ? splat.leftSplat.splatAtYX : null;
+	if(l) return l;
+	let r = splat.isDisplayR() ? splat.rightSplat.splatAtYX : null;
+	if(r) return r;
+	return splat;
+};
+
+var dobContainsYX = function(dob,y,x){
+	return dobY(dob)<=y && y<=dobYEnd(dob) && dobX(dob)<=x && x<=dobXEnd(dob);
+};
+
+Splat.prototype.containsYX = function(y,x){
+	return dobContainsYX(this.dobs.self,y,x);
+};
+*/
+
+
+/*
+//Returns a SplatFyFx that may have jumped multiple parents deep, so only need this once (y,x) on screen to find what splatpart it means.
 //Mouse over the left 1/2 of a splat means itself. Over the next 1/4 is its parent splat. next 1/8 is parent of parent,
 //or may be a different decay than 1/2, such as first .37 left side of splat is itself, then .37 of what remains is parent, and so on,
 //and this might (TODO) skip splats that are not displayed (what was that func that checks for foldL etc?).
 SplatYX.prototype.jump = function(){
 	todo
 };*/
-var screenYXToSplatfyfx = function(screenY, screenX){
-	throw 'TODO';
+//fractionRecurse is .5 in that example, or .4 in the example in SplatFyFx comments.
+//returns null if none.
+var screenYXToSplatfyfx = function(screenY, screenX, optionalFractionRecurse){
+	let fractionRecurse = optionalFractionRecurse!==undefined ? optionalFractionRecurse : options.fractionRecurse;
+	let splat = splatAtYX(screenY,screenX);
+	if(!splat) return null;
+	//splat.forkRootSplit_randomizeColor_inRootSplat(); //FIXME remove this
+	let fy = (screenY-dobY(splat.dobs.self))/dobHeight(splat.dobs.self);
+	let fx = (screenX-dobX(splat.dobs.self))/dobWidth(splat.dobs.self);
+	while(true){
+		if(fx < fractionRecurse){ //found the splat
+			fx /= fractionRecurse;
+			break;
+		}else{ //keep recursing into parent of parent...
+			if(splat.parentSplat){
+				fx = (fx-fractionRecurse)/(1-fractionRecurse); //go into right side of [0..fractionRecurse][fractionRecurse..1].
+				splat = splat.parentSplat;
+			}else{
+				break;
+			}
+		}
+	}
+	if(options.screenYXToSplatfyfx_randomizesColorOfSplatItSelects){
+		splat.forkRootSplit_randomizeColor_inRootSplat(); //FIXME remove this
+	}
+	return new SplatFyFx(splat, fy, fx);
 };
 
-//Fy and fx are fractions, coordinates in splat rectangle.
+//Fy and fx are normally fractions, coordinates in splat rectangle.
+//y and x fractions (or possibly outside fraction range) inside a Splat.
+//The main use of this is for some parts of a splat to refer to its parent splat, parent of parent splat, and so on,
+//such as the left .4 part of it is itself, and of the right part remaining, the left .4 of that is its parent,
+//and so on recursively. This might skip splats not displayed such as by foldL.
 var SplatFyFx = function(splat, fy, fx){
 	this.splat = splat;
 	this.fy = fy;
@@ -2203,9 +2312,9 @@ Splat.prototype.splatdobForDobName = function(dobName){
 var splatAtYX = function(y, x, optionalSplatFrom){
 	let splat = optionalSplatFrom || rootSplat;
 	if(!splat.containsYX(y,x)) return null;
-	let l = splat.isDisplayL() ? splat.leftSplat.splatAtYX : null;
+	let l = splat.isDisplayL() ? splatAtYX(y,x,splat.leftSplat) : null;
 	if(l) return l;
-	let r = splat.isDisplayR() ? splat.rightSplat.splatAtYX : null;
+	let r = splat.isDisplayR() ? splatAtYX(y,x,splat.rightSplat) : null;
 	if(r) return r;
 	return splat;
 };
@@ -2215,7 +2324,7 @@ var dobContainsYX = function(dob,y,x){
 };
 
 Splat.prototype.containsYX = function(y,x){
-	return dobContainsYX(this.dob,y,x);
+	return dobContainsYX(this.dobs.self,y,x);
 };
 
 //returns a SplatDob nearest to (y,x), but only of the Splats where splat.splate().isAttractDropLeft() or .isAttractDropMid() or .isAttractDropRight().
@@ -2270,7 +2379,9 @@ Splat.prototype.setSplit = function(split){
 		
 		let style = this.dobs.self.style;
 		style.borderStyle = 'outset';
-		style.display = 'inline-block';
+		if(options.putSmallExtraSpaceUnderEverything){
+			style.display = 'inline-block';
+		}
 		let red = splate.red;
 		let green = splate.green;
 		let blue = splate.blue;
@@ -2610,6 +2721,9 @@ Splat.prototype.setSplit = function(split){
 	}else{
 		if(vm.loglev>=2) console.log('Not updating splat (height='+this.height()+') cuz split didnt change, split='+split);
 	}
+	if(this === rootSplat){
+		updateOverlays();
+	}
 };
 
 Splat.prototype.updateDobIconsVisibility = function(forceThisValTrueOrFalse){
@@ -2907,7 +3021,7 @@ var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===spl
 //makes dragStep 'wouldFrom' appear here, the drag that would start here if mouse button went down.
 //Normally this happens many times before dragging, many times per second while moving mouse.
 Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
-	console.log('doBeforeDrag looseIconYFraction='+looseIconYFraction);
+	//console.log('doBeforeDrag looseIconYFraction='+looseIconYFraction);
 	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
 	//TODO optimize dont update screen until setDragStuff?
 	setDragStuff(this,'wouldFrom',null,null);
@@ -2916,9 +3030,9 @@ Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
 //set my dragStep to 'from'. Normally my prev dragStep is 'wouldFrom' but UI events might if fast enuf skip that
 //or mouse might have moved over a different splat before it had time to create a 'wouldFrom'.
 Splat.prototype.doStartDrag = function(looseIconYFraction,looseIconXFraction){
-	console.log('doStartDrag');
-	console.log('doStartDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
-	console.log('doStartDrag from='+findSplatWithDragStep('from'));
+	//console.log('doStartDrag');
+	//console.log('doStartDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+	//console.log('doStartDrag from='+findSplatWithDragStep('from'));
 	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
 	//TODO optimize dont update screen until setDragStuff?
 	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
@@ -2934,7 +3048,7 @@ var isStartedDrag = ()=>!!findSplatWithDragStep('from');
 //A line (TODO) appears between the 'from' and 'wouldTo', of the possible drag that would happen if release mouse button.
 //Normally this happens many times during dragging, many times per second while moving mouse.
 Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
-	console.log('doDuringDrag');
+	//console.log('doDuringDrag');
 	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
 	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doDuringDrag';
 	if(wouldfromOrFrom === this){
@@ -3423,6 +3537,38 @@ var Branch = function(h, w){
 /////////////////////////////////////////////////////////////////////////////////////
 */
 
+//TODO everything you see while dragging, but for now 2022-11-1 I'm just putting the 2 overlay divs here
+//and leaving the icons and dragLine in splat.dobs.dragLine etc, but eventually all that should be here,
+//especially considering I want more icons in the splats.
+var updateOverlays = ()=>{
+	let fromRectOverlay = Dob('globalFromOverlay');
+	let toRectOverlay = Dob('globalToOverlay');
+	let wouldfromOrFrom = anyfromSplat();
+	let wouldtoOrTo = anytoSplat();
+	console.log('updateOverlays wouldfromOrFrom='+wouldfromOrFrom);
+	if(wouldfromOrFrom){
+		let d = wouldfromOrFrom.dobs.self;
+		fromRectOverlay.style.visibility = 'visible';
+		fromRectOverlay.style.top = dobY(d)+'px';
+		fromRectOverlay.style.left = dobX(d)+'px';
+		fromRectOverlay.style.height = dobHeight(d)+'px';
+		fromRectOverlay.style.width = dobWidth(d)+'px';
+	}else{
+		fromRectOverlay.style.visibility = 'hidden';
+	}
+	//TODO merge duplicate code
+	if(wouldtoOrTo){
+		let d = wouldtoOrTo.dobs.self;
+		toRectOverlay.style.visibility = 'visible';
+		toRectOverlay.style.top = dobY(d)+'px';
+		toRectOverlay.style.left = dobX(d)+'px';
+		toRectOverlay.style.height = dobHeight(d)+'px';
+		toRectOverlay.style.width = dobWidth(d)+'px';
+	}else{
+		toRectOverlay.style.visibility = 'hidden';
+	}
+};
+
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
 	rootSplat = new Splat(null, rootDob);
@@ -3468,6 +3614,11 @@ window.onload = ()=>{
 	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
 	
+	<div id=globalDobs>
+		<div id=globalFromOverlay style="pointer-events:none;position:fixed;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000">F</div>
+		<div id=globalToOverlay style="pointer-events:none;position:fixed;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001">T</div>
+	</div>
+	
 	<center>
 		<table border=3><tr><td width=30% valign=top>
 			TODO the mutableWrapperLambda system... (this doesnt work yet)...<br><br>
@@ -3492,6 +3643,7 @@ window.onload = ()=>{
 			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
 		</td><td>
 			<div id=rootDob></div>
+			
 		</td></tr></table>
 	</center>
 	
@@ -3548,6 +3700,7 @@ thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
 		<br>(Infcur a b c) dr -> (Infcur a b c dr)
 	</code>
 	<br><br>
+	TODO make the 1/2 1/4 1/8... (but maybe with .4 or 1/3 recursively instead of 1/2) way to refer to self rect or parent of self or parent of parent of self..., and within that an angle (such as snap to 1 of 4 corners for 4 possible actions: directL directR metaL/{}/[] metaR/{}/[]). Make the dragLine that mouse creats when dragging do this on both ends, and have splat.dobs.hardIcon be snapped to those 4 corners or center depending if its those 4 things vs center being drag FROM.<br>
 	TODO get setDragStuff working.<br>
 	TODO display (dropleft) (dropmid) and (dropright) in every node and find some way to make it unambiguous which (y,x) on screen would drop into which of those (3 of them in every node). Then use a copy of selSplat, that has some parts closed so its small enuf to see while dragging, to put in Action of where dragging near, and do the drop when release button, but show if its going to cause an eval vs waiting on more params.<br>
 	TODO add a dragdrop field to Split thats a dragged split, and it chooses 1 of 3 drag places.<br>
