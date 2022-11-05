@@ -10,8 +10,8 @@ Planned schedule (now is 2022-11-5):
 <br><br>
 End of 2022, drag and drop lambda onto lambda to find/create lambda in the tree UI, but it will still run very slow.<br>
 <br><br>
-Some time in 2023, rebuild my AugmentedBalls as lambdas (not keeping any of the original javascript code). It doesnt need GPU so leave that optimization for later. Like in this video, but you'll be able to drag and drop to make variants of it. Still on 1 computer, not multiplayer yet.<br>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/m8_TBtBHGMM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br>
+Some time in 2023, rebuild my AugmentedBalls (augmented reality using webcam and canvas, with tennis balls as markers, in browser or phone) as lambdas (not keeping any of the original javascript code). It doesnt need GPU so leave that optimization for later. Like in this video, but you'll be able to drag and drop to make variants of it. Still on 1 computer, not multiplayer yet.<br>
+<a href=https://www.youtube.com/embed/m8_TBtBHGMM>AugmentedBalls video (~100kB html file)</a>
 And some basic musical instruments, simple games, etc. Might have 3d fractals working with GPU optimizations, but only basic stuff.
 <br><br>
 Some time in 2024, multiplayer games and GPU optimizations. All the 128 opcodes finished. Will do 1 teraflop in browser. Neuralnets. Basic self modifying code. Lambdas are each 256 or 512 bit ids you can stream online, the fastest remote deployment of any system.
