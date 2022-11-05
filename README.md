@@ -6,6 +6,18 @@ On browser console this returns 6.440155277631122: vm.eval('(Hypot#(λ [x y] [th
 
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-11-5-840aEST%20nearly%20first%20drag%20and%20drop%20of%20lambda%20onto%20lambda%20to%20create%20lambda%20(Hypot%206%202.34).png>
 
+Planned schedule (now is 2022-11-5):
+<br><br>
+End of 2022, drag and drop lambda onto lambda to find/create lambda in the tree UI, but it will still run very slow.<br>
+<br><br>
+Some time in 2023, rebuild my AugmentedBalls as lambdas (not keeping any of the original javascript code). It doesnt need GPU so leave that optimization for later. Like in this video, but you'll be able to drag and drop to make variants of it. Still on 1 computer, not multiplayer yet.<br>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/m8_TBtBHGMM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br>
+And some basic musical instruments, simple games, etc. Might have 3d fractals working with GPU optimizations, but only basic stuff.
+<br><br>
+Some time in 2024, multiplayer games and GPU optimizations. All the 128 opcodes finished. Will do 1 teraflop in browser. Neuralnets. Basic self modifying code. Lambdas are each 256 or 512 bit ids you can stream online, the fastest remote deployment of any system.
+<br><br>
+Over next few years, scale up to 1 million simultaneous users, if its fun or useful enough to go-viral yet. Might take longer than expected, hard to predict.
+
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-9-28_treeUI.png><br>
 
 A kind of number. Build anything by drag-and-drop of a universal combinator (lambda). GPU. Streaming. Massively multiplayer. Peer to peer. Experimenting, TODO..A fork-editable multiverse of all possible streaming of all possible combos of lambda functions with shareable function ids for every possible function or "multiverse state" etc. universal function to build and run music tools, science tools, AI research, game worlds, etc, inside itself like a self-hosting-compiler, in a massively multiplayer decentralized way. Some basic parts work, or use earlier wikibinator106. For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
