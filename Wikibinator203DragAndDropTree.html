@@ -2922,6 +2922,7 @@ var fnToSyty = fn=>fnToView(fn).syty();
 
 var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
 
+
 //experimental cuz theres lots of isOpen, which could use alot of screen space with duplicate views of same fn, as fn is a forest.
 //This is replacing newSplateForFnAsRoot but better cuz its stateless and doesnt have to be root, can be for any Splat in tree of Splats.
 //
@@ -3416,6 +3417,10 @@ Splat.prototype.isRightChild = function(){
 	return this.parentSplat && this.parentSplat.rightSplat===this;
 };
 
+Splat.prototype.callerSyty = function(){
+	return this.parentSplat ? this.parentSplat.splate().syty : 'C'; //'C' is normalCallPair
+};
+
 Splat.prototype.pathFromRoot = function(){
 	if(this.isRoot()) return 'X';
 	return this.parentSplat.pathFromRoot()+(this.isRightChild() ? 'R' : 'L');
@@ -3436,23 +3441,57 @@ Splat.prototype.forkRootSplit_randomizeColor_inRootSplat = function(){
 //goes all the way up to a root splate (such as rootSplat or dragSplat).
 //Returns a Split that you'd use in thatRoot.setSplit, that has deep inside it this splat's splate set to the given splate.
 //Split is (used as) immutable and can have multi parents. Splat is mutable and has at most 1. Both have a splate.
+//
+//TODO if replaceWithThisSplit has a different fn than the current fn, do those lambda calls all the way up to root,
+//which may (in some cases of VarargAx opcode) cause it to infiniteLoop
+//(TODO get vm.stackTime vm.stackMem etc working so it wont infinite loop and would run out of compute resources instead).
+//
 Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
 	if(vm.loglev>=2) console.log('forkRootSplit height='+this.height());
 	if(!this.parentSplat){ //this is root
 		return replaceWithThisSplit;
 	}
+	let splate = this.splate();
 	let isRightChild = this.parentSplat.rightSplat===this;
-	let nextSplit;
+	let nextParentSplit;
 	let oldParentSplit = this.parentSplat.split;
+	let nextParentSplate = oldParentSplit.splate;
+	
+	let oldFn = splate.fn;
+	let nextFn = replaceWithThisSplit.splate.fn;
+	//same as comparing by 128 bit local id, not global id (fn.n.id() or fn.n.fullId()) aka forest shape.
+	let fnMaybeChanged = oldFn !== nextFn;
+	
+	let oldParentFn = oldParentSplit.splate.fn;
+	
 	if(isRightChild){
-		//nextSplit = getSplit(this.parentSplat.split.splate, this.parentSplat.leftSplat.split, replaceWithThisSplit, this.parentSplat.split.action);
-		nextSplit = getSplit(oldParentSplit.splate, oldParentSplit.leftSplit, replaceWithThisSplit, oldParentSplit.action);
+		//nextParentSplit = getSplit(this.parentSplat.split.splate, this.parentSplat.leftSplat.split, replaceWithThisSplit, this.parentSplat.split.action);
+		//nextParentSplit = getSplit(oldParentSplit.splate, oldParentSplit.leftSplit, replaceWithThisSplit, oldParentSplit.action);
+		if(fnMaybeChanged){
+			//FIXME where does recursion go nextSplate = nextSplate.setFn(
+			let oldParentFnLeft = oldParentFn.n.L();
+			console.log('forkRootSplit calling oldParentFnLeft='+oldParentFnLeft+' on nextFn='+nextFn);
+			let nextParentFn = oldParentFnLeft(nextFn); //cuz nextFn is its new right child
+			nextParentSplate = nextParentSplate.setFn(nextParentFn);
+		}
+		nextParentSplit = getSplit(nextParentSplate, oldParentSplit.leftSplit, replaceWithThisSplit, oldParentSplit.action);
 	}else{ //is left child
-		//nextSplit = getSplit(this.parentSplat.split.splate, replaceWithThisSplit, this.parentSplat.rightSplat.split, this.parentSplat.split.action);
-		nextSplit = getSplit(oldParentSplit.splate, replaceWithThisSplit, oldParentSplit.rightSplit, oldParentSplit.action);
+		//nextParentSplit = getSplit(this.parentSplat.split.splate, replaceWithThisSplit, this.parentSplat.rightSplat.split, this.parentSplat.split.action);
+		//nextParentSplit = getSplit(oldParentSplit.splate, replaceWithThisSplit, oldParentSplit.rightSplit, oldParentSplit.action);
+		if(fnMaybeChanged){
+			//FIXME where does recursion go nextSplate = nextSplate.setFn(
+			let oldParentFnRight = oldParentFn.n.R();
+			console.log('forkRootSplit calling nextFn='+nextFn+' on oldParentFnRight='+oldParentFnRight);
+			let nextParentFn = nextFn(oldParentFnRight); //cuz nextFn is its new left child
+			nextParentSplate = nextParentSplate.setFn(nextParentFn);
+		}
+		nextParentSplit = getSplit(nextParentSplate, replaceWithThisSplit, oldParentSplit.rightSplit, oldParentSplit.action);
 	}
-	//return this.forkRootSplit(nextSplit);
-	return this.parentSplat.forkRootSplit(nextSplit);
+	console.log('forkRootSplit near end, nextParentSplit='+nextParentSplit);
+	//return this.forkRootSplit(nextParentSplit);
+	let ret = this.parentSplat.forkRootSplit(nextParentSplit);
+	console.log('forkRootSplit ret='+ret);
+	return ret;
 	//throw 'TODO use this when "TODO use setSplit but must forkEdit which is selected first"';
 };
 
@@ -3468,6 +3507,7 @@ Splat.prototype.forkRootSplate = function(replaceWithThisSplate){
 Splat.prototype.transformSplit = function(transformer){
 	this.setSplit(transformer(this.split));
 };
+
 
 //this is how to change any Splate anywhere on screen quickly and easily,
 //but it doesnt change tree shape, just the local data (splate) in a treeNodeAkaSplat.
@@ -3719,13 +3759,13 @@ var circMenu = [
 	{
 		pic: 'pic/metaR.png',
 		func: ()=>{
-			console.log('TODO metaL');
+			console.log('TODO metaR');
 		}
 	},
 	{
 		pic: 'pic/directR.png',
 		func: ()=>{
-			console.log('TODO directL');
+			console.log('TODO directR');
 		}
 	},
 	{
@@ -3743,13 +3783,36 @@ var circMenu = [
 	{
 		pic: 'pic/directL.png',
 		func: ()=>{
-			console.log('TODO directR');
+			console.log('NEAREND: Drag: directL');
+			let from = anyfromSplat();
+			let to = anytoSplat();
+			let fromFn = from.splate().fn;
+			let toFn = to.splate().fn;
+			console.log('calling '+fromFn+' on '+toFn);
+			let retFn = fromFn(toFn);
+			console.log('Returned '+retFn);
+			//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
+			let callerSyty = to.callerSyty();
+			let isRightRecursion = to.isRightChild();
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			console.log('newSplit='+newSplit);
+			
+			//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
+			//Another problem is, the fn in root needs to be changed cuz putting retFn deep inside it,
+			//so have to do those lambda calls again. Have to rebuild any part of the tree thats different.
+			//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
+			//but still need to make a new js func to forkEdit the UI and fn together...
+			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+			console.log('Drag directL about to rootSplat.setSplit to ');
+			rootSplat.setSplit(newRootSplit);
+			
+			console.log('END: Drag: directL');
 		}
 	},
 	{
 		pic: 'pic/metaL.png',
 		func: ()=>{
-			console.log('TODO metaR');
+			console.log('TODO metaL');
 		}
 	},
 ];

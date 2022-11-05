@@ -4,6 +4,8 @@
 
 U is a universal combinator, some combos (TODO) GPU optimizable. A node is U or a pair of nodes (lambda call). Every node returns a node or never halts. These 3 edge types (L R EvalsTo) are a constant infinite size directed-graph. Any software fills graph in from partial pattern is AGI.
 
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-11-5-840aEST%20nearly%20first%20drag%20and%20drop%20of%20lambda%20onto%20lambda%20to%20create%20lambda%20(Hypot%206%202.34).png>
+
 A kind of number. Build anything by drag-and-drop of a universal combinator (lambda). GPU. Streaming. Massively multiplayer. Peer to peer. Experimenting, TODO..A fork-editable multiverse of all possible streaming of all possible combos of lambda functions with shareable function ids for every possible function or "multiverse state" etc. universal function to build and run music tools, science tools, AI research, game worlds, etc, inside itself like a self-hosting-compiler, in a massively multiplayer decentralized way. Some basic parts work, or use earlier wikibinator106. For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
  (Lambda [a b c d] {(T []) (T backward ) (T is) (P d) (P c) (P b) (P a)} these are some words) --> [backward is words some are these]
