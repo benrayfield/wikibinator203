@@ -3753,7 +3753,25 @@ var circMenu = [
 	{
 		pic: 'pic/copyTo.png',
 		func: ()=>{
-			console.log('TODO copyTo');
+			console.log('NEAREND: Drag: copyTo');
+			let from = anyfromSplat();
+			let to = anytoSplat();
+			let fromFn = from.splate().fn;
+			let toFn = to.splate().fn;
+			console.log('replacing '+toFn+' with '+fromFn);
+			//could just put a pointer to from.split in to.split (by to.setSplit(from.split)), in theory, but that wouldnt wrap based on screen width etc.
+			let retFn = fromFn;
+			let callerSyty = to.callerSyty();
+			let isRightRecursion = to.isRightChild();
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //FIXME consider width. some split maker is considering width. where does that param go in?
+			console.log('newSplit='+newSplit);
+			
+			//This isnt right cuz... (get whole comment from directL)
+			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+			console.log('Drag copyTo about to rootSplat.setSplit to ...');
+			rootSplat.setSplit(newRootSplit);
+			
+			console.log('END: Drag: copyTo');
 		}
 	},
 	{
@@ -3765,7 +3783,28 @@ var circMenu = [
 	{
 		pic: 'pic/directR.png',
 		func: ()=>{
-			console.log('TODO directR');
+		
+			//TODO merge duplicate code between directL and directR and maybe metaL and metaR
+		
+			console.log('NEAREND: Drag: directR');
+			let from = anyfromSplat();
+			let to = anytoSplat();
+			let fromFn = from.splate().fn;
+			let toFn = to.splate().fn;
+			console.log('calling '+toFn+' on '+fromFn);
+			let retFn = toFn(fromFn);
+			console.log('Returned '+retFn);
+			let callerSyty = to.callerSyty();
+			let isRightRecursion = to.isRightChild();
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			console.log('newSplit='+newSplit);
+			
+			//This isnt right cuz... (get whole comment from directL)
+			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+			console.log('Drag directR about to rootSplat.setSplit to ...');
+			rootSplat.setSplit(newRootSplit);
+			
+			console.log('END: Drag: directR');
 		}
 	},
 	{
@@ -3777,12 +3816,16 @@ var circMenu = [
 	{
 		pic: 'pic/cancel.png',
 		func: ()=>{
-			console.log('TODO cancel');
+			//alert('cancelled drag');
+			console.log('NEAREND: Drag: cancelled.');
 		}
 	},
 	{
 		pic: 'pic/directL.png',
 		func: ()=>{
+		
+			//TODO merge duplicate code between directL and directR and maybe metaL and metaR
+			
 			console.log('NEAREND: Drag: directL');
 			let from = anyfromSplat();
 			let to = anytoSplat();
@@ -3803,7 +3846,7 @@ var circMenu = [
 			//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
 			//but still need to make a new js func to forkEdit the UI and fn together...
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-			console.log('Drag directL about to rootSplat.setSplit to ');
+			console.log('Drag directL about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
 			
 			console.log('END: Drag: directL');
