@@ -2543,7 +2543,7 @@ Splat.prototype.setSplit = function(split){
 			
 			//this.dobs.suffixfarright = suffix;
 			
-			
+			this.dobs.literal.innerHTML = '';
 			
 		}else if(!splate.isFoldL && splate.isDisplayName){ //FIXME set isDisplayName to false when making splate, depending on what, instead of checking isFoldL here?
 			this.dobs.prefix.innerHTML = '';
@@ -2552,9 +2552,10 @@ Splat.prototype.setSplit = function(split){
 			let literal = splate.name();
 			this.dobs.literal.innerHTML = options.namelitPrefix+literal+options.literalSuffix;
 			//this.dobs.suffix.innerHTML = '';
-		}//else{
-		//	this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
-		//}
+		}else{
+			//this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
+			this.dobs.literal.innerHTML = '';
+		}
 		
 		//flex-direction: row row-reverse column colum-reverse
 		this.dobs.upright.style['flex-direction'] = splate.isOneLine ? 'row' : 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
@@ -3470,7 +3471,7 @@ Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
 		if(fnMaybeChanged){
 			//FIXME where does recursion go nextSplate = nextSplate.setFn(
 			let oldParentFnLeft = oldParentFn.n.L();
-			console.log('forkRootSplit calling oldParentFnLeft='+oldParentFnLeft+' on nextFn='+nextFn);
+			if(vm.loglev>=2) console.log('forkRootSplit calling oldParentFnLeft='+oldParentFnLeft+' on nextFn='+nextFn);
 			let nextParentFn = oldParentFnLeft(nextFn); //cuz nextFn is its new right child
 			nextParentSplate = nextParentSplate.setFn(nextParentFn);
 		}
@@ -3481,16 +3482,16 @@ Splat.prototype.forkRootSplit = function(replaceWithThisSplit){
 		if(fnMaybeChanged){
 			//FIXME where does recursion go nextSplate = nextSplate.setFn(
 			let oldParentFnRight = oldParentFn.n.R();
-			console.log('forkRootSplit calling nextFn='+nextFn+' on oldParentFnRight='+oldParentFnRight);
+			if(vm.loglev>=2) console.log('forkRootSplit calling nextFn='+nextFn+' on oldParentFnRight='+oldParentFnRight);
 			let nextParentFn = nextFn(oldParentFnRight); //cuz nextFn is its new left child
 			nextParentSplate = nextParentSplate.setFn(nextParentFn);
 		}
 		nextParentSplit = getSplit(nextParentSplate, replaceWithThisSplit, oldParentSplit.rightSplit, oldParentSplit.action);
 	}
-	console.log('forkRootSplit near end, nextParentSplit='+nextParentSplit);
+	if(vm.loglev>=2) console.log('forkRootSplit near end, nextParentSplit='+nextParentSplit);
 	//return this.forkRootSplit(nextParentSplit);
 	let ret = this.parentSplat.forkRootSplit(nextParentSplit);
-	console.log('forkRootSplit ret='+ret);
+	if(vm.loglev>=2) console.log('forkRootSplit ret='+ret);
 	return ret;
 	//throw 'TODO use this when "TODO use setSplit but must forkEdit which is selected first"';
 };
@@ -3777,7 +3778,50 @@ var circMenu = [
 	{
 		pic: 'pic/metaR.png',
 		func: ()=>{
-			console.log('TODO metaR');
+		
+			console.log('NEAREND: Drag: metaR');
+			let to = anytoSplat();
+			let from = anyfromSplat();
+			
+			let callerSyty = to.callerSyty();
+			
+			let toFn = to.splate().fn;
+			let fromFn = from.splate().fn;
+			
+			let retFn;
+			if(callerSyty == 'S2'){
+				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+				//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
+				let S = vm.ops.S;
+				console.log('Drag metaR, callerSyty='+callerSyty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				retFn = S(toFn)(fromFn);
+			}else{
+				console.log('Drag metaR, callerSyty='+callerSyty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+				retFn = toFn(fromFn);
+			}
+			console.log('Drag metaR, Returned '+retFn);
+			let isRightRecursion = to.isRightChild();
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			console.log('Drag metaR, newSplit='+newSplit);
+			//This isnt right cuz... (get whole comment from directL)
+			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+			console.log('Drag metaR about to rootSplat.setSplit to ...');
+			rootSplat.setSplit(newRootSplit);
+			console.log('END: Drag: metaR');
+			
+			/*2022-11-16-4pEST got this from browser console (filtered out lots of other console stuff),
+			when dragged 2.34 to {abc def ghi} and chose metaR icon,
+			and thats correct (((but when i dragged it to just the {abc def} in {abc def ghi} aka {{abc def} ghi},
+			it gave the wrong answer, split the application/x-IEEE-754 and 0x...stuff...)))
+						
+			Wikibinator203DragAndDropTree.html:3173 START doEndDrag circMenuItem.pic=pic/metaR.png
+			Wikibinator203DragAndDropTree.html:3781 NEAREND: Drag: metaR
+			Wikibinator203DragAndDropTree.html:3795 Drag metaR, callerSyty=S2, calling the sCurryList way, calling S on {abc def ghi} then what that returns called on 2.34
+			Returned {abc def ghi 2.34}
+			Wikibinator203DragAndDropTree.html:3807 Drag metaR about to rootSplat.setSplit to ...
+			Wikibinator203DragAndDropTree.html:3809 END: Drag: metaR
+			Wikibinator203DragAndDropTree.html:3176 END doEndDrag circMenuItem.pic=pic/metaR.png
+			*/
 		}
 	},
 	{
@@ -3810,7 +3854,34 @@ var circMenu = [
 	{
 		pic: 'pic/delete.png',
 		func: ()=>{
-			console.log('TODO delete');
+		
+		
+			console.log('NEAREND: Drag: delete (ignores what you dragged, just deletes whatever you dropped it on)');
+			//let from = anyfromSplat();
+			let to = anytoSplat();
+			let parent = to.parentSplat;
+			if(!parent){
+				let s = 'You dragged then chose delete, but cant cuz its the outermost/root on your screen (there is no root of the whole system)';
+				alert(s);
+				console.log(s);
+			}else{
+				let isRightRecursion = to.isRightChild();
+				let retFn;
+				if(isRightRecursion){
+					console.log('Drag then delete, is right, so delete right and replace parent with left');
+					retFn = parent.leftSplat.splate().fn;
+				}else{
+					console.log('Drag then delete, is left, so delete left and replace parent with right');
+					retFn = parent.rightSplat.splate().fn;
+				}
+				console.log('Returned '+retFn);
+				let callerSyty = parent.callerSyty();
+				let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+				//This isnt right??? cuz... (get whole comment from directL)
+				let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
+				rootSplat.setSplit(newRootSplitFromParent);
+			}
+			console.log('END: Drag: delete');
 		}
 	},
 	{
@@ -3837,7 +3908,7 @@ var circMenu = [
 			//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
 			let callerSyty = to.callerSyty();
 			let isRightRecursion = to.isRightChild();
-			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
 			console.log('newSplit='+newSplit);
 			
 			//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
@@ -3903,6 +3974,11 @@ window.onload = ()=>{
 	Wikibinator203 widget: drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 	<br><br>
 	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
+	<br><br>
+	
+	TODO in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
+	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
+	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?
 	<br><br>
 	
 	<div id=globalDobs>
