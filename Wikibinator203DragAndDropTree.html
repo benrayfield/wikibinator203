@@ -923,11 +923,32 @@ Splat.prototype.createDobsIfNotExist = function(){
 };
 
 var options = {};
+
+//options.circMenuRadius = 45;
+options.circMenuRadius = 56;
+options.circMenuIconSize = 25;
+
+//TODO optimize: this could be done faster with 1 instead of 2 calls of setSplit since each updates dobs.
+//The 2 calls is first to put the right fns in from rootSplat downward. The second is to adjust
+//isOneLine recursively based on options.maxWidth_for_forkTryMaxWidth_ofRoot. It would be potentially
+//up to twice as fast to make the Split first and rootSplat.setSplit only once.
+options.updateDisplayToWrap_afterEachCircMenuCommand = true;
+//options.updateDisplayToWrap_afterEachCircMenuCommand = false;
+
+options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
+
+
 //UPDATE: some of these are displayed in popup title when mouse hover, instead of where they say they're displayed.
-options.displayWholeTostringAtEachRect = true;
-//options.displayWholeTostringAtEachRect = false;
-options.displaySplateDetailExceptFnAtEachRect = true;
-//options.displaySplateDetailExceptFnAtEachRect = false;
+
+//WARNING: when true, this makes it slow cuz does toString on fn at every rectangle for html popup title=,
+//which includes inner fns in inner rects recursively. Makes it maybe 10 times slower when just 1/7 of screen filled.
+//options.displayWholeTostringAtEachRect = true; //very slow
+options.displayWholeTostringAtEachRect = false; //fast enough
+
+
+//options.displaySplateDetailExceptFnAtEachRect = true;
+options.displaySplateDetailExceptFnAtEachRect = false;
+
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
 //options.display_isSelected_afterName = true;
@@ -2432,6 +2453,9 @@ Splat.prototype.nearestDrop = function(y,x){
 	return splatdob;
 };
 
+var countCallsOf_setSplit = 0;
+var test_rememberDobsIn_setSplit = [];
+
 
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
 //
@@ -2440,6 +2464,10 @@ Splat.prototype.nearestDrop = function(y,x){
 //Also could that happen in a rightSplat too if that happens to be []?
 //
 Splat.prototype.setSplit = function(split){
+	countCallsOf_setSplit++;
+	if(vm.loglev>1 && countCallsOf_setSplit%100===0) console.log('countCallsOf_setSplit='+countCallsOf_setSplit);
+	test_rememberDobsIn_setSplit.push(this.dobs.self);
+	
 	if(!split) throw 'No split';
 	var prevSplit = this.split;
 	if(!prevSplit) throw 'No prevSplit';
@@ -2503,6 +2531,8 @@ Splat.prototype.setSplit = function(split){
 				//put suffix in dobs.upfarright (rightmost of 3 tds in same tr) instead of dobs.suffix (aka downleft)
 				suffixfarright = suffix;
 				suffix = '';
+				this.dobs.suffixb.innerHTML = '';
+				this.dobs.suffixc.innerHTML = '';
 			}else{
 				//let suffixVerticalAlign = 'bottom';
 				if(splate.isUnary && splate.isDisplayChilds){
@@ -2555,7 +2585,11 @@ Splat.prototype.setSplit = function(split){
 		}else{
 			//this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
 			this.dobs.literal.innerHTML = '';
+			this.dobs.suffixb.innerHTML = '';
+			this.dobs.suffixc.innerHTML = '';
 		}
+		
+		
 		
 		//flex-direction: row row-reverse column colum-reverse
 		this.dobs.upright.style['flex-direction'] = splate.isOneLine ? 'row' : 'column'; //https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction
@@ -3104,7 +3138,10 @@ var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===spl
 //Normally this happens many times before dragging, many times per second while moving mouse.
 Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
 	//console.log('doBeforeDrag looseIconYFraction='+looseIconYFraction);
+	let countBefore = countCallsOf_setSplit;
 	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+	let count = countCallsOf_setSplit-countBefore;
+	if(vm.loglev>1) console.log('doBeforeDrag change of countCallsOf_setSplit is '+count);
 	//TODO optimize dont update screen until setDragStuff?
 	setDragStuff(this,'wouldFrom',null,null);
 };
@@ -3733,8 +3770,8 @@ var updateOverlays = ()=>{
 			let centerY = globalVars.circMenuCenterY;
 			let centerX = globalVars.circMenuCenterX;
 			let angle = -halfPi+twoPi*i/circMenu.length; //first is straight up. Continue clockwise around, putting icons.
-			let radius = 45;
-			let size = 25;
+			let radius = options.circMenuRadius;
+			let size = options.circMenuIconSize;
 			pic.style.top = (centerY-size/2+radius*Math.sin(angle))+'px';
 			pic.style.left = (centerX-size/2+radius*Math.cos(angle))+'px';
 			pic.style.height = size+'px';
@@ -3771,7 +3808,9 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag copyTo about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			console.log('END: Drag: copyTo');
 		}
 	},
@@ -3807,6 +3846,9 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag metaR about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			console.log('END: Drag: metaR');
 			
 			/*2022-11-16-4pEST got this from browser console (filtered out lots of other console stuff),
@@ -3847,8 +3889,20 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag directR about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			console.log('END: Drag: directR');
+		}
+	},
+	{
+		pic: 'pic/select.png', //select what you dragged TO, ignoring the FROM. calls selSplat.
+		func: ()=>{
+			console.log('NEAREND: Drag: select (what you dragged TO, ignoring the FROM), calls selSplat');
+			let to = anytoSplat();
+			setSelSplat(to);
+			console.log('Drag: select: new selSplat = '+selSplat);
+			console.log('END: Drag: select');
 		}
 	},
 	{
@@ -3880,6 +3934,9 @@ var circMenu = [
 				//This isnt right??? cuz... (get whole comment from directL)
 				let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
 				rootSplat.setSplit(newRootSplitFromParent);
+				if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+					updateDisplayToWrap();
+				}
 			}
 			console.log('END: Drag: delete');
 		}
@@ -3887,6 +3944,9 @@ var circMenu = [
 	{
 		pic: 'pic/cancel.png',
 		func: ()=>{
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			//alert('cancelled drag');
 			console.log('NEAREND: Drag: cancelled.');
 		}
@@ -3919,17 +3979,27 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag directL about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			console.log('END: Drag: directL');
 		}
 	},
 	{
 		pic: 'pic/metaL.png',
 		func: ()=>{
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
 			console.log('TODO metaL');
 		}
 	},
 ];
+
+var updateDisplayToWrap = ()=>{
+	if(vm.loglev>0) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in circMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
+	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
+};
 
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
@@ -3947,15 +4017,17 @@ window.onload = ()=>{
 		split = split.setAction(a);
 	}
 	
+	rootSplat.setSplit(split); //display it recursively
 	if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
 		//split = split.forkTryMaxWidth(12500); //FIXME this is just a test
 		//split = split.forkTryMaxWidth(1400); //FIXME this is just a test
 		//split = split.forkTryMaxWidth(1800); //FIXME this is just a test
-		split = split.forkTryMaxWidth(2200); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(2200); //FIXME this is just a test
 		//split = split.forkTryMaxWidth(400); //FIXME this is just a test
 		//split = split.forkTryMaxWidth(200); //FIXME this is just a test
+		//split = split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot); //FIXME this is just a test
+		updateDisplayToWrap();
 	}
-	rootSplat.setSplit(split); //display it recursively
 };
 
 
@@ -3980,6 +4052,9 @@ window.onload = ()=>{
 	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
 	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?
 	<br><br>
+	TODO figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
+	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
+	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.
 	
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
