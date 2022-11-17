@@ -3455,6 +3455,10 @@ Splat.prototype.isRightChild = function(){
 	return this.parentSplat && this.parentSplat.rightSplat===this;
 };
 
+Splat.prototype.syty = function(){
+	return this.splate().syty; //'C' is normalCallPair
+};
+
 Splat.prototype.callerSyty = function(){
 	return this.parentSplat ? this.parentSplat.splate().syty : 'C'; //'C' is normalCallPair
 };
@@ -3822,25 +3826,26 @@ var circMenu = [
 			let to = anytoSplat();
 			let from = anyfromSplat();
 			
-			let callerSyty = to.callerSyty();
+			let syty = to.syty();
 			
 			let toFn = to.splate().fn;
 			let fromFn = from.splate().fn;
 			
 			let retFn;
-			if(callerSyty == 'S2'){
+			if(syty == 'S2'){
 				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
 				//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
 				let S = vm.ops.S;
-				console.log('Drag metaR, callerSyty='+callerSyty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
 				retFn = S(toFn)(fromFn);
 			}else{
-				console.log('Drag metaR, callerSyty='+callerSyty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+				console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
 				retFn = toFn(fromFn);
 			}
 			console.log('Drag metaR, Returned '+retFn);
 			let isRightRecursion = to.isRightChild();
-			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
+			//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
 			console.log('Drag metaR, newSplit='+newSplit);
 			//This isnt right cuz... (get whole comment from directL)
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
