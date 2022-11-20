@@ -2464,6 +2464,12 @@ var test_rememberDobsIn_setSplit = [];
 //Also could that happen in a rightSplat too if that happens to be []?
 //
 Splat.prototype.setSplit = function(split){
+
+	//FIXME 2022-11-20-12noonEST found that dobs.literal and dobs.left are both not being cleared (.innerHTML='')
+	//when setSplit after dragging 2.34 to {abc def} to make {2.34 abc def} which displays on screen as {2.34 abc abc def def}.
+	//Its {{2.34 abc} <abc> <def> def} where the <abc> is a dobs.left and the <def> is a dobs.literal, both in right child of the outer {...}.
+	//Also, dobs.right should be cleared similarly. But in which paths in the code below did they not get cleared?
+
 	countCallsOf_setSplit++;
 	if(vm.loglev>1 && countCallsOf_setSplit%100===0) console.log('countCallsOf_setSplit='+countCallsOf_setSplit);
 	test_rememberDobsIn_setSplit.push(this.dobs.self);
@@ -2515,6 +2521,10 @@ Splat.prototype.setSplit = function(split){
 			let literal = toLiteralString(splate.fn); //FIXME with max size in chars
 			this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
 			//showDropDobs = false;
+			
+			//adding this 2022-11-20-1232pEST
+			this.dobs.left.innerHTML = '';
+			this.dobs.right.innerHTML = '';
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
 			let prefix = '<b>'+sytyToPushChar(syty)+'</b>';
@@ -2582,6 +2592,13 @@ Splat.prototype.setSplit = function(split){
 			let literal = splate.name();
 			this.dobs.literal.innerHTML = options.namelitPrefix+literal+options.literalSuffix;
 			//this.dobs.suffix.innerHTML = '';
+			
+			/*//wait, it might be syty making it do that? Test that first.
+			//adding 2022-11-20-147pEST cuz the [ ] { } etc are still displayed after a drop, that creates new ones.
+			this.dobs.suffixb.innerHTML = '';
+			this.dobs.suffixc.innerHTML = '';
+			*/
+			
 		}else{
 			//this.dobs.literal.innerHTML = 'FIXME_whatGoesInThisElse';
 			this.dobs.literal.innerHTML = '';
@@ -3799,7 +3816,7 @@ var isS = fn=>(fn.n.o8()==vm.o8OfS);
 var isS2 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===9);
 
 //(S (S a b) c) -> js:[a b c]. Ends at whatevers not an S2.
-//(S a b) and (S (S a b) c) are S2s, but a is not. Doesnt check b or c cuz it recurses on the left.
+//(S a b) and (S (S a b) c) are (syty='S2')s, but a is not. Doesnt check b or c cuz it recurses on the left.
 var sListToJsListReversed = sList=>{
 	let ret = [];
 	while(isS2(sList)){
@@ -3816,7 +3833,8 @@ var sListToJsList = sList=>{
 	return ret;
 };
 
-//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
+//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
+//If theMaybeS2 is not an S2, thats the baseCase, just returns (S draggedL theMaybeS2) aka {draggedL theMaybeS2}.
 //2 fns.
 var metaLOfS2 = (draggedL,theMaybeS2)=>{
 	let S = vm.ops.S;
@@ -3824,6 +3842,36 @@ var metaLOfS2 = (draggedL,theMaybeS2)=>{
 	let ret = draggedL;
 	for(let fn of jsList){
 		ret = S(ret)(fn);
+	}
+	return ret;
+};
+
+//wikib:[a b c] aka (Infcur a b c) -> js:[c b a].
+var infcurListToJsListReversed = infcurList=>{
+	//check it this way instead of === vm.ops.Infcur cuz thats only the normed form of Infcur.
+	if(infcurList.n.o8() !== vm.o8OfInfcur) throw 'Not an infcurList, o8='+infcurList.n.o8()+' but expected vm.o8OfInfcur='+vm.o8OfInfcur;
+	let ret = [];
+	while(infcurList.n.hasMoreThan7Params()){ //The o8 opcode byte and number of params are known at 7th param of U.
+		ret.push(infcurList.n.R()); //get c from (Infcur a b c)
+		//get (Infcur a b) from (Infcur a b c). Aka get [a b] from [a b c]. Stop when get [] aka vm.ops.Infcur or a non-normed form of it.
+		infcurList = infcurList.n.L();
+	}
+	return ret;
+};
+
+//wikib:[a b c] aka (Infcur a b c) -> js:[a b c].
+var infcurListToJsList= infcurList=>{
+	let ret = infcurListToJsListReversed(infcurList);
+	ret.reverse();
+	return ret;
+};
+
+//draggedL metaL-called on <Infcur list of a b c... aka [a b c...]>.
+var metaLOfInfcur = (draggedL,theInfcurList)=>{
+	let Infcur = vm.ops.Infcur;
+	let ret = Infcur(draggedL);
+	for(let fn of infcurListToJsList(theInfcurList)){
+		ret = ret(fn); //append param. Infcur/[] never evals, just keeps appending nomatter how deep (TODO even so deep the list doesnt fit all on 1 computer).
 	}
 	return ret;
 };
@@ -4044,6 +4092,12 @@ var circMenu = [
 			//aka dropLeft [a b c] -> [dropLeft a b c]
 			//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
 			
+
+			//The { kind of drag and drop is the most complex.
+			//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
+			//aka dropLeft {a b c} -> {dropLeft a b c}
+			//https://en.wikipedia.org/wiki/SKI_combinator_calculus
+			
 			
 			console.log('NEAREND: Drag: metaL');
 			let to = anytoSplat();
@@ -4055,10 +4109,11 @@ var circMenu = [
 			let fromFn = from.splate().fn;
 			
 			let retFn;
-			if(syty == 'S2'){ //{...} syntax
+			//if(syty == 'S2'){ //{...} syntax
+			if(syty != 'IC+'){ //{...} syntax (not [...] syntax)
 				//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
 				
-				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, fromFn='+fromFn+' toFn='+toFn);
 				retFn = metaLOfS2(fromFn,toFn);
 				
 				
@@ -4074,6 +4129,14 @@ var circMenu = [
 				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
 				retFn = S(toFn)(fromFn);
 				*/
+			}else{ //[...] syntax.
+				console.log('Drag metaL, syty='+syty+', calling the infcur/[] list way, fromFn='+fromFn+' toFn='+toFn);
+				retFn = metaLOfInfcur(fromFn,toFn);
+			}
+			
+			/*
+			Its a choice between [] and {}. If those arent around it already, do {}, cuz can drag Infcur aka [] to directL or directR call to make [...].
+			Dont do this. Always do metaLOfS2. It was a bug to do directL ever when metaL is called. Correct: metaL x -> {metaL x} aka (S metaL x).
 			}else if(syty == 'IC+'){ //[...] syntax
 				//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
 				//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
@@ -4082,11 +4145,11 @@ var circMenu = [
 				
 				//Should this stop when it finds Infcur/[], or when it finds something thats not a IC+ syty?
 				
-				throw 'fixmefixme';
+				throw 'fixmefixme todo [...] aka syty=IC+';
 			}else{
 				console.log('Drag metaL, syty='+syty+', so calling same as directL, calling '+toFn+' on '+fromFn);
 				retFn = toFn(fromFn);
-			}
+			}*/
 			
 			console.log('Drag metaL, syty='+syty+', returned '+retFn);
 			
@@ -4206,16 +4269,17 @@ window.onload = ()=>{
 	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
 	<br><br>
 	
-	TODO in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
+	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
 	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
-	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?
+	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?</font>
 	<br><br>
-	TODO figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
+	<font color=gray>DONE ENOUGH FOR NOW, its ok to call that many times since its updating many times per second, but i turned off some options (see options = {... map) to make it fast enuf (is still slow while browser debugger is open): figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
 	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
-	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.
+	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.</font>
 	<br><br>
 	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
 	<br><br>
+	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
 	
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
