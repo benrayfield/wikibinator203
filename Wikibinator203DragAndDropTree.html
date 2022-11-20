@@ -3791,6 +3791,43 @@ var updateOverlays = ()=>{
 	}
 };
 
+var isS = fn=>(fn.n.o8()==vm.o8OfS);
+
+//mostly the same as fn.n.L().n.L()===vm.ops.S but theres non-normed forms of S also.
+//o8 is a byte opcode thats copied from L child starting at 8th param of U. Up to 7 params, o8 is the numbers 1 to 255. 0 means evaling.
+//U.n.cur()==0. vm.ops.S.n.cur()==7. 2 more params and cur is 9. at cur 10, (S x y z) -> (x z (y z)).
+var isS2 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===9);
+
+//(S (S a b) c) -> js:[a b c]. Ends at whatevers not an S2.
+//(S a b) and (S (S a b) c) are S2s, but a is not. Doesnt check b or c cuz it recurses on the left.
+var sListToJsListReversed = sList=>{
+	let ret = [];
+	while(isS2(sList)){
+		ret.push(sList.n.R());
+		sList = sList.n.L().n.R(); //(S (S a b) from (S (S a b) c), or get a from (S a b).
+	}
+	ret.push(sList); //a from (S a b).
+	return ret;
+};
+
+var sListToJsList = sList=>{
+	let ret = sListToJsListReversed(sList);
+	ret.reverse();
+	return ret;
+};
+
+//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
+//2 fns.
+var metaLOfS2 = (draggedL,theMaybeS2)=>{
+	let S = vm.ops.S;
+	let jsList = sListToJsList(theMaybeS2);
+	let ret = draggedL;
+	for(let fn of jsList){
+		ret = S(ret)(fn);
+	}
+	return ret;
+};
+
 var circMenu = [
 	{
 		pic: 'pic/copyTo.png',
@@ -3993,10 +4030,126 @@ var circMenu = [
 	{
 		pic: 'pic/metaL.png',
 		func: ()=>{
+		
+			//metaL is more complex than metaR, directL, or directR. Its the counterpart of metaR. At a lower level is directL and directR.
+			//
+			//Theres 2 (maybe 3?) cases (as of 2022-11-17) when metaL acts different than directL, the {...} syntax and the [...] syntax,
+			//and maybe the (...) syntax but that one is harder to know where it ends since if you keep looking at fn.L().L().L()... you'll always reach U,
+			//but that info will be in syty and is based on how its displayed, not just the fn.
+			//
+			//TODO these comments are duplicated in the if/elses below, so should remove them here?...
+			//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)
+			//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
+			//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
+			//aka dropLeft [a b c] -> [dropLeft a b c]
+			//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
+			
+			
+			console.log('NEAREND: Drag: metaL');
+			let to = anytoSplat();
+			let from = anyfromSplat();
+			
+			let syty = to.syty();
+			
+			let toFn = to.splate().fn;
+			let fromFn = from.splate().fn;
+			
+			let retFn;
+			if(syty == 'S2'){ //{...} syntax
+				//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
+				
+				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				retFn = metaLOfS2(fromFn,toFn);
+				
+				
+				
+				//Should this stop when it finds S, or when it finds something thats not a S2 syty?
+				
+				//TODO use metaLOfS2?
+			
+				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+				//So just prefix another S... (S to from) aka {to from} cuz this is metaL the L part (fixme did i break this comment when i changed metaR to metaL?)
+				/*
+				let S = vm.ops.S;
+				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				retFn = S(toFn)(fromFn);
+				*/
+			}else if(syty == 'IC+'){ //[...] syntax
+				//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
+				//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
+				//aka dropLeft [a b c] -> [dropLeft a b c]
+				//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
+				
+				//Should this stop when it finds Infcur/[], or when it finds something thats not a IC+ syty?
+				
+				throw 'fixmefixme';
+			}else{
+				console.log('Drag metaL, syty='+syty+', so calling same as directL, calling '+toFn+' on '+fromFn);
+				retFn = toFn(fromFn);
+			}
+			
+			console.log('Drag metaL, syty='+syty+', returned '+retFn);
+			
+			let parent = to.parentSplat;
+			let isRightRecursion = to.isRightChild();
+			let callerSyty = parent.callerSyty();
+			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+			//This isnt right??? cuz... (get whole comment from directL)
+			let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
+			rootSplat.setSplit(newRootSplitFromParent);
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
+			console.log('END: Drag: metaL');
+			
+
+			
+			
+			/*
+			console.log('NEAREND: Drag: metaR');
+			let to = anytoSplat();
+			let from = anyfromSplat();
+			
+			let syty = to.syty();
+			
+			let toFn = to.splate().fn;
+			let fromFn = from.splate().fn;
+			
+			let retFn;
+			if(syty == 'S2'){
+				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+				//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
+				let S = vm.ops.S;
+				console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+				retFn = S(toFn)(fromFn);
+			}else{
+				console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+				retFn = toFn(fromFn);
+			}
+			console.log('Drag metaR, Returned '+retFn);
+			let isRightRecursion = to.isRightChild();
+			let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
+			//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+			console.log('Drag metaR, newSplit='+newSplit);
+			//This isnt right cuz... (get whole comment from directL)
+			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+			console.log('Drag metaR about to rootSplat.setSplit to ...');
+			rootSplat.setSplit(newRootSplit);
+			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				updateDisplayToWrap();
+			}
+			console.log('END: Drag: metaR');
+			*/
+		
+		
+		
+		
+			/*
 			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('TODO metaL');
+			*/
 		}
 	},
 ];
@@ -4060,6 +4213,9 @@ window.onload = ()=>{
 	TODO figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
 	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
 	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.
+	<br><br>
+	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
+	<br><br>
 	
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
