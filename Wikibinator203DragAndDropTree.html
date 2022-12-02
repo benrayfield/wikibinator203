@@ -286,6 +286,9 @@ var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 	}
 }`;*/
 
+
+
+
 const firstCode =
 `[((Pair [L R]) [[[[
 I#(F U)
@@ -311,7 +314,17 @@ Hypot#(
 ]]]])]`;
 
 
+
+
 /*const firstCode =
+`[
+Pair[ sum +[?[pix +[?i ?red]] ?[pix +[?i ?green]] ?[pix +[?i ?blue]]] ]
+]`;
+*/
+			
+
+/*
+const firstCode =
 `[
 I#(F U)
 Sqr#{(T *) I I}
@@ -935,7 +948,9 @@ options.circMenuIconSize = 25;
 options.updateDisplayToWrap_afterEachCircMenuCommand = true;
 //options.updateDisplayToWrap_afterEachCircMenuCommand = false;
 
-options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 1500;
+options.maxWidth_for_forkTryMaxWidth_ofRoot = 2000;
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
 
 
 //UPDATE: some of these are displayed in popup title when mouse hover, instead of where they say they're displayed.
@@ -1009,8 +1024,8 @@ options.displayAllAsOneLineRandomlyTrueOrFalsePerBranch = false;
 options.do_forkTryMaxWidth_experimentOnWindowLoad = true;
 //options.do_forkTryMaxWidth_experimentOnWindowLoad = false;
 
-options.testActionOnWindowLoad = true;
-//options.testActionOnWindowLoad = false;
+//options.testActionOnWindowLoad = true;
+options.testActionOnWindowLoad = false;
 
 options.displayEstimateWidth = true;
 //options.displayEstimateWidth = false;

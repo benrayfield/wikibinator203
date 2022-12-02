@@ -196,6 +196,7 @@ copies or substantial portions of the Software.
 
 
 
+//TODO doWikibLoopsIfelsePluseqEtcAsBringtofrontlistSoListDoesntGetTooBigButIsStillSimple
 
 
 
@@ -204,7 +205,18 @@ copies or substantial portions of the Software.
 
 
 
-console.log('TODO!!!!: Changing the syntax of vm.eval(codeString)->lambda. Theres 4 s-expression-like things: {a b} is normal call. {a b c} is {{a b} c}. (this is (just data) put anything {a b} here). () is an empty such list. <a b> is {S a b}. <a b c> is {S {S a b} c}. [a b c] is <,a b c>. ,a is {T a}');
+
+
+
+
+
+
+
+
+
+
+
+//No, keep it the old way, not this: console.log('TODO!!!!: Changing the syntax of vm.eval(codeString)->lambda. Theres 4 s-expression-like things: {a b} is normal call. {a b c} is {{a b} c}. (this is (just data) put anything {a b} here). () is an empty such list. <a b> is {S a b}. <a b c> is {S {S a b} c}. [a b c] is <,a b c>. ,a is {T a}');
 
 
 
@@ -967,7 +979,7 @@ TODO??? replace Math.sin Math.exp * etc, by 2 ops, one of (double,double)->doubl
 				(For (= ?a ,0) (lt ?a ?aSize) (++ ?a) [
 					(For (= ?c ,0) (< ?c ?cSize) (++ ?c) _[
 						(= ?sum ,0)
-						(For (= ?c ,0) (< ?c ?cSize) (++ ?c)
+						(For (= ?c ,0) (< ?c ?cSize) (++ c)
 							(+=D ?sum {,*
 								{,D ?arrayAB {,+ {,* ?a ?bSize} ?b}}
 								{,D ?arrayBC {,+ {,* ?b ?cSize} ?c}}
@@ -5228,6 +5240,78 @@ const Wikibinator203 = (()=>{
 
 		//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
 		vm.funcallCacheMap = {};
+		
+		//BTFL is Bring To Front List, made of Infcur/[] aka "stream/[]".
+		//I'm making it a BTFL, instead of just appending, so it doesnt get too big.
+		//I'm also going to optimize most uses of it so it doesnt get stored as a BTFL
+		//except at the start and end of loops in loops in loops combined with if/else += etc,
+		//aka MutLam etc.
+		//
+		//Key is any k where the list contains (k v). Example: [a b c] is key in [a b c val].
+		//There will be a few opcodes to be prefixes of keys, though you dont have to use them.
+		//One will have an Ob, Key, and Val. Another just a Key and Val. And another a Key and CbtAsVal.
+		//The Ob Key Val is for object oriented programming,
+		//done for .01 second between copying state back to lambdas, for example.
+		//
+		//Returns U if there is no value stored for it.
+		vm.btflGet = (list,searchKey)=>{
+			while(list.hasMoreThan7Params()){
+				let foundKeyAndVal = list.n.R();
+				let foundKey = keyAndVal.n.L();
+				if(searchKey.n.eq(foundKey)){
+					return foundKeyAndVal.n.R(); //foundVal
+				}
+				list = list.n.L(); //btfl list 1 foundKeyAndVal shorter
+			}
+			return U; //not found, or is found but is mapped to U.
+		};
+		
+		//keyAndVal example: [a b c val]. Key example: [a b c].
+		//TODO If val.eq(U) then deletes it, since its val would be U.
+		vm.btflPut = (list,keyAndVal)=>{
+			let searchKey = keyAndVal.n.L();
+			let newVal = keyAndVal.n.R();
+			let listWithFirstOfThoseDeleted = vm.btflDel(list,searchKey);
+			return listWithFirstOfThoseDeleted(keyAndVal); //in a [] list, whatever its called on is appended.
+		};
+		
+		//set val to U is same as deleting it. Deletes only the first one found.
+		vm.btflDel = (list,searchKey)=>{
+			//FIXME dont let js stack get too deep. If stackoverflow then use a loop here instead.
+			if(list.hasMoreThan7Params()){
+				let foundKeyAndVal = list.n.R(); //(foundKey foundVal)
+				let foundKey = keyAndVal.n.L();
+				//list without foundKeyAndVal. Its possible searchKey is in
+				//there again (multiple times), but thats not how a btfl is supposed to work.
+				let listWithout_foundKeyAndVal = list.n.L();
+				if(searchKey.n.eq(foundKey)){
+					return listWithout_foundKeyAndVal;
+				}else{
+					return vm.btflDel(listWithout_foundKeyAndVal, searchKey);
+				}
+			}else{
+				return list; //return vm.ops.Infcur; //[]
+			}
+			
+			/*if(newVal.isLeaf()){
+				return vm.btflDel(list,searchKey);
+			}else{
+				let stack = []; //put the other key/vals back, that go past to find one and forkEdit its value (if exists)
+				while(list.hasMoreThan7Params()){
+					let foundKeyAndVal = list.n.R();
+					stack.push(foundKeyAndVal); //to put it back after forkEdit something deeper in list
+					let foundKey = keyAndVal.n.L();
+					list = list.n.L(); //btfl list 1 foundKeyAndVal shorter
+					if(searchKey.n.eq(foundKey)){
+						let newVal = keyAndVal.n.R();
+						
+					}
+				}
+			}
+			*/
+		};
+		
+		
 
 		/*
 		//TODO remove this
@@ -5649,12 +5733,339 @@ const Wikibinator203 = (()=>{
 		
 		
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		//throw 'FIXMEFIXME todo implement these opcodes including EmptyTreemap, Treemap, IdThenGodelLessThan, TreemapHas, etc, then use them to implement Fo, For, IfElse, If, =D aka set part of a cbt to a double value, etc, using vm.Mut datastruct to optimize it, then port AugmentedBalls to that code and verify its fast enough.';
+		vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
+		vm.addOp('Treemap',null,false,2,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
+		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.');
+		vm.addOp('GodelLessThan', null, false, 3, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
+		vm.addOp('ChainLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using second comparator which is normally GodelLessThan. (ChainLessThan FirstComparator SecondComparator x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
+		vm.addOp('IdThenGodelLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using GodelLessThan. comparator which is normally GodelLessThan. (IdThenGodelLessThan IdMaker x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
+		vm.addOp('?', null, false, 3, '(? x val map) -> map forkEdited to map key (? x) to val.');
+		vm.addOp('?C',null,false,3,'(?C x valAsArray map) -> map forkEdited to map key (?C x) to valAsArray. Im unsure if valAsArray should be a TypevalB, TypevalC, or raw Cbt. Or maybe allow all 3? Technically val can be anything, but this is a semantic to suggest viewing it that way.');
+		vm.addOp('??', null, false, 4, '(?? x y val map) -> map forkEdited to map key (?? x y) to val.');
+		vm.addOp('TreemapNorm',null,false,1,'(TreemapNorm map) -> map forkEdited to be nearly completeBinaryTree (still an avl tree).');
+		vm.addOp('TreemapVerify',null,false,1,'(TreemapVerify map) -> T or F depending if map is a valid Treemap datastruct. Its always a valid fn, but an example of invalid is if it contains more than 1 unique comparator or is in a wrong sorted order by that comparator. Does NOT verify comparator always halts or sorts consistently (TODO only optimize if comparator is known consistent, which can be proven by it being a forest of nands or forest of ops on int32s or on int16s etc, basically anything that could go in an opencl ndrange kernel or webgl shaders (GLSL) (excluding roundoff, use less bits to handle that) can be proven to halt for all possible pair of params, and ...');
+		
+		
+		
+		/*
+		SOLUTION?
+		(Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm
+		(EmptyTreemap CompareFirstByIdThenByGodelLikeNumber)#Em
+		(Tm (Tm ...) key val (Tm ...) key)->val.
+		(Tm Em key val (Tm ...) key)->val.
+		(Tm (Tm ...) key val Em key)->val.
+		(Tm Em key val Em key)->val.
+		(Em key)->U.
+		(Has key Em)->F
+		(Has key (Tm (Tm ...) key val (Tm ...))->T.
+		(Put key val map) -> map forkEdited to map key to val WHILE avlBalancing the tree.
+		Use funcallcaching to get minKey, maxKey, and balanceBeingNegOneOrZeroOrOne,
+			and maybe add some cache fields to vm.Node for those to do even faster caching?
+		(Tm (Tm U keyA valA U) keyB valB (Tm U keyC valC U) key)->val.
+		(EmptyTreemap CompareFirstByIdThenByGodelLikeNumber key)->U, would give type safety.
+		(? x val map) -> map forkEdited to map key (? x) to val.
+		(?? x y val map) -> map forkEdited to map key (?? x y) to val.
+		(?C x valAsArray map) -> map forkEdited to map key (?C x) to valAsArray.
+		(TreemapNorm map) -> map forkEdited to be nearly completeBinaryTree (still an avl tree).
+		(TreemapVerify map) -> T or F depending if map is a valid Treemap datastruct.
+			Its always a valid fn, but an example of invalid is if it contains more than 1 unique comparator
+			or is in a wrong sorted order by that comparator.
+			Does NOT verify comparator always halts or sorts consistently (TODO only optimize if comparator is known consistent, which can be proven by it being a forest of nands or forest of ops on int32s or on int16s etc,
+			basically anything that could go in
+			an opencl ndrange kernel or webgl shaders (GLSL) (excluding roundoff, use less bits to handle that)
+			can be proven to halt for all possible pair of params, and 
+		
+		
+		
+		SOLUTION?
+		(Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm
+		(Tm (Tm ...) key val (Tm ...) key)->val.
+		//(T U key)->U, could be used as empty map. Should it be used that way? No, its missing comparator.
+		//(Tm U U U U key)->U, is similar, except it could be mistaken for a map of U to U,
+		//	which it literally is.
+		(EmptyTreemap CompareFirstByIdThenByGodelLikeNumber key)->U, would give type safety.
+		
+		
+		
+		
+		SOLUTION?: Just do lazy-normed avl trees, and norm them as needed. Maps are avl treemaps.
+		(Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm 
+		(Tm (Tm ...) (key val) (Tm ...))
+		(Tm (Tm ...) (key val) (Tm ...) key)->val.
+		(Tm (Tm ...) (? hello world) (Tm ...) (? hello))->world.
+		(Tm (Tm ...) (?? a b c) (Tm ...) (?? a b))->c.
+		//(Tm (Tm ...) (??? a b c d) (Tm ...) (??? a b c))->d.
+		//(??? a b c d map) -> forkEdited map containing (??? a b c d).
+		(? hello world map) -> forkEdited map containing (? hello world).
+		//Make this up to how many ?????... deep? I just need ? and ?? for sure.
+		..
+		How to use that to make a plain map of key to val?
+			Use (? key val) but wrap it in a func that gets the key out instead of using (? key) as a key,
+			and do that for get and put etc.
+		..
+		
+		
+		
+		
+		
+		
+		///OLD, cuz this can be done simpler by having just 1 key type that can be done by K= and KK= and K=C.
+		Keys must have .cur of at least 2, cuz val is their next param.
+		(K= key val map)->forkEditedMap. Key is (K= key).
+		(K=C key valAsCbtOrMaybeTypevalOfCbt map)->forkEditedMap. Key is (K=C key). For storing double[] int[] etc.
+		(KK= keyA keyB val map)->forkEditedMap. Key is (KK= keyA keyB).
+		(NormMap map)->forkEditedMap. Makes a nearly completeBinaryTree with at most the last row being incomplete.
+		(K? key map) -> val from map, or U if not exist.
+		(KK? keyA keyB map) -> val from map, or U if not exist.
+		
+		HOW I DECIDED ON THAT SOLUTION...
+		
+		
+		Make avl and trie_with_avl, using a single design that varies in params
+		(like has a different balance func, same comparator, etc),
+		and use that to decide if the extra complexity is worth it vs should i go avl only
+		and norm the avl to a completeBinaryTreeExceptDeepestRow as needed.
+		...
+		Which funcs do I need to implement? (some many be the same both ways, and others need to be params of avl):
+		* (Norm map) //returns the same map contents but invariant of the order of inserts/deletes/etc. May be expensive.
+		* (Put key val map) or (put (key val) map) where key.n.cur()>1, unsure which of these I'll do.
+		* (PutAll mapFrom mapTo) //copy mapFrom's contents into a forkEdit of mapTo, so mapFrom wins if overlap.
+		* (Prei key map) //prefix subtree, Inclusive.
+		* (Prex key map) //prefix subtree, eXclusive.
+		* (Sufs key map) //suffix subtree, Inclusive.
+		* (Sufx key map) //suffix subtree, eXclusive.
+		* (Has key map) //-> T or F. Can tell the difference between mapped to U and U meaning doesnt contain
+			//BUT should the treemap allow keys of U vs remove keys mapped to U since it returns U to mean either way?
+				* 
+		* (Del key map) //is this the same as 
+		* 
+		* 
+		* 
+		//* (ForAll LoopBody map) //where does it accumulate them? map/reduce?
+		* 
+		* 
+		* 
+		
+		Should there be these few kinds of treemap nodes?...
+		* TrieWithExactSortedListAtBottom //is always exactly sorted. if hash func is good enuf, wont be any collisions, but for math correctness, by pigeonhole, must handle possible collisions anyways.
+		* Empty_TrieWithExactSortedListAtBottom.
+		* AvlLazyNorm
+		* EmptyAvlLazyNorm.
+		???
+		..
+		Also, not a node type (since it could reuse some of the other types) but...
+			TrieWithNonNormedAvlAtBottom
+				This one is probably not useful.
+				The 2 useful kinds are TrieWithExactSortedListAtBottom and AvlLazyNorm.
+		..
+		Maybe Prei Prex Sufs Sufx and Del, should be generalized to a Filter func that
+			chooses which keys to keep, and have an optimization for each of those so it does the same thing.
+		..
+		The 2 useful kinds are TrieWithExactSortedListAtBottom and AvlLazyNorm.
+		Theres 3 nonEmpty datastructs in that: trie, list, and avl,
+			and all 3 could be done by (Treemap ...fewParams... left (key val) right getKey)->val.
+			All 3 are a tree sorted by a given comparator.
+		Maybe the "...fewParams..." should contain a comparator but NOT a normer or putter or any other funcs,
+			and put those kind of things in the getters setters normers etc funcs???
+		((Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm (Tm ...) (KK= a b c) (Tm ...))
+			but how would putter (Put (key val) map)->forkEditedMap or (key val map)->forkEditedMap...
+				How would putter know which datastruct?
+		A nearlyCompleteBinaryTree is a valid avl tree since balance at every node is between -1 and 1.
+		
+		
+		
+		
+		Start writing wikib user level code for how I want to use the avltreemaps with Fo IfElse Mut etc.
+			Where does comparator go?
+			
+		(Treemap comparator putter left keyval right getkey).
+		Do I need putter to be a param of Treemap?
+		Do I want a more complex comparator that combines
+		max depth n of trie (skipping levels where those bits in id of key are the same in all keys deeper)
+		with avl below that, and optionally keeps the avl sorted andOr sorted as a [] list
+		so it always stays normed instead of having to be normed after n forks?
+		..
+		Is there a better way to balance than avl, such as each branch knows its weight in keyvals
+		and treerotates when one side is too much heavier than the other?
+		AVL is probably close enough to optimal.
+		...
+		Should there be a max avl height of 255? That would be a very big avl tree,
+		maybe holding around 2^128 keyvals (just guessing, havent thought about bigO of avl height vs size much)?
+		https://www.geeksforgeeks.org/practice-questions-height-balancedavl-tree/ says "1.44*log2(n) If there are n nodes in AVL tree, maximum height can't exceed 1.44*log2(n)"
+		but Im not sure if thats true (TODO).
+		...
+		Should it be limited to max (around) 2^50 keyvals in each tree, so that float64 can hold its size exactly?
+		How about max 2^48-1 or 2^32-1 or 2^31 or something?
+		..
+		What fn would be an empty Treemap? (Tm U U U), (where I havent decided what params go in Tm yet)?
+		If U is a keyval, then key is (F U) and val is U, cuz (L U)->(F U) aka identityFunc, and (R U)->U.
+		If you wanted identityFunc as key, you'd instead write it as (K= identityFunc val),
+		so in that case the Treemap key would be (K= identityFunc).
+		If its instead identityFunc directly, aka the keyval is U,
+		could use that similar to null, meaning its not there.
+		In general, Treemap will use keyval as (key val), so key must take at least 2 more params,
+		since (key val) must be halted. key is also a func to forkEdit a Treemap, to PUT that val at that key,
+		so in Fo/While/IfElse/Mut/etc, _[(KK= ballA x 5) (KK= ballA y 2.3)] can be used as a func to
+		forkEdit the state (that those loops/ifelse/etc are using) to,
+		as you'd write it in javascript for example, ballA.x = 5; ballA.y = 2.3; then return forkEdited state.
+		Those (KK= ballA x 5) and (KK= ballA y 2.3) etc are inside Treemap.
+		Treemap is sorted by (SomeComparator (KK= ballA x 5) (KK= ballA y 2.3)) -> T or F (or maybe -1 0 or 1?).
+		..
+		or, instead of Treemap opcode, how about just [] lists inside eachother, that are in sorted order
+		by some comparator (as a param somewhere), so [a b c d e] could be [[a b][c [d e]]] or [[a b c d]e] etc.
+		Do that???
+		Would need some way to know the difference between content in the list/tree vs internal tree nodes.
+		Could prefix such content with T which is in some syntaxes written as , aka (T x) is ,x.
+		[[,a ,b][,c [,d ,e]]]
+		and if d happens to be [hello world] then its... [[,a ,b][,c [,[hello world] ,e]]].
+		I like that its more human readable than having specific opcodes for it.
+		Also it can be variable branching factor as its displayed, though is still 2 childs per fn.
+		...
+		Function call caching can handle minKey maxKey contains getHeight etc, recursively and efficiently enough,
+		so dont need to store those in the tree itself.
+		This could in general do any sorted stuff, not just treemaps.
+		..
+		(Get comparator key [[,a ,b][,c [,[hello world] ,e]]])
+		(Put comparator key val [[,a ,b][,c [,[hello world] ,e]]])
+		(ContainsKey comparator key [[,a ,b][,c [,[hello world] ,e]]])
+		etcs
+		This would even use screen space half-efficiently in the drag and drop tree UI (a html file).
+		But if comparator is to be stored with the treemap, then a different order?...
+		(Get comparator [[,a ,b][,c [,[hello world] ,e]]] key)?
+		Cant do that cuz Fo/While/IfElse/etc take a treemap as the state to forkEdit
+		(which they will optimize by using Mut).
+		The optimizing process could check that (Get comparatorX) (Put comparatorX) etc are used,
+		all with same comparator, and that comparator is (if it can be proven, else dont optimize it) consistent in how it orders all possible fns and always halts... then the comparator doesnt have to be stored with the [...] tree.
+		...
+		But constant avl branch size might be more efficient.
+		
+		
+		
+			
+		(Tm#(Treemap comparator balancer) left keyval right getkey).
+		(Tm U (KK= x y z) U (KK= x y)) -> z.
+		This is general enuf to do avl and trie.
+		(KK= x y 5 (Tm U (KK= x y z) U)) ->
+			 (Tm U (KK= x y 5) U).
+		comparator ruturms T or F (maybe 2 kinds of F, differing in prefix, to say equal or not?) depending if lessthan... Example: GodelLessThan op is a comparator.
+		Or do i want to specialize in avl for fewer objects created by balancing while forkediting? How about the Put fn goes where balancer is now? Put can also remove, by val being U?
+			
+		((Avl Cmp343)#Av left here right getValOfThisKey)
+		(Av (Av U (K=C y ACbt) U) (KK= x y z) (Av ...) (KK= x y)) -> z
+		(AvlPut map (KK= x y z)) -> map forkedited to have key (KK= x y) -> val z.
+		
+		The avltreemap will be similar to https://docs.oracle.com/javase/7/docs/api/java/util/NavigableMap.html
+		
+		Different comparators could compare different ways.
+		Some could just compare by idElseGodellikenumber of (KK= a b) in (KK= a b c),
+		and others could compare first by a, then by b, if it happens to be a KK=,
+		since that would allow searching for fields of an object,
+		as KK= is designed for object oriented programming in Mut/IfElse/Fo/etc opcodes.
+		
+		Use this SOLUTION: avltreemapWithComparatorParam and use fn.n.id()
+			(which is small for small strings and at most 32 bytes so maybe size 65 chars as text)
+			to compare first, and break ties (hashCollisions) by sorting by GodelLessThan.
+			Replace btflGet and btflPut with avlGet and avlPut. Also avlNormTo_completeBinaryTreeExceptForDeepest.
+			Rebuild the avl, either by starting empty and inserting all again in same order,
+				or by making it a completeBinaryTreeExceptForDeepest kind of norm (which is still a valid avl).
+			I'm doing this instead of trie, cuz it normally has less height and is faster to reshape.
+			The main use of it will be copying between the Mut/MutLam/Fo/IfElse/etc optimizations and avl state.
+			Such a state (an avl tree) can be used with IfElse Fo etc with or without the Mut optimization,
+			which I guess will happen without optimization when doing small things,
+			and with optimization (Mut.m = {id to Mut} etc) for number crunching, graphics, sound, etc.
+			Copy avl code from wavetree on my github.
+			Be careful to only optimize if know the comparator always halts and compares consistently,
+			cuz if it wouldnt have halted in middle calculations that were done as Mut instead,
+			then thats an error to halt. If its the main id function with GodelLessThan breaking ties, thats true.
+			In this treemap, have (K= comparator k val) (K=C comparator k cbt) and (KK= comparator a b val).
+			The L of all of those is the avl key.
+			Maybe also fn, double, and few other types that are in Mut.
+		/*...
+		OLD... SOLUTION: use avltreemap as the stream datastruct, with GET, PUT, and NORM funcs,
+			and it takes param of comparator, and only allow optimizing it with MutLam/IfElse/Fo/etc
+			if the VM (not necessarily user level) knows the comparator is consistent.
+			GodelLessThan can be such a comparator, which returns T or F for any lambda.
+			I could use VarargAx to prove an avltreemap is correct, or i could use funcallcaching to
+			check it every time. The latter is simpler.
+			A derived (by λ opcode) avltreemap would look something like this...
+			(Avl GodelLessThan_orOtherComparator TheHeight LeftAvlOrLeaf RightAvlOrLeaf)
+			But since a keyVal can be anything, such as [KK= a b c] or (Avl GodelLessThan ...) etc,
+			need a way to specify that a LeftAvlOrLeaf is a leaf vs nonleaf.
+			Could do it as 2 (instead of 1) of TheHeight.
+			(Avl GodelLessThan_orOtherComparator LeftHeight RightHeight LeftAvlOrLeaf RightAvlOrLeaf)
+			For most pairs of heights with a comparator, (Avl GodelLessThan_orOtherComparator LeftHeight RightHeight) will be reused many times, so its still efficient to store this way.
+			Could instead use [GodelLessThan_orOtherComparator LeftHeight RightHeight LeftAvlOrLeaf RightAvlOrLeaf]
+			but then would need a separate GET function. K? and K?C and KK? are separate get funcs anyways.
+			[Comparator LeftHeight LeftAvlOrLeaf RightHeight RightAvlOrLeaf]
+			is less efficient but easier for humans to read.
+			[Cmp343 LeftHeight [Cmp343 ...] Right [Cmp343 ...]].
+			Why put heights in the avl datastruct if not going to put minkey and maxkey?
+			Could just do it as [Comp343 [Comp343 ...] [Cmp343 ...]] and use funcallcaching for that.
+			Need height there cuz if its 0 then view that child as a keyval instead of another avl,
+			OR could put an isAvlLeaf param in (T or F), or have 2 opcodes for it...
+			(AvlLeaf Cmp343 AKeyVal) or (AvlLeaf Cmp343 AKey AVal).
+			(AvlBranch Cmp343 (AvlLeaf Cmp343 AKey AVal) (AvlBranch Cmp343 ... ...)).
+			Comparator/Cmp343 might do a hash to int32 at first, and break ties with GodelLessThan.
+			Considering that VarargAx can intheory be verified as it streams in, but requiring recomputing
+			every part of it, I could potentially make avl trees that claim they are correct avl trees,
+			OR i could just have an AvlVerify func.
+			Even if VarargAx does verify the data observed so far in the avl tree,
+			that doesnt prove a given comparator (Cmp343 its named here) is consistent or always halts.
+			I could accept a limit on comparators to have to be some kind of nand forest
+			(even if not stored or optimized that way) that reads nands at each of 2 childs
+			to compute some bits (by nands) at self. Can GodelLessThan be defined that way,
+			starting with the IsLeaf op? Might also need a HeightLessThan op to do it efficiently.
+			But then how does it call itself recursively?
+			λ opcode is designed for that but is more complicated than I want to deal with for this simple thing,
+			cus it does a linear search and compares lambdas for equality.
+		*/
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		/*
+		//
+		//fixmefixme make these opcodes work with (Fo x 5 [func body] []) and vm.btfl*.
+		//	Test it in Wikibinator203DirectedGraphUI.html cuz it has working code
+		//editor (drag and drop still experimental), though its code editor when
+		//tostringing doesnt output working code every time.
+		//
+		//vm.addOp('ObVal',null,false,2,'(ObVal ob val) -> Val, whichever is the last ObVal of that Key');
+		vm.addOp('BtflGet',null,false,2,'Bring To Front List Get. (BtflGet X [... (X Y) ...]) -> Y. This is the GET that K? and KK? and K?C use internally. Use this with BtflPut.');
+		vm.addOp('BtflPut',null,false,2,'Bring To Front List Put. (BtflPut (X Y) [... (X Z) ...]) -> [... (X Y)], or [...] without (X Y) if Y is U cuz all missing vals are viewed as U. This is the GET that K? and KK? and K?C use internally. Use this with BtflGet.');
 		vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
-		vm.addOp('OK?',null,false,3,'(OK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
 		vm.addOp('K=',null,false,3,'(K= Key Val [...]) -> [... (K= Key Val)], just appends a key/val pair to the end of the list');
-		vm.addOp('OK=',null,false,4,'(OK= Ob Key Val [...]) -> [... (OK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
-		vm.addOp('K=C',null,false,3,'(K=C Key C [...]) -> [... (K=C Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
 		vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
+		vm.addOp('K=C',null,false,3,'(K=C Key Cbt [...]) -> [... (K=C Key Cbt)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
+		vm.addOp('KK?',null,false,3,'(KK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
+		vm.addOp('KK=',null,false,4,'(KK= Ob Key Val [...]) -> [... (KK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
+		*/
+		
+		
 		//TODO opcodes for read and write cbt, similar to K? and K= (which are for fn in general) but specific to cbt as an optimization,
 		//and opcodes for reading and writing inside a cbt at a size 1, 8, 16, 32, or 64 in it, such as reading or writing a double,
 		//especiall in a vm.Mut (which is an optimization of a [...] stateless state). A Mut has a js map/{} of string to Mut and a Float64Array, Uint8Array, etc, that share the same buffer,
@@ -5715,7 +6126,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('While',null,false,3,'stream: (While condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
 		vm.addOp('DoWhile',null,false,3,'stream: (DoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
 		vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
-		vm.addOp('Fo',null,false,5,'(Fo varName UpTo loopBody stream), is like For except starts with varName being 0 and counts up to whatever (UpTo stream) returns.');
+		vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody stream), is like For except starts with varName being 0 and counts up to whatever (UpTo stream) returns.');
 		vm.addOp('IfElse',null,false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
 		vm.addOp('If',null,false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
 		vm.addOp('Lt',null,false,2,'less than. (Lt 2 3) -> T, else F');
@@ -6195,6 +6606,10 @@ const Wikibinator203 = (()=>{
 							}
 							stream = stream.n.l;
 						}
+						
+						
+						
+						
 					}break;case o['OK?']:
 						//vm.addOp('OK?',null,false,3,'(OK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
 						throw 'TODO';
@@ -6223,6 +6638,32 @@ const Wikibinator203 = (()=>{
 						}
 						ret = state;
 					}break;case o.Fo:{
+						
+						//TODO This will be optimized by MutLoop, MutLam, etc.
+						
+						//(Fo varName LoopSize LoopBody State)
+						//loops varName from (double)0 to (double)LoopSize-1
+						//adjusting that in State (a btfl) then loopBody becomes loopBody(State),
+						//and at end, restores varName to whatever it was before (in State) and returns last State.
+						let varName = a;
+						let varName_asKey = vm.ops.FIXMEFIXME;
+						let start = 0;
+						let endExcl = FIXMEFIXME;
+						let loopBody = y;
+						let state = z;
+						let prevVarVal = vm.btflGet(state, varName_asKey);
+						for(let val=0; val<endExcl; val++){
+							//ignore possible changes of varName's val by loopBody.
+							state = vm.btflPut(state, varName_asKey(val));
+							state = loopBody(state);
+						}
+						//restore val of varName to what it was before this loop, even if loop changed it.
+						state = vm.btflPut(state, varName_asKey(prevVarVal));
+						return state;
+						
+						
+						
+						/*
 						//constant size loop (ending condition cant change during loop)
 						//({,Fo varName ,0 ?height ,1 LoopBody} State), evals ?height to be (? height State).
 						//State starts as [], and may be made by vm.ops.LambdaParams or by vm.statePut(state,varName,val).
@@ -6251,32 +6692,32 @@ const Wikibinator203 = (()=>{
 					
 						//NEW: Fo[y ,0 ?height ,1 LoopBody]
 						
-						/*no, these are in the [...]. theres only 2 params. let varName = v;
-						let start = w.n.d();
-						//let dynamicMaxExcl = x;
-						let maxExcl = x.n.d();
-						let inc = y.n.d();
-						let loopBody = z;
-						*
-						let list = y;
-						FIXME what if theres diff num of params?
-						FIXME do i want n loopbody params as if a _[...] wraps them?
-						FIXME do i want optional start (default 0), optional inc (default 1)?
-						//let loopBody = y.n.r;
+						//no, these are in the [...]. theres only 2 params. let varName = v;
+						//let start = w.n.d();
+						////let dynamicMaxExcl = x;
+						//let maxExcl = x.n.d();
+						//let inc = y.n.d();
+						//let loopBody = z;
+						//*
+						//let list = y;
+						//FIXME what if theres diff num of params?
+						//FIXME do i want n loopbody params as if a _[...] wraps them?
+						//FIXME do i want optional start (default 0), optional inc (default 1)?
+						////let loopBody = y.n.r;
 						
-						let state = z;
+						//let state = z;
 						
 					
-						/*OLD:
-							(Fo ,i .z.y.length _[
-								(=ood .z.abc .i <.z.y .i>)
-							])
-						*
-						let varName = x;
-						let condition = y;
-						stream = z;
-						throw 'TODO';
-						*/
+						//OLD:
+						//	(Fo ,i .z.y.length _[
+						//		(=ood .z.abc .i <.z.y .i>)
+						//	])
+						//*
+						//let varName = x;
+						//let condition = y;
+						//stream = z;
+						//throw 'TODO';
+						//
 					
 					/*break;case o.For:
 						//vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript:
@@ -6442,7 +6883,7 @@ const Wikibinator203 = (()=>{
 							}
 							ret = state;
 						}
-					break; case o.Seq: //aka _ like in _(...) in //new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList.
+					break; case o.Seq: //aka _ like in _(...) (UPDATE thats back to _[...]) in //new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList.
 						{
 							//TODO merge duplicate code between qes and seq
 							//vm.addOp('seq',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any 	vararg in the [].');
