@@ -5753,7 +5753,7 @@ const Wikibinator203 = (()=>{
 		
 		//throw 'FIXMEFIXME todo implement these opcodes including EmptyTreemap, Treemap, IdThenGodelLessThan, TreemapHas, etc, then use them to implement Fo, For, IfElse, If, =D aka set part of a cbt to a double value, etc, using vm.Mut datastruct to optimize it, then port AugmentedBalls to that code and verify its fast enough.';
 		vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
-		vm.addOp('Treemap',null,false,2,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
+		vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
 		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.');
 		vm.addOp('GodelLessThan', null, false, 3, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
 		vm.addOp('ChainLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using second comparator which is normally GodelLessThan. (ChainLessThan FirstComparator SecondComparator x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
@@ -6479,7 +6479,7 @@ const Wikibinator203 = (()=>{
 				//	throw 'shouldnt be here cuz should have just done cp';
 				//}
 				//last 6 params
-				let a = l.n.l.n.l.n.l.n.l.n.r;
+				let a = l.n.l.n.l.n.l.n.l.n.r; //FIXME can it ever have these l and r paths be null cuz of lazyeval of wrapping Uint8Array in .blob? Does blob take a different path?
 				let b = l.n.l.n.l.n.l.n.r;
 				let c = l.n.l.n.l.n.r;
 				let x = l.n.l.n.r; //TODO use L and R opcodes as lambdas and dont funcall cache that cuz it returns so fast the heap memory costs more
@@ -6561,8 +6561,72 @@ const Wikibinator203 = (()=>{
 						stackIsAllowMutableWrapperLambda
 						stackIsAllowAx (fixme, is it varargAxCall or just axa (and maybe axb?))
 						*/
-
-					break;case o.S:
+					break;case o.EmptyTreemap:
+						//vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
+						ret = U;
+					break;case o.Treemap:{
+						//vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
+						//(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)
+						let comparator = a;
+						let leftTreemap = b;
+						let key = c;
+						let val = x;
+						let rightTreemap = y;
+						let getKey = z;
+						//FIXME what should this return? T or F? Or 3 possible vals: [T F], [F F], [F T] for less eq right?
+						//Or should it be T, I (identityfunc aka (F U), or F?
+						
+						/*
+						if(key.eq(getKey)){ //check if it equals key here first, so theres less calls of the comparator which costs more than equals???
+							ret = val;
+						}else{
+							let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+							let child = vm.bit(compared) ? leftChild : rightChild; //FIXME is this backward?
+							ret = child(getKey);
+						}*/
+						
+						let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+						if(vm.bit(compared)){ //getKey < key
+							ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
+						}else{ //key <= getKey
+							if(getKey.eq(key)){ //getKey equals key
+								ret = val;
+							}else{ //key < getKey
+								ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+							}
+						}
+					}break;case o.GodelLessThan:{
+						//(GodelLessThan y z) -> T or F
+						if(y.eq(z)){ //y equals z
+							ret = F;
+						}else{
+							//double can hold integers up to pow(2,53), which is more than can fit in memory so is ok implementation for now.
+							let yHeight = y.n.height();
+							let zHeight = z.n.height();
+							if(yHeight < zHeight){
+								ret = T;
+							}else if(yHeight > zHeight){
+								ret = F;
+							}else{ //same height
+								if(yHeight == 0){
+									//FIXME is this "if(yHeight == 0)" really needed, or will the other logic handle that,
+									//considering that (L U)->(F U) and (R U)->U.
+									ret = F; //both are U
+								}else{
+									let yL = y.n.L();
+									let zL = z.n.L();
+									//Taking only 1 of these recursive paths, instead of both, is why its bigO(height) instead of bigO(2^height).
+									if(xL.eq(zL)){ //parents are same height, and the 2 left childs equal, so compare right childs recursively
+										let yR = y.n.R();
+										let zR = z.n.R();
+										ret = vm.ops.GodelLessThan(yR,zR);
+									}else{ //parents are same height, and the 2 left childs do NOT equal, so compare by left childs recursively.
+										ret = vm.ops.GodelLessThan(yL,zL);
+									}
+								}
+							}
+						}
+					}break;case o.S:
 						ret = x(z)(y(z)); //the S lambda of SKI-Calculus
 					break;case o.T:
 						ret = y; //the K lambda of SKI-Calculus, but here we call it T (all namespaces are optional and TODO all should be derived at runtime, see the "localName" field etc).
