@@ -3549,6 +3549,12 @@ const Wikibinator203 = (()=>{
 			}
 			return 0;
 		};
+		
+		//for now, just check === T.
+		//TODO? true if this is a T, else false.
+		vm.Node.prototype.z = function(){
+			return this.lam===T;
+		};
 
 		//Example: a Lambda with [...paramNames...] at param 7 and FuncBody at param 8, downToCur(8) gives (Lambda [...] FuncBody),
 		//and downToCur(7) would give (Lambda [...]). If cur is already less than that, throws.
@@ -4705,8 +4711,8 @@ const Wikibinator203 = (()=>{
 		};
 		
 		//make a non-empty tree node. Takes these params: comparator, leftTree, key, val, rightTree.
-		vm.tree = vm.ops.Treemap;
-		//vm.tree = (comparator, leftTree, key, val, rightTree)=>vm.ops.Treemap(comparator)(leftTree)(key)(val)(rightTree);
+		vm.tree = (comparator, leftTree, key, val, rightTree)=>vm.ops.Treemap(comparator)(leftTree)(key)(val)(rightTree);
+		//vm.tree = vm.ops.Treemap;
 		
 		//vm.emptyTree(comparator) -> an empty treemap of that kind.
 		vm.emptyTree = vm.ops.EmptyTreemap;
@@ -5921,7 +5927,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('TreemapPutNoBal',null,false,1,'(TreemapPutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.');
 		vm.addOp('TreemapPut',null,false,1,'(TreemapPut key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)');
 		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.');
-		vm.addOp('GodelLessThan', null, false, 3, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
+		vm.addOp('GodelLessThan', null, false, 2, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
 		vm.addOp('ChainLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using second comparator which is normally GodelLessThan. (ChainLessThan FirstComparator SecondComparator x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
 		vm.addOp('IdThenGodelLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using GodelLessThan. comparator which is normally GodelLessThan. (IdThenGodelLessThan IdMaker x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
 		vm.addOp('?', null, false, 3, '(? x val map) -> map forkEdited to map key (? x) to val.');
@@ -6752,7 +6758,7 @@ const Wikibinator203 = (()=>{
 						}*/
 						
 						let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
-						if(vm.bit(compared)){ //getKey < key
+						if(compared===T){ //getKey < key
 							ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
 						}else{ //key <= getKey
 							if(getKey.n.eq(key)){ //getKey equals key
@@ -6782,7 +6788,7 @@ const Wikibinator203 = (()=>{
 									let yL = y.n.L();
 									let zL = z.n.L();
 									//Taking only 1 of these recursive paths, instead of both, is why its bigO(height) instead of bigO(2^height).
-									if(xL.n.eq(zL)){ //parents are same height, and the 2 left childs equal, so compare right childs recursively
+									if(yL.n.eq(zL)){ //parents are same height, and the 2 left childs equal, so compare right childs recursively
 										let yR = y.n.R();
 										let zR = z.n.R();
 										ret = vm.ops.GodelLessThan(yR,zR);
@@ -9506,6 +9512,11 @@ const Wikibinator203 = (()=>{
 			vm.testEval('(S T)',S(T));
 		}
 		
+		vm.test('Treemap size 1 hello returns world', vm.eval('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) hello world Em hello)'), vm.eval('world'));
+		vm.test('Treemap size 3 abc returns 5', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) abc)'), vm.eval('5'));
+		vm.test('Treemap size 3 ghi returns 6', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) ghi)'), vm.eval('6'));
+		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) bbb)'), U);
+		
 		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
 		
@@ -9548,6 +9559,9 @@ const Wikibinator203 = (()=>{
 		//vm.stackMem = 1000000;
 		//vm.stackStuff = vm.defaultStackStuff;
 		vm.refill();
+		
+		//TODO tests...
+		//vm.eval('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) hello world Em)')+''
 		
 		vm.booted = true;
 		
