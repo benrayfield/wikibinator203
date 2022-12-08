@@ -1,0 +1,62 @@
+(_[
+
+	=[,comment ,[
+		im trying to rewrite augmentedballs as lambdas and make it work with webcam/canvas.
+		todo what should the outer object be? a treemap?
+		thats what calling a _[stuff] on EmptyTreemap does.
+	]]
+
+	=[,normPixelsAllToSameBrightness ,(λ [targetSum U] [expects [pix h w] params in state param] V_[
+		=[,len *[.h .w ,4]]
+		//=[,retb <NewDoubles .len>]
+		=[,retb <NewBytes .len>] //Should this specify Uint8Array vs Uint8ClampedArray? or do that in =b vs =B?
+		Foor[,i ,0 .len ,4
+			//fixme, .[] and =[] arent for arrays (such as made by NewDoubles or newBytes).
+			//	theyre for state (Treemap or vm.Mut optimization of it, also merging λ params with treemap?)
+			//	use D[getKey getVal] or D[getOb getKey getVal] etc for that. D for doubles. B for bytes.
+			//=[,sum +[D[,pix +[.i .red]) D[,pix +[.i .green]] D[,pix +[.i .blue]]]]
+			=D[,sum +[B[,pix +[.i .red]) B[,pix +[.i .green]] B[,pix +[.i .blue]]]]
+			=D[,mul /[.targetSum .sum]]
+			//FIXME truncate into byte? wrap into byte? js has Uint8Array and Uint8ClampedArray.
+			Foo[,colorDim ,4 =B[,retb +[.i .colorDim] D[,pix *[.mul +[.i .colorDim]]]]]
+		]
+		.retb //return retb from the Treemap.
+	])]
+	
+	=[,simpleGraphicsExample ,(λ [age height width]
+		[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"] V_[
+		=[,numBytes *[.height .width ,4]]
+		=[,pix <NewBytes .numBytes>]
+		=[,red ,0]
+		=[,green ,1]
+		=[,blue ,2]
+		=[,i ,0]	
+		<	Fo ,y .height
+			,<	Fo ,x .width
+				,_[	=[,pix +[.i .red] <& ,255 +[.x *[.age ,35]]>]
+					=[,pix +[.i .green] <& ,255 +[.x *[.y .age]]>]
+					=[,pix +[.i .blue] <& ,255 *[,333 </ .x .y>]>]
+		>	>	]	+=[,i ,4] //next pixel
+		.pix //gets pix then calls it on the Treemap state.
+	])]
+
+	=[,simpleGraphicsExample_OLD ,(λ [age height width]
+		[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"] V_[
+		=[,numBytes *[.height .width ,4]]
+		=[,pix <NewBytes .numBytes>]
+		=[,red ,0]
+		=[,green ,1]
+		=[,blue ,2]
+		=[,i ,0]	
+		Foo[,y .height
+			Foo[,x .width
+				=[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]]
+				=[,pix +[.i .green] &[,255 +[.x *[.y .age]]]]
+				=[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]]
+				+=[,i ,4] //next pixel
+			]
+		]
+		.pix //gets pix then calls it on the Treemap state.
+	])]
+
+] EmptyTreemap)

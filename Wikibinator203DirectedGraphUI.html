@@ -1355,7 +1355,39 @@ var setToIdentityMatrix = aftrans=>{
 			(=b ob typedblob) //ob deduped, typedblob may be dup. typedblob may be Uint8Array, Float32Array, etc.
 		]<br><br>
 		TODO Changing the syntax of vm.eval(codeString)->lambda. Theres 4 s-expression-like things: {a b} is normal call. {a b c} is {{a b} c}. (this is (just data) put anything {a b} here). () is an empty such list. &lt;a b&gt; is {S a b}. &lt;a b c&gt; is {S {S a b} c}. &lt;a b c&gt; is &lt;&lt;a b&gt; c&gt;. [a b c] is &lt;,a b c&gt;. ,a is {T a}
-		<br>
+		<br><br>
+		<div style="background-color:blue">TODO...<br>
+			TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including <a b c> meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
+			<br><br>
+			TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
+			<br><br>
+			SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
+			<br><br>
+			V means to copy the vars from λ into State then get a certain return value out of it.
+			<br><br>
+			SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
+			FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
+			_[<br>
+				=[,mul ,1]<br>
+				Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
+				//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
+				//<a b c> means {,a b c}.<br>
+				//Fo takes var size [] and does _[] with all params at end.<br>
+			]<br>
+			<br><br>
+			In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
+			if it would be (a b).
+			<br><br>
+			For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
+			<br><br>
+			Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
+			<br><br>
+			What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
+			Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
+			<br><br>
+			Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
+		</div>
+		<br><br>
 		<nobr>OUT:<textarea id=codeOut rows="10" cols="100" readonly></textarea></nobr><br>
 		<nobr>IN:<textarea id=codeIn rows="20" cols="100" oninput="evalTextAreas();"></textarea></nobr><br>
 		<input type=checkbox id=isEvalElseOnlyParse checked oninput="evalTextAreas();"></input><label for=isEvalElseOnlyParse>eval (else parse only)</label><br>

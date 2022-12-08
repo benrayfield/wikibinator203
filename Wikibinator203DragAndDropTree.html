@@ -4295,6 +4295,38 @@ window.onload = ()=>{
 	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
 	<br><br>
 	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
+	<br><br>
+	<div style="background-color:blue">TODO...<br>
+			TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including <a b c> meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
+			<br><br>
+			TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
+			<br><br>
+			SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
+			<br><br>
+			V means to copy the vars from λ into State then get a certain return value out of it.
+			<br><br>
+			SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
+			FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
+			_[<br>
+				=[,mul ,1]<br>
+				Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
+				//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
+				//<a b c> means {,a b c}.<br>
+				//Fo takes var size [] and does _[] with all params at end.<br>
+			]<br>
+			<br><br>
+			In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
+			if it would be (a b).
+			<br><br>
+			For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
+			<br><br>
+			Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
+			<br><br>
+			What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
+			Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
+			<br><br>
+			Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
+		</div>
 	
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>

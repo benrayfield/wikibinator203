@@ -6298,7 +6298,8 @@ const Wikibinator203 = (()=>{
 		vm.addOp('While',null,false,3,'stream: (While condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
 		vm.addOp('DoWhile',null,false,3,'stream: (DoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
 		vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
-		vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody stream), is like For except starts with varName being 0 and counts up to whatever (UpTo stream) returns.');
+		vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
+		vm.addOp('Foo',null,false,2,'[update: renaming this from Fo To Foo cuz its vararg and harder to optimize with multiple loopbodyparts]. A simple kind of loop that starts by computing its number of cycles (doesnt check it again after each call of loopBody). (Fo [varName_orShouldThisBeGetVarName getUpTo ...loopBodyParts...] map) -> forkEdits map to have varName_orShouldThisBeGetVarName->0 ->1 ->2 up to (getUpTo whatMapStartsAs)-1 then map becomes loopBody(map) where loopBody is _[...loopBodyParts...] aka chain them. See example code in lambda/AugmentedBalls.wikib that uses Fo... Fo[,y .height Fo[,x .width =[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]] =[,pix +[.i .green] &[,255 +[.x *[.y .age]]]] =[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]] +=[,i ,4] ]]');
 		vm.addOp('IfElse',null,false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
 		vm.addOp('If',null,false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
 		vm.addOp('Lt',null,false,2,'less than. (Lt 2 3) -> T, else F');
@@ -6463,6 +6464,22 @@ const Wikibinator203 = (()=>{
 		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
 		//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
 		vm.infloop = ()=>{ throw this.gasErr; }
+		
+		//gets a js [] list of all params after the 7th param, if any. Normally used with Infcur/[] list.
+		//Its 7 cuz opcode becomes known at 7th param of U.
+		vm.listToJs = list=>vm.lastNParamsOf(list.cur()-7,list);
+		
+		//get a js [] of the last n params in a given fn. Since (L x (R x)) equals x, forall x,
+		//this will loop around and around even if it goes past U. (L U)->(F U). (R U)->U.
+		vm.lastNParamsOf = (n,fn)=>{
+			let ret = [];
+			for(let i=0; i<n; i++){
+				ret.push(fn.n.R());
+				fn = fn.n.L();
+			}
+			ret.reverse();
+			return ret;
+		};
 		
 		//throw 'vm.pair = TODO; //similar to vm.t and vm.f and few other ops';
 		
@@ -6889,9 +6906,41 @@ const Wikibinator203 = (()=>{
 							state = loopBody(state);
 						}
 						ret = state;
-					}break;case o.Fo:{
+					}break;case o.Foo:{
 						
 						//TODO This will be optimized by MutLoop, MutLam, etc.
+						
+						
+						
+						//vm.addOp('Fo',null,false,2,'A simple kind of loop that starts by computing its number
+						//of cycles (doesnt check it again after each call of loopBody).
+						//(Fo [varName_orShouldThisBeGetVarName getUpTo ...loopBodyParts...] map) ->
+						//forkEdits map to have varName_orShouldThisBeGetVarName->0 ->1 ->2 up to (getUpTo whatMapStartsAs)-1
+						//then map becomes loopBody(map) where loopBody is _[...loopBodyParts...] aka chain them.
+						//See example code in lambda/AugmentedBalls.wikib that uses Fo...
+						//Fo[,y .height Fo[,x .width
+						//=[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]]
+						//=[,pix +[.i .green] &[,255 +[.x *[.y .age]]]]
+						//=[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]] +=[,i ,4] ]]');
+						
+						
+						
+						//TODO this var size list might complicate and slow things down...
+						//Could simplify by having only 1 loopBody. But its easier for humans to read the code this way...
+						let list = vm.listToJs(y); //[varName_orShouldThisBeGetVarName getUpTo ...loopBodyParts...]
+						let state = z;
+						if(list.length<3){ //no loopBodyParts, nothing to do.
+							ret = state;
+						}else{
+							let start = 0;
+							//let endExcl = FIXMEFIXME;
+							throw 'TODO';
+						}
+						
+						
+					}break;case o.Fo:{
+						
+						//FIXME using Treemap/EmptyTreemap opcodes instead of btfl...
 						
 						//(Fo varName LoopSize LoopBody State)
 						//loops varName from (double)0 to (double)LoopSize-1
@@ -6900,7 +6949,8 @@ const Wikibinator203 = (()=>{
 						let varName = c; //var names are normally utf8 strings but can be any lambda
 						//let varName_asKey = vm.ops.FIXME FIXME;
 						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
-						let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
+						//let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
+						let varName_asKey = vm.ops['='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
 						
 						//let start = 0;
 						//let endExcl = FIXMEFIXME;
@@ -6913,20 +6963,35 @@ const Wikibinator203 = (()=>{
 						let state = z;
 						
 						//let prevVarVal = vm.btflGet(state, varName_asKey);
-						let prevVarVal = state(varName_asKey);
+						let prevVarVal = state(varName_asKey); //returns U if its mapped to U or if it has no such key/val.
+						let hadPrevVal = prevVarVal!==U || vm.has(varName_asKey,state);
 						let putThatVar = vm.ops.TreemapPut(varName_asKey);
 						for(let val=0; val<endExcl; val++){
 							//ignore possible changes of varName's val by loopBody.
 							
 							//OLD, cuz using avl treemap instead of btfl for loops/if/else/etc state: state = vm.btflPut(state, varName_asKey(val));
-							state = (val)(state)
+							//FIXME... state = (val)(state)
+							state = putThatVar(val)(state);
 							
 							
 							state = loopBody(state);
 						}
 						//restore val of varName to what it was before this loop, even if loop changed it.
-						state = vm.btflPut(state, varName_asKey(prevVarVal));
+						if(hadPrevVal){
+							state = putThatVar(prevVarVal)(state); //FIXME what if val was 0
+						}else{
+							state = vm.del(varName_asKey,state); //remove key/val.
+						}
+						//state = vm.btflPut(state, varName_asKey(prevVarVal));
 						return state;
+						
+						
+						
+						
+						
+						
+						
+						
 						
 						
 						
