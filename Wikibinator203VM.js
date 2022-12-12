@@ -3767,7 +3767,7 @@ const Wikibinator203 = (()=>{
 		//This is how many times you'd have to go l l l l... before reach U.
 		vm.Node.prototype.cur = function(){
 			if(this.cache_cur === undefined){
-				this.cache_cur = (this.isLeaf() ? 0 : (this.l().cur()+1));
+				this.cache_cur = (this.isLeaf() ? 0 : (this.L().n.cur()+1));
 			}
 			return this.cache_cur;
 		};
@@ -4647,26 +4647,26 @@ const Wikibinator203 = (()=>{
 				switch(this.o8()){
 				case vm.o8OfTreemap:
 					//(Treemap comparator leftTreemap key val rightTreemap)
-					if(this.numParams()===5){
-						h = 1+Math.max(this.leftTreemap().n.treemapHeight(), this.rightTreemap().n.treemapHeight());
+					if(this.paramsSoFar()===5){
+						h = 1+Math.max(this.leftTree().n.treemapHeight(), this.rightTree().n.treemapHeight());
 					}else{
 						//(Treemap comparator leftTreemap key) or Treemap etc
 						h = 0;
 					}
 				break;case vm.o8OfEmptyTreemap:
 					//(EmptyTreemap comparator)
-					/*if(this.numParams()===1){
+					/*if(this.paramsSoFar()===1){
 						h = 1;
 					}else{
 						//is EmptyTreemap or one of its non-normed forms (variants of the first 7 params that choose opcode/o8).
 						h = 0;
 					}*/
-					h = this.numParams(); //0 if EmptyTreemap, 1 if (EmptyTreemap anything)
+					h = this.paramsSoFar(); //0 if EmptyTreemap, 1 if (EmptyTreemap anything)
 				break;default:
 					//anything else, such as [hello world] or EmptyTreemap or (Treemap comparator leftTreemap key) or Treemap
 					h = 0;
 				}
-				if(h < vm.twoPow53){
+				if(h < twoPow53){
 					this.treemapHeight_ = h;
 				}else{
 					throw 'treemapHeight does not fit in double, max treemapHeight of pow(2,53)-1 in this VM, but in the spec theres no limit. In practice this should never happen even if you try to cuz the most unbalanced tree, similar to a list, would still need around tha pow(2,55) fns, and a balanced tree would need superexponentially many nodes (but could share branches to still only have around pow(2,55) unique nodes if it wasnt sorted correctly or if it is sorted correctly but has duplicates, and the spec technically allows non-treemap structures to be made with Treemap), to exceed this limit.';
@@ -4676,28 +4676,39 @@ const Wikibinator203 = (()=>{
 		};
 		
 		vm.Node.prototype.leftTree = function(){
-			if(!this.isNonemptyTree()) throw 'Not a tree or is empty tree';
+			//TODO check for this, but its doing stackoverflow as of 2022-12-12: if(!this.isNonemptyTree()) throw 'Not a tree or is empty tree';
 			return this.L().n.L().n.L().n.R(); //TODO func to do n L's then an R, to get a param.
 		};
 		
 		vm.Node.prototype.rightTree = function(){
-			if(!this.isNonemptyTree()) throw 'Not a tree';
+			//TODO check for this, but its doing stackoverflow as of 2022-12-12: if(!this.isNonemptyTree()) throw 'Not a tree';
 			return this.R();
 		};
 		
 		vm.Node.prototype.treeKey = function(){
-			if(!this.isNonemptyTree()) throw 'Not a tree or is empty tree';
+			if(!this.isNonemptyTree()){
+				throw 'Not a tree or is empty tree';
+			}
 			return this.L().n.L().n.R(); //TODO func to do n L's then an R, to get a param.
 		};
 		
 		vm.Node.prototype.treeVal = function(){
-			if(!this.isNonemptyTree()) throw 'Not a tree or is empty tree';
+			if(!this.isNonemptyTree()){
+				throw 'Not a tree or is empty tree';
+			}
 			return this.L().n.R(); //TODO func to do n L's then an R, to get a param.
 		};
 		
 		vm.Node.prototype.treeComparator = function(){
-			if(!this.isNonemptyTree()) throw 'Not a tree or is empty tree';
-			return this.L().n.L().n.L().n.L().n.R(); //TODO func to do n L's then an R, to get a param.
+			if(this.isNonemptyTree()){
+				return this.L().n.L().n.L().n.L().n.R(); //TODO func to do n L's then an R, to get a param.
+			}else if(this.isEmptyTree()){
+				return this.R();
+			}else{
+				return vm.infloop();
+				//return vm.ops.GodelLessThan; //slow but most general comparator
+			}
+			
 		};
 		
 		//is a Treemap of 5 params or EmptyTreemap of 1 param?
@@ -4714,6 +4725,69 @@ const Wikibinator203 = (()=>{
 		vm.tree = (comparator, leftTree, key, val, rightTree)=>vm.ops.Treemap(comparator)(leftTree)(key)(val)(rightTree);
 		//vm.tree = vm.ops.Treemap;
 		
+		vm.putNoBal = (putKey,putVal,map)=>{
+			let comparator = map.n.treeComparator();
+			//FIXME update comments and opcode names cuz renaming TreemapPutNoBal to PutNoBal
+			//let TreemapPutNoBal_putKey_putVal = l; //(PutNoBal putKey putVal), without map aka the last param.
+			//FIXME what if map is an EmptyTreemap?
+			if(map.n.isEmptyTree()){ //(EmptyTreemap comparator).
+				return vm.tree(comparator,map,putKey,putVal,map); //use map as (EmptyTreemap comparator).
+			}else{
+				let foundKey = map.n.treeKey();
+				let compared = comparator(putKey)(foundKey);
+				if(compared===T){ //putKey < foundKey
+					let newLeftTree = vm.putNoBal(putKey,putVal,map.n.leftTree());
+					return map.n.replaceLeftTree(newLeftTree);
+				}else{ //foundKey <= putKey
+					if(foundKey.n.eq(putKey)){ //foundKey equals putKey
+						//return map.n.replaceTreeKeyAndVal(putKey,putVal);
+						return map.n.replaceTreeVal(putVal);
+					}else{ //foundKey < putKey
+						let newRightTree = vm.putNoBal(putKey,putVal,map.n.rightTree());
+						return map.n.replaceRightTree(newRightTree);
+					}
+				}
+			}
+		}
+		
+		//If this is a Treemap (TODO also allow EmptyTreemap and make a Treemap?) forkEdits it to have that leftTree.
+		vm.Node.prototype.replaceLeftTree = function(newLeftTree){
+			//TODO optimize by not calling so many funcs here. inline some of it to reuse shared code between those.
+			if(this.isNonemptyTree()){
+				return vm.tree(this.treeComparator(),newLeftTree,this.treeKey(),this.treeVal(),this.rightTree());
+			}else if(this.isEmptyTree()){
+				return newLeftTree; //FIXME this might be confusing to caller, but if param is a valid treemap, its ok.
+				//return vm.tree(this.treeComparator(),this,this.treeKey(),this.treeVal(),this);
+			}else{
+				return vm.infloop();
+			}
+		};
+		
+		//only call this if you already know this is a Treemap of 5 params (not EmptyTreemap or anything else).
+		vm.Node.prototype.replaceTreeKeyAndVal = function(putKey,putVal){
+			//TODO optimize by inlining some stuff, instead of getting all 5 things...
+			return vm.tree(this.treeComparator(),this.leftTree(),putKey,putVal,this.rightTree());
+		};
+		
+		//only call this if you already know this is a Treemap of 5 params (not EmptyTreemap or anything else).
+		vm.Node.prototype.replaceTreeVal = function(putVal){
+			let Treemap_comparator_leftTree_key = this.L().n.L();
+			return Treemap_comparator_leftTree_key(putVal)(this.R());
+		};
+		
+		//If this is a Treemap (TODO also allow EmptyTreemap and make a Treemap?) forkEdits it to have that rightTree.
+		vm.Node.prototype.replaceRightTree = function(newRightTree){
+			//TODO optimize by not calling so many funcs here. inline some of it to reuse shared code between those.
+			if(this.isNonemptyTree()){
+				return vm.tree(this.treeComparator(),this.leftTree(),this.treeKey(),this.treeVal(),newRightTree);
+			}else if(this.isEmptyTree()){
+				return newRightTree; //FIXME this might be confusing to caller, but if param is a valid treemap, its ok.
+				//return vm.tree(this.treeComparator(),this,this.treeKey(),this.treeVal(),this);
+			}else{
+				return vm.infloop();
+			}
+		};
+		
 		//vm.emptyTree(comparator) -> an empty treemap of that kind.
 		vm.emptyTree = vm.ops.EmptyTreemap;
 		
@@ -4722,20 +4796,66 @@ const Wikibinator203 = (()=>{
 		//even though it may (TODO) be optimized to put and balance at the same time.
 		//Determinism is a very important option as defined on stack using vm.mask_*.
 		vm.put = (key,val,map)=>{
-			throw 'TODO';
+			console.log('FIXME vm.treemapPut (renamed to vm.put) is not balancing. should do the same as vm.ops.TreemapPutNoBal then vm.ops.DoAvlBal, but DoAvlBal isnt working yet 2022-12-12 so just using treemapPutNoBal for now.');
+			return vm.putNoBal(key,val,map);
 		};
 		
 		//treemap get value of key. This is just here to explain get and put. You'd probably just call map(key) directly instead of this.
 		vm.get = (key,map)=>map(key);
 		
 		//remove a key/val from map. Return forkEdited map.
-		vm.del = (key,map)=>{
-			throw 'TODO';
+		vm.del = (delKey,map)=>{
+			console.log('FIXME vm.del is not balancing. Using non-balanced ops for now, but thats not correct spec. Must do the same as vm.ops.DoAvlBal after the deletion, even if optimized to do it all together, must generate the same lambdas at the end.');
+			
+			let comparator = map.n.treeComparator();
+			if(map.n.isEmptyTree()){ //(EmptyTreemap comparator)
+				return map; //already deleted, nothing to do
+			}else{
+				let foundKey = map.n.treeKey();
+				let compared = comparator(delKey)(foundKey);
+				if(compared===T){ //delKey < foundKey
+					let newLt = vm.del(delKey,map.n.leftTree());
+					return map.n.replaceLeftTree(newLt);
+				}else{ //foundKey <= delKey
+					let lt = map.n.leftTree();
+					let rt = map.n.rightTree();
+					if(foundKey.n.eq(delKey)){ //foundKey equals delKey
+						//use map.n.leftTree() and map.n.rightTree() without the key/val here between them.
+						//This can be done with the rightmost key in leftTree or the leftmost key in rightTree.
+						if(map.n.treemapHeight() === 2){ //would be 1 if empty, 0 if not a treemap/emptytreemap.
+							//only has that 1 key/val, so return empty.
+							//leftTree and rightTree are both, in theory, (EmptyTreemap comparator), of same comparator as me,
+							//but even if they arent, the spec would still be correct, as long as its deterministic.
+							return lt; //(EmptyTreemap comparator)
+						}else{
+							//Use the nearest key/val (rightmost of leftTree or leftmost of rightTree) of whichever is tallest,
+							//since removing a key/val tends to reduce height, so on average theres less balancing to do.
+							//TODO optimize: this could be done all at once instead of separately getting lastKey, getting its val, and deleting last key.
+							if(lt.n.treemapHeight() >= rt.n.treemapHeight()){
+								let lastKey = lt.n.treeLastKeyOrNull();
+								if(!lastKey) throw 'No lastKey in '+lt;
+								let lastVal = lt(lastKey);
+								let newLt = vm.del(lastKey,rt);
+								return vm.tree(comparator,newLt,lastKey,lastVal,rt); //FIXME spec requires vm.ops.DoAvlBal either here or as an optimization all at once
+							}else{
+								let firstKey = rt.n.treeFirstKeyOrNull();
+								if(!firstKey) throw 'No firstKey in '+rt;
+								let firstVal = rt(firstKey);
+								let newRt = vm.del(firstKey,rt);
+								return vm.tree(comparator,lt,firstKey,firstVal,newRt); //FIXME spec requires vm.ops.DoAvlBal either here or as an optimization all at once
+							}
+						}
+					}else{ //foundKey < delKey
+						let newRt = vm.del(delKey,rt);
+						return map.n.replaceRightTree(newRt);
+					}
+				}
+			}
 		};
 		
 		//does a treemap have a given key? returns true/false (not T/F).
 		vm.has = (key,map)=>{
-			if(!vm.isNonemptyTree(map)) return false;
+			if(!map.n.isNonemptyTree()) return false;
 			throw 'TODO';
 		};
 		
@@ -4778,6 +4898,26 @@ const Wikibinator203 = (()=>{
 			return this.treemapHeight()>1;
 		};
 		
+		//returns null if this is not a treemap/emptytreemap of the right number of params, or if its empty.
+		vm.Node.prototype.treeFirstKeyOrNull = function(){
+			//0 if not a treemap/emptytreemap of the right number of params. 1 if EmptyTreemap of 1 param. 2 or more if Treemap of 5 params.
+			//If it has 1 key/val then its a "Treemap of 5 params" whose left and right trees are normally an (EmptyTreemap comparator).
+			let h = this.treemapHeight();
+			if(h < 2) return null;
+			if(h === 2) return this.treeKey();
+			return this.leftTree().n.treeFirstKeyOrNull() || this.treeKey(); //in case left is empty
+		};
+		
+		//returns null if this is not a treemap/emptytreemap of the right number of params, or if its empty.
+		vm.Node.prototype.treeLastKeyOrNull = function(){
+			//0 if not a treemap/emptytreemap of the right number of params. 1 if EmptyTreemap of 1 param. 2 or more if Treemap of 5 params.
+			//If it has 1 key/val then its a "Treemap of 5 params" whose left and right trees are normally an (EmptyTreemap comparator).
+			let h = this.treemapHeight();
+			if(h < 2) return null;
+			if(h === 2) return this.treeKey();
+			return this.rightTree().n.treeLastKeyOrNull() || this.treeKey(); //in case right is empty
+		};
+		
 		//a double. throws if height >= pow(2,53), cuz in the spec it approaches infinite height. Caches it.
 		vm.Node.prototype.height = function(){
 			if(this.height_ === undefined){
@@ -4795,7 +4935,7 @@ const Wikibinator203 = (()=>{
 				}else{
 					h = this.isLeaf() ? 0 : (1+Math.max(this.L().n.height(), this.R().n.height()));
 				}
-				if(h >= vm.twoPow53) throw 'height is too big to fit in double, h='+h;
+				if(h >= twoPow53) throw 'height is too big to fit in double, h='+h;
 				this.height_ = h;
 			}
 			return this.height_;
@@ -5510,6 +5650,7 @@ const Wikibinator203 = (()=>{
 		vm.touchCounter = 0;
 		
 		const twoPow32 = Math.pow(2,32);
+		const twoPow53 = Math.pow(2,32);
 		const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0); //FIXME does this make negatives ever? Its supposed to.
 		//const hashIntSalts = new Int32Array(13);
 		const hashIntSalts = new Int32Array(30);
@@ -5920,12 +6061,13 @@ const Wikibinator203 = (()=>{
 		
 		
 		//throw 'FIXMEFIXME todo implement these opcodes including EmptyTreemap, Treemap, IdThenGodelLessThan, TreemapHas, etc, then use them to implement Fo, For, IfElse, If, =D aka set part of a cbt to a double value, etc, using vm.Mut datastruct to optimize it, then port AugmentedBalls to that code and verify its fast enough.';
-		vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
-		vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
+		vm.o8OfEmptyTreemap = vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
+		vm.o8OfTreemap = vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
 		vm.addOp('DoAvlBal',null,false,1,'(DoAvlBal (Treemap ...)) -> forkEdited treemap with max difference of AvlHeight between any 2 avl childs (of same Treemap parent) being 1. Avl balance is supposed to be -1, 0, or 1 at each node. Each node is a Treemap or EmptyTreemap. An EmptyTreemap is always balanced.');
 		vm.addOp('AvlHeightD',null,false,1,'(AvlHeightD (Treemap_or_EmptyTreemap ...)) -> a double, such as (TypevalC application/x-IEEE754-double 0x0000000000000000) aka 0. Since double only does integers up to pow(2,53), this must infinite loop ({I I}{I I}) if avlHeight >= pow(2,53).');
-		vm.addOp('TreemapPutNoBal',null,false,1,'(TreemapPutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.');
-		vm.addOp('TreemapPut',null,false,1,'(TreemapPut key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)');
+		vm.addOp('PutNoBal',null,false,3,'TreemapPutNoBal renamed to PutNoBal. (PutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.');
+		vm.addOp('TreemapPut',null,false,3,'(TreemapPut key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)');
+		vm.addOp('Del',null,false,2,'(Del Key (Treemap ...)) -> forkEdited treemap/emptytreemap with that key/val gone, balanced as if by DoAvlBal after removing it, even if as an optimization thats done at the same time.');
 		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.');
 		vm.addOp('GodelLessThan', null, false, 2, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
 		vm.addOp('ChainLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using second comparator which is normally GodelLessThan. (ChainLessThan FirstComparator SecondComparator x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?');
@@ -6217,8 +6359,11 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		
-		
+		vm.addOp('K=',null,false,3,'(K= Key Val Map) -> forkEdited map with (K= Key) mapped to Val.');
+		vm.addOp('KK=',null,false,4,'(K= KeyA KeyB Val Map) -> forkEdited map with (KK= KeyA KeyB) mapped to Val.');
+		vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (K= Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (K= Key)).');
+		vm.addOp('KK?',null,false,3,'(K? KeyA KeyB Map) -> val of (K= KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KK= KeyA KeyB)).');
+		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map');
 		/*
 		//
 		//fixmefixme make these opcodes work with (Fo x 5 [func body] []) and vm.btfl*.
@@ -6463,7 +6608,7 @@ const Wikibinator203 = (()=>{
 		//In abstract math, evals to (S I I (S I I)) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
 		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
 		//TODO in abstract math there should be an "outer spend call" just below the stack, to catch anything when theres not any spend call??
-		vm.infloop = ()=>{ throw this.gasErr; }
+		vm.infloop = ()=>{ throw vm.gasErr; }
 		
 		//gets a js [] list of all params after the 7th param, if any. Normally used with Infcur/[] list.
 		//Its 7 cuz opcode becomes known at 7th param of U.
@@ -6668,6 +6813,7 @@ const Wikibinator203 = (()=>{
 				//	throw 'shouldnt be here cuz should have just done cp';
 				//}
 				//last 6 params
+				//FIXME use .L() and .R() instead of .l and .r, cuz those allocate if not found, but if its not a blob then those wont be null, and already checked for blob above?
 				let a = l.n.l.n.l.n.l.n.l.n.r; //FIXME can it ever have these l and r paths be null cuz of lazyeval of wrapping Uint8Array in .blob? Does blob take a different path?
 				let b = l.n.l.n.l.n.l.n.r;
 				let c = l.n.l.n.l.n.r;
@@ -6823,14 +6969,67 @@ const Wikibinator203 = (()=>{
 					}break;case o.TreemapPut:{
 						ret = vm.put(x,y,z); //key, val, map.
 						//map(key) is how to get value of that key from the map. Returns U if doesnt contain that. Can check if it has a key/val with TreemapHas.
-					}break;case o.TreemapPutNoBal:{
-						throw 'TODO';
+					}break;case o.Del:{
+						//vm.addOp('Del',null,false,2,'(Del Key (Treemap ...)) -> forkEdited treemap/emptytreemap with that key/val gone, balanced as if by DoAvlBal after removing it, even if as an optimization thats done at the same time.');
+						let key = y;
+						let map = z;
+						ret = vm.del(key,map);
+					}break;case o.PutNoBal:{
+						//vm.addOp('PutNoBal',null,false,1,'(PutNoBal key val map) -> forkEdited
+						//map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned
+						//map to get a balanced one, or keep putting and balance after multiple puts.
+						//Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map
+						//to start with). TreemapNorm returns same map regardless of order of puts and balances
+						//which created it, aka returns a near-complete-binary-tree with only the deepest row
+						//potentially not filled.');
+						//(PutNoBal key val map)
+						let putKey = x;
+						let putVal = y;
+						let map = z;
+						ret = vm.putNoBal(putKey,putVal,map);
+						
+						/*let comparator = map.n.treeComparator();
+						let foundKey = map.n.treeKey();
+						let compared = comparator(putKey)(foundKey);
+						let TreemapPutNoBal_putKey_putVal = l; //(PutNoBal putKey putVal), without map aka the last param.
+						if(compared===T){ //putKey < foundKey
+							let leftTreemap = map.n.leftTree();
+							let newLeftTreemap = TreemapPutNoBal_putKey_putVal(leftTreemap);
+							vm.tree
+							ret = FIXMEFIXME;
+							//ret = leftTreemap(getKey);
+							FIXMEFIXME that code is for GET, but doing PUT here.
+						}else{ //foundKey <= putKey
+							if(getKey.n.eq(key)){ //foundKey equals putKey
+								//ret = val;
+								FIXMEFIXME that code is for GET, but doing PUT here.
+								throw 'TODO';
+							}else{ //foundKey < putKey
+								let rightTreemap = map.n.rightTree();
+								ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+								FIXMEFIXME that code is for GET, but doing PUT here.
+							}
+						}*/
+						
+						/*let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+						if(compared===T){ //getKey < key
+							ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
+						}else{ //key <= getKey
+							if(getKey.n.eq(key)){ //getKey equals key
+								ret = val;
+							}else{ //key < getKey
+								ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+							}
+						}*/
+
 					}break;case o.DoAvlBal:{
 						throw 'TODO';
 					}break;case o.TreemapNorm:{
 						throw 'TODO';
 					}break;case o.TreemapVerify:{
 						throw 'TODO';
+					}break;case o.Isleaf:{
+						ret = vm.bit(z.n.isLeaf());
 					}break;case o.S:
 						ret = x(z)(y(z)); //the S lambda of SKI-Calculus
 					break;case o.T:
@@ -6860,6 +7059,14 @@ const Wikibinator203 = (()=>{
 						//greaterThanOrEqual
 						ret = vm.bit(x.n.d()>=y.n.d());
 					break;case o['K?']:{
+						
+						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (K= Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (K= Key)).');
+						let key = vm.ops['K='](x);
+						let map = z;
+						ret = map(key);
+						
+						
+						/*
 						//vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
 						//(K? a [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> bb
 						//(K? d [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> vald
@@ -6875,20 +7082,34 @@ const Wikibinator203 = (()=>{
 							}
 							stream = stream.n.l;
 						}
+						*/
+						//let key = y;
+						//let map = z;
+						//ret = map(key); //val that key is mapped to. Map is normally a Treemap or EmptyTreemap.
 						
 						
 						
+					//}break;case o['OK?']:
+					}break;case o['KK?']:
+						//vm.addOp('KK?',null,false,3,'(KK= KeyA KeyB Map) -> val of (K= KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KK= KeyA KeyB)).');
 						
-					}break;case o['OK?']:
-						//vm.addOp('OK?',null,false,3,'(OK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
-						throw 'TODO';
+						
+						let key = vm.ops['KK='](x)(y); //x is KeyA. y is KeyB.
+						let map = z;
+						ret = map(key); //get val of (K
+						
 					break;case o['K=']:{
-						//vm.addOp('K=',null,false,3,'(K= Key Val [...]) -> [... (K= Key Val)], just appends a key/val pair to the end of the list');
-						//key = x;
-						//let val = y;
-						let stream = z;
-						ret = stream(l); //l is (K= Key Val)
-					}break;case o['OK=']:
+						//vm.addOp('K=',null,false,3,'(K= Key Val Map) -> forkEdited map with (K= Key) mapped to Val.');
+						
+						let key = l.n.L(); //(K= Key)
+						let val = l.n.R(); //Val
+						let map = z;
+						//ret = vm.ops.TreemapPut(key)(val)(map);
+						ret = vm.put(key,val,map);
+						
+						
+					//}break;case o['OK=']:
+					}break;case o['KK=']:
 						//vm.addOp('OK=',null,false,4,'(OK= Ob Key Val [...]) -> [... (OK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
 						throw 'TODO';
 					break;case o['K=C']:
@@ -6940,6 +7161,8 @@ const Wikibinator203 = (()=>{
 						
 					}break;case o.Fo:{
 						
+						//vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
+						
 						//FIXME using Treemap/EmptyTreemap opcodes instead of btfl...
 						
 						//(Fo varName LoopSize LoopBody State)
@@ -6950,10 +7173,10 @@ const Wikibinator203 = (()=>{
 						//let varName_asKey = vm.ops.FIXME FIXME;
 						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
 						//let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
-						let varName_asKey = vm.ops['='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
+						let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
 						
 						//let start = 0;
-						//let endExcl = FIXMEFIXME;
+						let endExcl = x.n.d(); //UpTo as double/float64
 						let loopBody = y;
 						
 						//state is normally an AVL treemap, a vm.ops.Treemap of all but the last param filled,
@@ -6983,7 +7206,7 @@ const Wikibinator203 = (()=>{
 							state = vm.del(varName_asKey,state); //remove key/val.
 						}
 						//state = vm.btflPut(state, varName_asKey(prevVarVal));
-						return state;
+						ret = state;
 						
 						
 						
@@ -7388,6 +7611,11 @@ const Wikibinator203 = (()=>{
 		vm.isSameOp = (fn, op)=>(fn.n.o8()===op.n.o8());
 		
 		vm.isNumParams = (fn, numParams)=>(numParams===(fn.n.cur()-7));
+		
+		//7 less than number of params of U, so can be as low as -7. Opcode is known at 7 params of U.
+		vm.Node.prototype.paramsSoFar = function(){
+			return this.cur()-7;
+		};
 		
 		vm.o8ToLambda = function(o8){
 			//if(3<=vm.loglev)console.log('vm.o8ToLambda '+o8);
@@ -9520,7 +9748,7 @@ const Wikibinator203 = (()=>{
 		//let E = vm.eval; //lambda eval, string->fn
 		
 		vm.test = (testName, a, b)=>{
-			if(a === b) if(1<=vm.loglev)console.log('Test pass: '+testName+', both equal '+a);
+			if(a === b) if(0<=vm.loglev)console.log('Test pass: '+testName+', both equal '+a);
 			else throw ('Test '+testName+' failed cuz '+a+' !== '+b);
 		};
 		
@@ -9581,6 +9809,28 @@ const Wikibinator203 = (()=>{
 		vm.test('Treemap size 3 abc returns 5', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) abc)'), vm.eval('5'));
 		vm.test('Treemap size 3 ghi returns 6', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) ghi)'), vm.eval('6'));
 		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) bbb)'), U);
+		let Em = vm.ops.EmptyTreemap(vm.ops.GodelLessThan);
+		vm.test('PutNoBal first key/val into an EmptyTreemap', vm.ops.PutNoBal(vm.ops.L)(vm.ops.R)(Em),
+			vm.ops.Treemap(vm.ops.GodelLessThan)(Em)(vm.ops.L)(vm.ops.R)(Em));
+			
+		vm.test('treemapHeight of (EmptyTreemap GodelLessthan)', Em.n.treemapHeight(), vm.eval('1'));
+			
+		let CD = vm.ops.PutNoBal('c')('d')(Em);
+		vm.test('treemapHeight of CD', Em.n.treemapHeight(), vm.eval('2'));
+		let CDEF = vm.ops.PutNoBal('e')('f')(CD);
+		vm.test('treemapHeight of CDEF', Em.n.treemapHeight(), vm.eval('3'));
+		let ABCDEF = vm.ops.PutNoBal('a')('b')(CDEF);
+		//TODO test this treemapHeight when DoAvlBal is working and is used.
+		vm.ABCDEF = ABCDEF; //an example treemap
+		vm.test('ABCDEF a -> b', ABCDEF('a'), vm.eval('b'));
+		vm.test('ABCDEF c -> d', ABCDEF('c'), vm.eval('d'));
+		vm.test('ABCDEF e -> f', ABCDEF('e'), vm.eval('f'));
+		
+		//vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
+		
+		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
+		
+		
 		
 		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
@@ -9629,6 +9879,8 @@ const Wikibinator203 = (()=>{
 		//vm.eval('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) hello world Em)')+''
 		
 		vm.booted = true;
+		
+		vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
 		
 		
 		
@@ -9855,3 +10107,6 @@ TODO make this fast. its a variant of wikibinator202 that has these changes:
 
 */
 
+
+//let Em = Wikibinator203.n.vm.ops.EmptyTreemap(Wikibinator203.n.vm.ops.GodelLessThan);
+//Wikibinator203.n.vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", Wikibinator203.n.vm.ops.Treemap(Wikibinator203.n.vm.ops.GodelLessThan)(Em)('a')('b')(Em), Wikibinator203.n.vm.ops.Del('e')(Wikibinator203.n.vm.ops.Del('c')(Wikibinator203.n.vm.ABCDEF)));

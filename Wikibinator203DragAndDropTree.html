@@ -290,7 +290,7 @@ var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
 
 
 const firstCode =
-`[((Pair [L R]) [[[[
+`[((Pair [L R]) [[[
 I#(F U)
 Sqr#{(T *) I I}
 Hypot#(
@@ -311,7 +311,10 @@ Hypot#(
 (Pair L R)
 (T (Pair (T L) R))
 2.34
-]]]])]`;
+Em#(EmptyTreemap GodelLessThan)
+[L R S T Isleaf PutNoBal Del Fo DoAvlBal VarargAx]
+[a b c d e f g h i j k l m n o p]
+]]])]`;
 
 
 
@@ -949,8 +952,9 @@ options.updateDisplayToWrap_afterEachCircMenuCommand = true;
 //options.updateDisplayToWrap_afterEachCircMenuCommand = false;
 
 //options.maxWidth_for_forkTryMaxWidth_ofRoot = 1500;
-options.maxWidth_for_forkTryMaxWidth_ofRoot = 2000;
-//options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 2000;
+options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 2500
 
 
 //UPDATE: some of these are displayed in popup title when mouse hover, instead of where they say they're displayed.
