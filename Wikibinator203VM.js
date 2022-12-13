@@ -8018,9 +8018,10 @@ const Wikibinator203 = (()=>{
 
 
 
-
-			let displayChilds = !view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName &&
+			let displayChilds = !(view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName) &&
 				!view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
+			//let displayChilds = !view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName &&
+			//	!view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
 			
 			let displayPound = doName && (displayChilds || earlyTokens.length); //If theres a name and something will be displayed after it, put # between.
 			
@@ -8219,6 +8220,11 @@ const Wikibinator203 = (()=>{
 				[X#(Pair L) [X L]]
 
 				if(set_hasDefinedBefore)...
+				
+				2022-12-13-935aEST Fixed this by checking doName in the displayChilds condition.
+				Its not enough that it existed earlier in the code. It must also have been named, else display duplicate.
+				//let displayChilds = !(view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName) &&
+				Now "[X#(Pair L) [(Pair L) L]]" and "[X#(Pair L) [X L]]" both display as "[X#(Pair L) [X L]]".
 			}*/
 			
 		};
