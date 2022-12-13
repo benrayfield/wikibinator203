@@ -5993,6 +5993,8 @@ const Wikibinator203 = (()=>{
 		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
 		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
 		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
+		//TypevalB or TypevalC
+		vm.o8IsOfTypeval = o8=>((o8 & 0b11111110) == vm.o8OfTypevalB);
 		
 		//It is by design that a fn/lambda cant know evilbit==true vs evilbit==false about any fn/lambda,
 		//since thats only a bit in some kinds of ids, a thing to say about a lambda, not about the lambda itself.
@@ -7681,7 +7683,7 @@ const Wikibinator203 = (()=>{
 			this.viewer = viewer; //what makes these View objects
 			this.fn = fn; //the fn its a View of		
 			this.localName = null; //FIXME ive been using view.fn.localName instead.
-			this.hasDefinedBeforeUsingName = false;
+			this.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
 			//Example: '_' for Seq, 'U' for theUniversalLambda, and maybe ',' for T but I tend to write T when its by itself.
 			this.builtInName = fn.builtInName || null; //replace undefined with null
 			//Examples: '(', '{', '[', '<', '0', '_', ',', '.'.
@@ -7765,6 +7767,7 @@ const Wikibinator203 = (()=>{
 			let v = vm.getViewer();
 			let rawTokens = v.tokenize(wikibinator203CodeString);
 			let tokens = vm.filterTokens(rawTokens); //remove whitespace before ], for example, which would make it parse wrong.
+			vm.verifyTokensListHasNoDuplicateNames(tokens);
 			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
 			return v.tokensToParseTree(parsing);
 		};
@@ -7786,10 +7789,10 @@ const Wikibinator203 = (()=>{
 		vm.Viewer.prototype.fnToString = function(fn){
 			let viewing = this.newViewing();
 			
-			//FIXME, this sets view.fn.hasDefinedBeforeUsingName to false, instead of view.hasDefinedBeforeUsingName to false.
-			this.setAllToFalse_hasDefinedBeforeUsingName();
+			//FIXME, this sets view.fn.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false, instead of view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false.
+			this.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName();
 			
-			//FIXME should this call viewing.setAllToFalse_hasDefinedBeforeUsingName() ? I was about to do that, but then saw its making a new viewing.
+			//FIXME should this call viewing.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName() ? I was about to do that, but then saw its making a new viewing.
 			//Should that be in viewer instead of viewing? The viewer is reused (as of 2022-7-10).
 			
 			//this.viewToStringRecurse(this.view(fn), viewing, false);
@@ -7798,13 +7801,13 @@ const Wikibinator203 = (()=>{
 			return viewing.makeString();
 		};
 		
-		vm.Viewer.prototype.setAllToFalse_hasDefinedBeforeUsingName = function(){
+		vm.Viewer.prototype.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = function(){
 			//FIXME what if some arent included cuz they dont have a localName?
 			//for(let view in this.localNameToView){
-			//	view.hasDefinedBeforeUsingName = false;
+			//	view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
 			//}
 			this.views.forEach((view,fn)=>{ //value,key
-				view.hasDefinedBeforeUsingName = false;
+				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
 			});
 		};
 
@@ -7902,14 +7905,16 @@ const Wikibinator203 = (()=>{
 			let isLiteral = isSmallCbt || (vm.isDisplayStringLiterals && isSmallUtf8String) || (vm.isDisplayDoubleLiterals && isDoubleLiteral);
 			//let isLiteral = isSmallCbt;
 
+			//let didPushLocalName = false;
 			if(view.fn.localName){ //FIXME
+				//didPushLocalName = true;
 				if(view.fn != ops.Infcur){
 			
 					/*FIXME this is making it tostring the code wrong the second time its tostringed
 					since the first time, it defines_and_uses view.fn.localName,
 					but second and later times it only uses that so it doesnt get defined and all you see is the name in that part of code.
 					To fix that, need to track which fns (or views of them?) have been displayed so far.
-					I created view.hasDefinedBeforeUsingName to try to fix that, TODO...
+					I created view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to try to fix that, TODO...
 					*/
 				
 				
@@ -7917,7 +7922,7 @@ const Wikibinator203 = (()=>{
 					//cuz thats automatic string literal if it has no spaces.)
 					//viewing.tokens.push(view.builtInName);
 					viewing.tokens.push(view.fn.localName);
-					if(view.fn().isLeaf()) view.hasDefinedBeforeUsingName = true; //dont define inside leaf, even though it wraps around ("tie the quine knot")
+					if(view.fn().isLeaf()) view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true; //dont define inside leaf, even though it wraps around ("tie the quine knot")
 					doName = true;
 					//console.log('viewing.tokens.push builtInName '+view.builtInName);
 					if(2<=vm.loglev)console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
@@ -7927,78 +7932,119 @@ const Wikibinator203 = (()=>{
 					viewing.tokens.push('[]');
 					if(2<=vm.loglev)console.log('viewing.tokens.push Infcur as []');
 				}
-			}else if(isLiteral){ //this is after checking for localName, so you can name a literal if you want.
-				if(FN.isCbt()){ //FN is view.fn()
-					/*let cbtHeight = FN.cbtHeight();
-					if(cbtHeight <= 3) throw 'cbt1 to cbt8 should already have localName like 0b10011111';
-					*/
-					if(view.syntaxType === 'Blob'){ //its a Uint8Array in FN.blob, with FN.l and Fn.r being null cuz those are lazyEval of powOf2 aligned ranges of that blob.
-						viewing.tokens.push(FN.locid());
-					}else{
-						viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
-					}
-				}else if(isSmallUtf8String){
-					//utf8 bytes in a cbt. It may have content.blob or not, since thats just an optimization
-					//of a complete binary tree (cbt) of vm.ops.Bit0 and vm.ops.Bit1. If it has blob, the utf8 bytes,
-					//padded with a 1 bit then 0s to the next powOf2 number of bits,
-					//are in content.blob in byte range content.blobFrom (inclusive) to content.blobTo (exclusive).
-					//If thats at most pow(2,31)-1 bits then that bitstring size (of utf8 bytes) is in content.bize
-					//unless content.bize is negative
-					//in which case it hasnt computed the bize yet (bize==-2) or is not a cbt (bize==-1).
-					//As of 2022-7-23 this is the first time in wikibinator203 that I'm using blob and bize
-					//so there are probably some more functions that should be added to vm.Node.prototype to make this easier.
-					let content = FN.r;
-					let utf8Bytes = content.n.bytes();
-					//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
-					//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
-					//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
-					let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
-					if(2<=vm.loglev) console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
-					//viewing.tokens.push('SMALLSTRING_'+smallString);
-					viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
-					
-					//throw 'TODO use node.bytes';
-				}else if(isDoubleLiteral){
-					viewing.tokens.push(''+FN.d());
-				}else{
-					throw 'TODO some other kind of literal, to code string';
-				}
-			}else if(FN.o8() === vm.o8OfTypeval && FN.cur()==9){
-				//Dont include Typeval or (Typeval Type) but do include (Typeval Type Val).
-				let content = FN.r;
-				switch(FN.l){
-					//TODO more cases for more Typeval types that have a syntax, such as quotedStringLiteral thats not too big.
-					case vm.typeDouble:
-						//content.n.bytes() should be the 8 bytes of a double,
-						//but use node.d() as an optimization since node.idA and node.idB (TODO)
-						//will be copy of those bytes or it might have the double stored as a double.
-						let doubleVal = FN.d(); //FIXME endian?
-						let token = ''+doubleVal; //the normal way double is displayed in javascript and in java (which matches, except do they differ by including an e+ vs just e?).
-						if(token != 'NaN' && token != '-Infinity' && token != 'Infinity'){
-							viewing.tokens.push(token);
-							isTypevalDisplayedAsLiteral = true;
+			}
+			
+			//let pushedPound = false;
+			let earlyTokens = [];
+			if(!view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName){
+				/*if(doName){
+					use earlyTokens to move this farther below
+					viewing.tokens.push('#');
+					pushedPound = true;
+				}*/
+				if(isLiteral){ //this is after checking for localName, so you can name a literal if you want.
+					if(FN.isCbt()){ //FN is view.fn()
+						/*let cbtHeight = FN.cbtHeight();
+						if(cbtHeight <= 3) throw 'cbt1 to cbt8 should already have localName like 0b10011111';
+						*/
+						if(view.syntaxType === 'Blob'){ //its a Uint8Array in FN.blob, with FN.l and Fn.r being null cuz those are lazyEval of powOf2 aligned ranges of that blob.
+							//viewing.tokens.push(FN.locid());
+							earlyTokens.push(FN.locid());
+						}else if(view.fn.n.cbtHeight()>2){
+							//viewing.tokens.push('0x'+vm.cbtToHex(view.fn));
+							earlyTokens.push('0x'+vm.cbtToHex(view.fn));
+						}else{
+							//if(!didPushLocalName){
+							if(!doName){
+								//for(let i=0; i<16; i++) vm.cbt4[i].localName = '0b'+(''+(16+i).toString(2)).substring(1); //0b0000 to 0b1111
+								throw 'Is a cbt that should be displayed as 0b0, 0b1, ob00, ob01, ob10, or 0b11. Bigger would display as cbtToHex. But that should be its localName, and it doesnt have one.';
+							}
 						}
-						//else let displayChilds happen,
-						//since those overlap the #Names syntax since they start with A-Z.
-					break; default:
+					}else if(isSmallUtf8String){
+						//utf8 bytes in a cbt. It may have content.blob or not, since thats just an optimization
+						//of a complete binary tree (cbt) of vm.ops.Bit0 and vm.ops.Bit1. If it has blob, the utf8 bytes,
+						//padded with a 1 bit then 0s to the next powOf2 number of bits,
+						//are in content.blob in byte range content.blobFrom (inclusive) to content.blobTo (exclusive).
+						//If thats at most pow(2,31)-1 bits then that bitstring size (of utf8 bytes) is in content.bize
+						//unless content.bize is negative
+						//in which case it hasnt computed the bize yet (bize==-2) or is not a cbt (bize==-1).
+						//As of 2022-7-23 this is the first time in wikibinator203 that I'm using blob and bize
+						//so there are probably some more functions that should be added to vm.Node.prototype to make this easier.
+						let content = FN.r;
+						let utf8Bytes = content.n.bytes();
+						//FIXME quote it if it contains whitespace or ( ) { } [ ] < > , or certain other chars or depending on size.
+						//If it starts with a lowercase letter or most of the other unicode chars then it can be a string literal without quotes.
+						//If it starts with a capital A-Z then its a #Name. If you want other unicode chars in a #Name then just prefix with 1 of A-Z.
+						let smallString = vm.utf8AsUint8ArrayToString(utf8Bytes); //TODO optimize by caching this? (this happens multiple places)
+						if(2<=vm.loglev) console.log(utf8Bytes.length+' bytes ('+utf8Bytes.join(',')+') became '+smallString.length+' chars: '+smallString);
+						//viewing.tokens.push('SMALLSTRING_'+smallString);
+						//viewing.tokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
+						earlyTokens.push(smallString); //FIXME quote it if it starts with capital A-Z or if it contains whitespace or certain other chars
 						
-						//do nothing, let displayChilds happen.
+						//throw 'TODO use node.bytes';
+					}else if(isDoubleLiteral){
+						//viewing.tokens.push(''+FN.d());
+						earlyTokens.push(''+FN.d());
+					}else{
+						throw 'TODO some other kind of literal, to code string';
+					}
+				//}else if(FN.o8() === vm.o8OfTypeval && FN.cur()==9){
+				}else if(vm.o8IsOfTypeval(FN.o8()) && FN.cur()==9){
+					//Dont include Typeval or (Typeval Type) but do include (Typeval Type Val).
+					let content = FN.r;
+					switch(FN.l){
+						//TODO more cases for more Typeval types that have a syntax, such as quotedStringLiteral thats not too big.
+						case vm.typeDouble:
+							//content.n.bytes() should be the 8 bytes of a double,
+							//but use node.d() as an optimization since node.idA and node.idB (TODO)
+							//will be copy of those bytes or it might have the double stored as a double.
+							let doubleVal = FN.d(); //FIXME endian?
+							let token = ''+doubleVal; //the normal way double is displayed in javascript and in java (which matches, except do they differ by including an e+ vs just e?).
+							if(token != 'NaN' && token != '-Infinity' && token != 'Infinity'){
+								//viewing.tokens.push(token);
+								earlyTokens.push(token);
+								isTypevalDisplayedAsLiteral = true;
+							}
+							//else let displayChilds happen,
+							//since those overlap the #Names syntax since they start with A-Z.
+						break; default:
+							
+							//do nothing, let displayChilds happen.
+					}
+				}
+				//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
+				//if((!doName || !view.fn.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+			}
+
+
+
+
+			let displayChilds = !view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName &&
+				!view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
+			
+			let displayPound = doName && (displayChilds || earlyTokens.length); //If theres a name and something will be displayed after it, put # between.
+			
+			if(displayPound){
+				viewing.tokens.push('#');
+			}
+			//let set_hasDefinedBefore = false;
+			if(earlyTokens.length){
+				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				//set_hasDefinedBefore = true;
+				for(let token of earlyTokens){
+					viewing.tokens.push(token); //early cuz delayed until #, but didnt know if would display # until displayPound is calculated.
 				}
 			}
-			//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
-			//if((!doName || !view.fn.hasDefinedBeforeUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
-
-
-
-
-			let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
-			//if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+			
+			//if(!view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
 			if(displayChilds){ //!view.builtInName (such as 'S') cuz dont define below that.
-				view.hasDefinedBeforeUsingName = true;
-				if(doName){
+				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				//set_hasDefinedBefore = true;
+				/*if(doName && !pushedPound){
 					//# like in... [(Pair Pair) (F F) CallParamOnItself#{I#(F U) I}]
 					viewing.tokens.push('#');
-				}
+					//pushedPound = true;
+				}*/
 				
 				//FIXME where to put the info that something is a (S Thing)? cuz (S (S A B) C) is {A B C} aka {{A B} C}.
 				//Should that be syntaxtype 'S' or '(S' etc?
@@ -8116,9 +8162,64 @@ const Wikibinator203 = (()=>{
 						throw 'Unknown syntaxtype: '+syty;
 				}
 				//so dont define it again, just use name, until the next tostring which should set
-				//all relevant hasDefinedBeforeUsingName to false so they get defined again.
-				//view.hasDefinedBeforeUsingName = true;
+				//all relevant hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false so they get defined again.
+				//view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
 			}
+			/*if(set_hasDefinedBefore){
+				//do it here, instead of in the above code, in case of things like [X#(Pair L) [X L]]
+				//where [X occurs again inside a call of [X aka (Infcur (Pair L)). Wait until thats defined.
+				//No, that didnt fix it. Problem is probably that it gets set for things that dont have names,
+				//just that have been defined before,
+				//so there was no name of the [...] even though there was a name of the stuff inside it.
+				//I need to choose to either generate a name or display it multiple times.
+				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+			
+				/* Bugs related to set_hasDefinedBefore...
+				
+				[X#(Pair abc) [ X X Pair X]]
+				Notice the space in "[ X" where another X should be.
+
+				It appears this only happens with []. Maybe it has something to do with "[]" being defined differently in "if(view.fn.localName){ " ... viewing.tokens.push('[]'); in the ELSE of "if(view.fn != ops.Infcur){".
+				Or maybe something about this code[
+					if(view.lsyty() != 'IC0'){
+						this.viewToStringRecurse(view.l(), viewing, syty, false);
+						viewing.tokens.push(' ');
+						if(2<=vm.loglev)console.log('[ pushed space');						}
+				]
+
+
+				Wikibinator203DirectedGraphUI.html
+				[X#(Pair abc) [X L]]
+				X = R(L(lastEval))
+				X2 = R(L(R(lastEval)))
+				X == X2 ... returns true.
+				X+''
+				'X#(Pair abc)'
+				X2+''
+				'X#(Pair abc)'
+				lastEval+''
+				'[X#(Pair abc) [ L]]'
+
+				So how did the fn.localName get missing? Or is it a missing localName of the IC0 or IC+ aka [...] that the X is in?
+
+				When its on "if(view.lsyty() != 'IC0'){ this.viewToStringRecurse(view.l(), viewing, syty, false);",
+				view.fn.n.l+'' the second time...
+				view.fn+''
+				'[X#(Pair abc) L]'
+				Recursing into that, 
+				''+FN.lam
+				'[X#(Pair abc)]'
+				and displayChilds is false but should be true.. kind of... It should not display the left child which is [] but should display the right child which is X.
+				let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
+				view.hasDefinedBeforeUsingName is true, so displayChilds is false.
+				The code string in is "[X#(Pair L) [X L]]" aka (Infcur (Pair L) (Infcur (Pair L) L))
+				so it actually has displayed (Infcur (Pair L)) before and is still in that parsing of Infcur aka [...] when it finds a prefix of what its been parsing inside itself.
+				[X#(Pair L) [(Pair L) L]] displays as [X#(Pair L) [ L]].
+
+				[X#(Pair L) [X L]]
+
+				if(set_hasDefinedBefore)...
+			}*/
 			
 		};
 		
@@ -8953,7 +9054,8 @@ const Wikibinator203 = (()=>{
 							ret = ret(childParseTree.eval(map));
 						}
 					}else if(this.listType == '<'){ //TODO to find comments about this search for ?2
-						throw 'TODO <...>/?GetVarDeep syntax, this='+this;
+						throw 'TODO I might use <a b c> to mean {,a b c}';
+						//throw 'TODO <...>/?GetVarDeep syntax, this='+this;
 					}else{
 						throw 'Unknown listType='+this.listType;
 					}
@@ -8982,7 +9084,26 @@ const Wikibinator203 = (()=>{
 			}
 			return this.fn;
 		};
+		
+		//In the list of strings (tokens), there cant, for example, be 'Abc#' twice.
+		//Anything that ends with # is a name (the part before #) and can only be defined once per code string
+		//cuz theres only constants, not variables, in wikibinator
+		//(at deferministic level, see vm.mask_* for where there can be a little mutable stuff such as MutableWrapperLambda and Solve).
+		vm.verifyTokensListHasNoDuplicateNames = tokens=>{
+			let foundNameDefiners = {}; //map of 'Abc#' to true, etc.
+			for(let token of tokens){
+				if(token.endsWith('#')){
+					if(foundNameDefiners[token]){
+						throw 'Duplicate name token: '+token;
+					}
+					foundNameDefiners[token] = true;
+				}
+			}
+		};
 
+		/*
+		//2022-12-13 is this func being used? It appears not.
+		//
 		//reads a list of js strings (parse.tokens) and evals the combo of lambdas it means,
 		//and returns it (whatevers at top parsing.stack[parsing.stack.length-1] at end of this parse call,
 		//including calling itself recursively while modifying fields in the Parsing.
@@ -9000,10 +9121,13 @@ const Wikibinator203 = (()=>{
 			
 			
 			let tok = parsing.tokens;
+			
+			vm.verifyTokensListHasNoDuplicateNames(tok);
+			
 			/*let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
 			if(fromTok === undefined) throw 'parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
 			console.log('PARSING====fromTok='+fromTok);
-			*/
+			*
 			parsing.toExcl = parsing.from+1;
 			let nextFn = null;
 			let toTok;
@@ -9058,7 +9182,7 @@ const Wikibinator203 = (()=>{
 					parsing.from = rememberFrom;
 					//leave parsing.toExcl as the recursion left it, possibly higher than it started but cant be lower.
 					//parsing.toExcl++; //FIXME remove this line?
-				*/
+				*
 				}else{ //this token and recurse on variable number of next objects: {...}, [...], (...), or <...>.
 					//while(parsing.toExcl < tok.length && !parsing.isMatchingPushAndPopTokens(fromTok,tok[parsing.toExcl-1])){
 					let isPop;
@@ -9144,7 +9268,7 @@ const Wikibinator203 = (()=>{
 			if(!parsing.stack.length) throw 'parsing.stack is empty but should never have less than 1 fn in it';
 			if(2<=vm.loglev)console.log('PARSEEND');
 			return parsing.stack[parsing.stack.length-1]; //Parsing.parse returns return whatever on top of Parsing.stack at end
-		};
+		};*/
 		
 		
 		
