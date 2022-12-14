@@ -7683,7 +7683,7 @@ const Wikibinator203 = (()=>{
 			this.viewer = viewer; //what makes these View objects
 			this.fn = fn; //the fn its a View of		
 			this.localName = null; //FIXME ive been using view.fn.localName instead.
-			this.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
+			this.hasDefinedBeforeUsingName = false;
 			//Example: '_' for Seq, 'U' for theUniversalLambda, and maybe ',' for T but I tend to write T when its by itself.
 			this.builtInName = fn.builtInName || null; //replace undefined with null
 			//Examples: '(', '{', '[', '<', '0', '_', ',', '.'.
@@ -7759,6 +7759,21 @@ const Wikibinator203 = (()=>{
 			if(vm.strIsAllWhitespace(ret[ret.length-1])) throw 'Last token is all whitespace in '+JSON.stringify(ret);
 			return ret;
 		};
+
+		/*
+		//At an index of a 'Name#' or '(' or '[' etc, 
+		vm.indexAfterPop = (tokens,indexOfPush){
+		};
+		*/
+		
+		
+		//TODO also the : syntax which is same as having no whitespace between 2 things, like ab:cd cuz abcd would be a single token,
+		//and similarly ,:,:_:[a b c] or ,:,_:[a b c] would be same as ,,_[a b c].
+		//vm.preprocessTokensForUnarySyntax = true;
+		vm.preprocessTokensForUnarySyntax = false;
+		if(!vm.preprocessTokensForUnarySyntax) console.log(
+			'WARNING: vm.preprocessTokensForUnarySyntax is off. You might do that if theres parsing problems for testing. So ,,_[a b c] would be parsed as (, , _ [a b c]) instead of (, (, (_ [a b c]))).');
+	
 		
 		//returns a vm.ParseTree
 		vm.parse = function(wikibinator203CodeString){
@@ -7768,6 +7783,9 @@ const Wikibinator203 = (()=>{
 			let rawTokens = v.tokenize(wikibinator203CodeString);
 			let tokens = vm.filterTokens(rawTokens); //remove whitespace before ], for example, which would make it parse wrong.
 			vm.verifyTokensListHasNoDuplicateNames(tokens);
+			if(vm.preprocessTokensForUnarySyntax){
+				tokens = vm.expandTokensListForUnary(tokens);
+			}
 			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
 			return v.tokensToParseTree(parsing);
 		};
@@ -7789,10 +7807,10 @@ const Wikibinator203 = (()=>{
 		vm.Viewer.prototype.fnToString = function(fn){
 			let viewing = this.newViewing();
 			
-			//FIXME, this sets view.fn.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false, instead of view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false.
-			this.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName();
+			//FIXME, this sets view.fn.hasDefinedBeforeUsingName to false, instead of view.hasDefinedBeforeUsingName to false.
+			this.setAllToFalse_hasDefinedBeforeUsingName();
 			
-			//FIXME should this call viewing.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName() ? I was about to do that, but then saw its making a new viewing.
+			//FIXME should this call viewing.setAllToFalse_hasDefinedBeforeUsingName() ? I was about to do that, but then saw its making a new viewing.
 			//Should that be in viewer instead of viewing? The viewer is reused (as of 2022-7-10).
 			
 			//this.viewToStringRecurse(this.view(fn), viewing, false);
@@ -7801,13 +7819,13 @@ const Wikibinator203 = (()=>{
 			return viewing.makeString();
 		};
 		
-		vm.Viewer.prototype.setAllToFalse_hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = function(){
+		vm.Viewer.prototype.setAllToFalse_hasDefinedBeforeUsingName = function(){
 			//FIXME what if some arent included cuz they dont have a localName?
 			//for(let view in this.localNameToView){
-			//	view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
+			//	view.hasDefinedBeforeUsingName = false;
 			//}
 			this.views.forEach((view,fn)=>{ //value,key
-				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = false;
+				view.hasDefinedBeforeUsingName = false;
 			});
 		};
 
@@ -7876,7 +7894,7 @@ const Wikibinator203 = (()=>{
 		vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion){
 			//FIXME this is way too simple, just having U and ( and ) and builtInName, but its somewhere to start.
 			
-			let doName = false;
+			//let doName = false;
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
@@ -7904,6 +7922,8 @@ const Wikibinator203 = (()=>{
 			//and for raw cbts as 0b1110001101111100 or maybe hex 0x.
 			let isLiteral = isSmallCbt || (vm.isDisplayStringLiterals && isSmallUtf8String) || (vm.isDisplayDoubleLiterals && isDoubleLiteral);
 			//let isLiteral = isSmallCbt;
+			
+			//let displayedAsLiteralOrNameAlready = false;
 
 			//let didPushLocalName = false;
 			if(view.fn.localName){ //FIXME
@@ -7914,7 +7934,7 @@ const Wikibinator203 = (()=>{
 					since the first time, it defines_and_uses view.fn.localName,
 					but second and later times it only uses that so it doesnt get defined and all you see is the name in that part of code.
 					To fix that, need to track which fns (or views of them?) have been displayed so far.
-					I created view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to try to fix that, TODO...
+					I created view.hasDefinedBeforeUsingName to try to fix that, TODO...
 					*/
 				
 				
@@ -7922,21 +7942,25 @@ const Wikibinator203 = (()=>{
 					//cuz thats automatic string literal if it has no spaces.)
 					//viewing.tokens.push(view.builtInName);
 					viewing.tokens.push(view.fn.localName);
-					if(view.fn().isLeaf()) view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true; //dont define inside leaf, even though it wraps around ("tie the quine knot")
-					doName = true;
+					if(FN.isLeaf()) view.hasDefinedBeforeUsingName = true; //dont define inside leaf, even though it wraps around ("tie the quine knot")
+					//doName = true;
+					//displayedAsLiteralOrNameAlready = true;
 					//console.log('viewing.tokens.push builtInName '+view.builtInName);
 					if(2<=vm.loglev)console.log('viewing.tokens.push localName (not part of View, FIXME): '+view.fn.localName);
 				}else{
 					//viewing.tokens.push('[');
 					//viewing.tokens.push(']');
-					viewing.tokens.push('[]');
+					//FIXME [] isnt technically a name, but i'm using it as an abbrev of Infcur.
+					viewing.tokens.push('[]'); //localName is normally 'Infcur'
+					//displayedAsLiteralOrNameAlready = true;
 					if(2<=vm.loglev)console.log('viewing.tokens.push Infcur as []');
 				}
+				//doName = true;
 			}
 			
 			//let pushedPound = false;
 			let earlyTokens = [];
-			if(!view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName){
+			if(!view.hasDefinedBeforeUsingName){
 				/*if(doName){
 					use earlyTokens to move this farther below
 					viewing.tokens.push('#');
@@ -7955,7 +7979,7 @@ const Wikibinator203 = (()=>{
 							earlyTokens.push('0x'+vm.cbtToHex(view.fn));
 						}else{
 							//if(!didPushLocalName){
-							if(!doName){
+							if(!view.fn.localName){
 								//for(let i=0; i<16; i++) vm.cbt4[i].localName = '0b'+(''+(16+i).toString(2)).substring(1); //0b0000 to 0b1111
 								throw 'Is a cbt that should be displayed as 0b0, 0b1, ob00, ob01, ob10, or 0b11. Bigger would display as cbtToHex. But that should be its localName, and it doesnt have one.';
 							}
@@ -7992,7 +8016,7 @@ const Wikibinator203 = (()=>{
 				}else if(vm.o8IsOfTypeval(FN.o8()) && FN.cur()==9){
 					//Dont include Typeval or (Typeval Type) but do include (Typeval Type Val).
 					let content = FN.r;
-					switch(FN.l){
+					switch(FN.L()){
 						//TODO more cases for more Typeval types that have a syntax, such as quotedStringLiteral thats not too big.
 						case vm.typeDouble:
 							//content.n.bytes() should be the 8 bytes of a double,
@@ -8013,33 +8037,34 @@ const Wikibinator203 = (()=>{
 					}
 				}
 				//Would do both, name and define what is named that, if it was given a view.fn.localName from an earlier tostring.
-				//if((!doName || !view.fn.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+				//if((!doName || !view.fn.hasDefinedBeforeUsingName) && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
 			}
 
+			//[X#(Pair abc) [X L 6 6 a a a]]
 
-
-			let displayChilds = !(view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName) &&
-				!view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
-			//let displayChilds = !view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName &&
-			//	!view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
+			let displayChilds = !view.hasDefinedBeforeUsingName && !view.builtInName && !isLiteral && !isTypevalDisplayedAsLiteral;
 			
-			let displayPound = doName && (displayChilds || earlyTokens.length); //If theres a name and something will be displayed after it, put # between.
+			//let displayPound = view.hasDefinedBeforeUsingName && (displayChilds || earlyTokens.length); //If theres a name and something will be displayed after it, put # between.
+			let displayPound = view.fn.localName && (displayChilds || earlyTokens.length); //If theres a name and something will be displayed after it, put # between.
 			
 			if(displayPound){
 				viewing.tokens.push('#');
 			}
 			//let set_hasDefinedBefore = false;
 			if(earlyTokens.length){
-				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				//displayedAsLiteralOrNameAlready = true;
+				//not everything that goes in earlyTokens is a name. Some are literals. view.hasDefinedBeforeUsingName = true;
 				//set_hasDefinedBefore = true;
 				for(let token of earlyTokens){
 					viewing.tokens.push(token); //early cuz delayed until #, but didnt know if would display # until displayPound is calculated.
 				}
 			}
 			
-			//if(!view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
+			//if(!view.hasDefinedBeforeUsingName && !view.builtInName){ //!view.builtInName (such as 'S') cuz dont define below that.
 			if(displayChilds){ //!view.builtInName (such as 'S') cuz dont define below that.
-				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				if(view.fn.localName){
+					view.hasDefinedBeforeUsingName = true;
+				}
 				//set_hasDefinedBefore = true;
 				/*if(doName && !pushedPound){
 					//# like in... [(Pair Pair) (F F) CallParamOnItself#{I#(F U) I}]
@@ -8146,7 +8171,7 @@ const Wikibinator203 = (()=>{
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
 					break; case 'T1':
 						viewing.tokens.push(',');
-						this.viewToStringRecurse(view.r(), viewing, syty, );
+						this.viewToStringRecurse(view.r(), viewing, syty, true);
 					break; case 'C': case 'S1': //C is normal call (a b c d e) aka ((((a b) c) d) e)
 						if(view.builtInName){
 							viewing.tokens.push(view.builtInName);
@@ -8163,8 +8188,8 @@ const Wikibinator203 = (()=>{
 						throw 'Unknown syntaxtype: '+syty;
 				}
 				//so dont define it again, just use name, until the next tostring which should set
-				//all relevant hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName to false so they get defined again.
-				//view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				//all relevant hasDefinedBeforeUsingName to false so they get defined again.
+				//view.hasDefinedBeforeUsingName = true;
 			}
 			/*if(set_hasDefinedBefore){
 				//do it here, instead of in the above code, in case of things like [X#(Pair L) [X L]]
@@ -8173,7 +8198,7 @@ const Wikibinator203 = (()=>{
 				//just that have been defined before,
 				//so there was no name of the [...] even though there was a name of the stuff inside it.
 				//I need to choose to either generate a name or display it multiple times.
-				view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName = true;
+				view.hasDefinedBeforeUsingName = true;
 			
 				/* Bugs related to set_hasDefinedBefore...
 				
@@ -8223,7 +8248,7 @@ const Wikibinator203 = (()=>{
 				
 				2022-12-13-935aEST Fixed this by checking doName in the displayChilds condition.
 				Its not enough that it existed earlier in the code. It must also have been named, else display duplicate.
-				//let displayChilds = !(view.hasDefinedBeforeUsingName_todoRenameThisToNotSayUsingName && doName) &&
+				//let displayChilds = !(view.hasDefinedBeforeUsingName && doName) &&
 				Now "[X#(Pair L) [(Pair L) L]]" and "[X#(Pair L) [X L]]" both display as "[X#(Pair L) [X L]]".
 			}*/
 			
@@ -8290,7 +8315,8 @@ const Wikibinator203 = (()=>{
 		]*/
 		
 		
-		
+		//TODO 2012-12-14 "state" should use Treemap/EmptyTreemap or vm.Mut optimization of it.
+		//
 		//val is typedblob is normally something like
 		//(TypevalB application/x-IEEE754-doubles 0x4012449ba5e353f84012449ba5e353f84012449ba5e353f88000000000000000)
 		//aka a double[3] with 3 specific doubles in it and padding to next powOf2 size.
@@ -8299,16 +8325,22 @@ const Wikibinator203 = (()=>{
 			throw 'TODO see stateGet';
 		};
 		
+		//TODO 2012-12-14 "state" should use Treemap/EmptyTreemap or vm.Mut optimization of it.
+		//
 		vm.stateObKeyVal = function(state, ob, key, val){
 			throw 'TODO see stateGet';
 		};
 		
+		//TODO 2012-12-14 "state" should use Treemap/EmptyTreemap or vm.Mut optimization of it.
+		//
 		//put key=val
 		//a [...state...] list
 		vm.stateKeyVal = function(state, key, val){
 			throw 'TODO see stateGet';
 		};
 		
+		//TODO 2012-12-14 "state" should use Treemap/EmptyTreemap or vm.Mut optimization of it.
+		//
 		//get val of it
 		vm.stateKey = function(state, key){
 			if(state.n.hasAtMost7Params()) return U;
@@ -8549,7 +8581,8 @@ const Wikibinator203 = (()=>{
 		
 		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		vm.Parsing.prototype.isUnaryToken = function(token){
-			return token=='_' || token=='?' || token==',';
+			//: is like not having whitespace between 2 things: _[a b c] vs _:[a b c] vs (_ [a b c]) are all equal. TODO add those syntaxes.
+			return token=='_' || token=='?' || token==',' || token==':';
 		};
 
 		vm.Parsing.prototype.toString = function(token){
@@ -8570,6 +8603,19 @@ const Wikibinator203 = (()=>{
 		vm.Parsing.prototype.onParsedFn = function(fn){
 			if(!this.stack.length) this.stack.push(fn);
 			else this.stack.push(this.stack.pop()(fn));
+		};
+		
+		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
+		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
+		//The unaryTokens include '_' (aka Seq) and ',' (aka T)
+		//and maybe '?' but that might be more similar to # syntax and related to <...>.
+		//See vm.opInfo for those strings.
+		//return token.length != 1 || '_?,(){}[]<>'.includes(token);
+		//
+		vm.isLoneToken = token=>(!vm.strIsAllWhitespace(token) && !vm.isListBorderToken[token]);
+			
+		vm.Parsing.prototype.isLoneToken = function(token){
+			return vm.isLoneToken(token);
 		};
 		
 		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
@@ -8637,12 +8683,22 @@ const Wikibinator203 = (()=>{
 			this.maxParseSteps--;
 		};
 		
+		//TODO reorganize similar code between here and in Parsing.
+		vm.isPushToken = token=>!!vm.pushTokenToPopToken[token];
+		
+		vm.isPopToken = token=>!!vm.popTokenToPushToken[token];
+		
 		vm.pushTokenToPopToken = {
 			'(': ')',
 			'{': '}',
 			'[': ']',
 			'<': '>',
 		};
+		
+		vm.popTokenToPushToken = {}; //inverse map of pushTokenToPopToken
+		for(let pushToken in vm.pushTokenToPopToken){
+			vm.popTokenToPushToken[vm.pushTokenToPopToken[pushToken]] = pushToken;
+		}
 		
 		vm.isListBorderToken = {};
 		for(let token in vm.pushTokenToPopToken){
@@ -8757,6 +8813,162 @@ const Wikibinator203 = (()=>{
 		//as those can be any lambdas even if they arent strings. This takes a string param.
 		vm.isValidLocalName = name=>(0<name.length && name.length<=vm.maxNameChars && !vm.strContainsWhitespace(name) && vm.charIsNamePrefix(name[0]));
 		
+		//returns a [] of ints, same size as tokens list. The int at '(' points at index of ')'. The int at ')' points at index of '(',
+		//and same for [ ] { } < > etc. Everything else points at itself, such as ' ', ':', or 'Name#'.
+		vm.tokensListToPushPopPointers = tokens=>{
+			let ints = [];
+			for(let i=0; i<tokens.length; i++) ints.push(-1);
+			vm.tokensListToPushPopPointers_internal(tokens, {i:0}, ints); //fill ints
+			return ints;
+		};
+		
+		//start with vars being {i:0} and it modifies that to count up to tokens.length while filling ints.
+		//ints.length===tokens.length.
+		vm.tokensListToPushPopPointers_internal = (tokens,vars,ints)=>{
+			while(vars.i<tokens.length){
+				/*while(vars.i<tokens.length && !vm.isListBorderToken[tokens[vars.i]]){ //listbordertokens as of 2022-12-14 are [ ] { } ( ) < >
+					ints[vars.i] = vars.i; //"Everything else points at itself, such as ' ', ':', or 'Name#'."
+					vars.i++;
+				}*/
+				if(vars.i === tokens.length){
+					break;
+				}
+				if(vm.isPopToken(tokens[vars.i])){
+					break;
+				}else if(vm.isPushToken(tokens[vars.i])){
+					let observedPushTokenI = vars.i;
+					let observedPushToken = tokens[observedPushTokenI];
+					vars.i++;
+					let expectPopToken = vm.pushTokenToPopToken[observedPushToken];
+					while(vars.i<tokens.length && !vm.isPopToken(tokens[vars.i])){
+						if(vm.isPushToken(tokens[vars.i])){
+							vm.tokensListToPushPopPointers_internal(tokens,vars,ints);
+						}else if(vm.isPopToken(tokens[vars.i])){
+							//throw 'Shouldnt be popToken='+tokens[vars.i]+' at i='+vars.i;
+							break; //ok if its expectPopToken, else will throw
+						}else{
+							ints[vars.i] = vars.i; //point at itself. its a ' ', ':', or 'Name#' etc.
+							vars.i++;
+						}
+					}
+					let popI = vars.i;
+					let observedPopToken = tokens[popI];
+					vars.i++;
+					if(observedPopToken != expectPopToken){
+						throw 'for observedPushToken='+observedPushToken+' (i='+observedPushTokenI+'),'+
+							observedPopToken+' == observedPopToken != expectPopToken == '+expectPopToken+' at popI='+popI;
+					}
+					ints[popI] = observedPushTokenI;
+					ints[observedPushTokenI] = popI;
+				}else{
+					//throw 'Dont know what to do with tokens['+vars.i+']='+tokens[vars.i];
+					ints[vars.i] = vars.i; //"Everything else points at itself, such as ' ', ':', or 'Name#'."
+					vars.i++;
+				}
+			}
+		};
+		
+		//Preprocessing of tokens list from wikib code string, to make unary syntax look like (...) syntax. Doesnt modify param.
+		//Cuz of this, there is no parsing.listType==':'.
+		//Example: [',', ',', '_'] in ',,_[a b c]', should eval to (, (, (_ [a b c]))) but display as ,,_[a b c],
+		//so if it sees [',', ':', ',', '_', '[', 'a', ' ', 'b', ' ', 'c', ']'] then it will put the extra '(' and ')' etc there.
+		vm.expandTokensListForUnary = tokensIn=>{
+			let tokensOutReverse = [];
+			//goes backward from end of tokensIn cuz thats the order unary is computed
+			let pushPopPtrs = vm.tokensListToPushPopPointers(tokensIn); //at a ( these ints tell where the matching ) is, for ( ) [ ] { } < >. Others point at self.
+			vm.expandTokensListForUnary_internal(tokensIn, tokensIn.length-1, pushPopPtrs, tokensOutReverse);
+			return tokensOutReverse.reverse(); //forward. modifies array.
+		};
+		
+		//vars.i starts as tokensIn.length-1 and decreases until -1 when it ends, just past the first input token.
+		//vars starts as {i:(tokensIn.length-1)} and counts down, traversing the tree of ( ) [ ] { } < > etc,
+		//until reaching -1 just before the first token.
+		vm.expandTokensListForUnary_internal = (tokensIn, vars, pushPopPtrs, tokensOutReverse)=>{
+			//pushPopPtrs has already done most of the work.
+			//
+			//Whats left is ':' (means same as no whitespace between them but still use them as separate tokens), ' ',
+			//'Name#' (defining a name), 'Name' (using a name), and literals(such as 2.34 '"hello world"', 0b1101, 0x2233fcd9.
+			//
+			//'Name#' should be used as part of the same thing as to its right, like Name#[a b c].
+			//':' should be skipped, have the same effect as if it wasnt there.
+			//' ' or the matching start/end of a [ ] { } ( ) < > of the list we're inside now, means unary doesnt go past there.
+			//Indexes of matching [ ] { } ( ) < > are in pushPopPtrs, and should be used to call this recursively.
+			//Everything else is a literal (string, number, cbt/blob/bitstring, Name (without #)
+			//	and is used the same as a matching (...) [...] etc, which unary can be between.
+			//
+			//The work expandTokensListForUnary_internal does is to recurse into the tree of (... [ ... ] ... ) etc,
+			//and fill tokensOutReverse (in reverse order they occur in tokensIn, for efficiency),
+			//while putting extra ( ... ) where unary happens. It doesnt put extra [ ] { } or < >, only extra ( ).
+			//( ) is normal callpair. [ ] is infcur list. { } is sCurryList.
+			//<a b c> means {,a b c} and is a shorter way to write some sCurryLists since that happens very often.
+			//So expandTokensListForUnary_internal is creating normal callpairs, starting at the right 2 at a time,
+			//wherever it finds unary syntax, such as [x y ,_[a b c]d z] becomes [x y (, (_ ([a b c] d))) z]
+			//which evals to [x y (, (_ [a b c d])) z]
+			//in that case cuz [] aka infcurList just keeps appending whatever its called on.
+			
+			throw 'FIXMEFIXME as its it has to know to insert ) or not, before it recurses. Maybe it should count the number of unary calls first using pushPopPtrs?';
+			/*
+			
+			throw 'FIXMEFIXME';
+			FIXMEFIXME
+			
+			//vm.isLoneToken(token) is true for all those except 
+			fixmefixme
+			
+			while(i>=0 && vm.strIsAllWhitespace(tokensIn[i])){ //skip whitespace
+				i--;
+			}
+			//FIXME dont allow "Name# [a b c]". It must be "Name#[a b c]" instead, cuz whitespace or the lack of it is part of unary syntax.
+			//while(i>=0 && IsAllWhitespace(tokensIn[i]) || tokensIn[i].endsWith('#'))){ //skip Name#
+			//	i--;
+			//}
+			if(vm.isLoneToken(tokensIn[i])){
+				tokensOutReverse.push(tokensIn[i]);
+			}else if(tokensIn[i] == ':'){
+				throw 'TODO : syntax which is same as there not being whitespace to use unary syntax, which you need if its not _ , ? etc, such as +[?varX ?varY <* ...>]';
+			}else{
+				while(i>=0 && (vm.strIsAllWhitespace(tokensIn[i]) || tokensIn[i].endsWith('#'))){ //skip whitespace and Name#
+				}
+			}
+			/*}else if(vm.isPopToken(tokensIn[i])){
+				let popToken = tokensIn[i];
+				let pushToken = vm.popTokenToPushToken(popToken);
+				while(){
+				}
+				throw 'FIXMEFIXME';
+			}else{
+				throw 'Unknown what to do at tokensIn['+i+']='+tokensIn[i];
+			}
+			
+			
+			throw 'FIXMEFIXME';
+			/*
+			while(i>=0 && vm.strIsAllWhitespace(tokensIn[i])){ //skip whitespace
+				i--;
+			}
+			//FIXME dont allow "Name# [a b c]". It must be "Name#[a b c]" instead, cuz whitespace or the lack of it is part of unary syntax.
+			//while(i>=0 && IsAllWhitespace(tokensIn[i]) || tokensIn[i].endsWith('#'))){ //skip Name#
+			//	i--;
+			//}
+			if(vm.isLoneToken(tokensIn[i])){
+				tokensOutReverse.push(tokensIn[i]);
+			}else if(tokensIn[i] == ':'){
+				throw 'TODO : syntax which is same as there not being whitespace to use unary syntax, which you need if its not _ , ? etc, such as +[?varX ?varY <* ...>]';
+			}else{
+				while(i>=0 && (vm.strIsAllWhitespace(tokensIn[i]) || tokensIn[i].endsWith('#'))){ //skip whitespace and Name#
+				}
+			}
+			/*}else if(vm.isPopToken(tokensIn[i])){
+				let popToken = tokensIn[i];
+				let pushToken = vm.popTokenToPushToken(popToken);
+				while(){
+				}
+				throw 'FIXMEFIXME';
+			}else{
+				throw 'Unknown what to do at tokensIn['+i+']='+tokensIn[i];
+			}*/
+		};
+		
 		//returns a vm.Parsing or null. Returns null if its all whitespace from current position, so dont add that to childs list.
 		//This is a redesign of parse function, to split it into 2 steps, parsing into tree, then evaling.
 		//This is thue "parsing into tree" step. Param is list of string such as:
@@ -8766,15 +8978,45 @@ const Wikibinator203 = (()=>{
 		//TODO??? Takes vm.Parsing as param.
 		//OLD: 0 <= from && from < tokens.length.
 		//returns a vm.ParseTree. Calls itself recursively.
+		//
+		//2022-12-14 this isnt handling the unary syntax, such as ,,_[a b c] means (, (, (_ [a b c]))) but displays as ,,_[a b c],
+		//so I'm going to put that in a func called before this, which adds tokens in some cases.
 		vm.Viewer.prototype.tokensToParseTree = function(parsing){
 			//FIXME handle ':'/'' syntax.
-			
-			let firstToken = parsing.tokens[parsing.from];
+			let toks = parsing.tokens;
+			let firstToken = toks[parsing.from];
 			try{
+				//let skippedWhitespace = false;
+				/*vm.Parsing.prototype.isUnaryToken = function(token){
+					//: is like not having whitespace between 2 things: _[a b c] vs _:[a b c] vs (_ [a b c]) are all equal. TODO add those syntaxes.
+					return token=='_' || token=='?' || token==',' || token==':';
+				};*/
 				while(vm.strIsAllWhitespace(firstToken)){
-					firstToken  = parsing.tokens[++parsing.from]; //skip whitespace
+					firstToken  = toks[++parsing.from]; //skip whitespace
+					skippedWhitespace = true;
 				}
-				if(parsing.from >= parsing.tokens.length){
+				
+				/*
+				//Example: [',', ',', '_'] in ',,_[a b c]', should eval to (, (, (_ [a b c]))) but display as ,,_[a b c]
+				//So if unaryPrefixes is nonempty, then whenever it finishes parsing whats after the unary stuff (or if the unary stuff is by itself),
+				//makes callpair with the right 2, then makes callpair with the one just left of that and that callpair it just made, and so on,
+				//but... since this returns a vm.Parsing, not an evaled form, its still strings, so make a new list type.
+				let unaryPrefixes = [];
+				while(1+parsing.from<toks.length){
+					let token = toks[1+parsing.from];
+					if(token == ':'){ //: is the same as having no whitespace between 2 tokens, to do them as unary, BUT it can only be used between 
+						
+					}else if(parsing.isUnaryToken(toks[1+parsing.from])){
+					}else{
+						break;
+					}
+				}
+				//while(1+parsing.from<toks.length && parsing.isUnaryToken(toks[1+parsing.from])){
+				//	unaryPrefixes.push(toks[++parsing.from]);
+				//}
+				*/
+				
+				if(parsing.from >= toks.length){
 					//throw 'cant parse all whitespace at end. shouldnt have called tokensToParseTree that last time.';
 					return null;
 				}
@@ -8788,7 +9030,7 @@ const Wikibinator203 = (()=>{
 						//FIXME update comments in vm.Parsing cuz not including # at end
 						ret.defineNameToken = firstToken.substring(0,firstToken.length-1);
 					}
-					firstToken = parsing.tokens[++parsing.from]; //after the AName# or AName## is whatever its the name of.
+					firstToken = toks[++parsing.from]; //after the AName# or AName## is whatever its the name of.
 				}
 				if(parsing.isLoneToken(firstToken)){ //FIXME isLoneToken, should it match whitespace? if so, its only matching ' ' but not '\n' or '\t' etc.
 					//if(vm.isCapitalLetter(firstToken[0])){
@@ -8798,28 +9040,33 @@ const Wikibinator203 = (()=>{
 						ret.literalToken = firstToken;
 					}
 				}else if(parsing.isPushToken(firstToken)){ //One of '{', '[', '(', '<', but doesnt handle ':'/'' here despite its also a listType.
+					
+					//OLD: The ':' listType will be used if 
 					//pushToken. but ':' is not a push or pop token, despite its still a listType, so not doing that here.
+					//Its OLD cuz... "Preprocessing of tokens list from wikib code string, to make unary syntax look like (...) syntax. Doesnt modify param.
+					//Cuz of this, there is no parsing.listType==':'."
+					
 					let observePushToken = firstToken;
 					let observePushToken_tokenIndex = parsing.from;
 					console.log('Start observePushToken='+observePushToken+' at observePushToken_tokenIndex='+observePushToken_tokenIndex);
 					ret.listType = observePushToken;
 					let expectPopToken = vm.pushTokenToPopToken[observePushToken]; //FIXME move pushTokenToPopToken into vm.Viewing or vm.Parsing etc, but consider what uses it might not be able to reach that.
 					parsing.from++; //dont need parsing.toExcl in tokensToParseTree but may have needed it in the old design.
-					//while(parsing.from < parsing.tokens.length && parsing.tokens[parsing.from] != popToken){
+					//while(parsing.from < toks.length && toks[parsing.from] != popToken){
 					let observedPopToken = null;
-					//while(parsing.from < parsing.tokens.length && !parsing.isPopToken(observedPopToken=parsing.tokens[parsing.from])){
+					//while(parsing.from < toks.length && !parsing.isPopToken(observedPopToken=toks[parsing.from])){
 					while(true){
 						
 						//TODO? rename observedPopToken to popToken? cuz its every token until and including the popToken,
 						//other than recursing in (...) [...] etc whic is handled by tokensToParseTree.
-						observedPopToken = parsing.tokens[parsing.from];
+						observedPopToken = toks[parsing.from];
 
 						console.log('possible (looking for a) observedPopToken='+observedPopToken+' parsing='+parsing);
 						if(observedPopToken === undefined){
 							throw 'observedPopToken is undefined, parsing='+parsing;
 						}
-						if(parsing.from == parsing.tokens.length){
-							console.log('break while cuz, parsing.from == parsing.tokens.length and observePushToken='+observePushToken+' ('+observePushToken_tokenIndex+') expectPopToken='+expectPopToken);
+						if(parsing.from == toks.length){
+							console.log('break while cuz, parsing.from == toks.length and observePushToken='+observePushToken+' ('+observePushToken_tokenIndex+') expectPopToken='+expectPopToken);
 							break;
 						}
 						if(parsing.isPopToken(observedPopToken)){
@@ -8845,8 +9092,8 @@ const Wikibinator203 = (()=>{
 						throw observePushToken+' doesnt match '+observedPopToken+', expected '+expectPopToken+', parsedSoFar='+ret+', parsing='+parsing;
 					}
 					//parsing.from++;
-					//console.log('increment parsing.from to '+parsing.from+' and setting observedPopToken to '+parsing.tokens[parsing.from]);
-					//observedPopToken = parsing.tokens[parsing.from];
+					//console.log('increment parsing.from to '+parsing.from+' and setting observedPopToken to '+toks[parsing.from]);
+					//observedPopToken = toks[parsing.from];
 				}
 				parsing.from++; //does parsing.from++ at end, so is just past what it parsed
 				if(!ret.defineCommentAndNameToken && !ret.defineNameToken && !ret.listType && !ret.literalToken && !ret.useExistingNameToken){
@@ -9889,6 +10136,12 @@ const Wikibinator203 = (()=>{
 		vm.temp = {};
 		vm.temp.breakpointOn = false; //used in some browser debugger conditional breakpoints
 		vm.temp.skipTestEval = true; //FIXME
+		
+		vm.test('test_tokensListToPushPopPointers',
+			vm.tokensListToPushPopPointers(['(','hello',' ','[','(',')','a',' ','b','c',']',')','world'])+'',
+			'11,1,2,10,5,4,6,7,8,9,3,0,12');
+		//'(','hello',' ','[','(',')','a',' ','b','c',']',')','world'
+		//11 ,1      ,2  ,10 ,5  ,4  ,6  ,7  ,8  ,9  ,3  ,0  ,12
 		
 		//a few basic tests...
 		vm.test('tie the quine knot', vm.identityFunc, l(u));
