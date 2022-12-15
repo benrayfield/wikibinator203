@@ -7735,8 +7735,21 @@ const Wikibinator203 = (()=>{
 		//FIXME dont include any names by default. But for now, including all the op names (in vm.ops),
 		//cuz the Name# system isnt working yet.
 		vm.newDefaultNamespace = function(){
+			//if(!vm.booted) throw 'vm not booted yet';
 			let ret = {};
-			for(let opName in vm.ops) ret[opName] = vm.ops[opName];
+			//ret.VmBooted = vm.bit(vm.booted); //FIXME dont put vm internals where user level code can see them... but vm.eval isnt reachable from user level code.
+			for(let opName in vm.ops){
+				let op = vm.ops[opName];
+				
+				//commentedout cuz localName isnt defined yet?
+				//if(op.localName != opName){
+				//	throw op.localName+' == op.localName != opName_in_vmDotOps == '+opName;
+				//}
+				
+				ret[opName] = op;
+				let otherName = op.opAbbrev; //Example: ',' in vm.ops.T
+				if(otherName && !ret[otherName]) ret[otherName] = op; //opName overpowers opAbbrev if theres overlap
+			}
 			return ret;
 		};
 		
@@ -7749,9 +7762,11 @@ const Wikibinator203 = (()=>{
 			let ret = [];
 			let i = 0;
 			while(i < tokens.length-1){
-				if(!(vm.strIsAllWhitespace(tokens[i]) && (vm.strIsAllWhitespace(tokens[i+1]) || vm.isPopToken(tokens[i+1])))){
-					ret.push(tokens[i]);
-				}//else skip that whitespace since its before [whitespace or pop token].
+				if(!vm.isIgnoreToken(tokens[i])){ //if its not ':' (or might add more ignored tokens later)
+					if(!(vm.strIsAllWhitespace(tokens[i]) && (vm.strIsAllWhitespace(tokens[i+1]) || vm.isPopToken(tokens[i+1])))){
+						ret.push(tokens[i]);
+					}//else skip that whitespace since its before [whitespace or pop token].
+				}
 				i++;
 			}
 			ret.push(tokens[tokens.length-1]);
@@ -7767,28 +7782,122 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		
+		/*
+		//2022-12-15 I'm going to add ParseTree.isUnaryRight = true or false, instead of using vm.expandTokensListForUnary.
+		//
 		//TODO also the : syntax which is same as having no whitespace between 2 things, like ab:cd cuz abcd would be a single token,
 		//and similarly ,:,:_:[a b c] or ,:,_:[a b c] would be same as ,,_[a b c].
-		//vm.preprocessTokensForUnarySyntax = true;
-		vm.preprocessTokensForUnarySyntax = false;
+		vm.preprocessTokensForUnarySyntax = true;
+		//vm.preprocessTokensForUnarySyntax = false;
 		if(!vm.preprocessTokensForUnarySyntax) console.log(
 			'WARNING: vm.preprocessTokensForUnarySyntax is off. You might do that if theres parsing problems for testing. So ,,_[a b c] would be parsed as (, , _ [a b c]) instead of (, (, (_ [a b c]))).');
+		*/
+		
+		//2022-12-15 I'm going to add ParseTree.isUnaryRight = true or false, instead of using vm.expandTokensListForUnary and vm.preprocessTokensForUnarySyntax.
+		//
+		vm.postprocessParseTreeForUnarySyntax = true; //if its working, should be true
+		//vm.postprocessParseTreeForUnarySyntax = false; //use false for testing if theres parsing problems
 	
 		
 		//returns a vm.ParseTree
 		vm.parse = function(wikibinator203CodeString){
 			wikibinator203CodeString = wikibinator203CodeString.trim();
+			if(wikibinator203CodeString == '') throw 'Empty wikibinator203CodeString';
+			if(!vm.isPushToken(wikibinator203CodeString[0])){
+				//so if code string is ',hello' then it knows not to stop after , aka T.
+				//isLoneToken(',') is true, but (,hello) keeps going like in (, hello).
+				//Even if it adds extra (((...))) that will be removed in eval, such as ',hello' parses to '((, hello))' evals to ',hello'.
+				wikibinator203CodeString = '('+wikibinator203CodeString+')';
+			}
 			//return vm.getViewer().eval(wikibinator203CodeString);
 			let v = vm.getViewer();
 			let rawTokens = v.tokenize(wikibinator203CodeString);
 			let tokens = vm.filterTokens(rawTokens); //remove whitespace before ], for example, which would make it parse wrong.
 			vm.verifyTokensListHasNoDuplicateNames(tokens);
-			if(vm.preprocessTokensForUnarySyntax){
-				tokens = vm.expandTokensListForUnary(tokens);
-			}
+			
+			//2022-12-15 I'm going to add ParseTree.isUnaryRight = true or false, instead of using vm.expandTokensListForUnary.
+			//
+			//if(vm.preprocessTokensForUnarySyntax){
+			//	tokens = vm.expandTokensListForUnary(tokens);
+			//}
+			
 			let parsing = new vm.Parsing(tokens); //doesnt do much yet. just wrap the tokens.
-			return v.tokensToParseTree(parsing);
+			let parseTree = v.tokensToParseTree(parsing);
+			if(vm.postprocessParseTreeForUnarySyntax){
+				parseTree = parseTree.foldUnaryDeep();
+			}
+			return parseTree;
 		};
+		
+		//Its a unary right if theres a whole fn/lambda left of it before theres whitespace.
+		//Call this on a lone token (like '2.34') or a pushToken (like '{' or '['
+		//is tokens[i] the middle (':' or 'Name#') or right ('{' '[' '2.34' etc)? Only if to the left is another fn/lambda without whitespace between. 
+		vm.isUnaryMiddleOrRight = (tokens,i)=>{
+			let j = i;
+			while(j>0 && tokens[j] == ':') j--; //dont know why that would be there but just in case
+			if(j===0) return false;
+			if(vm.isPushToken(tokens[j]) || vm.isLoneToken(tokens[j])) j--; //skip 2.34 or [ etc. FIXME does isLoneToken include 'Name#'? Should that count here?
+			if(j<0) return false;
+			if(tokens[j].endsWith('#')) j--; //skip Name#
+			
+			//FIXME this could have bugs where theres unexpected whitespace..
+			if(j<0) return false;
+			if(vm.strIsAllWhitespace(tokens[j]) || vm.isPushToken(tokens[j])) return false;
+			return true;
+			
+			
+			/*if(tokens[j] == ':') return true; //FIXME
+			
+			if(tokens[i])
+			
+			let foundMiddleOrRight = false;
+			let foundWhitespaceAfter_middleOrRight = false;
+			let step = 0;
+			while(j>=0){
+				let t = tokens[j];
+				//let isWhitespace = vm.strIsAllWhitespace(t);
+				//let isPartOfLambda = !isWhitespace && t!=':';
+				switch(step){
+					break;case 0:
+						//if(isWhitespace) throw 'Dont start at whitespace, tokens['+j+']';
+						//if(isPartOfLambda) step++;
+						if(vm.strIsAllWhitespace(t)) throw 'Dont start at whitespace, tokens['+j+']';
+					break;case 1:
+						//if(
+					break;case 2:
+					break;default:
+						throw 'This should never happen';
+				}
+				
+				/*
+				if(t == ':'){
+					//ignore
+				}else{
+					if(foundMiddleOrRight){
+						if(foundWhitespaceAfter_middleOrRight){
+							
+						}else{
+							if(vm.strIsAllWhitespace(t){
+								foundWhitespaceAfter_middleOrRight = true;
+							}else{
+								//vm.isPopToken(t) || vm.isLoneToken(t)){
+								//return 
+							}
+						}
+					}else{ //check for middle or right
+						if(vm.strIsAllWhitespace(t)){
+							return false;
+						}else if(t.endsWith('#') || vm.isPushToken(t) || vm.isLoneToken(t)){
+							foundMiddleOrRight = true;
+						}else{
+							throw 'Dont understand tokens['+j+']='+t;
+						}
+					}
+				}*
+				j--;
+			}*/
+		};
+		
 		
 		//vm.afterParse(vm.parse(wikibinator203CodeString,optionalNamespace)) is same as 
 		//vm.afterParse = function(wikibinator203CodeString){
@@ -7797,6 +7906,7 @@ const Wikibinator203 = (()=>{
 		//
 		//Normally implemented in vm.Viewer.prototype.eval
 		vm.eval = function(wikibinator203CodeString,optionalNamespace){
+			if(!vm.booted) throw 'Cant call vm.eval before vm.booted becomes true, and you shouldnt set that to true earlier cuz its likely to break stuff thats harder to track down. Move test cases that use vm.eval to after that line that sets it to true. wikibinator203CodeString='+wikibinator203CodeString;
 			wikibinator203CodeString = wikibinator203CodeString.trim();
 			if(!wikibinator203CodeString) return vm.identityFunc;
 			let parseTree = vm.parse(wikibinator203CodeString);
@@ -8582,7 +8692,9 @@ const Wikibinator203 = (()=>{
 		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		vm.Parsing.prototype.isUnaryToken = function(token){
 			//: is like not having whitespace between 2 things: _[a b c] vs _:[a b c] vs (_ [a b c]) are all equal. TODO add those syntaxes.
-			return token=='_' || token=='?' || token==',' || token==':';
+			//return token=='_' || token=='?' || token==',' || token==':';
+			//FIXME should '.' be a unary token? it occurs in 2.34 but is not meant that way. should only be if its in prefix.
+			return token=='_' || token==',' || token==':';
 		};
 
 		vm.Parsing.prototype.toString = function(token){
@@ -8605,6 +8717,7 @@ const Wikibinator203 = (()=>{
 			else this.stack.push(this.stack.pop()(fn));
 		};
 		
+		//FIXME should this include 'Name#' and ':' which are not lambdas by themself?
 		//a lone token is push and pop of itself, so is 1 less params after it than isUnaryToken.
 		//FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 		//The unaryTokens include '_' (aka Seq) and ',' (aka T)
@@ -8613,6 +8726,12 @@ const Wikibinator203 = (()=>{
 		//return token.length != 1 || '_?,(){}[]<>'.includes(token);
 		//
 		vm.isLoneToken = token=>(!vm.strIsAllWhitespace(token) && !vm.isListBorderToken[token]);
+		
+		//token is ignored other than to stop the text before and after it from being merged into 1 token,
+		//like X:Y:hello is parsed as (X (Y hello)) instead of XYhello, for unary syntax starting from the right and going left.
+		//Normally that syntax is used with , _ and a few others, like ,hello is (, hello) or _[a b c] is (_ [a b c]),
+		//but that built in syntax only works for a few symbols. For others you can use : or ( ).
+		vm.isIgnoreToken = token=>(token==':');
 			
 		vm.Parsing.prototype.isLoneToken = function(token){
 			return vm.isLoneToken(token);
@@ -8752,7 +8871,8 @@ const Wikibinator203 = (()=>{
 		//vm.Parsing.prototype.logStackSizeEtc = function(){
 		//	console.log('STACKSIZE '+parsing.stack.length+' maxParseStepsLeft='+parsing.maxParseSteps);
 		//};
-		
+
+		/*
 		//string -> fn.
 		vm.Viewer.prototype.eval = function(wikibinator203CodeString){
 			let code = wikibinator203CodeString;
@@ -8784,6 +8904,7 @@ const Wikibinator203 = (()=>{
 			
 			return parsing.stack[0];
 		};
+		*/
 		
 		//TODO move this func to Parsing class?
 		vm.Viewer.prototype.maxParseStepsForNumTokens = function(numTokens){ return 5+3*numTokens; };
@@ -8794,7 +8915,9 @@ const Wikibinator203 = (()=>{
 		
 		//isCapitalLetter or 1 of these: ~ ! @ $ % ^ & * + =, or other chars on a common qwerty keyboard that arent syntax chars (# , etc)
 		//If you want to use the many unicode chars as names, prefix it by any of those, such as Nこんにちは世界.
-		vm.charIsNamePrefix = x=>/^([A-Z]|\Λ|\λ|\~|\!|\@|\$|\%|\^|\&|\*|\+|\=)$/.test(x);
+		//FIXME keep this in sync with vm.isUnaryToken or check that too.
+		vm.charIsNamePrefix = x=>/^([A-Z]|\Λ|\λ|\~|\!|\@|\$|\%|\^|\&|\*|\+|\=|\,|\_)$/.test(x);
+		//vm.charIsNamePrefix = x=>/^([A-Z]|\Λ|\λ|\~|\!|\@|\$|\%|\^|\&|\*|\+|\=|\,|\_|\?)$/.test(x);
 		
 		/*
 		//such as 'Aname#' in 'AName#(S T T)'. It used to be #Aname, but cuz of the order of parsing in : syntax,
@@ -8868,6 +8991,8 @@ const Wikibinator203 = (()=>{
 			}
 		};
 		
+		//2022-12-15 I'm going to add ParseTree.isUnaryRight = true or false, instead of using vm.expandTokensListForUnary.
+		//
 		//Preprocessing of tokens list from wikib code string, to make unary syntax look like (...) syntax. Doesnt modify param.
 		//Cuz of this, there is no parsing.listType==':'.
 		//Example: [',', ',', '_'] in ',,_[a b c]', should eval to (, (, (_ [a b c]))) but display as ,,_[a b c],
@@ -8880,6 +9005,8 @@ const Wikibinator203 = (()=>{
 			return tokensOutReverse.reverse(); //forward. modifies array.
 		};
 		
+		//2022-12-15 I'm going to add ParseTree.isUnaryRight = true or false, instead of using vm.expandTokensListForUnary.
+		//
 		//vars.i starts as tokensIn.length-1 and decreases until -1 when it ends, just past the first input token.
 		//vars starts as {i:(tokensIn.length-1)} and counts down, traversing the tree of ( ) [ ] { } < > etc,
 		//until reaching -1 just before the first token.
@@ -8985,6 +9112,7 @@ const Wikibinator203 = (()=>{
 			//FIXME handle ':'/'' syntax.
 			let toks = parsing.tokens;
 			let firstToken = toks[parsing.from];
+			let isUnaryRight = vm.isUnaryMiddleOrRight(toks,parsing.from);
 			try{
 				//let skippedWhitespace = false;
 				/*vm.Parsing.prototype.isUnaryToken = function(token){
@@ -9099,6 +9227,7 @@ const Wikibinator203 = (()=>{
 				if(!ret.defineCommentAndNameToken && !ret.defineNameToken && !ret.listType && !ret.literalToken && !ret.useExistingNameToken){
 					throw 'Didnt set any of the fields, retParsing=['+ret+']';
 				}
+				ret.isUnaryRight = isUnaryRight;
 				return ret;
 			}catch(e){
 				console.log('tokensToParseTree error '+e);
@@ -9130,10 +9259,56 @@ const Wikibinator203 = (()=>{
 			//and has no whitespace and is small enough, you dont need the quotes.
 			//If its like that but starts with capital letter, its a useExistingNameToken.
 			this.literalToken = null;
+			this.isUnaryRight = false;
 			this.listType = null; //One of '{', '[', '(', '<', ':', or null.
 			this.childs = [];
 		};
 		//vm.Tree.prototype.parseToMakeChilds = function(){
+			
+		vm.ParseTree.prototype.shallowCopy = function(){
+			let ret = new vm.ParseTree();
+			ret.defineNameToken = this.defineNameToken;
+			ret.defineCommentAndNameToken = this.defineCommentAndNameToken;
+			ret.useExistingNameToken = this.useExistingNameToken;
+			ret.literalToken = this.literalToken;
+			ret.isUnaryRight = this.isUnaryRight;
+			ret.listType = this.listType;
+			ret.defineCommentAndNameToken = this.defineCommentAndNameToken;
+			ret.childs = [...this.childs];
+			return ret;
+		};
+			
+		//This is unaryLeft. Param is unaryRight. Returns new ParseTree of the normal callpair of those.
+		vm.ParseTree.prototype.mergeUnary = function(unaryRight){
+			let ret = this.shallowCopy();
+			ret.listType = '('; //normal callpair (of unaryLeft and unaryRight)
+			ret.literalToken = null;
+			ret.useExistingNameToken = null;
+			ret.childs = [this, unaryRight];
+			return ret;
+		};
+			
+		//Where ParseTree.isUnaryRight is true (which tokensToParseTree sets to true or false),
+		//turn 2 siblings into a normal callpair, and continue left of that if still unary.
+		//,,_[a b c] and ,:,:_:[a b c] and ,:,_:[a b c] should be parsed as (, (, (_ [a b c]))). Return ParseTree.
+		vm.ParseTree.prototype.foldUnaryDeep = function(){
+			if(this.childs.length < 2) return this;
+			let newChildsReverse = []; //reverse for efficiency
+			for(let c=this.childs.length-1; c>=0; c--){
+				let x = this.childs[c];
+				while(x.isUnaryRight){
+					if(c === 0){
+						throw 'Cant isUnaryRight when its first child';
+					}
+					let unaryLeft = this.childs[--c];
+					x = unaryLeft.mergeUnary(x);
+				}
+				newChildsReverse.push(x);
+			}
+			let ret = this.shallowCopy();
+			ret.childs = newChildsReverse.reverse(); //modifies newChildsReverse
+			return ret;
+		};
 
 			
 		vm.ParseTree.prototype.toString = function(){
@@ -10125,8 +10300,11 @@ const Wikibinator203 = (()=>{
 		//let E = vm.eval; //lambda eval, string->fn
 		
 		vm.test = (testName, a, b)=>{
-			if(a === b) if(0<=vm.loglev)console.log('Test pass: '+testName+', both equal '+a);
-			else throw ('Test '+testName+' failed cuz '+a+' !== '+b);
+			if(a == b){
+				if(0<=vm.loglev)console.log('Test pass: '+testName+', both equal '+a);
+			}else{
+				throw ('Test '+testName+' failed cuz '+a+' != '+b);
+			}
 		};
 		
 		vm.testEval = (wikibinator203Code, shouldReturnThis)=>{
@@ -10173,6 +10351,9 @@ const Wikibinator203 = (()=>{
 		vm.test('callParamOnItself(pair)->pair(pair)', s(ident)(ident)(pair), pair(pair));
 		vm.test('callParamOnItself(pair)->pair(pair) 2 different identityFuncs', s(ident)(s(t)(t))(pair), pair(pair));
 		
+		let tt = ["(","Tm#","(","Treemap"," ","GodelLessThan",")"," ","Em#","(","EmptyTreemap"," ","GodelLessThan",")"," ","hello"," ","world"," ","Em"," ","hello",")"];
+		vm.test('test_isUnaryMiddleOrRight_Tm_1 should be false', vm.isUnaryMiddleOrRight(tt, 1), false);
+		
 		if(1<=vm.loglev)console.log('Starting very basic vm.eval tests');
 		
 		vm.temp.breakpointOn = true;
@@ -10188,39 +10369,7 @@ const Wikibinator203 = (()=>{
 			vm.testEval('(S T)',S(T));
 		}
 		
-		vm.test('Treemap size 1 hello returns world', vm.eval('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) hello world Em hello)'), vm.eval('world'));
-		vm.test('Treemap size 3 abc returns 5', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) abc)'), vm.eval('5'));
-		vm.test('Treemap size 3 ghi returns 6', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) ghi)'), vm.eval('6'));
-		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghi 6 Em) bbb)'), U);
-		let Em = vm.ops.EmptyTreemap(vm.ops.GodelLessThan);
-		vm.test('PutNoBal first key/val into an EmptyTreemap', vm.ops.PutNoBal(vm.ops.L)(vm.ops.R)(Em),
-			vm.ops.Treemap(vm.ops.GodelLessThan)(Em)(vm.ops.L)(vm.ops.R)(Em));
-			
-		vm.test('treemapHeight of (EmptyTreemap GodelLessthan)', Em.n.treemapHeight(), vm.eval('1'));
-			
-		let CD = vm.ops.PutNoBal('c')('d')(Em);
-		vm.test('treemapHeight of CD', Em.n.treemapHeight(), vm.eval('2'));
-		let CDEF = vm.ops.PutNoBal('e')('f')(CD);
-		vm.test('treemapHeight of CDEF', Em.n.treemapHeight(), vm.eval('3'));
-		let ABCDEF = vm.ops.PutNoBal('a')('b')(CDEF);
-		//TODO test this treemapHeight when DoAvlBal is working and is used.
-		vm.ABCDEF = ABCDEF; //an example treemap
-		vm.test('ABCDEF a -> b', ABCDEF('a'), vm.eval('b'));
-		vm.test('ABCDEF c -> d', ABCDEF('c'), vm.eval('d'));
-		vm.test('ABCDEF e -> f', ABCDEF('e'), vm.eval('f'));
 		
-		//vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
-		
-		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
-		
-		
-		
-		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
-		vm.temp.breakpointOn = false;
-		
-		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
-		
-		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
 		
 		
 		/*
@@ -10240,7 +10389,7 @@ const Wikibinator203 = (()=>{
 		//dont FuncallCache things that instantly return and cant make an infinite loop.
 		l.n.pushEvaler((vm,func,param)=>(param.n.l || param.n.L())); //param.n.L() triggers lazyEval of viewing the left or right half of range of a wrapped Uint8Array.
 		r.n.pushEvaler((vm,func,param)=>(param.n.r || param.n.R()));
-		vm.identityFunc().pushEvaler((vm,func,param)=>param);
+		vm.identityFunc().pushEvaler((vm,func,param)=>param); //FIXME wrap param in case its number or string
 		//TODO change to someFunc.n.stuff, instead of someFunc().stuff .
 		//vm.identityFunc().pushEvaler((vm,func,param)=>{ console.log('optimizedIdentityFunc'); return param; });
 		//TODO pushEvaler for isleaf etc
@@ -10263,7 +10412,58 @@ const Wikibinator203 = (()=>{
 		
 		vm.booted = true;
 		
+		vm.test('Treemap size 1 hello returns world', vm.eval('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) hello world Em hello)'), vm.eval('world'));
+		//GodelLessThan compares first by height, so im changing ghi to ghijk so its the same height as hello.
+		//bitstrings go in cbt of powOf2 size, with the last 1 bit being the first bit of padding.
+		//Theres also a (TypevalC U) prefix of that meaning utf8 text.
+		vm.test('Treemap size 3 abc returns 5', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) abc)'), vm.eval('5'));
+		vm.test('Treemap size 3 ghijk returns 6',
+			vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) ghijk)'),
+			vm.eval('6'));
+		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) bbb)'), U);
+		let Em = vm.ops.EmptyTreemap(vm.ops.GodelLessThan);
+		vm.test('PutNoBal first key/val into an EmptyTreemap', vm.ops.PutNoBal(vm.ops.L)(vm.ops.R)(Em),
+			vm.ops.Treemap(vm.ops.GodelLessThan)(Em)(vm.ops.L)(vm.ops.R)(Em));
+			
+		vm.test('treemapHeight of (EmptyTreemap GodelLessthan)', Em.n.treemapHeight(), vm.eval('1'));
+			
+		let CD = vm.ops.PutNoBal('c')('d')(Em);
+		vm.test('treemapHeight of CD', CD.n.treemapHeight(), 2);
+		let CDEF = vm.ops.PutNoBal('e')('f')(CD);
+		vm.test('treemapHeight of CDEF', CDEF.n.treemapHeight(), 3);
+		let ABCDEF = vm.ops.PutNoBal('a')('b')(CDEF);
+		//TODO test this treemapHeight when DoAvlBal is working and is used.
+		vm.ABCDEF = ABCDEF; //an example treemap
+		vm.test('ABCDEF a -> b', ABCDEF('a'), vm.eval('b'));
+		vm.test('ABCDEF c -> d', ABCDEF('c'), vm.eval('d'));
+		vm.test('ABCDEF e -> f', ABCDEF('e'), vm.eval('f'));
+		
+		let AABB = vm.eval('AA#,BB#(* *)');
+		vm.test('namingWithUnarySyntax 1', AABB+'', 'AA#,BB#(* *)');
+		vm.test('namingWithUnarySyntax 2', L(AABB).localName, 'AA');
+		vm.test('namingWithUnarySyntax 3', L(AABB), vm.ops.T);
+		vm.test('namingWithUnarySyntax 4', R(AABB).localName, 'BB');
+		vm.test('namingWithUnarySyntax 5', R(AABB), vm.ops['*'](vm.ops['*']));
+		vm.test('namingWithUnarySyntax 6', L(R(AABB)), vm.ops['*']);
+		vm.test('eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]');
+		vm.test('eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]');
+		
+		//vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
+		
+		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
+		
+		
+		
+		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
+		vm.temp.breakpointOn = false;
+		
+		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
+		
+		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
+		
 		vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
+		
+		console.log('Passed more tests, this time that can use vm.eval');
 		
 		
 		
