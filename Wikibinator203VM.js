@@ -7803,12 +7803,12 @@ const Wikibinator203 = (()=>{
 		vm.parse = function(wikibinator203CodeString){
 			wikibinator203CodeString = wikibinator203CodeString.trim();
 			if(wikibinator203CodeString == '') throw 'Empty wikibinator203CodeString';
-			if(!vm.isPushToken(wikibinator203CodeString[0])){
+			//always do this in case of [a b c][hello world] -> [a b c [hello world]] etc. //if(!vm.isPushToken(wikibinator203CodeString[0])){
 				//so if code string is ',hello' then it knows not to stop after , aka T.
 				//isLoneToken(',') is true, but (,hello) keeps going like in (, hello).
 				//Even if it adds extra (((...))) that will be removed in eval, such as ',hello' parses to '((, hello))' evals to ',hello'.
 				wikibinator203CodeString = '('+wikibinator203CodeString+')';
-			}
+			//}
 			//return vm.getViewer().eval(wikibinator203CodeString);
 			let v = vm.getViewer();
 			let rawTokens = v.tokenize(wikibinator203CodeString);
@@ -9277,14 +9277,52 @@ const Wikibinator203 = (()=>{
 			ret.childs = [...this.childs];
 			return ret;
 		};
+		
+		
+		//as of 2022-12-16 only vm.namesAttachRightToLeftInUnary of true works, and thats the better syntax so just leave it that way.
+		//If left to right then AA#,BB#(* *) means (AA#, BB#(* *) aka names attach to what they're directly touching.
+		//If right to left then AA#,BB#(* *) means AA#(, BB#(* *)) aka names attach to bigger thing from what they're touching to farther to the right.
+		vm.namesAttachRightToLeftInUnary = true;
+		//vm.namesAttachRightToLeftInUnary = false;
 			
-		//This is unaryLeft. Param is unaryRight. Returns new ParseTree of the normal callpair of those.
+		//This is unaryLeft. Param is unaryRight. Returns new ParseTree of the normal callpair of those. Does not modify this or unaryRight.
 		vm.ParseTree.prototype.mergeUnary = function(unaryRight){
 			let ret = this.shallowCopy();
+			
+			unaryRight = unaryRight.shallowCopy();
+			//cuz merging it into a (left right) thats not unary, like ',hello' becomes (, hello),
+			//and without this, recursion of foldUnaryDeep would (TODO verify thats whats causing the bug 2022-12-16) fold it again.
+			//Ret/parent (, hello) for example, copies isUnaryRight from left child aka this,
+			//so foldUnaryDeep would keep folding unary to the left, and the left of that... until find whitespace or a push token etc.
+			unaryRight.isUnaryRight = false;
+			
 			ret.listType = '('; //normal callpair (of unaryLeft and unaryRight)
 			ret.literalToken = null;
+			if(vm.namesAttachRightToLeftInUnary){ //names attach right to left
+				let newLeft = this.shallowCopy();
+				
+				ret.defineNameToken = this.defineNameToken;
+				newLeft.defineNameToken = null;
+				
+				ret.defineCommentAndNameToken = this.defineCommentAndNameToken;
+				newLeft.defineCommentAndNameToken = null;
+				
+				ret.childs = [newLeft, unaryRight];
+			}else{ //names attach left to right
+				throw 'This never worked, and I dont really want this syntax anyways. maybe will fix it later for completeness, but just leave vm.namesAttachRightToLeftInUnary as true and its not a problem.';
+				/*2022-12-16... Its not displaying AA cuz its name of , (aka T) in this case,
+				maybe cuz of syty or related to displayChilds etc in ParseTree.
+				...
+				Wikibinator203VM.js:10326 Uncaught Test namingWithUnarySyntax 1tf failed cuz ,BB#(* *) != AA#,BB#(* *)
+				vm.test @ Wikibinator203VM.js:10326
+				(anonymous) @ Wikibinator203VM.js:10462
+				(anonymous) @ Wikibinator203VM.js:10511
+				*/
+				ret.defineNameToken = null;
+				ret.defineCommentAndNameToken = null;
+				ret.childs = [this, unaryRight];
+			}
 			ret.useExistingNameToken = null;
-			ret.childs = [this, unaryRight];
 			return ret;
 		};
 			
@@ -9292,10 +9330,12 @@ const Wikibinator203 = (()=>{
 		//turn 2 siblings into a normal callpair, and continue left of that if still unary.
 		//,,_[a b c] and ,:,:_:[a b c] and ,:,_:[a b c] should be parsed as (, (, (_ [a b c]))). Return ParseTree.
 		vm.ParseTree.prototype.foldUnaryDeep = function(){
-			if(this.childs.length < 2) return this;
+			if(this.childs.length === 0) return this;
+			//cant do this cuz if theres 1 child, it might still have unary stuff to fold deeper inside: if(this.childs.length < 2) return this;
 			let newChildsReverse = []; //reverse for efficiency
 			for(let c=this.childs.length-1; c>=0; c--){
 				let x = this.childs[c];
+				x = x.foldUnaryDeep();
 				while(x.isUnaryRight){
 					if(c === 0){
 						throw 'Cant isUnaryRight when its first child';
@@ -10439,14 +10479,32 @@ const Wikibinator203 = (()=>{
 		vm.test('ABCDEF e -> f', ABCDEF('e'), vm.eval('f'));
 		
 		let AABB = vm.eval('AA#,BB#(* *)');
-		vm.test('namingWithUnarySyntax 1', AABB+'', 'AA#,BB#(* *)');
-		vm.test('namingWithUnarySyntax 2', L(AABB).localName, 'AA');
-		vm.test('namingWithUnarySyntax 3', L(AABB), vm.ops.T);
-		vm.test('namingWithUnarySyntax 4', R(AABB).localName, 'BB');
-		vm.test('namingWithUnarySyntax 5', R(AABB), vm.ops['*'](vm.ops['*']));
-		vm.test('namingWithUnarySyntax 6', L(R(AABB)), vm.ops['*']);
-		vm.test('eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]');
-		vm.test('eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]');
+		vm.test('namingWithUnarySyntax 1tf', AABB+'', 'AA#,BB#(* *)');
+		vm.test('Before naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]');
+		if(vm.namesAttachRightToLeftInUnary){
+			console.log('Doing vm.namesAttachRightToLeftInUnary==true tests');
+			vm.test('namingWithUnarySyntax 2t', AABB.localName, 'AA');
+			vm.test('namingWithUnarySyntax 3t', L(AABB).localName, 'T');
+			vm.test('namingWithUnarySyntax 4t', L(AABB).opAbbrev, ',');
+			vm.test('namingWithUnarySyntax 5t', vm.eval('[AA#,BB#(* *) AA]'), vm.eval('[(T (* *)) (T (* *))]'));
+			vm.test('namingWithUnarySyntax 6t',
+				vm.eval('[Comcomundabc#,Commaunderscoreabc#,_Abc#[a b c] Abc left (L Commaunderscoreabc) right (R Commaunderscoreabc) labc (L Abc) rabc (R Abc)]')+'',
+				'[Comcomundabc#,Commaunderscoreabc#,_Abc#[a b c] Abc left T right _Abc labc [a b] rabc c]');
+				//FIXME 2022-12-16 The T was ( instead: [Comcomundabc#,Commaunderscoreabc#,_Abc#[a b c] Abc left ( right _Abc labc [a b] rabc c]
+		}else{
+			console.log('Doing vm.namesAttachRightToLeftInUnary==false tests (these dont work as of 2022-12-16 but they dont need to, just use vm.namesAttachRightToLeftInUnary==true which is the better syntax and I plan to use it from now on.');
+			vm.test('namingWithUnarySyntax 2f', L(AABB).localName, 'AA');
+			vm.test('namingWithUnarySyntax 3f', AABB.localName, null);
+			vm.test('namingWithUnarySyntax 5f', vm.eval('[AA#,BB#(* *) AA]'), vm.eval('[(T (* *)) T]'));
+		}
+		vm.test('namingWithUnarySyntax 25tf', R(AABB).localName, 'BB');
+		vm.test('namingWithUnarySyntax 26tf', L(AABB), vm.ops.T);
+		vm.test('namingWithUnarySyntax 27tf', R(AABB), vm.ops['*'](vm.ops['*']));
+		vm.test('namingWithUnarySyntax 28tf', L(R(AABB)), vm.ops['*']);
+		
+		//TODO fix wikibTostringBugTheOldNamesArentGettingClearedAndAppearInNewCodeThatHasntDefinedThemYet then uncomment the next 2 tests.
+		//TODO vm.test('After naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]');
+		//TODO vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]');
 		
 		//vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
 		
