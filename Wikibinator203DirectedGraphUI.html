@@ -586,6 +586,7 @@ window.onload = ()=>{
 	//mainDiv = Dob(document.body,'div');
 	mainDiv = document.getElementById('mainDiv');
 	mainDiv.style['background-color'] = 'gray';
+	dom('extraTests').innerHTML = vm.htmlForExtraTests();
 	rootUI = uiOf(U);
 	uuUI = uiOf(U(U));
 	//uiOf(U(U(U)));
@@ -1338,6 +1339,8 @@ var setToIdentityMatrix = aftrans=>{
 </head><body onmousemove="onMouseMove(event);" onmousedown="onMouseDown(event);" onmouseup="onMouseUp(event);" style="color:white;background-color:black">
 	<center>
 		<h2><div style="background-color:black">Agree (no checkbox) to the opensource <a href="#theLicense">license</a> at bottom of this file or dont use this.</div> Wikibinator203, <a href=https://github.com/benrayfield/wikibinator203>https://github.com/benrayfield/wikibinator203</a> a programming language where everything is made of a universal function called on itself in many combos. This is an early experiment and will be easier to play with when it has voxel graphics and is a massively-multiplayer compute cloud. Imagine millions of people doing this in an infinite dimensional turing-complete space, but not able to get in eachothers way since the directed-graph you see below, of working javascript lambdas (try them on browser console or here) is immutable/stateless, a lazy-evaled merkle-forest. Scroll down for some example code to copy/paste into IN textarea below.</h2>
+		<br><br>
+		<div id=extraTests></div>
 		<br><br>
 		λ means Lambda.
 		(λ [a b c] [comment] T) and node.prototype.p(name)<br>

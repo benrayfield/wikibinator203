@@ -18,6 +18,7 @@ for(let op of vm.opInfo){
 
 window.onload = ()=>{
 	dom('mainDiv').innerHTML = h;
+	dom('extraTests').innerHTML = vm.htmlForExtraTests();
 	
 	//let firstCode = '(S (F U) (F U) Pair)';
 	//let firstCode = '[(CallParamOnItself#(S I#(F U) I) Pair) (CallParamOnItself F)]';
@@ -107,6 +108,8 @@ console.log('vm.eval passed basic tests.');
 </script>
 </head><body>
 <h1>Agree (no checkbox) to the opensource license at bottom of this file or dont use this. 
+<br><br>
+<div id=extraTests></div>
 <br><br>
 TODO TDD for Names# etc, but get the basics of parsing, eval, (Lambda [x y z] ...) MutLam, etc, working first.<br>
 TODO I want ability to run most things in pure determinism mode (the cleanest). define all the primitive (especially double and int, maybe float, maybe byte, etc) ops, that both JVM and browser javascript (and maybe few other systems if can find overlapping bit behaviors) do deterministicly exactly the same as eachother, and use that as the deterministic definitions of the ops double*double double+double sine(double) etc. There must be an implementation of them made of U/TheUniversalLambda that doesnt depend on calling * + sine etc, Evaler optimized to use those if they exactly match. Careful to use final/const keyword(s) for order of ops and to prevent merging ops. Unlikely to match alot of them in GPU.js, but in lazycl it seems able to match what JVM does, for example. Some things will just have to be done in allownondeterministicroundoff (what was it called?) mode (a vm.mask_*) if want it fast enough such as teraflop graphics of 3d fractals etc. Also, for determinism, can only loop over Mut keys (as in MutLam etc), if sorted, but wrapper of Float64Array etc in Mut is int keys so thats not relevant there.<br>

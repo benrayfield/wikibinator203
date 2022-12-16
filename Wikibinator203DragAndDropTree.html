@@ -2981,8 +2981,11 @@ var newSplateForFnAsRoot = function(fn){
 };*/
 
 
+//See "WARNING: this might display a fn.localName without its (...expanded definition...)"... in Wikibinator203VM.js.
+var aViewer = new vm.Viewer();
+//var aViewer = vm.getViewer();
 
-var fnToView = fn=>vm.getViewer().view(fn);
+var fnToView = fn=>aViewer.view(fn);
 
 
 
@@ -4243,6 +4246,7 @@ var updateDisplayToWrap = ()=>{
 
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
+	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
@@ -4286,6 +4290,8 @@ window.onload = ()=>{
 	Wikibinator203 widget: drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 	<br><br>
 	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
+	<br><br>
+	<div id=extraTests></div>
 	<br><br>
 	
 	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,

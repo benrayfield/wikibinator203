@@ -5862,7 +5862,12 @@ const Wikibinator203 = (()=>{
 		//to use the same localNames etc, across multiple tostring calls of fn, lambdaToString fills this in if its null.
 		vm.viewer = null;
 		
+		//WARNING: this might display a fn.localName without its (...expanded definition...)
+		//if it was defined in an earlier eval or lambda tostring,
+		//which produces code thats not self-contained, which needs that earlier code string to work.
+		//To avoid that, use new vm.Viewer() every time.
 		vm.getViewer = function(){
+			throw 'Dont use getViewer. make a new vm.Viewer() instead';
 			if(!vm.viewer) vm.viewer = new vm.Viewer();
 			return vm.viewer;
 		};
@@ -5871,7 +5876,10 @@ const Wikibinator203 = (()=>{
 		//Example, in js, ''+S(T)(T) returns '(S T T)' or something like that (TODO finish the default syntax).
 		vm.lambdaToString = function(){
 			if(vm.booted){
-				return vm.getViewer().fnToString(this); //recursive code string
+				//return vm.getViewer().fnToString(this); //recursive code string
+				//let viewer = vm.getViewer(); //see "WARNING" about shared Viewer
+				let viewer = new vm.Viewer();
+				return viewer.fnToString(this); //"this" function that was returned by lambdize, aka this (someNode.lam).
 			}else{
 				//display simpler way
 				if(this.localName) return this.localName; //starts as the op names, and can name other lambdas (which are all constants), but it doesnt affect ids since its contentAddressable.
@@ -7800,6 +7808,7 @@ const Wikibinator203 = (()=>{
 	
 		
 		//returns a vm.ParseTree
+		//vm.parse = function(wikibinator203CodeString, optionalViewer){
 		vm.parse = function(wikibinator203CodeString){
 			wikibinator203CodeString = wikibinator203CodeString.trim();
 			if(wikibinator203CodeString == '') throw 'Empty wikibinator203CodeString';
@@ -7810,7 +7819,8 @@ const Wikibinator203 = (()=>{
 				wikibinator203CodeString = '('+wikibinator203CodeString+')';
 			//}
 			//return vm.getViewer().eval(wikibinator203CodeString);
-			let v = vm.getViewer();
+			let v = new vm.Viewer(); //See "WARNING" about using shared Viewer in vm.getViewer(). Its recommended to give a new Viewer as param.
+			//let v = optionalViewer || vm.getViewer(); //See "WARNING" about using shared Viewer in vm.getViewer(). Its recommended to give a new Viewer as param.
 			let rawTokens = v.tokenize(wikibinator203CodeString);
 			let tokens = vm.filterTokens(rawTokens); //remove whitespace before ], for example, which would make it parse wrong.
 			vm.verifyTokensListHasNoDuplicateNames(tokens);
@@ -8187,10 +8197,10 @@ const Wikibinator203 = (()=>{
 				
 				let syty = view.syty();
 				switch(syty){
-					case 'GV': //<...>
+					case 'GV':{ //<...>
 						throw 'TODO';
 					//break; case 'start[':
-					break; case 'IC0':
+					}break; case 'IC0':{
 					
 						viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
 					
@@ -8217,16 +8227,17 @@ const Wikibinator203 = (()=>{
 						viewing.tokens.push(']'); //FIXME
 						*/
 						
-					break; case 'IC+':
+					}break; case 'IC+':{
 					
-						if(isRightRecursion) viewing.tokens.push('[');
+						let displayPushPop = isRightRecursion || displayPound; //FIXME does "|| displayPound" have any effect here?
+						if(displayPushPop) viewing.tokens.push('[');
 						if(view.lsyty() != 'IC0'){
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
 							viewing.tokens.push(' ');
 							if(2<=vm.loglev)console.log('[ pushed space');
 						}
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
-						if(isRightRecursion) viewing.tokens.push(']');
+						if(displayPushPop) viewing.tokens.push(']');
 					
 						/*
 						//if(!inVararg) viewing.tokens.push('['); //FIXME
@@ -8259,14 +8270,15 @@ const Wikibinator203 = (()=>{
 							
 						}*/
 					//break; case '{':
-					break; case 'S2':
-						if(isRightRecursion || callerSyty != 'S2') viewing.tokens.push('{'); //FIXME
+					}break; case 'S2':{
+						let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound;
+						if(displayPushPop) viewing.tokens.push('{'); //FIXME
 						//this.viewToStringRecurse(view.l(), viewing);
 						this.viewToStringRecurse(view.l().r(), viewing, syty, false);
 						viewing.tokens.push(' ');
 						if(2<=vm.loglev)console.log('{ pushed space');
 						this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
-						if(isRightRecursion || callerSyty != 'S2') viewing.tokens.push('}'); //FIXME
+						if(displayPushPop) viewing.tokens.push('}'); //FIXME
 					/*break; case '{':
 						if(!inVararg) viewing.tokens.push('{'); //FIXME
 						//this.viewToStringRecurse(view.l(), viewing);
@@ -8276,26 +8288,28 @@ const Wikibinator203 = (()=>{
 						this.viewToStringRecurse(view.r(), viewing, true); //FIXME
 						if(!inVararg) viewing.tokens.push('}'); //FIXME
 					*/
-					break; case '_1':
+					}break; case '_1':{
 						viewing.tokens.push('_');
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					break; case 'T1':
+					}break; case 'T1':{
 						viewing.tokens.push(',');
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					break; case 'C': case 'S1': //C is normal call (a b c d e) aka ((((a b) c) d) e)
+					}break; case 'C': case 'S1':{ //C is normal call (a b c d e) aka ((((a b) c) d) e)
 						if(view.builtInName){
 							viewing.tokens.push(view.builtInName);
 						}else{
 							let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
-							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push('(');
+							let displayPushPop = isRightRecursion || !callerSytyIsSimilar || displayPound;
+							if(displayPushPop) viewing.tokens.push('(');
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
 							viewing.tokens.push(' ');
 							if(2<=vm.loglev)console.log('( pushed space');
 							this.viewToStringRecurse(view.r(), viewing, syty, true);
-							if(isRightRecursion || !callerSytyIsSimilar) viewing.tokens.push(')');
+							if(displayPushPop) viewing.tokens.push(')');
 						}
-					break; default:
+					}break; default:{
 						throw 'Unknown syntaxtype: '+syty;
+					}
 				}
 				//so dont define it again, just use name, until the next tostring which should set
 				//all relevant hasDefinedBeforeUsingName to false so they get defined again.
@@ -10502,20 +10516,34 @@ const Wikibinator203 = (()=>{
 		vm.test('namingWithUnarySyntax 27tf', R(AABB), vm.ops['*'](vm.ops['*']));
 		vm.test('namingWithUnarySyntax 28tf', L(R(AABB)), vm.ops['*']);
 		
+		vm.test('lambda tostring name of prefix with childs, (Pl#(Pair L) Pl)', vm.eval('(Pl#(Pair L) Pl)')+'', '(Pl#(Pair L) Pl)');
+		vm.test('lambda tostring name of prefix with childs, (Pm#(Pair L) x)', vm.eval('(Pm#(Pair L) x)')+'', '(Pm#(Pair L) x)');
+		vm.test('lambda tostring name of prefix with childs, (Pn#[Pair R] x)', vm.eval('(Pn#[Pair R] x)')+'', '[Pn#[Pair R] x]');
+		
+		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
+		
+		vm.extraTests = [];
+		
 		//TODO fix wikibTostringBugTheOldNamesArentGettingClearedAndAppearInNewCodeThatHasntDefinedThemYet then uncomment the next 2 tests.
-		//TODO vm.test('After naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]');
-		//TODO vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]');
-		
-		//vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
-		
+		vm.extraTests.push(()=>vm.test('Trivial test to make sure the extraTest buttons work, always passes', 1, 1));
+		vm.extraTests.push(()=>vm.test('After naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]'));
+		vm.extraTests.push(()=>vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]'));
+		vm.extraTests.push(()=>vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
 		
-		
+		vm.htmlForExtraTests = ()=>{
+			if(!vm || !vm.extraTests) throw 'Couldnt find vm or vm.extraTests';
+			let html = '<div id=vmExtraTests>';
+			for(let i=0; i<vm.extraTests.length; i++){
+				let x = vm.extraTests[i];
+				html += '<input id="extraTestBtn'+i+'" type=button onclick="try{ vm.extraTests['+i+'](); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+']()"></input>';
+			}
+			html += '<div id=vmExtraTests>';
+			return html;
+		};
 		
 		//vm.temp is just stuff you might find useful while testing the vm in browser debugger (push f12 in most browsers). its not part of the spec.
 		vm.temp.breakpointOn = false;
-		
-		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
 		
 		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
 		
@@ -10536,7 +10564,7 @@ const Wikibinator203 = (()=>{
 		return u; //the universal function
 	//} //end with(ops)	//dont do this cuz with(...) makes things very slow.
 })();
-console.log('Script ended. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right 1, 2, or 3 times a day depending on daylight savings, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".');     
+console.log('Script ended. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right twice a day, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".\r\n\r\n\r\nThere are '+Wikibinator203.n.vm.extraTests.length+' extra tests in Wikibinator203.n.vm.extraTests, which are either slow or failing which is why I put them there instead of the few basic tests it runs before VM script ends. Maybe the UI should have a button to run those, then find errors on browser console, where its easier to use them cuz u have a UI.');
 
 
 
