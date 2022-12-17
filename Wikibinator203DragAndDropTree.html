@@ -411,8 +411,8 @@ const SUFFIX = 'suffix';
 var controls = {};
 
 var globalVars = {
-	circMenuCenterY: 0, //becomes mouseY when circMenu starts, near end of a dragAndDrop.
-	circMenuCenterX: 0,
+	dropCircMenuCenterY: 0, //becomes mouseY when dropCircMenu starts, near end of a dragAndDrop.
+	dropCircMenuCenterX: 0,
 };
 
 controls.mouseY = 0;
@@ -423,7 +423,7 @@ controls.mouseXDragFrom = 0;
 
 var anyfromSplat = ()=>(findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom'));
 
-var anytoSplat = ()=>(findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo') || findSplatWithDragStep('circMenu'));
+var anytoSplat = ()=>(findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo') || findSplatWithDragStep('dropCircMenu'));
 
 //returns [fromY fromX toY toX] or null, depending if theres a drag in progress.
 var dragLineFromYXToYX = ()=>{
@@ -446,7 +446,8 @@ var dragLineFromYXToYX = ()=>{
 //draggingStep is 0 for not dragging, 1 for started dragging, 2 to schedule ending of drag asap, and 3 for ended dragging (or maybe should be 0 instead of 3?).
 controls.draggingStep = 0;
 
-const dragButton = 'mouseButton0'; //controls[dragButton] is 0 (up) or 1 (down)
+//const dragButton = 'mouseButton0'; //controls[dragButton] is 0 (up) or 1 (down)
+const dragButton = 'mouseLeftButton'; //controls[dragButton] is 0 (up) or 1 (down)
 
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
@@ -565,26 +566,51 @@ var Splat = function(parentSplatOrNull, selfDob){
 		}
 	);
 	
+	var eventToButtonName = event=>{
+		switch(event.button){
+			case 0:
+				return 'mouseLeftButton';
+			break; case 1:
+				return 'mouseMiddleButton';
+			break; case 2:
+				return 'mouseRightButton';
+			break; case 3:
+				return 'mouseFourthButton';
+			break; case 4:
+				return 'mouseFifthButton';
+			default:
+				return 'unknownButton';
+		}
+	};
 	
 	selfDob.addEventListener(
 		'mousedown',
 		this.eventListenerMouseDown = function(event){
 			//console.log('mousedown '+ThisSplat);
 			event.stopPropagation();
-			controls['mouseButton'+event.button] = 1;
-			if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-				setSelSplat(ThisSplat);
-			}
-			if(options.doMainDragging){
-				//ThisSplat.doStartDrag(
-				//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-				if(splatfyfx){
-					splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
-				}else{
-					console.log('screenYXToSplatfyfx returned null so cant doStartDrag');
+			uiState.removeClickCircMenuAsap = false;
+			let btn = eventToButtonName(event);
+			console.log('mousedown '+btn);
+			controls[uiState.lastMouseButtonDown = btn] = 1;
+			if(btn == 'mouseLeftButton'){
+				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+					setSelSplat(ThisSplat);
 				}
-				//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+				if(options.doMainDragging){
+					console.log('mousedown doMainDragging');
+					//ThisSplat.doStartDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					if(splatfyfx){
+						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('screenYXToSplatfyfx returned null so cant doStartDrag');
+					}
+					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+				}
+			}else if(btn == 'mouseRightButton'){
+				//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+				doClickCircMenu();
 			}
 		}
 	);
@@ -594,14 +620,21 @@ var Splat = function(parentSplatOrNull, selfDob){
 		this.eventListenerMouseUp = function(event){
 			//console.log('mouseup '+ThisSplat);
 			event.stopPropagation();
-			controls['mouseButton'+event.button] = 0;
+			let btn = eventToButtonName(event);
+			console.log('mouseup '+btn);
+			controls[btn] = 0;
 			//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
 			//	setSelSplat(ThisSplat);
 			//}
-			if(options.doMainDragging){
-				doCircMenu();
+			//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
+			if(options.doMainDragging && btn == 'mouseLeftButton'){
+				//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
+				doDropCircMenu();
 				//doEndDrag();
 			}
+			//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
+			//	doClickCircMenu();
+			//}
 		}
 	);
 	
@@ -941,16 +974,23 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
-//options.circMenuRadius = 45;
-options.circMenuRadius = 56;
-options.circMenuIconSize = 25;
+//options.dropCircMenuRadius = 45;
+//options.dropCircMenuRadius = 56;
+options.dropCircMenuIconSize = 25;
+
+options.radiusOfMenu = {
+	dropCircMenu: 56,
+	clickCircMenu: 35,
+};
+
+options.blockRightClickPopup = true; //cuz mouseRightButton does clickCircMenu popup instead, inside rootDob.
 
 //TODO optimize: this could be done faster with 1 instead of 2 calls of setSplit since each updates dobs.
 //The 2 calls is first to put the right fns in from rootSplat downward. The second is to adjust
 //isOneLine recursively based on options.maxWidth_for_forkTryMaxWidth_ofRoot. It would be potentially
 //up to twice as fast to make the Split first and rootSplat.setSplit only once.
-options.updateDisplayToWrap_afterEachCircMenuCommand = true;
-//options.updateDisplayToWrap_afterEachCircMenuCommand = false;
+options.updateDisplayToWrap_afterEachDropCircMenuCommand = true;
+//options.updateDisplayToWrap_afterEachDropCircMenuCommand = false;
 
 //options.maxWidth_for_forkTryMaxWidth_ofRoot = 1500;
 //options.maxWidth_for_forkTryMaxWidth_ofRoot = 2000;
@@ -2250,7 +2290,7 @@ var toLiteralString = fn=>{
 
 Splate.prototype.isDisplayDragLine = function(){
 	//FIXME get rid of isDisplayIcon?
-	return this.isDisplayIcon && (this.dragStep==='to' || this.dragStep==='wouldTo' || this.dragStep==='circMenu');
+	return this.isDisplayIcon && (this.dragStep==='to' || this.dragStep==='wouldTo' || this.dragStep==='dropCircMenu');
 };
 
 //Used with isUnary such as (T x) which doesnt display the T as splat but displays T as a prefix "T" instead, similar to a prefix "{" or prefix "[" or prefix "(".
@@ -2452,6 +2492,7 @@ Splat.prototype.splatdobForDobName = function(dobName){
 	return this[key];
 };
 
+//null if no splat is there.
 var splatAtYX = function(y, x, optionalSplatFrom){
 	let splat = optionalSplatFrom || rootSplat;
 	if(!splat.containsYX(y,x)) return null;
@@ -2678,7 +2719,7 @@ Splat.prototype.setSplit = function(split){
 			popupTitle += '__path='+this.pathFromRoot();
 		}
 		
-		if(this.splate().dragStep === 'circMenu') popupTitle = '';
+		if(this.splate().dragStep === 'dropCircMenu') popupTitle = '';
 		//if(popupTitle) this.dobs.self.title = popupTitle;
 		this.dobs.self.title = popupTitle;
 
@@ -3132,7 +3173,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	let looseIconYFraction = Math.random(); //FIXME
 	let looseIconXFraction = Math.random(); //FIXME
 	let linePath = ''; //FIXME
-	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, circMenu.
+	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu.
 	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep);
 	let leftSplit = null;
@@ -3198,7 +3239,7 @@ Split.prototype.setDragStuff = (splitA, dragStepA, splitB, dragStepB)=>{
 */
 
 
-//no, wouldFrom, from, wouldTo, to, circMenu.
+//no, wouldFrom, from, wouldTo, to, dropCircMenu.
 var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===splat.splate().dragStep));
 
 //makes dragStep 'wouldFrom' appear here, the drag that would start here if mouse button went down.
@@ -3250,20 +3291,36 @@ Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
 	}
 };
 
-//changes whatever splat.splate().dragStep is 'to', changes it to 'circMenu', which is second last part of a drag.
+//changes whatever splat.splate().dragStep is 'to', changes it to 'dropCircMenu', which is second last part of a drag.
 //After user chooses one of the icons displayed in the circle,
 //lambda is called on lambda to find/create lambda (by doEndDrag)
 //and the result is put in the tree of splats where dragged to (or whatever the action says to do there).
-var doCircMenu = ()=>{
+var doDropCircMenu = ()=>{
 	//let toSplat = findSplatWithDragStep('to');
-	let toSplat = anytoSplat(); //wouldTo, to, or circMenu
-	if(!toSplat) throw 'No dragStep of "to" so cant doCircMenu';
+	let toSplat = anytoSplat(); //wouldTo, to, or dropCircMenu
+	if(!toSplat) throw 'No dragStep of "to" so cant doDropCircMenu';
 	let dragStep = toSplat.splate().dragStep;
-	if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting circMenu, so set its position.
-		globalVars.circMenuCenterY = controls.mouseY;
-		globalVars.circMenuCenterX = controls.mouseX;
+	if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
+		globalVars.dropCircMenuCenterY = controls.mouseY;
+		globalVars.dropCircMenuCenterX = controls.mouseX;
 	}
-	toSplat.transformSplate(splate=>splate.setDragStep('circMenu'));
+	toSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
+	updateOverlays();
+};
+
+
+//theres 2 circMenus: (left mouse button) drag and (right mouse button) click.
+var doClickCircMenu = ()=>{
+	//let toSplat = findSplatWithDragStep('to');
+	//let toSplat = anytoSplat(); //wouldTo, to, or dropCircMenu
+	let toSplat = splatAtYX(controls.mouseY,controls.mouseX);
+	if(!toSplat) throw 'In doClickCircMenu, splatAtYX didnt find a splat at y='+controls.mouseY+' x='+controls.mouseX;
+	//let dragStep = toSplat.splate().dragStep;
+	//if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
+		globalVars.dropCircMenuCenterY = controls.mouseY;
+		globalVars.dropCircMenuCenterX = controls.mouseX;
+	//}
+	//toSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
 	updateOverlays();
 };
 
@@ -3271,14 +3328,18 @@ var doCircMenu = ()=>{
 //When this is true, call doEndDrag to call fn on fn to find/create fn, of what was dragged.
 //var isAboutToEndDrag = ()=>(findSplatWithDragStep('from') && findSplatWithDragStep('to'));
 
-//Param is anything in circMenu, such as circMenu[4], or anything of same datastruct.
+//Param is anything in dropCircMenu, such as dropCircMenu[4], or anything of same datastruct.
 //After doBeforeDrag, doStartDrag, doDuringDrag, and check isAboutToEndDrag (wait for it to be true), call this doEndDrag.
 //This calls fn on fn to find/create fn, of what was dragged.
-var doEndDrag = circMenuItem=>{
-	console.log('START doEndDrag circMenuItem.pic='+circMenuItem.pic);
-	circMenuItem.func(); //call lambda on lambda to find/create lambda (or whatever the menu item does, such as cancel the dragAndDrop)
+var doEndDrag = dropCircMenuItem=>{
+	console.log('START doEndDrag dropCircMenuItem.pic='+dropCircMenuItem.pic);
+	dropCircMenuItem.func(); //call lambda on lambda to find/create lambda (or whatever the menu item does, such as cancel the dragAndDrop)
+	
+	//FIXME? this line was added before there were 2 circ menus (dropCircMenu and clickCircMenu). This was just for dropCircMenu.
 	setDragStuff(null,null,null,null); //set all dragStep to 'no', ready for next drag.
-	console.log('END doEndDrag circMenuItem.pic='+circMenuItem.pic);
+	uiState.removeClickCircMenuAsap = true;
+	
+	console.log('END doEndDrag dropCircMenuItem.pic='+dropCircMenuItem.pic);
 	/*
 	return;
 	console.log('doEndDrag');
@@ -3842,8 +3903,8 @@ var Branch = function(h, w){
 //There are 2 modes: normal and isPopupCircularMenu. isPopupCircularMenu happens when release mouse button
 //Near the end of a drag-and-drop, pops up a circle of icons,
 //and when mouse moves toward one of those, it does that action, finishing the drop.
-//This is true if any splat.splate().dragStep=='circMenu'.
-var isPopupCircularMenu = ()=>!!findSplatWithDragStep('circMenu');
+//This is true if any splat.splate().dragStep=='dropCircMenu'.
+var isPopupCircularMenu = ()=>!!findSplatWithDragStep('dropCircMenu');
 
 //TODO everything you see while dragging, but for now 2022-11-1 I'm just putting the 2 overlay divs here
 //and leaving the icons and dragLine in splat.dobs.dragLine etc, but eventually all that should be here,
@@ -3876,31 +3937,58 @@ var updateOverlays = ()=>{
 		toRectOverlay.style.visibility = 'hidden';
 	}
 	
-	let circMenuDob = Dob('circMenu');
-	if(wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'circMenu'){
-		for(let i=0; i<circMenu.length; i++){
-			let picUrl = circMenu[i].pic;
-			let pic = Nob('img',circMenuDob);
-			pic.style.position = 'absolute';
-			attr(pic,'src',picUrl);
-			let centerY = globalVars.circMenuCenterY;
-			let centerX = globalVars.circMenuCenterX;
-			let angle = -halfPi+twoPi*i/circMenu.length; //first is straight up. Continue clockwise around, putting icons.
-			let radius = options.circMenuRadius;
-			let size = options.circMenuIconSize;
-			pic.style.top = (centerY-size/2+radius*Math.sin(angle))+'px';
-			pic.style.left = (centerX-size/2+radius*Math.cos(angle))+'px';
-			pic.style.height = size+'px';
-			pic.style.width = size+'px';
-			const circMenuItem = circMenu[i];
-			pic.addEventListener(
-				'mouseover',
-				event=>doEndDrag(circMenuItem)
-			);
+	//FIXMEFIXME
+	//TODO choose which based on which mouse button: let whichMenu = 'dropCircMenu';
+	//let whichMenu = 'clickCircMenu';
+	//let whichMenu = 'dropCircMenu';
+	let whichMenu;
+	switch(uiState.lastMouseButtonDown){
+		case 'mouseLeftButton':
+			whichMenu = 'dropCircMenu';
+		break;case 'mouseRightButton':
+			whichMenu = 'clickCircMenu';
+		break;default:
+			whichMenu = null;
+	}
+	//whichMenu = 'dropCircMenu'; //FIXME
+	if(options.loglev>1) console.log('updateOverlays, whichMenu='+whichMenu);
+	
+	//let menuDob = Dob(whichMenu);
+	let menuDob = Dob('popupMenuDob');;
+	if(whichMenu != null){
+		//FIXME it appears it keeps rebuilding this dob when it doesnt need to. 2022-12-17 for now im just going to empty it each time first.
+		//menuDob.innerHTML = '';
+		if((whichMenu=='clickCircMenu' && !uiState.removeClickCircMenuAsap) || (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu')){
+			let menuList = eval(whichMenu);
+			for(let i=0; i<menuList.length; i++){
+				let picUrl = menuList[i].pic;
+				let pic = Nob('img',menuDob);
+				pic.style.position = 'absolute';
+				attr(pic,'src',picUrl);
+				let centerY = globalVars.dropCircMenuCenterY;
+				let centerX = globalVars.dropCircMenuCenterX;
+				let angle = -halfPi+twoPi*i/menuList.length; //first is straight up. Continue clockwise around, putting icons.
+				//let radius = options.dropCircMenuRadius;
+				let radius = options.radiusOfMenu[whichMenu];
+				let size = options.dropCircMenuIconSize;
+				pic.style.top = (centerY-size/2+radius*Math.sin(angle))+'px';
+				pic.style.left = (centerX-size/2+radius*Math.cos(angle))+'px';
+				pic.style.height = size+'px';
+				pic.style.width = size+'px';
+				const dropCircMenuItem = menuList[i];
+				pic.addEventListener(
+					'mouseover',
+					event=>doEndDrag(dropCircMenuItem)
+				);
+			}
+		}else{
+			//uiState.removeClickCircMenuAsap = false;
+			menuDob.innerHTML = '';
 		}
 	}else{
-		circMenuDob.innerHTML = '';
+		menuDob.innerHTML = ''; //Without this, clickCircMenu doesnt disappear after use it.
 	}
+	//uiState.removeClickCircMenuAsap = false;
 };
 
 var isS = fn=>(fn.n.o8()==vm.o8OfS);
@@ -3981,7 +4069,7 @@ var setRootFnAndForceUpdateDisplay = fn=>{
 	//}
 };
 
-var circMenu = [
+var dropCircMenu = [
 	{
 		pic: 'pic/copyTo.png',
 		func: ()=>{
@@ -4002,7 +4090,7 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag copyTo about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: copyTo');
@@ -4041,7 +4129,7 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag metaR about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: metaR');
@@ -4051,13 +4139,13 @@ var circMenu = [
 			and thats correct (((but when i dragged it to just the {abc def} in {abc def ghi} aka {{abc def} ghi},
 			it gave the wrong answer, split the application/x-IEEE-754 and 0x...stuff...)))
 						
-			Wikibinator203DragAndDropTree.html:3173 START doEndDrag circMenuItem.pic=pic/metaR.png
+			Wikibinator203DragAndDropTree.html:3173 START doEndDrag dropCircMenuItem.pic=pic/metaR.png
 			Wikibinator203DragAndDropTree.html:3781 NEAREND: Drag: metaR
 			Wikibinator203DragAndDropTree.html:3795 Drag metaR, callerSyty=S2, calling the sCurryList way, calling S on {abc def ghi} then what that returns called on 2.34
 			Returned {abc def ghi 2.34}
 			Wikibinator203DragAndDropTree.html:3807 Drag metaR about to rootSplat.setSplit to ...
 			Wikibinator203DragAndDropTree.html:3809 END: Drag: metaR
-			Wikibinator203DragAndDropTree.html:3176 END doEndDrag circMenuItem.pic=pic/metaR.png
+			Wikibinator203DragAndDropTree.html:3176 END doEndDrag dropCircMenuItem.pic=pic/metaR.png
 			*/
 		}
 	},
@@ -4084,7 +4172,7 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag directR about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: directR');
@@ -4129,7 +4217,7 @@ var circMenu = [
 				//This isnt right??? cuz... (get whole comment from directL)
 				let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
 				rootSplat.setSplit(newRootSplitFromParent);
-				if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+				if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 					updateDisplayToWrap();
 				}
 			}
@@ -4139,7 +4227,7 @@ var circMenu = [
 	{
 		pic: 'pic/cancel.png',
 		func: ()=>{
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			//alert('cancelled drag');
@@ -4174,7 +4262,7 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag directL about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: directL');
@@ -4265,7 +4353,7 @@ var circMenu = [
 			//This isnt right??? cuz... (get whole comment from directL)
 			let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
 			rootSplat.setSplit(newRootSplitFromParent);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: metaL');
@@ -4303,7 +4391,7 @@ var circMenu = [
 			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
 			console.log('Drag metaR about to rootSplat.setSplit to ...');
 			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('END: Drag: metaR');
@@ -4313,7 +4401,7 @@ var circMenu = [
 		
 		
 			/*
-			if(options.updateDisplayToWrap_afterEachCircMenuCommand){
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
 			console.log('TODO metaL');
@@ -4322,8 +4410,95 @@ var circMenu = [
 	},
 ];
 
+//In case clickCircMenu has multiple vars, put them all here. Start with just the fn thats copy/pasted.
+var uiState = {
+	lastMouseButtonDown: 'unknownButton',
+	wikibClipboard: U, //clickCopy and clipPaste use this.
+};
+
+var getSplatMouseIsOverElseNull = ()=>splatAtYX(controls.mouseY, controls.mouseX);
+
+//menu that appears when rightClick a fn. This is similar to dropCircMenu except that only happens when drag from a fn to a fn.
+//This is for things like copy and paste. Also, quicksave1 quickload1 quicksave2 quickload2 etc at a specific fn.
+var clickCircMenu = [
+	{
+		pic: 'pic/cancel.png',
+		func: ()=>{
+			console.log('START: clickCircMenu: cancel');
+			uiState.removeClickCircMenuAsap = true;
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+				updateDisplayToWrap();
+			}
+			console.log('END: clickCircMenu: cancel');
+		}
+	},
+	{
+		pic: 'pic/clickPaste.png',
+		func: ()=>{
+			console.log('START: clickCircMenu: paste');
+			uiState.removeClickCircMenuAsap = true;
+			
+			/*
+			//let from = anyfromSplat();
+			//let to = anytoSplat();
+			let to = getSplatMouseIsOverElseNull();
+			if(to != null){
+				//let fromFn = from.splate().fn;
+				let toFn = to.splate().fn;
+				let valToPaste = uiState.wikibClipboard;
+				
+				
+				uiState.wikibClipboard = toFn;
+				console.log('copied into uiState.wikibClipboard');
+				
+				
+				let retFn = valToPaste;
+				console.log('clickCircMenu: replacing '+toFn+' with '+retFn);
+				//could just put a pointer to from.split in to.split (by to.setSplit(from.split)), in theory, but that wouldnt wrap based on screen width etc.
+				let callerSyty = to.callerSyty();
+				let isRightRecursion = to.isRightChild();
+				let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //FIXME consider width. some split maker is considering width. where does that param go in?
+				console.log('clickCircMenu: newSplit='+newSplit);
+				
+				//This isnt right cuz... (get whole comment from directL)
+				let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+				console.log('clickCircMenu: paste, about to rootSplat.setSplit to ...');
+				rootSplat.setSplit(newRootSplit);
+				console.log('clickCircMenu: paste from uiState.wikibClipboard');
+			}
+			*/
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+				updateDisplayToWrap();
+			}
+			console.log('END: clickCircMenu: paste');
+		}
+	},
+	{
+		pic: 'pic/clickCopy.png',
+		func: ()=>{
+			console.log('START: clickCircMenu: copy');
+			uiState.removeClickCircMenuAsap = true;
+			
+			/*
+			//let from = anyfromSplat();
+			//let to = anytoSplat();
+			let to = getSplatMouseIsOverElseNull();
+			//let fromFn = from.splate().fn;
+			let toFn = to.splate().fn;
+			uiState.wikibClipboard = toFn;
+			console.log('copied into uiState.wikibClipboard');
+			*/
+			
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+				updateDisplayToWrap();
+			}
+			console.log('END: clickCircMenu: copy');
+		}
+	},
+];
+
 var updateDisplayToWrap = ()=>{
-	if(vm.loglev>0) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in circMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
+	if(vm.loglev>0) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in dropCircMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
 	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
 };
 
@@ -4425,7 +4600,7 @@ window.onload = ()=>{
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
 		<div id=globalToOverlay style="pointer-events:none;position:absolute;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001"></div>
-		<div id=circMenu style="z-index:10000002;background-color:gray"></div>
+		<div id=popupMenuDob style="z-index:10000002;background-color:gray"></div>
 	</div>
 	
 	<center>
@@ -4461,7 +4636,7 @@ window.onload = ()=>{
 				<br><br>
 				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
 			</div><br>
-			<div id=rootDob></div>
+			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div>
 			
 		</td></tr></table>
 	</center>
