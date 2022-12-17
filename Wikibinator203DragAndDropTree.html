@@ -461,6 +461,7 @@ const dragButton = 'mouseButton0'; //controls[dragButton] is 0 (up) or 1 (down)
 //
 //selfDob is normally parentSplatOrNull.dobs.left or parentSplatOrNull.dobs.right or if !parentSplatOrNull then its probably rootDob or dragDob.
 var Splat = function(parentSplatOrNull, selfDob){
+	selfDob.innerHTML = '';
 
 	//this.splate = splate; //doesnt include splates for leftSplat or rightSplat. Its local to this Splat.
 	//this.splate = defaultSplate; //so Splat.setSplit can display it first. Has no childs.
@@ -1852,6 +1853,30 @@ Split.prototype.isDisplayR = function(){
 	return splate.isOpen && this.rightSplit && !splate.isLiteral; //FIXME what if !isOpen and isLiteral?
 };
 
+/*
+//clear caches, rebuild splats, and update screen.
+//This is for testing if there are bugs in splat.dobs and splat.leftSplat and splat.rightSplat etc.
+//Normally you would just use setSplit and it updates automatically without any old versions of things
+//remaining from cache but still uses cache as optimization.
+var forceUpdateScreen = ()=>{
+	//rootSplat.forAllSplat(splat=>{delete splat.bigHash_;});
+	//rootSplat.deleteChildSplats();
+	//delete rootSplat.bigHash_;
+	//rootSplat.setSplit
+	rootSplat.setSplit(getSplit
+};*/
+var forceUpdateDisplay = ()=>setRootFnAndForceUpdateDisplay(rootSplat.splate().fn);
+
+Splat.prototype.forAllSplat = function(callOnSplat){
+	callOnSplat(this);
+	if(this.leftSplat){
+		this.leftSplat.forAllSplat(callOnSplat);
+	}
+	if(this.rightSplat){
+		this.rightSplat.forAllSplat(callOnSplat);
+	}
+};
+
 Splat.prototype.isDisplayL = function(){
 	return this.split.isDisplayL();
 };
@@ -2679,9 +2704,12 @@ Splat.prototype.setSplit = function(split){
 				//console.log('Splat displaying right child');
 				//this.R().displayIn(this.dobs.right);
 				this.R().setSplit(this.split.rightSplit);
+			}else{
+				this.deleteChildSplats();
 			}
 		}
 		
+		//UPDATE 2022-12-17 Action (third child) and drop dobs are not used anymore since dragging creates a line between 2 places.
 		if(splate.showDropDobs){
 			if(splate.isAttractDropLeft()){
 				this.dobs.dropleft.innerHTML = '(dropleft)';
@@ -2855,10 +2883,10 @@ Splat.prototype.setSplit = function(split){
 		this.updateDobIconsVisibility();
 		
 		
+		//UPDATE 2022-12-17 Action (third child) and drop dobs are not used anymore since dragging creates a line between 2 places.
 		//UPDATE 2022-10-21 planning to not display Action (third child) and instead use d.looseIcon etc during dragging.
 		//
 		//Action stuff goes in dropleft dropmid or dropright. Action hasnt acted yet, is just here to say action should be done as a forkEdit of this Split...
-		
 		let a = this.split.action;
 		//this.dobs.dropleft.innerHTML = ''; //FIXME should child Splats do that instead?
 		//this.dobs.dropmid.innerHTML = ''; //FIXME should child Splats do that instead?
@@ -3483,7 +3511,19 @@ var circs = [];
 
 //var rebuildLinesAndCircsBy
 
-
+//should only call this if !this.isDisplayL() and !this.isDisplayR(), such as if only a literal or Name# is displayed here,
+//but even if so, they could be just closed (!splate.isOpen) which might have the same or similar effect?
+//A call of setSplit after this would create them again if needed.
+Splat.prototype.deleteChildSplats = function(){
+	this.leftSplat = null;
+	this.rightSplat = null;
+	if(this.dobs.left){
+		this.dobs.left.innerHTML = '';
+	}
+	if(this.dobs.right){
+		this.dobs.right.innerHTML = '';
+	}
+};
 
 //a root splat, such as rootSplat or dragSplat.
 Splat.prototype.isRoot = function(){
@@ -3633,6 +3673,39 @@ var rootSplat = null; //cuz need rootDob to exist first, and not doing that til 
 //var rootSplat = new Splat(null, newSplateForFnAsRoot(exampleFnToDisplay));
 //rootSplat.split = newSplitForFn(exampleFnToDisplay);
 var rootDob = null; //TODO
+
+var quickSaveLoadName = i=>('wikibQuickSave'+i);
+
+var displayedFnToCode = ()=>(rootSplat.splate().fn+'');
+
+var quickSaveMaxSize = 1000000;
+
+var askYN = question=>confirm(question);
+
+var say = text=>alert(text);
+
+var quickSave = i=>{
+	let name = quickSaveLoadName(i);
+	let val = displayedFnToCode();
+	if(val.length <= quickSaveMaxSize || askYN('Try to QuickSave '+name+' even though its size '+val.length+'?')){
+		try{
+			window.localStorage.setItem(name, val);
+		}catch(e){
+			say('ERROR: '+e);
+			throw e;
+		}
+	}
+};
+
+var quickLoad = i=>{
+	let name = quickSaveLoadName(i);
+	let val = window.localStorage.getItem(name);
+	console.log('QuickLoading '+name+' which is size '+val.length);
+	let fn = vm.eval(val);
+	console.log('QuickLoad '+name+' evaled it');
+	setRootFnAndForceUpdateDisplay(fn);
+	console.log('QuickLoad '+name+' displayed it');
+};
 
 
 /*TODO how will Split and Splat do the graphics of dragging, during the drag?
@@ -3896,6 +3969,16 @@ var metaLOfInfcur = (draggedL,theInfcurList)=>{
 		ret = ret(fn); //append param. Infcur/[] never evals, just keeps appending nomatter how deep (TODO even so deep the list doesnt fit all on 1 computer).
 	}
 	return ret;
+};
+
+//replace whole splat UI with a new one for that fn.
+var setRootFnAndForceUpdateDisplay = fn=>{
+	let split = newSplitForFn_experimental(fn)
+	rootSplat = new Splat(null, rootDob); //TODO merge duplicate code between setRootFn and window.onload
+	rootSplat.setSplit(split); //display it recursively
+	//if(options.do_forkTryMaxWidth_experimentOnWindowLoad){
+		updateDisplayToWrap();
+	//}
 };
 
 var circMenu = [
@@ -4250,6 +4333,7 @@ window.onload = ()=>{
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
+	//TODO merge duplicate code between setRootFn and window.onload
 	let split = newSplitForFn_experimental(fn);
 	
 	if(options.testActionOnWindowLoad){
@@ -4367,6 +4451,16 @@ window.onload = ()=>{
 			Only digital signatures of it are normally shared.
 			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
 		</td><td>
+			<div id=controlsAboveRootDob>
+				QuickSave and QuickLoad use cookies. In future versions, it will have the option to save/download generated file and drag files in, and to drag just parts into and out of those files or cookies and to share and stream online.<br>
+				<nobr><input type=button value="QuickSave 1" onclick="quickSave(1);"></input><input type=button value="QuickLoad 1" onclick="quickLoad(1);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 2" onclick="quickSave(2);"></input><input type=button value="QuickLoad 2" onclick="quickLoad(2);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 3" onclick="quickSave(3);"></input><input type=button value="QuickLoad 3" onclick="quickLoad(3);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 4" onclick="quickSave(4);"></input><input type=button value="QuickLoad 4" onclick="quickLoad(4);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 5" onclick="quickSave(5);"></input><input type=button value="QuickLoad 5" onclick="quickLoad(5);"></input></nobr>
+				<br><br>
+				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
+			</div><br>
 			<div id=rootDob></div>
 			
 		</td></tr></table>
