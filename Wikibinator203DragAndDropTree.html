@@ -306,7 +306,7 @@ Hypot#(
 	}
 )
 [the hypotenuse of [a right triangle of sides 6 and 8] is (Hypot 6 8) and [that func is Hypot] and [as a 1 param func is (Hypot 6)]]
-{[hello world] {abc def ghi}}
+{[hello world] {abc def ghi jkl}}
 (U Pair L U U S U)
 (Pair L R)
 (T (Pair (T L) R))
@@ -424,6 +424,9 @@ controls.mouseXDragFrom = 0;
 var anyfromSplat = ()=>(findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom'));
 
 var anytoSplat = ()=>(findSplatWithDragStep('to') || findSplatWithDragStep('wouldTo') || findSplatWithDragStep('dropCircMenu'));
+
+//any splat where the clickCircMenu should appear, that its been clicked by right mouse button.
+var anyclickcircSplat = ()=>findSplatWithDragStep('clickcirc');
 
 //returns [fromY fromX toY toX] or null, depending if theres a drag in progress.
 var dragLineFromYXToYX = ()=>{
@@ -597,20 +600,27 @@ var Splat = function(parentSplatOrNull, selfDob){
 					setSelSplat(ThisSplat);
 				}
 				if(options.doMainDragging){
-					console.log('mousedown doMainDragging');
+					console.log('for dropcirc, mousedown doMainDragging');
 					//ThisSplat.doStartDrag(
 					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
 					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
 					if(splatfyfx){
 						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
 					}else{
-						console.log('screenYXToSplatfyfx returned null so cant doStartDrag');
+						console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
 					}
 					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
 				}
 			}else if(btn == 'mouseRightButton'){
 				//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
-				doClickCircMenu();
+				//doClickCircMenu();
+				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+				console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+				if(splatfyfx){
+						splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+				}else{
+						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+				}
 			}
 		}
 	);
@@ -658,6 +668,18 @@ Splat.prototype.looseIconYFractionAtMouseY = function(mouseY){
 Splat.prototype.looseIconXFractionAtMouseX = function(mouseX){
 	if(mouseX === undefined) mouseX = controls.mouseX;
 	return (mouseX-dobX(this.dobs.self))/dobWidth(this.dobs.self); //FIXME what if width is 0?
+};
+
+//If you dont give a optionalOtherLooseIconYFraction then it uses its own.
+Splat.prototype.screenYOfLooseIconYFraction = function(optionalOtherLooseIconYFraction){
+	let looseIconYFraction = (optionalOtherLooseIconYFraction!==undefined) ? optionalOtherLooseIconYFraction : this.splate().looseIconYFraction();
+	return dobY(this.dobs.self)+dobHeight(this.dobs.self)*looseIconYFraction;
+};
+
+//If you dont give a optionalOtherLooseIconXFraction then it uses its own.
+Splat.prototype.screenXOfLooseIconXFraction = function(optionalOtherLooseIconXFraction){
+	let looseIconXFraction = (optionalOtherLooseIconXFraction!==undefined) ? optionalOtherLooseIconXFraction : this.splate().looseIconXFraction();
+	return dobX(this.dobs.self)+dobWidth(this.dobs.self)*looseIconXFraction;
 };
 
 //This takes 3 possible params: 'dropleft', 'dropmid', or 'dropright', and creates/reuses a child Splat.
@@ -974,6 +996,16 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+options.displayDragFromBorder = true;
+options.displayDragToBorder = true;
+
+options.displayDragFromSurface = false; //dont need these anymore now that theres displayDragFromBorder/displayDragToBorder
+options.displayDragToSurface = false;
+
+//TODO have X (delete) and metaX (metaDelete) icons.
+options.deleteKnowsAboutS2Etc = true; //delete considers that {...} and [...] etc, so adds or removes S and Infcur/[] etc as needed.
+//options.deleteKnowsAboutS2Etc = false; //false, delete just replaces parent with the sibling, as each fn has 2 childs.
+
 //options.dropCircMenuRadius = 45;
 //options.dropCircMenuRadius = 56;
 options.dropCircMenuIconSize = 25;
@@ -1004,10 +1036,11 @@ options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size
 //which includes inner fns in inner rects recursively. Makes it maybe 10 times slower when just 1/7 of screen filled.
 //options.displayWholeTostringAtEachRect = true; //very slow
 options.displayWholeTostringAtEachRect = false; //fast enough
+if(options.displayWholeTostringAtEachRect) console.log('WARNING: options.displayWholeTostringAtEachRect is true, which is useful for finding bugs by hover mouse over things, but makes it very slow. TODO make it adjust the popupTitle when mouse goes over it instead of precomputing all of them, which would be faster but not as fast as turning this off completely.');
 
 
-//options.displaySplateDetailExceptFnAtEachRect = true;
-options.displaySplateDetailExceptFnAtEachRect = false;
+options.displaySplateDetailExceptFnAtEachRect = true;
+//options.displaySplateDetailExceptFnAtEachRect = false;
 
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
@@ -2542,6 +2575,26 @@ var countCallsOf_setSplit = 0;
 var test_rememberDobsIn_setSplit = [];
 
 
+//'C' if theres no parent, meaning normal callpair. Else parent's syty.
+Splat.prototype.parentSyty = function(){
+	return (this.parentSplat ? this.parentSplat.splate().syty : 'C');
+};
+
+//'C' if theres no parent of parent, meaning normal callpair. Else parent's syty.
+Splat.prototype.parentParentSyty = function(){
+	return (this.parentSplat ? this.parentSplat.parentSyty() : 'C');
+};
+
+/*
+//If this is (S abc) in {abc def}, for example, returns the splat for that abc,
+//but if this is (S abc) in [x y (S abc)] then just returns this Splat (for (S abc)).
+//Theres 
+Splat.prototype.findDirectSplat
+*
+Splat.prototype.metaPaste = 
+*/
+
+
 //displays it deeply but not past Splats whose Split is equal (Split.eq(Split)) cuz would in theory be the same graphics etc.
 //
 //WARNING: When left child is vm.ops.Infcur (aka displayed as [] by itself, or [a b c] to mean ([] a b c)) theres no this.leftSplat
@@ -2706,6 +2759,7 @@ Splat.prototype.setSplit = function(split){
 		}
 		if(options.displaySplateDetailExceptFnAtEachRect){ //for testing
 			//suffix += '__'+splate.toStringExceptFn();
+			popupTitle += '__parentSyty='+this.parentSyty();
 			popupTitle += '__'+splate.toStringExceptFn();
 		}
 		if(options.display_isSelected_afterName){
@@ -3120,7 +3174,8 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 		}*/
 	}else if(options.displayVarargNormalCallPairs && (callerSyty == 'C' || callerSyty == 'S0') && (syty == 'C' || syty == 'S1')){
 		isDisplayPushAndPopChars = false;
-	}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && isDisplayChilds){
+	//}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && isDisplayChilds){
+	}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && !isRightRecursion && isDisplayChilds){
 		isFoldL = true;
 		isDisplayPushAndPopChars = false;
 		//isDisplayName = false; //FIXME what if need the name cuz multiple parents are displayed?
@@ -3129,6 +3184,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 		//}
 		//isDisplayPushAndPopChars = false; //FIXME??
 	}else if(options.displayVarargS && syty == 'S2' && callerSyty == 'S1' && isDisplayChilds){
+	//}else if(options.displayVarargS && syty == 'S2' && callerSyty == 'S1' && !isRightRecursion && isDisplayChilds){
 		isDisplayPushAndPopChars = false;
 		//isDisplayName = false; //FIXME what if need the name cuz multiple parents are displayed?
 	}
@@ -3173,7 +3229,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	let looseIconYFraction = Math.random(); //FIXME
 	let looseIconXFraction = Math.random(); //FIXME
 	let linePath = ''; //FIXME
-	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu.
+	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu. also adding 'clickcirc' 2022-12-18+.
 	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep);
 	let leftSplit = null;
@@ -3237,6 +3293,20 @@ Split.prototype.setDragStuff = (splitA, dragStepA, splitB, dragStepB)=>{
 	return ret;
 };
 */
+
+Splat.prototype.doStartClickCirc = function(looseIconYFraction,looseIconXFraction){
+	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom'); //wouldFrom happens when mouseover, before click any mouse button.
+	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doStartClickCirc';
+	 //update click position slightly, but most importantly, set that splat's dragStep to 'clickcirc' so clickCircMenu appears around it when updateOverlays is called.
+	 
+	//give looseIconYFraction here which may slightly differ from its current fraction
+	globalVars.dropCircMenuCenterY = this.screenYOfLooseIconYFraction(looseIconYFraction);
+	globalVars.dropCircMenuCenterX = this.screenXOfLooseIconXFraction(looseIconXFraction);
+	
+	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setDragStep('clickcirc'));
+	//that transformSplate should have updated display since it calls setSplit
+	//updateOverlays(); //FIXME should this be here? Does transformSplate do it?
+};
 
 
 //no, wouldFrom, from, wouldTo, to, dropCircMenu.
@@ -3309,16 +3379,31 @@ var doDropCircMenu = ()=>{
 };
 
 
+/*var get_splatClickedWhenCircMenuAppears_elseThrow = ()=>{
+	if(!uiState.splatClickedWhenCircMenuAppears){
+		throw 'No uiState.splatClickedWhenCircMenuAppears, so it appears you didnt click to make clickCircMenu appear. Its normally set in doClickCircMenu to remember which splat was clicked after mouse moves to choose an icon in that menu.';
+	}
+	return uiState.splatClickedWhenCircMenuAppears;
+};*/
+
 //theres 2 circMenus: (left mouse button) drag and (right mouse button) click.
 var doClickCircMenu = ()=>{
 	//let toSplat = findSplatWithDragStep('to');
 	//let toSplat = anytoSplat(); //wouldTo, to, or dropCircMenu
-	let toSplat = splatAtYX(controls.mouseY,controls.mouseX);
+	//let toSplat = splatAtYX(controls.mouseY,controls.mouseX);
+	
+	//parent or self of splat, depending on height of mouse in spat. bottom half is parent. top half is self.
+	let toSplat = getSplatMouseIsOverElseNull();
+	
 	if(!toSplat) throw 'In doClickCircMenu, splatAtYX didnt find a splat at y='+controls.mouseY+' x='+controls.mouseX;
 	//let dragStep = toSplat.splate().dragStep;
 	//if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
 		globalVars.dropCircMenuCenterY = controls.mouseY;
 		globalVars.dropCircMenuCenterX = controls.mouseX;
+		
+		//remember this so funcs in clickCircMenu (such as clickCopy and clickPaste)
+		//use the splat clicked here instead of the splat the mouse is over when touches an icon near it.
+		//nevermind, use anyclickcircSplat() instead, which uses spate.dragStep of 'clickcirc': uiState.splatClickedWhenCircMenuAppears = toSplat;
 	//}
 	//toSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
 	updateOverlays();
@@ -3382,6 +3467,16 @@ var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
 		splatB = rootSplat;
 		dragStepB = 'no';
 	}*/
+	
+	//FIXME remove these lines of test code
+	let clickcirc = anyclickcircSplat();
+	if(clickcirc){
+		console.log('setDragStuff circtest clickcirc='+clickcirc+' other... dragStepA='+dragStepA+' dragStepB='+dragStepB);
+	}else{
+		console.log('setDragStuff circtest clickcirc='+clickcirc+' other... not displaying');
+	}
+	//end FIXME.
+	
 	rootSplat.transformSplit(split=>split.forkDragStuff(rootSplat, splatA, dragStepA, splatB, dragStepB));
 };
 
@@ -3600,6 +3695,7 @@ Splat.prototype.syty = function(){
 };
 
 Splat.prototype.callerSyty = function(){
+	//TODO merge callerSyty and parentSyty and maybe parentParentSyty
 	return this.parentSplat ? this.parentSplat.splate().syty : 'C'; //'C' is normalCallPair
 };
 
@@ -3904,39 +4000,24 @@ var Branch = function(h, w){
 //Near the end of a drag-and-drop, pops up a circle of icons,
 //and when mouse moves toward one of those, it does that action, finishing the drop.
 //This is true if any splat.splate().dragStep=='dropCircMenu'.
-var isPopupCircularMenu = ()=>!!findSplatWithDragStep('dropCircMenu');
+var isPopupCircularMenu = ()=>!!(findSplatWithDragStep('dropCircMenu') || anyclickcircSplat());
 
 //TODO everything you see while dragging, but for now 2022-11-1 I'm just putting the 2 overlay divs here
 //and leaving the icons and dragLine in splat.dobs.dragLine etc, but eventually all that should be here,
 //especially considering I want more icons in the splats.
 var updateOverlays = ()=>{
-	let fromRectOverlay = Dob('globalFromOverlay');
-	let toRectOverlay = Dob('globalToOverlay');
+
 	let wouldfromOrFrom = anyfromSplat();
-	let wouldtoOrTo = anytoSplat();
-	//console.log('updateOverlays wouldfromOrFrom='+wouldfromOrFrom);
-	if(wouldfromOrFrom){
-		let d = wouldfromOrFrom.dobs.self;
-		fromRectOverlay.style.visibility = 'visible';
-		fromRectOverlay.style.top = dobY(d)+'px';
-		fromRectOverlay.style.left = dobX(d)+'px';
-		fromRectOverlay.style.height = dobHeight(d)+'px';
-		fromRectOverlay.style.width = dobWidth(d)+'px';
-	}else{
-		fromRectOverlay.style.visibility = 'hidden';
-	}
-	//TODO merge duplicate code
-	if(wouldtoOrTo){
-		let d = wouldtoOrTo.dobs.self;
-		toRectOverlay.style.visibility = 'visible';
-		toRectOverlay.style.top = dobY(d)+'px';
-		toRectOverlay.style.left = dobX(d)+'px';
-		toRectOverlay.style.height = dobHeight(d)+'px';
-		toRectOverlay.style.width = dobWidth(d)+'px';
-	}else{
-		toRectOverlay.style.visibility = 'hidden';
-	}
+	//let wouldtoOrTo = anytoSplat();
+	let wouldtoOrTo = anytoSplat() || anyclickcircSplat(); //so borders and select display even if dragStep=='clickcirc'
+	let clickCircSplat = anyclickcircSplat(); //any Splat whose dragStep is 'clickcirc'.
 	
+	if(clickCircSplat){
+		console.log('updateOverlays clickcirctest clickCircSplat='+clickCircSplat);
+	}
+	//console.log('updateOverlays wouldfromOrFrom='+wouldfromOrFrom+' wouldtoOrTo='+wouldtoOrTo+' clickcircSplat='+clickcircSplat);
+	
+	/*
 	//FIXMEFIXME
 	//TODO choose which based on which mouse button: let whichMenu = 'dropCircMenu';
 	//let whichMenu = 'clickCircMenu';
@@ -3952,13 +4033,132 @@ var updateOverlays = ()=>{
 	}
 	//whichMenu = 'dropCircMenu'; //FIXME
 	if(options.loglev>1) console.log('updateOverlays, whichMenu='+whichMenu);
+	*/
+	
+	let whichMenu = null;
+	if(clickCircSplat){
+		whichMenu = 'clickCircMenu';
+	}else if(wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu'){
+		whichMenu = 'dropCircMenu';
+	}
+	
+	//displays just outside the border of mouseover_sected rect
+	let mouseOverSelect_top = Dob('mouseOverSelect_top');
+	let mouseOverSelect_left = Dob('mouseOverSelect_left');
+	let mouseOverSelect_right = Dob('mouseOverSelect_right');
+	let mouseOverSelect_bottom = Dob('mouseOverSelect_bottom');
+	let fourBorders = [mouseOverSelect_top, mouseOverSelect_left, mouseOverSelect_right, mouseOverSelect_bottom];
+	
+	//displays just inside the border of mouseover_sected rect
+	let mouseOverSelect2_top = Dob('mouseOverSelect2_top');
+	let mouseOverSelect2_left = Dob('mouseOverSelect2_left');
+	let mouseOverSelect2_right = Dob('mouseOverSelect2_right');
+	let mouseOverSelect2_bottom = Dob('mouseOverSelect2_bottom');
+	let fourBorders2 = [mouseOverSelect2_top, mouseOverSelect2_left, mouseOverSelect2_right, mouseOverSelect2_bottom];
+	
+	let thick = Number.parseInt(mouseOverSelect_top.style.height);
+	
+	//if(whichMenu == 'dropCircMenu'){
+		let fromRectOverlay = Dob('globalFromOverlay');
+		let toRectOverlay = Dob('globalToOverlay');
+		if(wouldfromOrFrom){
+			let d = wouldfromOrFrom.dobs.self;
+			let y = dobY(d);
+			let x = dobX(d);
+			let h = dobHeight(d);
+			let w = dobWidth(d);
+			if(options.displayDragFromSurface){
+				fromRectOverlay.style.visibility = 'visible';
+				fromRectOverlay.style.top = y+'px';
+				fromRectOverlay.style.left = x+'px';
+				fromRectOverlay.style.height = h+'px';
+				fromRectOverlay.style.width = w+'px';
+			}
+			
+			if(options.displayDragFromBorder){
+				for(let dob of fourBorders){
+					dob.style.visibility = 'visible';
+				}
+				
+				//displays just outside the border of mouseover_sected rect. FROM, not TO.
+				mouseOverSelect_top.style.top = (y-thick)+'px';
+				mouseOverSelect_top.style.left = (x-thick)+'px';
+				mouseOverSelect_top.style.width = (w+2*thick)+'px';
+				
+				mouseOverSelect_left.style.top = (y-thick)+'px';
+				mouseOverSelect_left.style.left = (x-thick)+'px';
+				mouseOverSelect_left.style.height = (h+2*thick)+'px';
+				
+				mouseOverSelect_right.style.top = (y-thick)+'px';
+				mouseOverSelect_right.style.left = (x+w)+'px';
+				mouseOverSelect_right.style.height = (h+2*thick)+'px';
+				
+				mouseOverSelect_bottom.style.top = (y+h)+'px';
+				mouseOverSelect_bottom.style.left = (x-thick)+'px';
+				mouseOverSelect_bottom.style.width = (w+2*thick)+'px';
+			}
+		}else{
+			fromRectOverlay.style.visibility = 'hidden';
+			for(let dob of fourBorders){
+				dob.style.visibility = 'hidden';
+			}
+		}
+		//TODO merge duplicate code
+
+		if(wouldtoOrTo){
+			let d = wouldtoOrTo.dobs.self;
+			let y = dobY(d);
+			let x = dobX(d);
+			let h = dobHeight(d);
+			let w = dobWidth(d);
+			if(options.displayDragToSurface){
+				toRectOverlay.style.visibility = 'visible';
+				toRectOverlay.style.top = y+'px';
+				toRectOverlay.style.left = x+'px';
+				toRectOverlay.style.height = h+'px';
+				toRectOverlay.style.width = w+'px';
+			}
+			
+			
+			if(options.displayDragToBorder){
+				for(let dob of fourBorders2){
+					dob.style.visibility = 'visible';
+				}
+				
+				
+				//displays just inside the border of mouseover_sected rect. TO, not FROM.
+				mouseOverSelect2_top.style.top = y+'px';
+				mouseOverSelect2_top.style.left = x+'px';
+				mouseOverSelect2_top.style.width = w+'px';
+				
+				mouseOverSelect2_left.style.top = y+'px';
+				mouseOverSelect2_left.style.left = x+'px';
+				mouseOverSelect2_left.style.height = h+'px';
+				
+				mouseOverSelect2_right.style.top = y+'px';
+				mouseOverSelect2_right.style.left = (x+w-thick)+'px';
+				mouseOverSelect2_right.style.height = h+'px';
+				
+				mouseOverSelect2_bottom.style.top = (y+h-thick)+'px';
+				mouseOverSelect2_bottom.style.left = x+'px';
+				mouseOverSelect2_bottom.style.width = w+'px';
+			}
+			
+		}else{
+			toRectOverlay.style.visibility = 'hidden';
+			for(let dob of fourBorders2){
+				dob.style.visibility = 'hidden';
+			}
+		}
+	//}
 	
 	//let menuDob = Dob(whichMenu);
-	let menuDob = Dob('popupMenuDob');;
+	let menuDob = Dob('popupMenuDob');
 	if(whichMenu != null){
+		console.log('updateOverlays clickcirctest whichMenu='+whichMenu);
 		//FIXME it appears it keeps rebuilding this dob when it doesnt need to. 2022-12-17 for now im just going to empty it each time first.
 		//menuDob.innerHTML = '';
-		if((whichMenu=='clickCircMenu' && !uiState.removeClickCircMenuAsap) || (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu')){
+		//if((whichMenu=='clickCircMenu' && !uiState.removeClickCircMenuAsap) || (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu')){
 			let menuList = eval(whichMenu);
 			for(let i=0; i<menuList.length; i++){
 				let picUrl = menuList[i].pic;
@@ -3981,13 +4181,15 @@ var updateOverlays = ()=>{
 					event=>doEndDrag(dropCircMenuItem)
 				);
 			}
-		}else{
-			//uiState.removeClickCircMenuAsap = false;
-			menuDob.innerHTML = '';
-		}
+		//}else{
+		//	//uiState.removeClickCircMenuAsap = false;
+		//	menuDob.innerHTML = '';
+		//}
 	}else{
+		console.log('updateOverlays clickcirctest emptying_menuDob clickCircSplat='+(clickCircSplat?'nonnull':'null'));
 		menuDob.innerHTML = ''; //Without this, clickCircMenu doesnt disappear after use it.
 	}
+	console.log('updateOverlays clickcirctest menuDob.innerHTML.length='+menuDob.innerHTML.length);
 	//uiState.removeClickCircMenuAsap = false;
 };
 
@@ -4027,6 +4229,39 @@ var metaLOfS2 = (draggedL,theMaybeS2)=>{
 		ret = S(ret)(fn);
 	}
 	return ret;
+};
+
+//similar to metaLOfS2
+var deleteMetaLOfS2 = theMaybeS2=>{
+	return theMaybeS2.n.R();
+	/*
+	//TODO merge duplicate code between deleteMetaLOfS2 and deleteMetaROfS2
+	let S = vm.ops.S;
+	let jsList = sListToJsList(theMaybeS2);
+	if(jsList.length < 2) throw 'An S2 list is always at least size 2 cuz (S a b) or (S (S a b) c) etc.';
+	//delete jsList[0]
+	let ret = jsList[1];
+	for(let i=2; i<jsList.length; i++){
+		ret = S(ret)(jsList[i]);
+	}
+	return ret;
+	*/
+};
+
+//similar to metaLOfS2
+var deleteMetaROfS2 = theMaybeS2=>{
+	return theMaybeS2.n.L().n.R();
+	/*//TODO merge duplicate code between deleteMetaLOfS2 and deleteMetaROfS2
+	let S = vm.ops.S;
+	let jsList = sListToJsList(theMaybeS2);
+	if(jsList.length < 2) throw 'An S2 list is always at least size 2 cuz (S a b) or (S (S a b) c) etc.';
+	//delete jsList[1]
+	let ret = jsList[0];
+	for(let i=2; i<jsList.length; i++){
+		ret = S(ret)(jsList[i]);
+	}
+	return ret;
+	*/
 };
 
 //wikib:[a b c] aka (Infcur a b c) -> js:[c b a].
@@ -4178,7 +4413,7 @@ var dropCircMenu = [
 			console.log('END: Drag: directR');
 		}
 	},
-	{
+	/*{
 		pic: 'pic/select.png', //select what you dragged TO, ignoring the FROM. calls selSplat.
 		func: ()=>{
 			console.log('NEAREND: Drag: select (what you dragged TO, ignoring the FROM), calls selSplat');
@@ -4223,7 +4458,7 @@ var dropCircMenu = [
 			}
 			console.log('END: Drag: delete');
 		}
-	},
+	},*/
 	{
 		pic: 'pic/cancel.png',
 		func: ()=>{
@@ -4416,7 +4651,192 @@ var uiState = {
 	wikibClipboard: U, //clickCopy and clipPaste use this.
 };
 
-var getSplatMouseIsOverElseNull = ()=>splatAtYX(controls.mouseY, controls.mouseX);
+//NEW: Bottom half of rectangle selects parent. Top half selects self.
+//
+//OLD...
+//var getSplatMouseIsOverElseNull = ()=>splatAtYX(controls.mouseY, controls.mouseX);
+//screenYXToSplatfyfx
+//
+var getSplatMouseIsOverElseNull = ()=>{
+	let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+	if(!splatfyfx) return null;
+	return splatfyfx.splat; //parent splat or self splat of that Y X
+	
+	//return splatAtYX(controls.mouseY, controls.mouseX); //FIXME
+};
+
+Splat.prototype.deleteMe = function(isMetaDelete){
+	//FIXME this changes {abc def ghi} to {S def ghi} if delete the top of abc,
+	//but if its going to put it back in {...} then the S shouldnt happen again.
+
+	console.log('NEAREND: clickCircMenu: delete (ignores what you dragged, just deletes whatever you dropped it on)');
+	//let from = anyfromSplat();
+	//let to = anytoSplat();
+	//let to = anyclickcircSplat();
+	let to = this;
+	let parent = to.parentSplat;
+	if(!parent){
+		let s = 'You dragged then chose delete, but cant cuz its the outermost/root on your screen (there is no root of the whole system). TODO should this replace root with (F U) aka IdentityFunc/I?';
+		alert(s);
+		console.log(s);
+	}else{
+		let retFn;
+		let thisFn = to.splate().fn;
+		let doSimpleDelete = true;
+		let isRightRecursion = to.isRightChild();
+		//if(options.deleteKnowsAboutS2Etc){
+		if(isMetaDelete){
+			let parentSyty = to.parentSyty();
+			if(parentSyty == 'S2'){
+				let parentFn = parent.splate().fn;
+				console.log('retFn='+retFn+' syty='+to.splate().syty+' parentSyty='+parentSyty+' toFn='+thisFn+' parentFn='+parent.splate().fn);
+				//console.log('options.deleteKnowsAboutS2Etc adding an S');
+				//retFn = vm.ops.S(retFn);
+				if(isRightRecursion){
+					retFn = deleteMetaROfS2(parentFn);
+				}else{
+					retFn = deleteMetaLOfS2(parentFn);
+				}
+				doSimpleDelete = false;
+			}else if(parentSyty == 'S1' && to.parentParentSyty()=='S2'){
+			
+				//maybe it works both ways?
+				//if(isRightRecursion){
+				//	throw 'TODO handle isRightRecursion=true here in parentSyty S1 parentParentSyty S2, but that probably wont happen cuz the S is not displayed cuz should be isFoldL.';
+				//}
+				
+				//happens when deleting the down side (selects self and to the left)
+				//of {abc def} in {abc def ghi jkl}, for example.
+				//syty of {abc def} is S2, and its parentSyty is S1 cuz (S (S {abc def} ghi) jkl).
+				//So want to delete the (S {abc def}) instead of just {abc def},
+				//and leave {ghi jkl} aka (S ghi jkl).
+				//
+				//Or similar for deleting abc or {abc def ghi} instead of deleting {abc def}.
+				console.log('Recursing to metaDelete parent, so dont expect to see "END: clickCircMenu: delete" cuz ending right after that.');
+				to.parentSplat.deleteMe(isMetaDelete); //know to.parentSplat exists cuz its syty isnt 'C'
+				console.log('END recursing to metaDelete parent.');
+				return;
+			}else if(parentSyty == 'IC0' || parentSyty == 'IC+'){
+				//Infcur/[] list such as [a b c] in [a b c d e] aka ([] a b c d e).
+				//Infcur/[] just appends params and never evals. It has no length limit.
+				//let parentIsRightRecursion = parent.isRightChild();
+				//if(!parentIsRightRecursion){ //is left
+				if(!isRightRecursion){ //is left
+					let parentFn = parent.splate().fn;
+					let rightSibling = parentFn.n.R();
+					retFn = vm.ops.Infcur(rightSibling);
+					doSimpleDelete = false;
+				}
+				/* thisFn is wrong. want to delete thisFn and keep whats right of it, but with Infcur left of that...
+				if(!isRightRecursion){
+					retFn = vm.ops.Infcur(thisFn);
+					doSimpleDelete = false;
+				}*/
+				//else parentIsRightRecursion, just do normal delete, like deleting the d in [a b c d e]
+				//should do ([a b c] e) which evals to [a b c e].
+			}
+			//TODO Infcur/[] list. check syty is IC+ or IC0 etc.
+			
+			/*
+			//TODO test this with X/delete on {abc def ghi jkl}
+			let parentSyty = parent.splate().syty;
+			//if(parentSyty == 'S2' || parentSyty == 'S1'){
+			if(parentSyty == 'S2'){
+				console.log('retFn='+retFn+' parentSyty='+parentSyty+' toFn='+to.splate().fn+' parentFn='+parent.splate().fn);
+				//console.log('options.deleteKnowsAboutS2Etc adding an S');
+				//retFn = vm.ops.S(retFn);
+				doSimpleDelete = false;
+			}*/
+		}
+		if(doSimpleDelete){ //the simple way of X/delete. Replace parent with self's sibling in that parent. Each fn has 2 child fns.
+			if(isRightRecursion){
+				console.log('clickCircMenu then delete, is right, so delete right and replace parent with left');
+				
+				//parent.leftSplat will be null if this is displayed as {abc def ghi} and
+				//you delete (top half of, to select abc, not "{abc"). It works on bottom half, as of 2022-12-21.
+				//So I'm replacing "parent.leftSplat.splate().fn" with parent.splate().fn.n.L(), and similar for R.
+				//It should be the same fn.
+				//retFn = parent.leftSplat.splate().fn;
+				retFn = parent.splate().fn.n.L();
+			}else{ //is left recursion
+				console.log('clickCircMenu then delete, is left, so delete left and replace parent with right');
+				//retFn = parent.rightSplat.splate().fn;
+				retFn = parent.splate().fn.n.R();
+			}
+		}
+		console.log('Returned '+retFn);
+		let callerSyty = parent.callerSyty();
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		//This isnt right??? cuz... (get whole comment from directL)
+		let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
+		rootSplat.setSplit(newRootSplitFromParent);
+		if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+			updateDisplayToWrap();
+		}
+	}
+	console.log('END: clickCircMenu: delete');
+};
+
+
+//if isMeta, its like metaDelete metaL metaR etc, except for paste/setFn.
+//Not specific to paste cuz you dont have to use uiState.wikibClipboard.
+Splat.prototype.setFn = function(fn, isMeta){
+	console.log('START: clickCircMenu: paste');
+	if(isMeta){
+		let thisSyty = this.splate().syty;
+		let parentSyty = this.parentSyty();
+		if(parentSyty=='S2' && thisSyty=='S1'){
+			console.log('Splat.setFn recursing cuz meta parentS2 selfS1');
+			return this.R().setFn(fn, isMeta);
+		}else if(thisSyty=='IC+'){ //but not if its IC0 cuz thats just Infcur/[] by itself.
+			//console.log('Splat.setFn recursing (and put Infcur/[] left of param) cuz meta selfIC+');
+			//wrong... return this.R().setFn(fn, isMeta);
+			console.log('Splat.setFn putting Infcur/[] left of param fn cuz isMeta and self syty is IC+');
+			fn = vm.ops.Infcur(fn);
+		}
+	}
+	
+	//TODO clean up the below code. It was moved from clickCircMenu pic/clickPaste.png
+	//but now is generalized to setFn.
+	
+	
+	//let from = anyfromSplat();
+	//let to = anytoSplat();
+	//let to = getSplatMouseIsOverElseNull();
+	let to = this;
+	//if(to != null){
+		//let fromFn = from.splate().fn;
+		let toFn = to.splate().fn;
+		//let valToPaste = uiState.wikibClipboard;
+		let valToPaste = fn;
+		
+		
+		//uiState.wikibClipboard = toFn;
+		//console.log('copied into uiState.wikibClipboard');
+		
+		
+		let retFn = valToPaste;
+		
+		
+		console.log('clickCircMenu: replacing '+toFn+' with '+retFn);
+		//could just put a pointer to from.split in to.split (by to.setSplit(from.split)), in theory, but that wouldnt wrap based on screen width etc.
+		let callerSyty = to.callerSyty();
+		let isRightRecursion = to.isRightChild();
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //FIXME consider width. some split maker is considering width. where does that param go in?
+		console.log('clickCircMenu: newSplit='+newSplit);
+		
+		//This isnt right cuz... (get whole comment from directL)
+		let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+		console.log('clickCircMenu: paste, about to rootSplat.setSplit to ...');
+		rootSplat.setSplit(newRootSplit);
+		console.log('clickCircMenu: paste from uiState.wikibClipboard');
+	//}
+	
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: clickCircMenu: paste');
+};
 
 //menu that appears when rightClick a fn. This is similar to dropCircMenu except that only happens when drag from a fn to a fn.
 //This is for things like copy and paste. Also, quicksave1 quickload1 quicksave2 quickload2 etc at a specific fn.
@@ -4425,7 +4845,7 @@ var clickCircMenu = [
 		pic: 'pic/cancel.png',
 		func: ()=>{
 			console.log('START: clickCircMenu: cancel');
-			uiState.removeClickCircMenuAsap = true;
+			uiState.removeClickCircMenuAsap = true; //TODO remove the removeClickCircMenuAsap var.
 			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
@@ -4435,42 +4855,25 @@ var clickCircMenu = [
 	{
 		pic: 'pic/clickPaste.png',
 		func: ()=>{
-			console.log('START: clickCircMenu: paste');
-			uiState.removeClickCircMenuAsap = true;
-			
-			/*
-			//let from = anyfromSplat();
+			uiState.removeClickCircMenuAsap = true; //TODO remove the removeClickCircMenuAsap var.
+			anyclickcircSplat().setFn(uiState.wikibClipboard, options.deleteKnowsAboutS2Etc);
+		}
+	},
+	{
+		pic: 'pic/select.png', //select what you dragged TO, ignoring the FROM. calls selSplat.
+		func: ()=>{
+			console.log('NEAREND: clickCircMenu: select (what you dragged TO, ignoring the FROM), calls selSplat');
 			//let to = anytoSplat();
-			let to = getSplatMouseIsOverElseNull();
-			if(to != null){
-				//let fromFn = from.splate().fn;
-				let toFn = to.splate().fn;
-				let valToPaste = uiState.wikibClipboard;
-				
-				
-				uiState.wikibClipboard = toFn;
-				console.log('copied into uiState.wikibClipboard');
-				
-				
-				let retFn = valToPaste;
-				console.log('clickCircMenu: replacing '+toFn+' with '+retFn);
-				//could just put a pointer to from.split in to.split (by to.setSplit(from.split)), in theory, but that wouldnt wrap based on screen width etc.
-				let callerSyty = to.callerSyty();
-				let isRightRecursion = to.isRightChild();
-				let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //FIXME consider width. some split maker is considering width. where does that param go in?
-				console.log('clickCircMenu: newSplit='+newSplit);
-				
-				//This isnt right cuz... (get whole comment from directL)
-				let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-				console.log('clickCircMenu: paste, about to rootSplat.setSplit to ...');
-				rootSplat.setSplit(newRootSplit);
-				console.log('clickCircMenu: paste from uiState.wikibClipboard');
-			}
-			*/
-			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
-				updateDisplayToWrap();
-			}
-			console.log('END: clickCircMenu: paste');
+			let to = anyclickcircSplat();
+			setSelSplat(to);
+			console.log('clickCircMenu: select: new selSplat = '+selSplat);
+			console.log('END: clickCircMenu: select');
+		}
+	},
+	{
+		pic: 'pic/delete.png',
+		func: ()=>{
+			anyclickcircSplat().deleteMe(options.deleteKnowsAboutS2Etc);
 		}
 	},
 	{
@@ -4479,15 +4882,16 @@ var clickCircMenu = [
 			console.log('START: clickCircMenu: copy');
 			uiState.removeClickCircMenuAsap = true;
 			
-			/*
+			
 			//let from = anyfromSplat();
 			//let to = anytoSplat();
-			let to = getSplatMouseIsOverElseNull();
+			//let to = getSplatMouseIsOverElseNull();
+			let to = anyclickcircSplat();
 			//let fromFn = from.splate().fn;
 			let toFn = to.splate().fn;
 			uiState.wikibClipboard = toFn;
 			console.log('copied into uiState.wikibClipboard');
-			*/
+			
 			
 			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
@@ -4496,6 +4900,12 @@ var clickCircMenu = [
 		}
 	},
 ];
+
+//also triggers oninput event, such as on a textarea as dob. TODO??? maybe also works for number input etc?
+var setDobValue = (dob,val)=>{
+	dob.value = '';
+	dob.dispatchEvent(new Event('input'));
+};
 
 var updateDisplayToWrap = ()=>{
 	if(vm.loglev>0) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in dropCircMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
@@ -4553,54 +4963,22 @@ window.onload = ()=>{
 	<div id=extraTests></div>
 	<br><br>
 	
-	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
-	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
-	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?</font>
-	<br><br>
-	<font color=gray>DONE ENOUGH FOR NOW, its ok to call that many times since its updating many times per second, but i turned off some options (see options = {... map) to make it fast enuf (is still slow while browser debugger is open): figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
-	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
-	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.</font>
-	<br><br>
-	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
-	<br><br>
-	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
-	<br><br>
-	<div style="background-color:blue">TODO...<br>
-			TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including <a b c> meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
-			<br><br>
-			TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
-			<br><br>
-			SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
-			<br><br>
-			V means to copy the vars from λ into State then get a certain return value out of it.
-			<br><br>
-			SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
-			FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
-			_[<br>
-				=[,mul ,1]<br>
-				Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
-				//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
-				//<a b c> means {,a b c}.<br>
-				//Fo takes var size [] and does _[] with all params at end.<br>
-			]<br>
-			<br><br>
-			In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
-			if it would be (a b).
-			<br><br>
-			For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
-			<br><br>
-			Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
-			<br><br>
-			What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
-			Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
-			<br><br>
-			Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
-		</div>
-	
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
 		<div id=globalToOverlay style="pointer-events:none;position:absolute;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001"></div>
-		<div id=popupMenuDob style="z-index:10000002;background-color:gray"></div>
+		<div id=mouseOverSelect_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#fff"></div>
+		<div id=mouseOverSelect_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#fff"></div>
+		<div id=mouseOverSelect_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#ddd"></div>
+		<div id=mouseOverSelect_bottom style
+		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#ddd"></div>
+		
+		<div id=mouseOverSelect2_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#8ff"></div>
+		<div id=mouseOverSelect2_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#8ff"></div>
+		<div id=mouseOverSelect2_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#7dd"></div>
+		<div id=mouseOverSelect2_bottom style
+		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#7dd"></div>
+		
+		<div id=popupMenuDob style="position:absolute;z-index:10000004;background-color:gray;top:0px;left:0px"></div>
 	</div>
 	
 	<center>
@@ -4636,10 +5014,65 @@ window.onload = ()=>{
 				<br><br>
 				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
 			</div><br>
-			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div>
+			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
+			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
+			
+			<div style="display:inline-block">
+				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
+				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
+			</div>
+			
+			<textarea rows=5 cols=90 readonly id=codeErr></textarea>
 			
 		</td></tr></table>
 	</center>
+	
+	
+	<hr><hr><hr>
+	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
+	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
+	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?</font>
+	<br><br>
+	<font color=gray>DONE ENOUGH FOR NOW, its ok to call that many times since its updating many times per second, but i turned off some options (see options = {... map) to make it fast enuf (is still slow while browser debugger is open): figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
+	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
+	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.</font>
+	<br><br>
+	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
+	<br><br>
+	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
+	<br><br>
+	<div style="background-color:blue">TODO...<br>
+		TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including &lt;a b c&gt; meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
+		<br><br>
+		TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
+		<br><br>
+		SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
+		<br><br>
+		V means to copy the vars from λ into State then get a certain return value out of it.
+		<br><br>
+		SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
+		FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
+		_[<br>
+			=[,mul ,1]<br>
+			Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
+			//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
+			//<a b c> means {,a b c}.<br>
+			//Fo takes var size [] and does _[] with all params at end.<br>
+		]<br>
+		<br><br>
+		In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
+		if it would be (a b).
+		<br><br>
+		For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
+		<br><br>
+		Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
+		<br><br>
+		What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
+		Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
+		<br><br>
+		Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
+	</div>
+	<hr><hr><hr>
 	
 	
 	<br><font color=gray>
