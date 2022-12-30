@@ -383,7 +383,29 @@ the hypotenuse of a right triangle of sides 6 and 8 is (Hypot 6 8) and that func
 
 //const firstCode = '[I#(F U) Sqr#{(T *) I I}]';
 
-const exampleFnToDisplay = vm.eval(firstCode); //a Wikibinator203 fn/lambda (which is a js lambda)
+var getFirstCode = ()=>{
+	let code = location.search;
+	if(code.startsWith('?')) code = code.substring(1); //remove ?
+	if(code.length > 0) return unescape(code);
+	return firstCode;
+};
+
+var urlPrefix = ()=>{
+	let s = location.href;
+	let i = s.indexOf('?');
+	return i==-1 ? s : s.substring(0,i);
+};
+
+//urls generally have to be smaller than about 1024 chars or bytes. fns can get much bigger, but this should work for small fns.
+var urlOfSmallFn = fn=>urlPrefix()+'?'+escape(''+fn);
+
+var goToUrlOfCurrentFn = ()=>{
+	console.log('goToUrlOfCurrentFn');
+	window.location = urlOfSmallFn(rootSplat.splate().fn);
+};
+
+//const exampleFnToDisplay = vm.eval(firstCode); //a Wikibinator203 fn/lambda (which is a js lambda)
+const exampleFnToDisplay = vm.eval(getFirstCode()); //a Wikibinator203 fn/lambda (which is a js lambda)
 
 const fnForTestingAction = vm.eval('[for testing action 3.456]');
 
@@ -474,8 +496,6 @@ var dragLineFromYXToYX = ()=>{
 	}
 };
 
-//draggingStep is 0 for not dragging, 1 for started dragging, 2 to schedule ending of drag asap, and 3 for ended dragging (or maybe should be 0 instead of 3?).
-controls.draggingStep = 0;
 
 //const popupDragButton = 'mouseButton0'; //controls[popupDragButton] is 0 (up) or 1 (down)
 //const popupDragButton = 'mouseLeftButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
@@ -530,8 +550,15 @@ var Splat = function(parentSplatOrNull, selfDob){
 	selfDob.addEventListener(
 		'mousemove',
 		this.eventListenerMouseMove = function(event){
+			event.stopPropagation();
+			if(uiState.isDoingMouseUp){
+				console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				return;
+			}
 			controls.mouseY = event.pageY;
 			controls.mouseX = event.pageX;
+			
+			runScheduledFuncs();
 			
 			let isPopupDragButtonDown = controls[popupDragButton];
 			let isMetaInsertDragButtonDown = controls[metaInsertButton];
@@ -555,7 +582,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 			
 			
 			if(vm.loglev>=2) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
-			event.stopPropagation();
+			//event.stopPropagation();
 			if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
 				ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
 			}
@@ -633,11 +660,38 @@ var Splat = function(parentSplatOrNull, selfDob){
 		}
 	};
 	
+	var scheduledFunc = null;
+	//schedule a func to run asap. sometimes js gets too busy and misses events etc, leaving drag and drop stuff on screen.
+	var scheduleFunc = func=>{
+		if(scheduledFunc){
+			const prev = scheduledFunc;
+			scheduledFunc = ()=>{
+				prev();
+				func();
+			};
+		}else{
+			scheduledFunc = func;
+		}
+	};
+	var runScheduledFuncs = ()=>{
+		const prev = scheduledFunc;
+		scheduledFunc = null;
+		if(prev){
+			prev();
+		}
+	};
+	
 	selfDob.addEventListener(
 		'mousedown',
 		this.eventListenerMouseDown = function(event){
-			//console.log('mousedown '+ThisSplat);
 			event.stopPropagation();
+			if(uiState.isDoingMouseUp){
+				console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				return;
+			}
+			document.body.style.backgroundColor = '#ccc'; //FIXME remove this
+			//console.log('mousedown '+ThisSplat);
+			//event.stopPropagation();
 			uiState.removeClickCircMenuAsap = false;
 			let btn = eventToButtonName(event);
 			console.log('mousedown '+btn);
@@ -708,27 +762,36 @@ var Splat = function(parentSplatOrNull, selfDob){
 	selfDob.addEventListener(
 		'mouseup',
 		this.eventListenerMouseUp = function(event){
-			//console.log('mouseup '+ThisSplat);
-			event.stopPropagation();
-			let btn = eventToButtonName(event);
-			console.log('mouseup '+btn);
-			controls[btn] = 0;
-			//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-			//	setSelSplat(ThisSplat);
-			//}
-			//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
-			//if(options.doMainDragging && btn == 'mouseLeftButton'){
-			if(options.doMainDragging && btn == popupDragButton){
-				//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
-				doDropCircMenu();
-				//doEndDrag();
-			}else if(btn == metaInsertButton){
-				endMetaInsert();
+			try{
+				uiState.isDoingMouseUp = true;
+				document.body.style.backgroundColor = 'white'; //FIXME remove this
+				//console.log('mouseup '+ThisSplat);
+				event.stopPropagation();
+				let btn = eventToButtonName(event);
+				console.log('mouseup '+btn);
+				controls[btn] = 0;
+				//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+				//	setSelSplat(ThisSplat);
+				//}
+				//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
+				//if(options.doMainDragging && btn == 'mouseLeftButton'){
+				if(options.doMainDragging && btn == popupDragButton){
+					//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
+					//doDropCircMenu();
+					doDropCircMenuOrHasPreChosen();
+					//doEndDrag();
+				}else if(btn == metaInsertButton){
+					//scheduleFunc(()=>{
+						endMetaInsert();
+					//});
+				}
+				//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
+				//	doClickCircMenu();
+				//}
+				uiState.lastMouseButtonDown = null;
+			}finally{
+				uiState.isDoingMouseUp = false;
 			}
-			//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
-			//	doClickCircMenu();
-			//}
-			uiState.lastMouseButtonDown = null;
 		}
 	);
 	
@@ -1139,7 +1202,7 @@ options.dropCircMenuIconSize = 25;
 
 options.radiusOfMenu = {
 	dropCircMenu: 56,
-	clickCircMenu: 35,
+	//clickCircMenu: 35, //clickCircMenu has been merged into dropCircMenu as of 2022-12-30
 };
 
 options.blockRightClickPopup = true; //cuz mouseRightButton does clickCircMenu popup instead, inside rootDob.
@@ -3509,6 +3572,16 @@ Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
 	}
 };
 
+var doDropCircMenuOrHasPreChosen = ()=>{
+	let hasPrechosen = preChoosePopupIcon!=-1;
+	if(hasPrechosen){
+		console.log('doDropCircMenuOrHasPreChosen skipping popup menu, preChoosePopupIcon='+preChoosePopupIcon+' pic='+dropCircMenu[preChoosePopupIcon].pic);
+		doEndDrag(dropCircMenu[preChoosePopupIcon]);
+	}else{
+		doDropCircMenu();
+	}
+};
+
 //changes whatever splat.splate().dragStep is 'to', changes it to 'dropCircMenu', which is second last part of a drag.
 //After user chooses one of the icons displayed in the circle,
 //lambda is called on lambda to find/create lambda (by doEndDrag)
@@ -5486,6 +5559,33 @@ var updateDisplayToWrap = ()=>{
 	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
 };
 
+//-1 for none (do popup menu to ask user for it), or 0..(dropCircMenu.length-1) to do it automatically without popping it up.
+var preChoosePopupIcon = -1;
+
+var display_copyOfPopupMenuToPreChoose = ()=>{
+	let dob = Dob('copyOfPopupMenuToPreChoose');
+	//let html = '<input type=button onclick="preChoosePopupIcon = -1; display_copyOfPopupMenuToPreChoose();" value="Ask when drag/drop"></input> or drag with '+popupDragButton+' does this:';
+	let siz = options.dropCircMenuIconSize*1.5;
+	let html = 'Drag and drop lambda onto lambda to find/create lambda, to build apps, games, or tiny pieces of math...<br>';
+	let borderColor = options.metaInsertDragLineColor;
+	html += metaInsertButton+' does <div style="border:solid;border-width:3px;display:inline-block;border-color:'+borderColor+'"><img src="pic/metaInsert.png" style="height:'+siz+'px;width:'+siz+'px"></div><br>';
+	html += popupDragButton+' does ';
+	dropCircMenu[-1] = {pic:'pic/askLater.png'};
+	let bgColor = document.body.style.backgroundColor || 'white';
+	for(let j=-1; j<dropCircMenu.length; j++){
+		let i = j;
+		if(j != -1){
+			i = (i+Math.ceil(dropCircMenu.length/2))%dropCircMenu.length; //display icons in same order they appear on screen in the circle, aligned to top of circle
+		}
+		let menuItem = dropCircMenu[i];
+		let picPath = menuItem.pic;
+		borderColor = i==preChoosePopupIcon ? options.popupDragLineColor : bgColor;
+		html += '<div style="border:solid;border-width:3px;display:inline-block;border-color:'+borderColor+'"><img src="'+picPath+'" style="height:'+siz+'px;width:'+siz+'px" onclick="preChoosePopupIcon = '+i+'; display_copyOfPopupMenuToPreChoose();"></div>';
+	}
+	html += ' &lt;-- choose';
+	dob.innerHTML = html;
+};
+
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
 	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
@@ -5515,6 +5615,8 @@ window.onload = ()=>{
 		//split = split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot); //FIXME this is just a test
 		updateDisplayToWrap();
 	}
+	
+	display_copyOfPopupMenuToPreChoose();
 };
 
 
@@ -5580,18 +5682,22 @@ window.onload = ()=>{
 		</td><td valign=top>
 			<div id=controlsAboveRootDob>
 				QuickSave and QuickLoad use cookies. In future versions, it will have the option to save/download generated file and drag files in, and to drag just parts into and out of those files or cookies and to share and stream online.<br>
+				
 				<nobr><input type=button value="QuickSave 1" onclick="quickSave(1);"></input><input type=button value="QuickLoad 1" onclick="quickLoad(1);"></input></nobr>
 				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 2" onclick="quickSave(2);"></input><input type=button value="QuickLoad 2" onclick="quickLoad(2);"></input></nobr>
 				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 3" onclick="quickSave(3);"></input><input type=button value="QuickLoad 3" onclick="quickLoad(3);"></input></nobr>
 				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 4" onclick="quickSave(4);"></input><input type=button value="QuickLoad 4" onclick="quickLoad(4);"></input></nobr>
 				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 5" onclick="quickSave(5);"></input><input type=button value="QuickLoad 5" onclick="quickLoad(5);"></input></nobr>
 				<br><br>
+				<input type=button value="goToUrlOfCurrentFn()" onclick="goToUrlOfCurrentFn();"></input>
+				<input type=button value="Reload page" onclick="location.reload();"></input>
 				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
 				<nobr>
-					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox checked></input>
+					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox></input>
 					<label for=alwaysForceUpdateDisplayAfterDrop>Always force update display after drag (FIXME shouldnt need this, and leaving this on makes it slower.</label>
 				</nobr>
 			</div><br>
+			<div id=copyOfPopupMenuToPreChoose></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
