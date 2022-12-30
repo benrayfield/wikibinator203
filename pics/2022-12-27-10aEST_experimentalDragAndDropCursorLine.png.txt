@@ -1,0 +1,27 @@
+https://twitter.com/wikibinator/status/1607751520371474449
+
+wikibinator
+@wikibinator
+·
+Dec 23
+Try #wikibinator at http://memecombinator.io/testDragAndDrop/ . The drag and drop and right click menu works, mostly, but its still confusing, so next I'm going to make a way of drag and drop that doesnt need the popup menu. I learned enuf to do that from playing with this. Then loops/if/else/etc
+Tip
+wikibinator
+@wikibinator
+"a way of drag and drop that doesnt need the popup menu". Every time you drag and drop a lambda, you find or create a lambda. When I get this new kind of drag and drop working, it should allow me to manually create 10000 lambdas per day, not to mention the generated lambdas.
+9:53 AM · Dec 27, 2022
+View Tweet analytics
+15
+ Views
+1
+ Retweet
+Tip
+
+wikibinator
+@wikibinator
+·
+1m
+Replying to 
+@wikibinator
+Each lambda is 32 bytes and has 2 child lambdas. If 100k people did that together, would be a billion lambdas manually created per day, that could be securely called on eachother in all possible combos.
+Tip

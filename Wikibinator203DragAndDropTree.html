@@ -258,6 +258,9 @@ var hashText = text=>vm.bytesToHex(sha256(unicode.stringToUtf8AsUint8Array(text)
 
 var randInt = n=>Math.floor(Math.random()*n);
 
+//FIXME? may be maxExcl or max or might go slightly over, depending on roundoff.
+var randBetween = (min,max)=>(min+(max-min)*Math.random());
+
 var between = (min, val, max)=>Math.max(min, Math.min(val, max));
 
 var betweenInt = (min, val, max)=>Math.floor(Math.max(min, Math.min(val, max)));
@@ -275,6 +278,31 @@ var colorStr = function(redFraction, greenFraction, blueFraction){
 //var randColorStr = ()=>colorStr(.45+.55*Math.random(), .45+.55*Math.random(), .45+.55*Math.random());
 
 var randColorStr = ()=>colorStr(randRed(), randGreen(), randBlue());
+
+//sorted
+var mapKeys = map=>{
+	let ret = [];
+	for(let key in map) ret.push(key);
+	ret.sort();
+	return ret;
+};
+
+var logMap = {};
+
+//put a key/val in logMap and display them all.
+var lm = (key,val)=>{
+	if(logMap[key]!=val){
+		logMap[key] = val;
+		let html = '';
+		let first = true;
+		for(let key of mapKeys(logMap)){
+			if(!first) html += '\r\n<br>';
+			html += key+' = '+logMap[key]; //FIXME this isnt escaped so could break the html
+			first = false;
+		}
+		Dob('logOut').innerHTML = html;
+	}
+};
 
 /*const firstCode =
 `{
@@ -449,8 +477,15 @@ var dragLineFromYXToYX = ()=>{
 //draggingStep is 0 for not dragging, 1 for started dragging, 2 to schedule ending of drag asap, and 3 for ended dragging (or maybe should be 0 instead of 3?).
 controls.draggingStep = 0;
 
-//const dragButton = 'mouseButton0'; //controls[dragButton] is 0 (up) or 1 (down)
-const dragButton = 'mouseLeftButton'; //controls[dragButton] is 0 (up) or 1 (down)
+//const popupDragButton = 'mouseButton0'; //controls[popupDragButton] is 0 (up) or 1 (down)
+//const popupDragButton = 'mouseLeftButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
+//
+//2022-12-28 changing this from left to right button, for the popup menu kind of drag.
+//Will make metaInsert kind of drag on left mouse button.
+//I noticed that changing this leaves it broken. Its not editable this way alone. Will need to change other code.
+const popupDragButton = 'mouseRightButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
+
+const metaInsertButton = 'mouseLeftButton';
 
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
@@ -498,7 +533,8 @@ var Splat = function(parentSplatOrNull, selfDob){
 			controls.mouseY = event.pageY;
 			controls.mouseX = event.pageX;
 			
-			let isDragButtonDown = controls[dragButton];
+			let isPopupDragButtonDown = controls[popupDragButton];
+			let isMetaInsertDragButtonDown = controls[metaInsertButton];
 			
 			//TODO use options.doMainDragging
 			if(options.basicTestOfLooseIconWhenMouseMoves){
@@ -542,10 +578,21 @@ var Splat = function(parentSplatOrNull, selfDob){
 					//console.log('mousemove isPopupCircularMenu (TODO)');
 					updateOverlays();
 				}else{
-					if(isDragButtonDown){
+					
+					//FIXME if doing the metaInsert kind of drag, set this to 0 or 1 (which side always does self, not parent?).
+					let verticalFractionBetweenSelfVsParent = options.fractionRecurse;
+					if(uiState.lastMouseButtonDown == metaInsertButton){
+						//0 is parent. 1 is self. .5 is height chooses at mid height in rect.
+						//FIXME should this be 0 or 1? want parent, i think, but need experiments... No, I'm changing it to want self (not parent) and will choose parent or not etc from there.
+						//verticalFractionBetweenSelfVsParent = 0; //parent
+						verticalFractionBetweenSelfVsParent = 1; //self
+					}
+					
+					//if(isPopupDragButtonDown){
+					if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
 						//ThisSplat.doDuringDrag(
 						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
 						if(splatfyfx){
 							splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
 						}else{
@@ -556,7 +603,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 						//FIXME this is happening after release mouse button, as if drag hadnt just happened.
 						//ThisSplat.doBeforeDrag(
 						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
 						if(splatfyfx){
 							splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
 						}else{
@@ -595,7 +642,40 @@ var Splat = function(parentSplatOrNull, selfDob){
 			let btn = eventToButtonName(event);
 			console.log('mousedown '+btn);
 			controls[uiState.lastMouseButtonDown = btn] = 1;
-			if(btn == 'mouseLeftButton'){
+			//if(btn == 'mouseLeftButton'){
+			//if(btn == metaInsertButton){
+				/* This was clickCircMenu, but thats being merged into dropCircMenu (put that on right mouse button)
+				then make a new kind of drag and drop (metaInsert) on left mouse button.
+				
+				//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+				//doClickCircMenu();
+				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+				console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+				if(splatfyfx){
+						splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+				}else{
+						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+				}*/
+				console.log('TODO mouseLeftButton');
+			//}else if(btn == popupDragButton){
+			if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
+				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+					setSelSplat(ThisSplat);
+				}
+				if(options.doMainDragging){
+					console.log('for dropcirc, mousedown doMainDragging');
+					//ThisSplat.doStartDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					if(splatfyfx){
+						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+					}
+					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+				}
+			}
+			/*if(btn == 'mouseLeftButton'){
 				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
 					setSelSplat(ThisSplat);
 				}
@@ -621,7 +701,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 				}else{
 						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
 				}
-			}
+			}*/
 		}
 	);
 	
@@ -637,14 +717,18 @@ var Splat = function(parentSplatOrNull, selfDob){
 			//	setSelSplat(ThisSplat);
 			//}
 			//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
-			if(options.doMainDragging && btn == 'mouseLeftButton'){
+			//if(options.doMainDragging && btn == 'mouseLeftButton'){
+			if(options.doMainDragging && btn == popupDragButton){
 				//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
 				doDropCircMenu();
 				//doEndDrag();
+			}else if(btn == metaInsertButton){
+				endMetaInsert();
 			}
 			//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
 			//	doClickCircMenu();
 			//}
+			uiState.lastMouseButtonDown = null;
 		}
 	);
 	
@@ -822,6 +906,27 @@ Splat.prototype.copyEventListenersIntoDob = function(dob){
 	dob.addEventListener('mouseup', this.eventListenerMouseUp);
 };
 
+//FIXME this needs to be called to update color of any dragline, even if the splats dont need updating (by bigHash of their content).
+//dragLine should be an overlay (updateOverlays) but 2022-12-29 it isnt, so going to scan for which have a drop line
+//and update the color to this, in updateOverlays.
+var whatColorShouldDragLineBe = ()=>{
+	return uiState.lastMouseButtonDown==metaInsertButton ? options.metaInsertDragLineColor : options.popupDragLineColor;
+	
+	//These buttons might change...
+	//const popupDragButton = 'mouseRightButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
+	//const metaInsertButton = 'mouseLeftButton';
+	
+	//let isPopupDragButtonDown = controls[popupDragButton];
+	//let isMetaInsertDragButtonDown = controls[metaInsertButton];
+	//return isPopupDragButtonDown ? 'blue' : 'green';
+	//return Math.random()<.5 ? 'blue' : 'green';
+	//if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
+	//	let color = isPopupDragButtonDown ? 'blue' : 'green';
+	//	Dob('popu
+	//}
+	//whatColorShouldDragLineBe
+};
+
 Splat.prototype.createDobsIfNotExist = function(){
 
 
@@ -928,7 +1033,8 @@ Splat.prototype.createDobsIfNotExist = function(){
 		d.dragLine.style.position = 'absolute';
 		d.dragLine.style.left = '0px'; //change later based on splat.looseIconYFraction etc
 		d.dragLine.style.top = '0px'; //change later based on splat.looseIconYFraction etc
-		d.dragLine.style.backgroundColor = 'blue'; //FIXME start as height 0
+		//d.dragLine.style.backgroundColor = 'blue'; //FIXME start as height 0
+		d.dragLine.style.backgroundColor = whatColorShouldDragLineBe(); //FIXME start as height 0
 		
 		
 		//displays left/up from the whole thing. FIXME this should just be left of prefix, so fix some dobs and css to do that in both horizontal and vertical cases.
@@ -996,6 +1102,27 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+options.logLm_TO_splat = true; //true for testing
+//options.logLm_TO_splat = false; //normal
+
+//for testing metaInsert (the cursor-like vertical line during drag) and want to know which splat is the TO.
+options.alwaysDisplayToRectBorderIfExists = true; //for testing
+//options.alwaysDisplayToRectBorderIfExists = false; //normal
+
+options.allow_doDropCircMenu_afterClickWithoutDrag = true; //FIXME this needs redesign to make dobs.dragLine be an overlay/updateOverlays.
+
+options.updateDragLineColorIn_updateOverlays_thisIsAnUglyHackTodoMoveDragLineToBeAnOverlay = true;
+
+options.metaInsertDragLineColor = 'blue';
+options.popupDragLineColor = 'green';
+
+//A thin text-cursor-like line between 2 rectangles (fns) horizontally or vertically,
+//inside a {...} or [...] or (...) such as {a b c d|e} or {a b|c d e} or {a b c d e|}.
+//When I get this working, will turn this test_ off and just let it happen as needed
+//in uiState.uimode==simpleDragUimode. This display will happen in updateOverlays.
+//options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = true;
+options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = false;
+
 options.displayDragFromBorder = true;
 options.displayDragToBorder = true;
 
@@ -1039,8 +1166,8 @@ options.displayWholeTostringAtEachRect = false; //fast enough
 if(options.displayWholeTostringAtEachRect) console.log('WARNING: options.displayWholeTostringAtEachRect is true, which is useful for finding bugs by hover mouse over things, but makes it very slow. TODO make it adjust the popupTitle when mouse goes over it instead of precomputing all of them, which would be faster but not as fast as turning this off completely.');
 
 
-options.displaySplateDetailExceptFnAtEachRect = true;
-//options.displaySplateDetailExceptFnAtEachRect = false;
+//options.displaySplateDetailExceptFnAtEachRect = true;
+options.displaySplateDetailExceptFnAtEachRect = false;
 
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
@@ -1174,10 +1301,10 @@ options.screenYXToSplatfyfx_isReversedAndAtMostOneParentDeep = true;
 //This is an alternative to [screenYXToSplatfyfx_isReversedAndAtMostOneParentDeep, or the n parents deep way].
 //This has the advantage that the cursor/looseIcon doesnt jump around, is always where the mouse cursor is,
 //while can still select every rect displayed and its parent, somewhere on screen.
-options.screenYXToSplatfyfx_topIsSelfAndBottomIsParent = true;
-//options.screenYXToSplatfyfx_topIsSelfAndBottomIsParent = false;
+options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent = true;
+//options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent = false;
 
-if(options.screenYXToSplatfyfx_topIsSelfAndBottomIsParent){
+if(options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent){
 	options.screenYXToSplatfyfx_isReversedAndAtMostOneParentDeep = false;
 }
 
@@ -1440,6 +1567,8 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	this.isDisplayIcon = !!isDisplayIcon;
 	this.looseIconYFraction = between(0, looseIconYFraction||0, 1); //loose icon can move anywhere in the rect smoothly, depending on mouse in some child or self.
 	this.looseIconXFraction = between(0, looseIconXFraction||0, 1);
+	
+	//2022-12-29 linePath isnt used in splate. Instead, you get where line is from and to by searching the tree for splate.dragStep.
 	this.linePath = linePath || ''; //something like 'UUUULRLL', or '' if none. If this doesnt select a displayed splat then the line doesnt appear.
 	
 	this.dragStep = dragStep || 'no';
@@ -2321,6 +2450,11 @@ var toLiteralString = fn=>{
 	return literal;
 };
 
+//WARNING: as of 2022-12-29 this can be true even if it was a mousedown then mouseup without moving the mouse,
+//so there is no dragStep=='wouldFrom' or dragStep=='from', so theres no dragLine to display,
+//but it would be inefficient to scan for which Splat has that *from dragStep, so letting this return true anyways,
+//and caller should check if theres a *from and not display it if so.
+//Until I move splat.dobs.dragLine to be an overlay (updateOverlays), this will be an "ugly hack".
 Splate.prototype.isDisplayDragLine = function(){
 	//FIXME get rid of isDisplayIcon?
 	return this.isDisplayIcon && (this.dragStep==='to' || this.dragStep==='wouldTo' || this.dragStep==='dropCircMenu');
@@ -2425,7 +2559,7 @@ var screenYXToSplatfyfx = function(screenY, screenX, optionalFractionRecurse){
 	let fy = (screenY-dobY(splat.dobs.self))/dobHeight(splat.dobs.self);
 	let fx = (screenX-dobX(splat.dobs.self))/dobWidth(splat.dobs.self);
 	while(true){
-		if(options.screenYXToSplatfyfx_topIsSelfAndBottomIsParent){
+		if(options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent && splat.isRightChild()){
 			//TODO verify fractionRecurse is near .5 (such as .4 or .6)
 			if(fy < fractionRecurse){ //self is top [0..fractionRecurse]
 				break;
@@ -2934,42 +3068,49 @@ Splat.prototype.setSplit = function(split){
 			let dob = this.dobs.dragLine;		
 			//this splate should be the TO, and another splate should be the FROM. Max 1 dragLine displayed at once on screen.
 			let yxyx = dragLineFromYXToYX();
-			if(!yxyx) throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
-			
-			let diffY = yxyx[2]-yxyx[0];
-			let diffX = yxyx[3]-yxyx[1];
-			let diffLen = Math.hypot(diffY,diffX);
-			if(diffLen > 0){
-				//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
-				dob.style.height = options.dragLineThick+'px';
-				dob.style.width = Math.ceil(diffLen)+'px';
-				dob.style.visibility = 'visible';
-				let normY = between(-1,diffY/diffLen,1);
-				let normX = between(-1,diffX/diffLen,1);
-				let a = normX;
-				let b = normY;
-				let c = -normY;
-				let d = normX;
-				let ty = (yxyx[0]+yxyx[2])/2;
-				let tx = (yxyx[1]+yxyx[3])/2;
-				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
-				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
-				
-				/*
-				let len = Math.hypot(yxyx[0]-yxyx[2], yxyx[1]-yxyx[3]);
-				//width is already set by something in options, when that dob is created.
-				//TODO update it here every time in case options changes?
-				dob.style.height = len+'px';
-				let a = 1;
-				let b = 0;
-				let c = 0;
-				let d = 1;
-				let e = yxyx[3];
-				let f = yxyx[2];
-				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+e+','+f+')';
-				*/
+			if(!yxyx){
+				if(options.allow_doDropCircMenu_afterClickWithoutDrag){
+					console.log('This might be an "ugly hack" where a TO exists but not a FROM cuz of a click without a drag (which happens cuz merged clickCircMenu into dropCircMenu). Check the comment on isDisplayDragLine and allow_doDropCircMenu_afterClickWithoutDrag.');
+				}else{
+					throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
+				}
 			}else{
-				console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
+				let diffY = yxyx[2]-yxyx[0];
+				let diffX = yxyx[3]-yxyx[1];
+				let diffLen = Math.hypot(diffY,diffX);
+				if(diffLen > 0){
+					//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
+					dob.style.height = options.dragLineThick+'px';
+					dob.style.width = Math.ceil(diffLen)+'px';
+					dob.style.visibility = 'visible';
+					let normY = between(-1,diffY/diffLen,1);
+					let normX = between(-1,diffX/diffLen,1);
+					let a = normX;
+					let b = normY;
+					let c = -normY;
+					let d = normX;
+					let ty = (yxyx[0]+yxyx[2])/2;
+					let tx = (yxyx[1]+yxyx[3])/2;
+					tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+					dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+					
+					/*
+					let len = Math.hypot(yxyx[0]-yxyx[2], yxyx[1]-yxyx[3]);
+					//width is already set by something in options, when that dob is created.
+					//TODO update it here every time in case options changes?
+					dob.style.height = len+'px';
+					let a = 1;
+					let b = 0;
+					let c = 0;
+					let d = 1;
+					let e = yxyx[3];
+					let f = yxyx[2];
+					dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+e+','+f+')';
+					*/
+				}else{
+					console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
+				}
+
 			}
 		}else{
 			this.dobs.dragLine.style.visibility = 'hidden';
@@ -3155,7 +3296,9 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	let isDisplayChilds = isDisplayPushAndPopChars; //FIXME
 	let isFoldL = false;
 	let isUnary = false; //if true, display (T abc) as ,abc
-	if(options.displayVarargLists && (syty=='IC+' || syty=='IC0') && syty == 'IC+' && !isRightRecursion){
+	//if(options.displayVarargLists && (syty=='IC+' || syty=='IC0') && syty == 'IC+' && !isRightRecursion){
+	//if(options.displayVarargLists && syty == 'IC+' && !isRightRecursion){
+	if(options.displayVarargLists && (callerSyty=='IC+' || callerSyty=='IC0') && syty == 'IC+' && !isRightRecursion){
 		isDisplayPushAndPopChars = false;
 		/*
 		switch(syty){
@@ -3172,7 +3315,9 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 			default:
 				throw 'FIXME, unknown syty='+syty;
 		}*/
-	}else if(options.displayVarargNormalCallPairs && (callerSyty == 'C' || callerSyty == 'S0') && (syty == 'C' || syty == 'S1')){
+	}else if(options.displayVarargNormalCallPairs && callerSyty == 'S0' && syty == 'S1'){
+		isDisplayPushAndPopChars = false;
+	}else if(options.displayVarargNormalCallPairs && callerSyty == 'C' && syty == 'C' && !isRightRecursion){
 		isDisplayPushAndPopChars = false;
 	//}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && isDisplayChilds){
 	}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && !isRightRecursion && isDisplayChilds){
@@ -3189,14 +3334,14 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 		//isDisplayName = false; //FIXME what if need the name cuz multiple parents are displayed?
 	}
 	
-	if(options.displayVarargNormalCallPairs){
+	/*if(options.displayVarargNormalCallPairs){
 		if(syty=='C' && callerSyty=='C' && isDisplayChilds){
 			//Display as (abc def ghi) instead of ((abc def) ghi)
 			isDisplayPushAndPopChars = false;
 		}
+	}*/
 	
-	}
-	
+	//isDisplayPushAndPopChars = !isLiteral; //FIXME
 	
 	
 	if(options.displayVarargLists && (syty=='IC0' || syty=='IC+') /*&& callerSyty=='IC+'*/ && isDisplayChilds){
@@ -3312,6 +3457,9 @@ Splat.prototype.doStartClickCirc = function(looseIconYFraction,looseIconXFractio
 //no, wouldFrom, from, wouldTo, to, dropCircMenu.
 var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===splat.splate().dragStep));
 
+//filter(splate)->true or false. Finds the first one like that, else (TODO verify its null instead of undefined) null.
+var findSplat = filter=>rootSplat.findFirst(filter);
+
 //makes dragStep 'wouldFrom' appear here, the drag that would start here if mouse button went down.
 //Normally this happens many times before dragging, many times per second while moving mouse.
 Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
@@ -3368,13 +3516,20 @@ Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
 var doDropCircMenu = ()=>{
 	//let toSplat = findSplatWithDragStep('to');
 	let toSplat = anytoSplat(); //wouldTo, to, or dropCircMenu
-	if(!toSplat) throw 'No dragStep of "to" so cant doDropCircMenu';
-	let dragStep = toSplat.splate().dragStep;
+	let dropMenuAtSplat = toSplat;
+	if(!dropMenuAtSplat){
+		if(options.allow_doDropCircMenu_afterClickWithoutDrag){
+			dropMenuAtSplat = anyfromSplat();
+		}else{
+			throw 'No dragStep of "to" so cant doDropCircMenu';
+		}
+	}
+	let dragStep = dropMenuAtSplat.splate().dragStep;
 	if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
 		globalVars.dropCircMenuCenterY = controls.mouseY;
 		globalVars.dropCircMenuCenterX = controls.mouseX;
 	}
-	toSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
+	dropMenuAtSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
 	updateOverlays();
 };
 
@@ -3409,6 +3564,14 @@ var doClickCircMenu = ()=>{
 	updateOverlays();
 };
 
+//called after a drag and drop.
+var afterDrop = ()=>{
+	if(Dob('alwaysForceUpdateDisplayAfterDrop').checked){
+		console.log('forceUpdateDisplay cuz alwaysForceUpdateDisplayAfterDrop. FIXME this shouldnt be needed but the UI is buggy as of 2022-12-30. Bug: It displays extra {{a b} c} [[a b] c] ((a b) c) when theyre not needed on the left. Bug: it displays an earlier, or somehow different, form of fn before it evals, when dragging sometimes.');
+		forceUpdateDisplay();
+	}
+};
+
 //when mouse button up on a splat (TODO and there might be multiple drag modes?).
 //When this is true, call doEndDrag to call fn on fn to find/create fn, of what was dragged.
 //var isAboutToEndDrag = ()=>(findSplatWithDragStep('from') && findSplatWithDragStep('to'));
@@ -3423,6 +3586,8 @@ var doEndDrag = dropCircMenuItem=>{
 	//FIXME? this line was added before there were 2 circ menus (dropCircMenu and clickCircMenu). This was just for dropCircMenu.
 	setDragStuff(null,null,null,null); //set all dragStep to 'no', ready for next drag.
 	uiState.removeClickCircMenuAsap = true;
+	
+	afterDrop();
 	
 	console.log('END doEndDrag dropCircMenuItem.pic='+dropCircMenuItem.pic);
 	/*
@@ -3468,14 +3633,16 @@ var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
 		dragStepB = 'no';
 	}*/
 	
-	//FIXME remove these lines of test code
-	let clickcirc = anyclickcircSplat();
-	if(clickcirc){
-		console.log('setDragStuff circtest clickcirc='+clickcirc+' other... dragStepA='+dragStepA+' dragStepB='+dragStepB);
-	}else{
-		console.log('setDragStuff circtest clickcirc='+clickcirc+' other... not displaying');
+	if(options.loglev > 2){
+		//FIXME remove these lines of test code
+		let clickcirc = anyclickcircSplat();
+		if(clickcirc){
+			console.log('setDragStuff circtest clickcirc='+clickcirc+' other... dragStepA='+dragStepA+' dragStepB='+dragStepB);
+		}else{
+			console.log('setDragStuff circtest clickcirc='+clickcirc+' other... not displaying');
+		}
+		//end FIXME.
 	}
-	//end FIXME.
 	
 	rootSplat.transformSplit(split=>split.forkDragStuff(rootSplat, splatA, dragStepA, splatB, dragStepB));
 };
@@ -4010,12 +4177,23 @@ var updateOverlays = ()=>{
 	let wouldfromOrFrom = anyfromSplat();
 	//let wouldtoOrTo = anytoSplat();
 	let wouldtoOrTo = anytoSplat() || anyclickcircSplat(); //so borders and select display even if dragStep=='clickcirc'
+	
+	/*
+	//2022-12-29 clickCircMenu has been merged into dropCircMenu
 	let clickCircSplat = anyclickcircSplat(); //any Splat whose dragStep is 'clickcirc'.
 	
 	if(clickCircSplat){
 		console.log('updateOverlays clickcirctest clickCircSplat='+clickCircSplat);
 	}
 	//console.log('updateOverlays wouldfromOrFrom='+wouldfromOrFrom+' wouldtoOrTo='+wouldtoOrTo+' clickcircSplat='+clickcircSplat);
+	*/
+	
+	let display_simpleDragUimode_cursor = options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging ||
+		(uiState.uimode==simpleDragUimode && wouldtoOrTo && uiState.lastMouseButtonDown==metaInsertButton);
+	
+	//These buttons might change...
+	//const popupDragButton = 'mouseRightButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
+	//const metaInsertButton = 'mouseLeftButton';
 	
 	/*
 	//FIXMEFIXME
@@ -4035,12 +4213,13 @@ var updateOverlays = ()=>{
 	if(options.loglev>1) console.log('updateOverlays, whichMenu='+whichMenu);
 	*/
 	
-	let whichMenu = null;
+	/*let whichMenu = null;
 	if(clickCircSplat){
 		whichMenu = 'clickCircMenu';
 	}else if(wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu'){
 		whichMenu = 'dropCircMenu';
-	}
+	}*/
+	let whichMenu = (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu') ? 'dropCircMenu' : null;
 	
 	//displays just outside the border of mouseover_sected rect
 	let mouseOverSelect_top = Dob('mouseOverSelect_top');
@@ -4105,7 +4284,12 @@ var updateOverlays = ()=>{
 		}
 		//TODO merge duplicate code
 
-		if(wouldtoOrTo){
+		let displayToRectBorder = wouldtoOrTo && (!display_simpleDragUimode_cursor || options.alwaysDisplayToRectBorderIfExists);
+		if(displayToRectBorder){
+			if(options.logLm_TO_splat){
+				lm('TO', wouldtoOrTo.splate().fn);
+				lm('uiState.dropDirection', uiState.dropDirection);
+			}
 			let d = wouldtoOrTo.dobs.self;
 			let y = dobY(d);
 			let x = dobX(d);
@@ -4152,10 +4336,48 @@ var updateOverlays = ()=>{
 		}
 	//}
 	
+	let simpleDragUimode_cursor = Dob('simpleDragUimode_cursor');
+	if(display_simpleDragUimode_cursor){
+		simpleDragUimode_cursor.style.visibility = 'visible';
+		//use uiState.dropDirection with uiState.simpleDragUimode_cursor_splat to do the drop later if dropped.
+		//For now, is just displaying where it would drop.
+		let splat = uiState.simpleDragUimode_cursor_splat = wouldtoOrTo || wouldfromOrFrom || clickCircSplat;
+		//if(wouldtoOrTo){
+		if(splat){
+			let d = splat.dobs.self;
+			let y = dobY(d);
+			let x = dobX(d);
+			let h = dobHeight(d);
+			let w = dobWidth(d);
+			
+			let isLeft = splat.splate().looseIconXFraction < .5;
+			simpleDragUimode_cursor.style.top = y+'px';
+			simpleDragUimode_cursor.style.height = h+'px';
+			simpleDragUimode_cursor.style.width = thick+'px';
+			if(isLeft){
+				uiState.dropDirection = 'left';
+				simpleDragUimode_cursor.style.left = (x-thick/2)+'px';
+			}else{
+				uiState.dropDirection = 'right';
+				simpleDragUimode_cursor.style.left = (x+w-thick/2)+'px';
+			}
+		}else{ //random position, for testing
+			simpleDragUimode_cursor.style.top = randInt(500)+'px';
+			simpleDragUimode_cursor.style.left = randInt(500)+'px';
+			simpleDragUimode_cursor.style.height = '30px';
+			simpleDragUimode_cursor.style.width = '30px';
+		}
+		simpleDragUimode_cursor.style.backgroundColor = colorStr(randBetween(.9,1),randBetween(.9,1),randBetween(.9,1));
+		//simpleDragUimode_cursor.style.backgroundColor = colorStr(randBetween(0,.2),randBetween(.8,1),randBetween(0,.3));
+		//simpleDragUimode_cursor.style.backgroundColor = 'black';
+	}else{
+		simpleDragUimode_cursor.style.visibility = 'hidden';
+	}
+	
 	//let menuDob = Dob(whichMenu);
 	let menuDob = Dob('popupMenuDob');
-	if(whichMenu != null){
-		console.log('updateOverlays clickcirctest whichMenu='+whichMenu);
+	if(whichMenu != null && whichMenu!='clickCircMenu'){ //merged clickCircMenu into dropCircMenu.
+		if(options.loglev>2) console.log('updateOverlays clickcirctest whichMenu='+whichMenu);
 		//FIXME it appears it keeps rebuilding this dob when it doesnt need to. 2022-12-17 for now im just going to empty it each time first.
 		//menuDob.innerHTML = '';
 		//if((whichMenu=='clickCircMenu' && !uiState.removeClickCircMenuAsap) || (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu')){
@@ -4186,23 +4408,40 @@ var updateOverlays = ()=>{
 		//	menuDob.innerHTML = '';
 		//}
 	}else{
-		console.log('updateOverlays clickcirctest emptying_menuDob clickCircSplat='+(clickCircSplat?'nonnull':'null'));
+		if(options.loglev>2) console.log('updateOverlays clickcirctest emptying_menuDob clickCircSplat='+(clickCircSplat?'nonnull':'null'));
 		menuDob.innerHTML = ''; //Without this, clickCircMenu doesnt disappear after use it.
 	}
-	console.log('updateOverlays clickcirctest menuDob.innerHTML.length='+menuDob.innerHTML.length);
+	if(options.updateDragLineColorIn_updateOverlays_thisIsAnUglyHackTodoMoveDragLineToBeAnOverlay){
+		let splatWithDragLine = findSplat(splat=>splat.splate().isDisplayDragLine());
+		if(splatWithDragLine){
+			//the ugly hack, cuz updating those dobs (dom objects) should only happen cuz of
+			//change in splatWithDragLine.splate(), and Splate is used as immutable. Split is also used as immutable.
+			splatWithDragLine.dobs.dragLine.style.backgroundColor = whatColorShouldDragLineBe();
+		}
+	}
+	if(options.loglev>2) console.log('updateOverlays clickcirctest menuDob.innerHTML.length='+menuDob.innerHTML.length);
 	//uiState.removeClickCircMenuAsap = false;
 };
 
-var isS = fn=>(fn.n.o8()==vm.o8OfS);
+var isCallOfS = fn=>(fn.n.o8()==vm.o8OfS);
 
 //mostly the same as fn.n.L().n.L()===vm.ops.S but theres non-normed forms of S also.
 //o8 is a byte opcode thats copied from L child starting at 8th param of U. Up to 7 params, o8 is the numbers 1 to 255. 0 means evaling.
 //U.n.cur()==0. vm.ops.S.n.cur()==7. 2 more params and cur is 9. at cur 10, (S x y z) -> (x z (y z)).
 var isS2 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===9);
 
+//Example: (S x)
+var isS1 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===8);
+
+//Example: S. theres also non-normed forms of it, since the first 7 params of U each being U vs anything_except_U choose opcode,
+//nd theres more than 1 anything_except_U.
+var isS0 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===7);
+
 //(S (S a b) c) -> js:[a b c]. Ends at whatevers not an S2.
 //(S a b) and (S (S a b) c) are (syty='S2')s, but a is not. Doesnt check b or c cuz it recurses on the left.
+//(S a) -> js:[a]. Thats in case drag and drop selects just the first thing in such a list, along with its prefix S.
 var sListToJsListReversed = sList=>{
+	if(isS1(sList)) return [sList.n.R()]; //get x from (S x). If it was (S x y) it displays as {x y} and is S2.
 	let ret = [];
 	while(isS2(sList)){
 		ret.push(sList.n.R());
@@ -4221,8 +4460,13 @@ var sListToJsList = sList=>{
 //dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
 //If theMaybeS2 is not an S2, thats the baseCase, just returns (S draggedL theMaybeS2) aka {draggedL theMaybeS2}.
 //2 fns.
+//UPDATE 2022-12-30 this might also work for S1 list, such as (S a). TODO verify. Todo rename this func since it says only S2.
 var metaLOfS2 = (draggedL,theMaybeS2)=>{
 	let S = vm.ops.S;
+	if(isS1(theMaybeS2)){
+		let theOneThingInTheList = theMaybeS2.n.R(); //.L would be S.
+		return S(draggedL)(theOneThingInTheList);
+	}
 	let jsList = sListToJsList(theMaybeS2);
 	let ret = draggedL;
 	for(let fn of jsList){
@@ -4304,6 +4548,321 @@ var setRootFnAndForceUpdateDisplay = fn=>{
 	//}
 };
 
+Splat.prototype.directL = function(fromSplat){
+	//TODO merge duplicate code between directL and directR and maybe metaL and metaR
+			
+	console.log('NEAREND: Drag: directL');
+	//let from = anyfromSplat();
+	//let to = anytoSplat();
+	let from = fromSplat;
+	let to = this;
+	let fromFn = from.splate().fn;
+	let toFn = to.splate().fn;
+	console.log('calling '+fromFn+' on '+toFn);
+	let retFn = fromFn(toFn);
+	console.log('Returned '+retFn);
+	//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
+	let callerSyty = to.callerSyty();
+	let isRightRecursion = to.isRightChild();
+	let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+	console.log('newSplit='+newSplit);
+	
+	//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
+	//Another problem is, the fn in root needs to be changed cuz putting retFn deep inside it,
+	//so have to do those lambda calls again. Have to rebuild any part of the tree thats different.
+	//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
+	//but still need to make a new js func to forkEdit the UI and fn together...
+	let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+	console.log('Drag directL about to rootSplat.setSplit to ...');
+	rootSplat.setSplit(newRootSplit);
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: Drag: directL');
+};
+
+//fromSplat --drag_metaL_way--> this. Modifies this.
+Splat.prototype.metaL = function(fromSplat){
+
+	let to = this;
+	let from = fromSplat;
+	if(!to) throw 'No TO Splat';
+	if(!from) throw 'No FROM Splat';
+	
+	//metaL is more complex than metaR, directL, or directR. Its the counterpart of metaR. At a lower level is directL and directR.
+	//
+	//Theres 2 (maybe 3?) cases (as of 2022-11-17) when metaL acts different than directL, the {...} syntax and the [...] syntax,
+	//and maybe the (...) syntax but that one is harder to know where it ends since if you keep looking at fn.L().L().L()... you'll always reach U,
+	//but that info will be in syty and is based on how its displayed, not just the fn.
+	//
+	//TODO these comments are duplicated in the if/elses below, so should remove them here?...
+	//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)
+	//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
+	//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
+	//aka dropLeft [a b c] -> [dropLeft a b c]
+	//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
+	
+
+	//The { kind of drag and drop is the most complex.
+	//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
+	//aka dropLeft {a b c} -> {dropLeft a b c}
+	//https://en.wikipedia.org/wiki/SKI_combinator_calculus
+	
+	
+	console.log('NEAREND: Drag: metaL');
+	//let to = anytoSplat();
+	//let from = anyfromSplat();
+	
+	let syty = to.syty();
+	
+	let toFn = to.splate().fn;
+	let fromFn = from.splate().fn;
+	console.log('MMMMMMMMMMM metaL fromFn='+fromFn+' toFn='+toFn);
+	
+	//let doDirectL = false;
+	let replaceParent = true;
+	let retFn;
+	//if(syty == 'S2'){ //{...} syntax
+	//if(syty != 'IC+'){ //{...} syntax (not [...] syntax)
+	/*if(syty == 'U'){ //to is U
+		console.log('metaL to U');
+		retFn = fromFn(toFn);
+	}else if(syty == 'C'){
+		console.log('metaL to syty=C');
+		retFn = fromFn(toFn); //FIXME??
+	}else*/ if(syty == 'IC+'){ //[...] syntax. Not an empty []/Infcur.
+		console.log('Drag metaL, syty='+syty+', calling the infcur/[] list way, fromFn='+fromFn+' toFn='+toFn);
+		retFn = metaLOfInfcur(fromFn,toFn);
+		
+		/*
+		Dragged (U x y z) to [hello world] in [hello world c d e] and clicked metaL.
+		newSplit.splate.fn+''
+		'[(U x y z) hello world]'
+		parent.splate().fn+''
+		'[hello world c]'
+		Without the replaceParent being set to false, it would replace [hello world c], which might have been useful for S {...} kind of stuff,
+		but is a problem in Infcur/IC+/IC0/[] etc, or at least it appears that way 2022-12-30-1203pEST as I'm trying to fix this.
+		*/
+		replaceParent = false;
+		
+	//}else if(syty == 'S2'){ //{...} syntax
+	}else if(syty == 'S2' || (syty == 'S1' && this.parentSyty() == 'S2')){ //{...} syntax, or (S a).
+		//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
+		
+		console.log('Drag metaL, syty='+syty+', calling the sCurryList way, fromFn='+fromFn+' toFn='+toFn);
+		retFn = metaLOfS2(fromFn,toFn);
+		
+		
+		
+		//Should this stop when it finds S, or when it finds something thats not a S2 syty?
+		
+		//TODO use metaLOfS2?
+	
+		//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+		//So just prefix another S... (S to from) aka {to from} cuz this is metaL the L part (fixme did i break this comment when i changed metaR to metaL?)
+		/*
+		let S = vm.ops.S;
+		console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+		retFn = S(toFn)(fromFn);
+		*/
+	//}else if(syty == 'S1' && this.parentSyty() == 'S2'){ //(S x) or the (S x) in {x y z}. If parentSyty is S2 then its the {...}.
+	//	console.log('Drag metaL, syty='+syty+', doing S1 (parent is S2) thing... fromFn='+fromFn+' toFn='+toFn);
+	//	retFn = S(fromFn)(toFn);
+	}/*else{ //[...] syntax.
+		console.log('Drag metaL, syty='+syty+', calling the infcur/[] list way, fromFn='+fromFn+' toFn='+toFn);
+		retFn = metaLOfInfcur(fromFn,toFn);
+	}*/else{
+		console.log('metaL else, just doing normal callpair. fromFn='+fromFn+' toFn='+toFn);
+		this.directL(fromSplat);
+		console.log('metaL did directL');
+		return;
+		//retFn = fromFn(toFn);
+		//doDirectL = true;
+	}
+	
+	/*
+	Its a choice between [] and {}. If those arent around it already, do {}, cuz can drag Infcur aka [] to directL or directR call to make [...].
+	Dont do this. Always do metaLOfS2. It was a bug to do directL ever when metaL is called. Correct: metaL x -> {metaL x} aka (S metaL x).
+	}else if(syty == 'IC+'){ //[...] syntax
+		//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
+		//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
+		//aka dropLeft [a b c] -> [dropLeft a b c]
+		//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
+		
+		//Should this stop when it finds Infcur/[], or when it finds something thats not a IC+ syty?
+		
+		throw 'fixmefixme todo [...] aka syty=IC+';
+	}else{
+		console.log('Drag metaL, syty='+syty+', so calling same as directL, calling '+toFn+' on '+fromFn);
+		retFn = toFn(fromFn);
+	}*/
+	
+	console.log('Drag metaL, syty='+syty+', returned '+retFn);
+	
+	//from directL[
+	//let isRightRecursion = to.isRightChild();
+	//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+	//console.log('newSplit='+newSplit);
+	//]
+	
+	let newRootSplit;
+	console.log('metaL replaceParent='+replaceParent);
+	if(replaceParent){
+		let parent = to.parentSplat;
+		let isRightRecursion = to.isRightChild();
+		let callerSyty = parent.callerSyty();
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		//This isnt right??? cuz... (get whole comment from directL)
+		let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
+		newRootSplit = newRootSplitFromParent;
+	}else{ //this is more like directL, but it did metaL insert such as to become the first in a [...] list.
+		
+		/** from directL...
+		let retFn = fromFn(toFn);
+		console.log('Returned '+retFn);
+		//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
+		let callerSyty = to.callerSyty();
+		let isRightRecursion = to.isRightChild();
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		console.log('newSplit='+newSplit);
+		
+		//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
+		//Another problem is, the fn in root needs to be changed cuz putting retFn deep inside it,
+		//so have to do those lambda calls again. Have to rebuild any part of the tree thats different.
+		//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
+		//but still need to make a new js func to forkEdit the UI and fn together...
+		let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+		console.log('Drag directL about to rootSplat.setSplit to ...');
+		rootSplat.setSplit(newRootSplit);
+		if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+			updateDisplayToWrap();
+		}
+		console.log('END: Drag: directL');
+		*/
+		let callerSyty = to.callerSyty();
+		let isRightRecursion = to.isRightChild(); //FIXME? why is it to.isRightChild() in both replaceParent==true and ==false? Shouldnt it be parent.isRightChild() in 1 of those?
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		console.log('newSplit='+newSplit);
+		newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+	}
+	
+	
+	//rootSplat.setSplit(newRootSplitFromParent);
+	rootSplat.setSplit(newRootSplit);
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: Drag: metaL');
+	
+
+	
+	
+	/*
+	console.log('NEAREND: Drag: metaR');
+	let to = anytoSplat();
+	let from = anyfromSplat();
+	
+	let syty = to.syty();
+	
+	let toFn = to.splate().fn;
+	let fromFn = from.splate().fn;
+	
+	let retFn;
+	if(syty == 'S2'){
+		//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+		//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
+		let S = vm.ops.S;
+		console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+		retFn = S(toFn)(fromFn);
+	}else{
+		console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+		retFn = toFn(fromFn);
+	}
+	console.log('Drag metaR, Returned '+retFn);
+	let isRightRecursion = to.isRightChild();
+	let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
+	//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+	console.log('Drag metaR, newSplit='+newSplit);
+	//This isnt right cuz... (get whole comment from directL)
+	let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+	console.log('Drag metaR about to rootSplat.setSplit to ...');
+	rootSplat.setSplit(newRootSplit);
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: Drag: metaR');
+	*/
+
+
+
+
+	/*
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('TODO metaL');
+	*/
+};
+
+//fromSplat --drag_metaR_way--> this. Modifies this.
+Splat.prototype.metaR = function(fromSplat){
+	console.log('NEAREND: Drag: metaR');
+	//let to = anytoSplat();
+	//let from = anyfromSplat();
+	let to = this;
+	let from = fromSplat;
+	if(!to) throw 'No TO Splat';
+	if(!from) throw 'No FROM Splat';
+	
+	let syty = to.syty();
+	
+	let toFn = to.splate().fn;
+	let fromFn = from.splate().fn;
+	console.log('MMMMMMMMMMM metaR fromFn='+fromFn+' toFn='+toFn);
+	
+	let retFn;
+	if(syty == 'S2'){
+		//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
+		//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
+		let S = vm.ops.S;
+		console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+		retFn = S(toFn)(fromFn);
+	}else if(syty == 'S1'){
+		console.log('Drag metaR, syty='+syty+', calling as callpair then prefix sCurryList way, calling (S (toFn fromFn)), toFn='+toFn+', fromFn='+fromFn);
+		retFn = S(toFn(fromFn));
+	}else{
+		console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+		retFn = toFn(fromFn);
+	}
+	console.log('Drag metaR, Returned '+retFn);
+	let isRightRecursion = to.isRightChild();
+	let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
+	//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
+	console.log('Drag metaR, newSplit='+newSplit);
+	//This isnt right cuz... (get whole comment from directL)
+	let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+	console.log('Drag metaR about to rootSplat.setSplit to ...');
+	rootSplat.setSplit(newRootSplit);
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: Drag: metaR');
+	
+	/*2022-11-16-4pEST got this from browser console (filtered out lots of other console stuff),
+	when dragged 2.34 to {abc def ghi} and chose metaR icon,
+	and thats correct (((but when i dragged it to just the {abc def} in {abc def ghi} aka {{abc def} ghi},
+	it gave the wrong answer, split the application/x-IEEE-754 and 0x...stuff...)))
+				
+	Wikibinator203DragAndDropTree.html:3173 START doEndDrag dropCircMenuItem.pic=pic/metaR.png
+	Wikibinator203DragAndDropTree.html:3781 NEAREND: Drag: metaR
+	Wikibinator203DragAndDropTree.html:3795 Drag metaR, callerSyty=S2, calling the sCurryList way, calling S on {abc def ghi} then what that returns called on 2.34
+	Returned {abc def ghi 2.34}
+	Wikibinator203DragAndDropTree.html:3807 Drag metaR about to rootSplat.setSplit to ...
+	Wikibinator203DragAndDropTree.html:3809 END: Drag: metaR
+	Wikibinator203DragAndDropTree.html:3176 END doEndDrag dropCircMenuItem.pic=pic/metaR.png
+	*/
+};
+
 var dropCircMenu = [
 	{
 		pic: 'pic/copyTo.png',
@@ -4331,57 +4890,23 @@ var dropCircMenu = [
 			console.log('END: Drag: copyTo');
 		}
 	},
+	
+	{
+		pic: 'pic/clickPaste.png',
+		func: ()=>{
+			uiState.removeClickCircMenuAsap = true; //TODO remove the removeClickCircMenuAsap var.
+			//let splat = anyclickcircSplat();
+			let splat = anytoSplat();
+			splat.setFn(uiState.wikibClipboard, options.deleteKnowsAboutS2Etc);
+		}
+	},
+	
 	{
 		pic: 'pic/metaR.png',
 		func: ()=>{
-		
-			console.log('NEAREND: Drag: metaR');
 			let to = anytoSplat();
 			let from = anyfromSplat();
-			
-			let syty = to.syty();
-			
-			let toFn = to.splate().fn;
-			let fromFn = from.splate().fn;
-			
-			let retFn;
-			if(syty == 'S2'){
-				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
-				//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
-				let S = vm.ops.S;
-				console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
-				retFn = S(toFn)(fromFn);
-			}else{
-				console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
-				retFn = toFn(fromFn);
-			}
-			console.log('Drag metaR, Returned '+retFn);
-			let isRightRecursion = to.isRightChild();
-			let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
-			//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
-			console.log('Drag metaR, newSplit='+newSplit);
-			//This isnt right cuz... (get whole comment from directL)
-			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-			console.log('Drag metaR about to rootSplat.setSplit to ...');
-			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
-				updateDisplayToWrap();
-			}
-			console.log('END: Drag: metaR');
-			
-			/*2022-11-16-4pEST got this from browser console (filtered out lots of other console stuff),
-			when dragged 2.34 to {abc def ghi} and chose metaR icon,
-			and thats correct (((but when i dragged it to just the {abc def} in {abc def ghi} aka {{abc def} ghi},
-			it gave the wrong answer, split the application/x-IEEE-754 and 0x...stuff...)))
-						
-			Wikibinator203DragAndDropTree.html:3173 START doEndDrag dropCircMenuItem.pic=pic/metaR.png
-			Wikibinator203DragAndDropTree.html:3781 NEAREND: Drag: metaR
-			Wikibinator203DragAndDropTree.html:3795 Drag metaR, callerSyty=S2, calling the sCurryList way, calling S on {abc def ghi} then what that returns called on 2.34
-			Returned {abc def ghi 2.34}
-			Wikibinator203DragAndDropTree.html:3807 Drag metaR about to rootSplat.setSplit to ...
-			Wikibinator203DragAndDropTree.html:3809 END: Drag: metaR
-			Wikibinator203DragAndDropTree.html:3176 END doEndDrag dropCircMenuItem.pic=pic/metaR.png
-			*/
+			to.metaR(from);
 		}
 	},
 	{
@@ -4469,186 +4994,232 @@ var dropCircMenu = [
 			console.log('NEAREND: Drag: cancelled.');
 		}
 	},
+	
+	{
+		pic: 'pic/edit.png',
+		func: ()=>{
+			console.log('NEAREND: Drag: edit.');
+			let splat = anytoSplat();
+			let oldFn = splat.splate().fn;
+			let oldCode = oldFn+'';
+			let newFn;
+			while(true){
+				try{
+					let newCode = prompt('Edit lambda', oldCode);
+					newFn = vm.eval(newCode);
+					break;
+				}catch(e){
+					alert('ERROR: '+e);
+				}
+			}
+			console.log('Edited old='+oldCode+' to new='+newFn+' and about to put it in');
+			//splat.setFn(newFn, options.deleteKnowsAboutS2Etc);
+			let isMeta = false;
+			splat.setFn(newFn, isMeta);
+			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+				updateDisplayToWrap();
+			}
+		}
+	},
+	
+	{
+		pic: 'pic/delete.png',
+		func: ()=>{
+			//let splat = anyclickcircSplat();
+			let splat = anytoSplat();
+			splat.deleteMe(options.deleteKnowsAboutS2Etc);
+		}
+	},
+	
+
+	{
+		pic: 'pic/select.png', //select what you dragged TO, ignoring the FROM. calls selSplat.
+		func: ()=>{
+			console.log('NEAREND: clickCircMenu: select (what you dragged TO, ignoring the FROM), calls selSplat');
+			let to = anytoSplat();
+			//let to = anyclickcircSplat();
+			setSelSplat(to);
+			console.log('clickCircMenu: select: new selSplat = '+selSplat);
+			console.log('END: clickCircMenu: select');
+		}
+	},
+	
 	{
 		pic: 'pic/directL.png',
 		func: ()=>{
 		
-			//TODO merge duplicate code between directL and directR and maybe metaL and metaR
-			
-			console.log('NEAREND: Drag: directL');
 			let from = anyfromSplat();
 			let to = anytoSplat();
-			let fromFn = from.splate().fn;
-			let toFn = to.splate().fn;
-			console.log('calling '+fromFn+' on '+toFn);
-			let retFn = fromFn(toFn);
-			console.log('Returned '+retFn);
-			//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
-			let callerSyty = to.callerSyty();
-			let isRightRecursion = to.isRightChild();
-			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
-			console.log('newSplit='+newSplit);
-			
-			//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
-			//Another problem is, the fn in root needs to be changed cuz putting retFn deep inside it,
-			//so have to do those lambda calls again. Have to rebuild any part of the tree thats different.
-			//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
-			//but still need to make a new js func to forkEdit the UI and fn together...
-			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-			console.log('Drag directL about to rootSplat.setSplit to ...');
-			rootSplat.setSplit(newRootSplit);
-			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
-				updateDisplayToWrap();
-			}
-			console.log('END: Drag: directL');
+			to.directL(from);
 		}
 	},
+	
 	{
 		pic: 'pic/metaL.png',
 		func: ()=>{
 		
-			//metaL is more complex than metaR, directL, or directR. Its the counterpart of metaR. At a lower level is directL and directR.
-			//
-			//Theres 2 (maybe 3?) cases (as of 2022-11-17) when metaL acts different than directL, the {...} syntax and the [...] syntax,
-			//and maybe the (...) syntax but that one is harder to know where it ends since if you keep looking at fn.L().L().L()... you'll always reach U,
-			//but that info will be in syty and is based on how its displayed, not just the fn.
-			//
-			//TODO these comments are duplicated in the if/elses below, so should remove them here?...
-			//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)
-			//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
-			//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
-			//aka dropLeft [a b c] -> [dropLeft a b c]
-			//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
-			
-
-			//The { kind of drag and drop is the most complex.
-			//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
-			//aka dropLeft {a b c} -> {dropLeft a b c}
-			//https://en.wikipedia.org/wiki/SKI_combinator_calculus
-			
-			
-			console.log('NEAREND: Drag: metaL');
 			let to = anytoSplat();
 			let from = anyfromSplat();
-			
-			let syty = to.syty();
-			
-			let toFn = to.splate().fn;
-			let fromFn = from.splate().fn;
-			
-			let retFn;
-			//if(syty == 'S2'){ //{...} syntax
-			if(syty != 'IC+'){ //{...} syntax (not [...] syntax)
-				//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
-				
-				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, fromFn='+fromFn+' toFn='+toFn);
-				retFn = metaLOfS2(fromFn,toFn);
-				
-				
-				
-				//Should this stop when it finds S, or when it finds something thats not a S2 syty?
-				
-				//TODO use metaLOfS2?
-			
-				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
-				//So just prefix another S... (S to from) aka {to from} cuz this is metaL the L part (fixme did i break this comment when i changed metaR to metaL?)
-				/*
-				let S = vm.ops.S;
-				console.log('Drag metaL, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
-				retFn = S(toFn)(fromFn);
-				*/
-			}else{ //[...] syntax.
-				console.log('Drag metaL, syty='+syty+', calling the infcur/[] list way, fromFn='+fromFn+' toFn='+toFn);
-				retFn = metaLOfInfcur(fromFn,toFn);
-			}
-			
-			/*
-			Its a choice between [] and {}. If those arent around it already, do {}, cuz can drag Infcur aka [] to directL or directR call to make [...].
-			Dont do this. Always do metaLOfS2. It was a bug to do directL ever when metaL is called. Correct: metaL x -> {metaL x} aka (S metaL x).
-			}else if(syty == 'IC+'){ //[...] syntax
-				//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
-				//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
-				//aka dropLeft [a b c] -> [dropLeft a b c]
-				//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
-				
-				//Should this stop when it finds Infcur/[], or when it finds something thats not a IC+ syty?
-				
-				throw 'fixmefixme todo [...] aka syty=IC+';
-			}else{
-				console.log('Drag metaL, syty='+syty+', so calling same as directL, calling '+toFn+' on '+fromFn);
-				retFn = toFn(fromFn);
-			}*/
-			
-			console.log('Drag metaL, syty='+syty+', returned '+retFn);
-			
-			let parent = to.parentSplat;
-			let isRightRecursion = to.isRightChild();
-			let callerSyty = parent.callerSyty();
-			let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
-			//This isnt right??? cuz... (get whole comment from directL)
-			let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
-			rootSplat.setSplit(newRootSplitFromParent);
-			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
-				updateDisplayToWrap();
-			}
-			console.log('END: Drag: metaL');
-			
-
+			to.metaL(from);
+		}
+	},
+	
+	{
+		pic: 'pic/clickCopy.png',
+		func: ()=>{
+			console.log('START: clickCircMenu: copy');
+			uiState.removeClickCircMenuAsap = true;
 			
 			
-			/*
-			console.log('NEAREND: Drag: metaR');
+			//let from = anyfromSplat();
 			let to = anytoSplat();
-			let from = anyfromSplat();
-			
-			let syty = to.syty();
-			
+			//let to = getSplatMouseIsOverElseNull();
+			//let to = anyclickcircSplat();
+			//let fromFn = from.splate().fn;
 			let toFn = to.splate().fn;
-			let fromFn = from.splate().fn;
+			uiState.wikibClipboard = toFn;
+			console.log('copied into uiState.wikibClipboard');
 			
-			let retFn;
-			if(syty == 'S2'){
-				//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
-				//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
-				let S = vm.ops.S;
-				console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
-				retFn = S(toFn)(fromFn);
-			}else{
-				console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
-				retFn = toFn(fromFn);
-			}
-			console.log('Drag metaR, Returned '+retFn);
-			let isRightRecursion = to.isRightChild();
-			let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
-			//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
-			console.log('Drag metaR, newSplit='+newSplit);
-			//This isnt right cuz... (get whole comment from directL)
-			let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-			console.log('Drag metaR about to rootSplat.setSplit to ...');
-			rootSplat.setSplit(newRootSplit);
+			
 			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 				updateDisplayToWrap();
 			}
-			console.log('END: Drag: metaR');
-			*/
-		
-		
-		
-		
-			/*
-			if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
-				updateDisplayToWrap();
-			}
-			console.log('TODO metaL');
-			*/
+			console.log('END: clickCircMenu: copy');
 		}
 	},
 ];
+
+var UIMode = function(name){
+	this.name = name;
+};
+UIMode.prototype.onEvent = function(event){
+	console.log('Default UIMode.onEvent does nothing, event='+event);
+};
+
+var simpleDragUimode = new UIMode('simpleDragUimode');
+simpleDragUimode.onEvent = function(event){
+	consoe.log('TODO simpleDragUimode.event='+event);
+};
+
+var popupDragUimode = new UIMode('popupDragUimode');
+popupDragUimode.onEvent = function(event){
+	consoe.log('TODO popupDragUimode.event='+event);
+};
+
+//Example: 'XRRL' -> _[L R R] aka (Seq [L R R]),
+//so (_[R R L] rootSplat.splate().fn) would return rootSplat.splate().fn.n.R().n.R().n.L().
+//xlrPathToGetter and xlrPathToSetter are similar to the / opcode in urbit, which gets/puts things by binheap address.
+var xlrPathToGetter = xlrPath=>{
+	let list = vm.ops.Infcur;
+	for(let xlr of xlrPath){
+		if(xlr == 'L'){
+			list = list(L);
+		}else if(xlr == 'R'){
+			list = list(R);
+		}//else nothing. This includes the 'X' it normally starts with.
+	}
+	return vm.ops.Seq(list);
+};
+
+//Given rootSplat.splate().fn, for example, returns a forkEdit of it with a certain path leading to the given val/fn.
+//This works if its always at the same place, but if its a key/val in a treemap, then internal structure varies,
+//so you'd want to use vm.ops.Put etc instead of this way of making a setter.
+var xlrPathToSetter = (xlrPath,val)=>{
+	//go backward, from end of xlrPath, forkEditing 1 more thing each recursion.
+	let setter = T(val); //given the deepest thing (at end of xlrPath), ignore it and return val instead.
+	let S = vm.ops.S;
+	for(let i=xlrPath.length-1; i>=0; i--){
+		let xlr = xlrPath[i]; //'X' meaning root, 'L', or 'R'.
+		if(xlr == 'L'){ //replace left child
+			let getNewLeftChild = S(T(setter))(L);
+			setter = S(getNewLeftChild)(R); //The R keeps the current right child
+		}else if(xlr == 'R'){ //replace right child
+			let getNewRightChild = S(T(setter))(R);
+			setter = S(L)(getNewRightChild); //the L keeps the current left child
+		}//else nothing. This includes the 'X' it normally starts with.
+	}
+	return setter;
+};
+
+//by path like returned by splat.pathFromRoot(), for example 'XRRRRLLLLLLLRLR'.
+var newGameUimodeByPath = (xlrPath,optionalName)=>
+	newGameUimodeByGetterAndSetter(optionalName||xlrPath, xlrPathToGetter(xlrPath), xlrPathToSetter(xlrPath));
+	
+//Given a js event, turn it into a fn to be used as param of uimode.getter(rootSplat.splate().fn)
+var newGameUimodeByGetterAndSetter_eventToFn
+
+var newGameUimodeByGetterAndSetter = (name,getter,setter)=>{
+	let uimode = new UIMode(name);
+	uimode.getter = getter;
+	uimode.setter = setter;
+	uimode.onEvent = function(event){
+		consoe.log('TODO '+name+'_gameUimode.event='+event);
+	};
+	return uimode;
+};
+//popupDragUimode.onEvent = function(event){
+//	throw 'TODO';
+//};
+
+//This is called when mouseup of btn==metaInsertButton, at the end of a drag where it has a cursor-like vertical line
+//between 2 lambdas in a {...} [...] or (...) that it should do metaL or metaR in.
+//Which splat to do that in, and the left vs right side of it? Theres vars in uiState for it (put there at runtime):
+//uiState.simpleDragUimode_cursor_splat
+//uiState.dropDirection = 'left' or 'right'
+var endMetaInsert = ()=>{
+	console.log('MMMMMMMMMMM endMetaInsert');
+	let splat = uiState.simpleDragUimode_cursor_splat; //TO
+	if(splat){
+		let dropWhatSplat = anyfromSplat();
+		if(!dropWhatSplat){
+			throw 'No dropWhatSplat=anyfromSplat so cant endMetaInsert to uiState.simpleDragUimode_cursor_splat='+splat;
+		}
+		let direction = uiState.dropDirection;
+		if(direction == 'left'){
+			if(splat.isRightChild()){
+				let leftSibling = splat.parentSplat.leftSplat;
+				if(!leftSibling){
+					throw 'endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead, but there is no left sibling splat of '+splat+', which normally happens when isFoldL. parent.isFoldL='+splat.parentSplat.splate().isFoldL;
+				}
+				console.log('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead');
+				//This is cuz metaL is only for putting stuff in the leftmost part of a {...} or [...] or (...) list,
+				//and if you want to put stuff anywhere farther to the right, you use metaR, or directR works too for that if its a (...) list.
+				leftSibling.metaR(dropWhatSplat);
+				console.log('endMetaInsert direction=left done metaR from left sibling.');
+			}else{ //is left child
+				console.log('endMetaInsert direction=left isLeftChild so doing metaL');
+				splat.metaL(dropWhatSplat);
+			}
+			
+			//splat.metaL(dropWhatSplat);
+		}else if(direction == 'right'){
+			console.log('endMetaInsert direction=right');
+			if(splat.isRightChild()){
+				//This seems to work in direction=='right' when drag into a {...} or [...], but not into a (...).
+				console.log('endMetaInsert, setting splat = splat.parentSplat;');
+				splat = splat.parentSplat;
+			}
+			splat.metaR(dropWhatSplat);
+		}else{
+			throw 'Unknown direction='+direction;
+		}
+	}else{
+		throw 'endMetaInsert, nothing to insert';
+	}
+	afterDrop();
+};
 
 //In case clickCircMenu has multiple vars, put them all here. Start with just the fn thats copy/pasted.
 var uiState = {
 	lastMouseButtonDown: 'unknownButton',
 	wikibClipboard: U, //clickCopy and clipPaste use this.
+	
+	//normally is simpleDragUimode or popupDragUimode (in general, a few kinds of drag depending which button,
+	//some of which have a popup circular menu at the end, and some of which dont) or
+	//a newGameUimodeByPath (at a specific splat somewhere inside containing a canvas etc),
+	//that the controls (keyboard, mouse, gamepad, webcam, microphone, etc) get attached to
+	//while you want to play it as a game or visual/sound tool or other interactive process.
+	uimode: simpleDragUimode,
 };
 
 //NEW: Bottom half of rectangle selects parent. Top half selects self.
@@ -4838,6 +5409,8 @@ Splat.prototype.setFn = function(fn, isMeta){
 	console.log('END: clickCircMenu: paste');
 };
 
+/* 2022-12-28 starting to get rid of clickCircMenu and move its contents to dropCircMenu (applying to the TO splat).
+..
 //menu that appears when rightClick a fn. This is similar to dropCircMenu except that only happens when drag from a fn to a fn.
 //This is for things like copy and paste. Also, quicksave1 quickload1 quicksave2 quickload2 etc at a specific fn.
 var clickCircMenu = [
@@ -4900,6 +5473,7 @@ var clickCircMenu = [
 		}
 	},
 ];
+*/
 
 //also triggers oninput event, such as on a textarea as dob. TODO??? maybe also works for number input etc?
 var setDobValue = (dob,val)=>{
@@ -4956,9 +5530,7 @@ window.onload = ()=>{
 	
 </script>
 </head><body>
-	Wikibinator203 widget: drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
-	<br><br>
-	Doesnt work enough yet. Use Wikibinator203DirectedGraphUI.html instead.
+	Wikibinator203 widget (todo all as 1 js file, clean it up and isolate it): drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
 	<br><br>
 	<div id=extraTests></div>
 	<br><br>
@@ -4972,13 +5544,15 @@ window.onload = ()=>{
 		<div id=mouseOverSelect_bottom style
 		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#ddd"></div>
 		
-		<div id=mouseOverSelect2_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#8ff"></div>
-		<div id=mouseOverSelect2_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#8ff"></div>
-		<div id=mouseOverSelect2_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#7dd"></div>
+		<div id=mouseOverSelect2_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#1d2"></div>
+		<div id=mouseOverSelect2_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#1d2"></div>
+		<div id=mouseOverSelect2_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#0c1"></div>
 		<div id=mouseOverSelect2_bottom style
-		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#7dd"></div>
+		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#0c1"></div>
 		
-		<div id=popupMenuDob style="position:absolute;z-index:10000004;background-color:gray;top:0px;left:0px"></div>
+		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85"></div>
+		
+		<div id=popupMenuDob style="position:absolute;z-index:10000005;background-color:gray;top:0px;left:0px"></div>
 	</div>
 	
 	<center>
@@ -5003,7 +5577,7 @@ window.onload = ()=>{
 			This password is not (TODO verify security) copied outside this browser window, unless your browser or its plugins or OS etc is spying on it.
 			Only digital signatures of it are normally shared.
 			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
-		</td><td>
+		</td><td valign=top>
 			<div id=controlsAboveRootDob>
 				QuickSave and QuickLoad use cookies. In future versions, it will have the option to save/download generated file and drag files in, and to drag just parts into and out of those files or cookies and to share and stream online.<br>
 				<nobr><input type=button value="QuickSave 1" onclick="quickSave(1);"></input><input type=button value="QuickLoad 1" onclick="quickLoad(1);"></input></nobr>
@@ -5013,8 +5587,13 @@ window.onload = ()=>{
 				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 5" onclick="quickSave(5);"></input><input type=button value="QuickLoad 5" onclick="quickLoad(5);"></input></nobr>
 				<br><br>
 				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
+				<nobr>
+					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox checked></input>
+					<label for=alwaysForceUpdateDisplayAfterDrop>Always force update display after drag (FIXME shouldnt need this, and leaving this on makes it slower.</label>
+				</nobr>
 			</div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
+			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
 			
 			<div style="display:inline-block">
@@ -5131,7 +5710,7 @@ thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
 	<br><br>
 	<b>TODO allow it to drag from and to same splat/rect, by moving the looseY and looseX (and having 2 of each, FROM and TO) to some globalVars {} and the "overlays", and moving that out of splate.</b>
 	<br><br>
-	DONE, solution is options.screenYXToSplatfyfx_topIsSelfAndBottomIsParent, and end of drag doesnt do actions yet. UPDATE: the right side being self and left side being parent, seems to work but there should be a minimum width of rectangle, and I'm undecided if should use 4 corners for metaL metaR directL directR vs if should pop up a menu of actions to do right after the drag. TODO either do just parentOfSelfRect as left half and selfRect as right half (similar to options.fractionRecurse), OR do more angles/possibleActions in selfRect (cuz maybe only need 1 metaL and 1 metaR among both of those?, while still needing parentDirectL and directL and parentDirectR and directR, so it might just be 6 actions needed or something like that), OR use right mouse button or mousewheel etc to choose self vs parent. The meta* actions only need to know where to insert, so in {a b c} theres 4 possible places {|a b c} {a|b c} {a b|c} {a b c|}, and similar of its [a b c]. Theres more direct* actions.
+	DONE, solution is options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent, and end of drag doesnt do actions yet. UPDATE: the right side being self and left side being parent, seems to work but there should be a minimum width of rectangle, and I'm undecided if should use 4 corners for metaL metaR directL directR vs if should pop up a menu of actions to do right after the drag. TODO either do just parentOfSelfRect as left half and selfRect as right half (similar to options.fractionRecurse), OR do more angles/possibleActions in selfRect (cuz maybe only need 1 metaL and 1 metaR among both of those?, while still needing parentDirectL and directL and parentDirectR and directR, so it might just be 6 actions needed or something like that), OR use right mouse button or mousewheel etc to choose self vs parent. The meta* actions only need to know where to insert, so in {a b c} theres 4 possible places {|a b c} {a|b c} {a b|c} {a b c|}, and similar of its [a b c]. Theres more direct* actions.
 	<br><br>
 	DONE, its in options.fractionRecurse (set it to 1 to not use it), BUT it feels hard to use. Make the 1/2 1/4 1/8... (but maybe with .4 or 1/3 recursively instead of 1/2) way to refer to self rect or parent of self or parent of parent of self..., and within that an angle (such as snap to 1 of 4 corners for 4 possible actions: directL directR metaL/{}/[] metaR/{}/[]). Make the dragLine that mouse creats when dragging do this on both ends, and have splat.dobs.hardIcon be snapped to those 4 corners or center depending if its those 4 things vs center being drag FROM.<br>
 	TODO get setDragStuff working.<br>

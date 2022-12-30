@@ -2807,6 +2807,7 @@ const Wikibinator203 = (()=>{
 		
 		vm.mask_stackIsAllowstackTimestackMem = 1;
 		
+		//TODO have 2 kinds of this, one for roundoff, and one for allowing float32 instead of float64 which GLSL does?
 		vm.mask_stackIsAllowNondetRoundoff = 1<<1;
 		
 		vm.mask_stackIsAllowMutableWrapperLambdaAndSolve = 1<<2;
@@ -2851,6 +2852,9 @@ const Wikibinator203 = (()=>{
 		
 		//vm.mask_reservedForFutureExpansion5 = 1<<5;
 		
+		//TODO get rid of this mask bit and make vm.ops.Bit1 and vm.ops.Bit0 infloop if
+		//called on anything other than a cbt of same size? That would require it be more like vm.ops.VarargAx.
+		//
 		//True if o8 is [vm.o8OfBit0 or vm.o8OfBit1] and is a [complete binary tree] of those,
 		//so even if its all bit0s and bit1s, it could still be different heights like (((1 0) (1 1)) (1 1)) is not a cbt but (((1 0) (1 1)) ((1 1)(1 1))) is.
 		//[vm.o8OfBit0 or vm.o8OfBit1] can take any params, up to about 248 (todo find exact number) of them after the first 7.
@@ -8229,7 +8233,8 @@ const Wikibinator203 = (()=>{
 						
 					}break; case 'IC+':{
 					
-						let displayPushPop = isRightRecursion || displayPound; //FIXME does "|| displayPound" have any effect here?
+						//let displayPushPop = isRightRecursion || displayPound; //FIXME does "|| displayPound" have any effect here?
+						let displayPushPop = isRightRecursion || displayPound || (callerSyty != 'IC+' && callerSyty != 'IC0'); //FIXME does "|| displayPound" have any effect here?
 						if(displayPushPop) viewing.tokens.push('[');
 						if(view.lsyty() != 'IC0'){
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
@@ -10521,6 +10526,8 @@ const Wikibinator203 = (()=>{
 		vm.test('lambda tostring name of prefix with childs, (Pn#[Pair R] x)', vm.eval('(Pn#[Pair R] x)')+'', '[Pn#[Pair R] x]');
 		
 		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
+		
+		vm.test('[ and ] display in {[hello world] abc}. It was displaying as {hello world abc}', vm.eval('{[hello world] abc}')+'', '{[hello world] abc}');
 		
 		vm.extraTests = [];
 		
