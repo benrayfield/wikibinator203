@@ -258,6 +258,11 @@ var hashText = text=>vm.bytesToHex(sha256(unicode.stringToUtf8AsUint8Array(text)
 
 var randInt = n=>Math.floor(Math.random()*n);
 
+const timeOffset_ = eval('performance.timing.navigationStart'); //evaled to prevent uglifyjs from changing it to something like performance.V.Q but still have to put timing and navigationStart in reserved list
+
+//utc seconds, with a little more precision than Date.now()*.001
+const Now = ()=>((timeOffset_+performance.now())*.001);
+
 //FIXME? may be maxExcl or max or might go slightly over, depending on roundoff.
 var randBetween = (min,max)=>(min+(max-min)*Math.random());
 
@@ -552,7 +557,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 		this.eventListenerMouseMove = function(event){
 			event.stopPropagation();
 			if(uiState.isDoingMouseUp){
-				console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
 				return;
 			}
 			controls.mouseY = event.pageY;
@@ -572,16 +577,16 @@ var Splat = function(parentSplatOrNull, selfDob){
 				//let isDisplayIcon = false;
 				let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
 				let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
-				if(vm.loglev>=2) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
+				if(options.logMouseEvents) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
 				ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
-				if(vm.loglev>=2) console.log('mousemove did transformSplate with new icon position etc');
+				if(options.logMouseEvents) console.log('mousemove did transformSplate with new icon position etc');
 				
 				//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
 				//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
 			}
 			
 			
-			if(vm.loglev>=2) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
+			if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
 			//event.stopPropagation();
 			if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
 				ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
@@ -686,7 +691,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 		this.eventListenerMouseDown = function(event){
 			event.stopPropagation();
 			if(uiState.isDoingMouseUp){
-				console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
 				return;
 			}
 			document.body.style.backgroundColor = '#ccc'; //FIXME remove this
@@ -694,7 +699,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 			//event.stopPropagation();
 			uiState.removeClickCircMenuAsap = false;
 			let btn = eventToButtonName(event);
-			console.log('mousedown '+btn);
+			if(options.logMouseEvents) console.log('mousedown '+btn);
 			controls[uiState.lastMouseButtonDown = btn] = 1;
 			//if(btn == 'mouseLeftButton'){
 			//if(btn == metaInsertButton){
@@ -710,21 +715,21 @@ var Splat = function(parentSplatOrNull, selfDob){
 				}else{
 						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
 				}*/
-				console.log('TODO mouseLeftButton');
+				//console.log('TODO mouseLeftButton');
 			//}else if(btn == popupDragButton){
 			if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
 				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
 					setSelSplat(ThisSplat);
 				}
 				if(options.doMainDragging){
-					console.log('for dropcirc, mousedown doMainDragging');
+					if(options.logMouseEvents) console.log('for dropcirc, mousedown doMainDragging');
 					//ThisSplat.doStartDrag(
 					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
 					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
 					if(splatfyfx){
 						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
 					}else{
-						console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+						if(options.logMouseEvents) console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
 					}
 					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
 				}
@@ -768,7 +773,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 				//console.log('mouseup '+ThisSplat);
 				event.stopPropagation();
 				let btn = eventToButtonName(event);
-				console.log('mouseup '+btn);
+				if(options.logMouseEvents) console.log('mouseup '+btn);
 				controls[btn] = 0;
 				//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
 				//	setSelSplat(ThisSplat);
@@ -1164,6 +1169,18 @@ Splat.prototype.createDobsIfNotExist = function(){
 };
 
 var options = {};
+
+options.logTodos = false;
+
+options.logNotDraggingToAndFromSameSplat = false;
+
+options.logMetaR = false;
+
+options.logDirectL = false;
+
+options.logWidthAndWrappingStuff = false;
+
+options.logMetaInsert = false;
 
 options.logLm_TO_splat = true; //true for testing
 //options.logLm_TO_splat = false; //normal
@@ -2223,7 +2240,7 @@ Split.prototype.forkTryMaxWidth = function(maxWidth){
 		Also, if self isOneLine and self isDisplayPushAndPopChars, that might make it a different size cuz of the "tabbed over"
 			vs no added whitespace plus a prefix, the child(s), then suffix.
 	*/
-	console.log('forkTryMaxWidth maxWidth='+maxWidth+' fn='+this.splate.fn);
+	if(options.logWidthAndWrappingStuff) console.log('forkTryMaxWidth maxWidth='+maxWidth+' fn='+this.splate.fn);
 	let estSelfWidthIfOneLine = this.estimateWidthIfOneLine();
 	//let estLeftWidthIfOneLine = this.leftSplit ? this.leftSplit.estimateWidthIfOneLine() : null;
 	//let estRightWidthIfOneLine = this.rightSplit ? this.rightSplit.estimateWidthIfOneLine() : null;
@@ -3564,7 +3581,7 @@ Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
 	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
 	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doDuringDrag';
 	if(wouldfromOrFrom === this){
-		console.log('Not dragging from and to same splat. FIXME that should be allowed (maybe have dragStepFrom and dragStepTo fields instead of just dragStep?), but for now Im just trying to get drag and drop working at all. this='+this);
+		if(options.logNotDraggingToAndFromSameSplat) console.log('Not dragging from and to same splat. FIXME that should be allowed (maybe have dragStepFrom and dragStepTo fields instead of just dragStep?), but for now Im just trying to get drag and drop working at all. this='+this);
 	}else{
 		this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
 		//TODO optimize dont update screen until setDragStuff?
@@ -4624,21 +4641,21 @@ var setRootFnAndForceUpdateDisplay = fn=>{
 Splat.prototype.directL = function(fromSplat){
 	//TODO merge duplicate code between directL and directR and maybe metaL and metaR
 			
-	console.log('NEAREND: Drag: directL');
+	if(options.logDirectL) console.log('NEAREND: Drag: directL');
 	//let from = anyfromSplat();
 	//let to = anytoSplat();
 	let from = fromSplat;
 	let to = this;
 	let fromFn = from.splate().fn;
 	let toFn = to.splate().fn;
-	console.log('calling '+fromFn+' on '+toFn);
+	if(options.logDirectL) console.log('calling '+fromFn+' on '+toFn);
 	let retFn = fromFn(toFn);
-	console.log('Returned '+retFn);
+	if(options.logDirectL) console.log('Returned '+retFn);
 	//let newSplit = to.split.transformSplate(splate=>splate.setFn(retFn));
 	let callerSyty = to.callerSyty();
 	let isRightRecursion = to.isRightChild();
 	let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
-	console.log('newSplit='+newSplit);
+	if(options.logDirectL) console.log('newSplit='+newSplit);
 	
 	//This isnt right cuz it only returns a Split, doesnt change whats in root: to.forkRootSplit(newSplit);
 	//Another problem is, the fn in root needs to be changed cuz putting retFn deep inside it,
@@ -4646,12 +4663,12 @@ Splat.prototype.directL = function(fromSplat){
 	//It already checks for equality (by localId of fn, not perfect dedup) which will work for the UI,
 	//but still need to make a new js func to forkEdit the UI and fn together...
 	let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-	console.log('Drag directL about to rootSplat.setSplit to ...');
+	if(options.logDirectL) console.log('Drag directL about to rootSplat.setSplit to ...');
 	rootSplat.setSplit(newRootSplit);
 	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 		updateDisplayToWrap();
 	}
-	console.log('END: Drag: directL');
+	if(options.logDirectL) console.log('END: Drag: directL');
 };
 
 //fromSplat --drag_metaL_way--> this. Modifies this.
@@ -4879,7 +4896,7 @@ Splat.prototype.metaL = function(fromSplat){
 
 //fromSplat --drag_metaR_way--> this. Modifies this.
 Splat.prototype.metaR = function(fromSplat){
-	console.log('NEAREND: Drag: metaR');
+	if(options.logMetaR) console.log('NEAREND: Drag: metaR');
 	//let to = anytoSplat();
 	//let from = anyfromSplat();
 	let to = this;
@@ -4891,35 +4908,35 @@ Splat.prototype.metaR = function(fromSplat){
 	
 	let toFn = to.splate().fn;
 	let fromFn = from.splate().fn;
-	console.log('MMMMMMMMMMM metaR fromFn='+fromFn+' toFn='+toFn);
+	if(options.logMetaR) console.log('MMMMMMMMMMM metaR fromFn='+fromFn+' toFn='+toFn);
 	
 	let retFn;
 	if(syty == 'S2'){
 		//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
 		//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
 		let S = vm.ops.S;
-		console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
 		retFn = S(toFn)(fromFn);
 	}else if(syty == 'S1'){
-		console.log('Drag metaR, syty='+syty+', calling as callpair then prefix sCurryList way, calling (S (toFn fromFn)), toFn='+toFn+', fromFn='+fromFn);
+		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', calling as callpair then prefix sCurryList way, calling (S (toFn fromFn)), toFn='+toFn+', fromFn='+fromFn);
 		retFn = S(toFn(fromFn));
 	}else{
-		console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
+		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', so calling same as directR, calling '+toFn+' on '+fromFn);
 		retFn = toFn(fromFn);
 	}
-	console.log('Drag metaR, Returned '+retFn);
+	if(options.logMetaR) console.log('Drag metaR, Returned '+retFn);
 	let isRightRecursion = to.isRightChild();
 	let newSplit = newSplitForFn_experimental(retFn, syty, isRightRecursion); //FIXME should this use syty or callerSyty (even if its checking syty above)?
 	//let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion);
-	console.log('Drag metaR, newSplit='+newSplit);
+	if(options.logMetaR) console.log('Drag metaR, newSplit='+newSplit);
 	//This isnt right cuz... (get whole comment from directL)
 	let newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
-	console.log('Drag metaR about to rootSplat.setSplit to ...');
+	if(options.logMetaR) console.log('Drag metaR about to rootSplat.setSplit to ...');
 	rootSplat.setSplit(newRootSplit);
 	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
 		updateDisplayToWrap();
 	}
-	console.log('END: Drag: metaR');
+	if(options.logMetaR) console.log('END: Drag: metaR');
 	
 	/*2022-11-16-4pEST got this from browser console (filtered out lots of other console stuff),
 	when dragged 2.34 to {abc def ghi} and chose metaR icon,
@@ -5240,7 +5257,7 @@ var newGameUimodeByGetterAndSetter = (name,getter,setter)=>{
 //uiState.simpleDragUimode_cursor_splat
 //uiState.dropDirection = 'left' or 'right'
 var endMetaInsert = ()=>{
-	console.log('MMMMMMMMMMM endMetaInsert');
+	if(options.logMetaInsert) console.log('MMMMMMMMMMM endMetaInsert');
 	let splat = uiState.simpleDragUimode_cursor_splat; //TO
 	if(splat){
 		let dropWhatSplat = anyfromSplat();
@@ -5254,22 +5271,22 @@ var endMetaInsert = ()=>{
 				if(!leftSibling){
 					throw 'endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead, but there is no left sibling splat of '+splat+', which normally happens when isFoldL. parent.isFoldL='+splat.parentSplat.splate().isFoldL;
 				}
-				console.log('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead');
+				if(options.logMetaInsert) console.log('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead');
 				//This is cuz metaL is only for putting stuff in the leftmost part of a {...} or [...] or (...) list,
 				//and if you want to put stuff anywhere farther to the right, you use metaR, or directR works too for that if its a (...) list.
 				leftSibling.metaR(dropWhatSplat);
-				console.log('endMetaInsert direction=left done metaR from left sibling.');
+				if(options.logMetaInsert) console.log('endMetaInsert direction=left done metaR from left sibling.');
 			}else{ //is left child
-				console.log('endMetaInsert direction=left isLeftChild so doing metaL');
+				if(options.logMetaInsert) console.log('endMetaInsert direction=left isLeftChild so doing metaL');
 				splat.metaL(dropWhatSplat);
 			}
 			
 			//splat.metaL(dropWhatSplat);
 		}else if(direction == 'right'){
-			console.log('endMetaInsert direction=right');
+			if(options.logMetaInsert) console.log('endMetaInsert direction=right');
 			if(splat.isRightChild()){
 				//This seems to work in direction=='right' when drag into a {...} or [...], but not into a (...).
-				console.log('endMetaInsert, setting splat = splat.parentSplat;');
+				if(options.logMetaInsert) console.log('endMetaInsert, setting splat = splat.parentSplat;');
 				splat = splat.parentSplat;
 			}
 			splat.metaR(dropWhatSplat);
@@ -5555,7 +5572,7 @@ var setDobValue = (dob,val)=>{
 };
 
 var updateDisplayToWrap = ()=>{
-	if(vm.loglev>0) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in dropCircMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
+	if(options.logTodos) console.log('TODO optimize by merging updateDisplayToWrap with the funcs in dropCircMenu, to only call setSplit on rootSplat once instead of twice (there then it calls here again)');
 	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
 };
 
