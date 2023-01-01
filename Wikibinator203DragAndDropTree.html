@@ -1171,6 +1171,9 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+//options.refillTimeAndMemoryEtcAfterEachDrop = true;
+options.refillTimeAndMemoryEtcAfterEachDrop = false;
+
 //This is to help you not get confused when you drag and drop then it changes the shape of the tree,
 //so its hard to see where you just dropped it without this.
 //FIXME this is experimental 2023-1-1 and im first only implementing it for uiState.simpleDragUimode_cursor_splat (metaInsert, drag by mouseLeftButton).
@@ -1239,9 +1242,10 @@ options.blockRightClickPopup = true; //cuz mouseRightButton does clickCircMenu p
 options.updateDisplayToWrap_afterEachDropCircMenuCommand = true;
 //options.updateDisplayToWrap_afterEachDropCircMenuCommand = false;
 
-//options.maxWidth_for_forkTryMaxWidth_ofRoot = 1500;
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 1200;
+options.maxWidth_for_forkTryMaxWidth_ofRoot = 1000;
 //options.maxWidth_for_forkTryMaxWidth_ofRoot = 2000;
-options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
+//options.maxWidth_for_forkTryMaxWidth_ofRoot = 2200; //FIXME get from screen size, and adjust how its computed cuz its not predicting width well, and wasting horizontal space
 //options.maxWidth_for_forkTryMaxWidth_ofRoot = 2500
 
 
@@ -1323,7 +1327,9 @@ options.testActionOnWindowLoad = false;
 options.displayEstimateWidth = true;
 //options.displayEstimateWidth = false;
 
-options.estimatedFontWidth = 10; //pixels
+//options.estimatedFontWidth = 10; //pixels
+//options.estimatedFontWidth = 10; //pixels
+options.estimatedFontWidth = 8; //pixels
 
 //options.fillDropDobWithTestWhenNearestToMouse = true;
 options.fillDropDobWithTestWhenNearestToMouse = false;
@@ -2185,7 +2191,8 @@ Split.prototype.estimateWidthIfOneLine = function(){
 		est += borderWidth+1.5;
 		if(splate.isDisplayPushAndPopChars){
 			if(splate.isLiteral) throw 'isLiteral AND isDisplayPushAndPopChars, splate='+splate;
-			est += options.estimatedFontWidth*2;
+			//est += options.estimatedFontWidth*2;
+			est += estimateIndentWidth()*2;
 		}
 		if(this.isDisplayL()){
 			if(!this.leftSplit) throw 'No leftSplit but isDisplayL said to display it';
@@ -2236,6 +2243,12 @@ Split.prototype.asOneLineDeep = function(){
 	return getSplit(forkSplate,forkLeft,forkRight);
 };
 
+//width in pixels of each indent, such as "[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" or "]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".
+var estimateIndentWidth = ()=>{
+	//let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
+	return 20; //FIXME
+};
+
 //Returns a Split with everything the same as this one except some of the isOneLine might be changed (and maybe related things? are there any?).
 //Using estimateWidth recursively, will set isOneLine where it can to try to not exceed the given maxWidth,
 //but since a single thing can be wider than that, it might not be able to, but usually it will.
@@ -2253,19 +2266,31 @@ Split.prototype.forkTryMaxWidth = function(maxWidth){
 	//let estLeftWidthIfOneLine = this.leftSplit ? this.leftSplit.estimateWidthIfOneLine() : null;
 	//let estRightWidthIfOneLine = this.rightSplit ? this.rightSplit.estimateWidthIfOneLine() : null;
 	if(estSelfWidthIfOneLine <= maxWidth){
-		return this.asOneLineDeep();
+		let ret = this.asOneLineDeep();
+		ret.cache_maxWidth = maxWidth;
+		return ret;
 	}else{
-		let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
+		let indentWidth = estimateIndentWidth();
+		//let maxWidthMinusTabbedOver = maxWidth-tabSizeInSpaces*options.estimatedFontWidth; //may be negative, but will just multiline if it exceeds such maxallowed
+		let maxWidthMinusTabbedOver = maxWidth-indentWidth; //may be negative, but will just multiline if it exceeds such maxallowed
 		let forkSplate = this.splate.setIsOneLine(false);
 		//TODO optimize by reusing same Splits if they're already not too wide (does it do that yet? theres some code that does and some that doesnt...)
 		let forkLeft = this.isDisplayL() ? this.leftSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.leftSplit; //leave leftSplit as it is if not display it
 		let forkRight = this.isDisplayR() ? this.rightSplit.forkTryMaxWidth(maxWidthMinusTabbedOver) : this.rightSplit; //leave rightSplit as it is if not display it
 		let forkActionsSplit = this.action ? this.action.split.forkTryMaxWidth(maxWidthMinusTabbedOver) : null;
+		
+		//2023-1-1 Action isnt used anymore. splate.dragStep and uiState etc are used instead.
+		//But I might bring it back later, to use the few drop dobs (such as splat.dobs.dropleft dropmid dropright etc???
 		let forkAction = this.action;
 		if(forkAction && !forkAction.split.eq(forkActionsSplit)){
 			forkAction = new Action(forkActionsSplit,forkAction.dobName,forkAction.action); //TODO make an Action.prototype.setSplit func in case it gets more fields later.
 		}
-		return getSplit(forkSplate,forkLeft,forkRight,forkAction);
+		
+		
+		let ret = getSplit(forkSplate,forkLeft,forkRight,forkAction);
+		ret.cache_maxWidthMinusTabbedOver = maxWidthMinusTabbedOver;
+		ret.cache_maxWidth = maxWidth;
+		return ret;
 	}
 	
 	
@@ -2428,7 +2453,8 @@ Splat.prototype.splate = function(){
 //FIXME move this to options.tabSizeInSpaces
 //let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
 //let tabSizeInSpaces = 2; //cuz the spaces are really small for some reason. FIXME why are they so small.
-let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
+let tabSizeInSpaces = 10; //cuz the &nbsp;spaces are really small for some reason. FIXME why are they so small.
+//let tabSizeInSpaces = 3; //the thin stuff on the left where [ is top left and ] is top right, or similar for { } ( ).
 
 let borderWidth = 0;
 //let borderWidth = 2;
@@ -3665,6 +3691,9 @@ var doClickCircMenu = ()=>{
 
 //called after a drag and drop.
 var afterDrop = ()=>{
+	if(options.refillTimeAndMemoryEtcAfterEachDrop){
+		vm.refill();
+	}
 	if(Dob('alwaysForceUpdateDisplayAfterDrop').checked){
 		console.log('forceUpdateDisplay cuz alwaysForceUpdateDisplayAfterDrop. FIXME this shouldnt be needed but the UI is buggy as of 2022-12-30. Bug: It displays extra {{a b} c} [[a b] c] ((a b) c) when theyre not needed on the left. Bug: it displays an earlier, or somehow different, form of fn before it evals, when dragging sometimes.');
 		forceUpdateDisplay();
@@ -4561,6 +4590,8 @@ var updateOverlays = ()=>{
 			}
 		}
 	}
+	
+	Dob('vmStats').innerHTML = '<nobr title="This stops the browser tab from crashing if you write an infinite loop, gives up early."><input type=button onclick="vm.refill(); updateOverlays();" value="refill"></input> vm.stackTime='+vm.stackTime+' vm.stackMem='+vm.stackMem+'</nobr>';
 	
 	if(options.loglev>2) console.log('updateOverlays clickcirctest menuDob.innerHTML.length='+menuDob.innerHTML.length);
 	//uiState.removeClickCircMenuAsap = false;
@@ -5774,6 +5805,7 @@ window.onload = ()=>{
 				</nobr>
 			</div><br>
 			<div id=copyOfPopupMenuToPreChoose></div><br>
+			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
