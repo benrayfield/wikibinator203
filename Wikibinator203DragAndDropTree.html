@@ -589,7 +589,8 @@ var Splat = function(parentSplatOrNull, selfDob){
 			if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
 			//event.stopPropagation();
 			if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
-				ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
+				//ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
+				ThisSplat.forkRoot_setColor();
 			}
 			//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
 			if(options.fillDropDobWithTestWhenNearestToMouse){
@@ -1170,6 +1171,13 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+//This is to help you not get confused when you drag and drop then it changes the shape of the tree,
+//so its hard to see where you just dropped it without this.
+//FIXME this is experimental 2023-1-1 and im first only implementing it for uiState.simpleDragUimode_cursor_splat (metaInsert, drag by mouseLeftButton).
+options.highlightWhatWasJustDropped = true;
+
+options.highlightWhatWasJustDropped_color = [255,255,255]; //red green blue
+
 options.logTodos = false;
 
 options.logNotDraggingToAndFromSameSplat = false;
@@ -1200,8 +1208,8 @@ options.popupDragLineColor = 'green';
 //inside a {...} or [...] or (...) such as {a b c d|e} or {a b|c d e} or {a b c d e|}.
 //When I get this working, will turn this test_ off and just let it happen as needed
 //in uiState.uimode==simpleDragUimode. This display will happen in updateOverlays.
-//options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = true;
-options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = false;
+options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = true;
+//options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = false;
 
 options.displayDragFromBorder = true;
 options.displayDragToBorder = true;
@@ -2687,7 +2695,8 @@ var screenYXToSplatfyfx = function(screenY, screenX, optionalFractionRecurse){
 		}
 	}
 	if(options.screenYXToSplatfyfx_randomizesColorOfSplatItSelects){
-		splat.forkRootSplit_randomizeColor_inRootSplat(); //FIXME remove this
+		//splat.forkRootSplit_randomizeColor_inRootSplat(); //FIXME remove this
+		splat.forkRoot_setColor(); //as of 2023-1-1 this usually randomizes except if its the last dropped splat (by metaInsert drop) then a highlighted color
 	}
 	return new SplatFyFx(splat, fy, fx);
 };
@@ -3659,7 +3668,9 @@ var afterDrop = ()=>{
 	if(Dob('alwaysForceUpdateDisplayAfterDrop').checked){
 		console.log('forceUpdateDisplay cuz alwaysForceUpdateDisplayAfterDrop. FIXME this shouldnt be needed but the UI is buggy as of 2022-12-30. Bug: It displays extra {{a b} c} [[a b] c] ((a b) c) when theyre not needed on the left. Bug: it displays an earlier, or somehow different, form of fn before it evals, when dragging sometimes.');
 		forceUpdateDisplay();
-	}
+	}//else{
+		//updateOverlays(); //the smaller update. FIXME?: Really I just want this part for options.highlightWhatWasJustDropped. but it didnt do that.
+	//}
 };
 
 //when mouse button up on a splat (TODO and there might be multiple drag modes?).
@@ -3971,6 +3982,29 @@ Splat.prototype.forkRootSplit_randomizeColor_inRootSplat = function(){
 	rootSplat.setSplit(this.forkRootSplit_randomizeColor());
 };
 
+//Forks me (in fork of rootSplat) to have this.preferredColorStr(), or a given color.
+//2023-1-1 I like the randomizing of color when mouseover so am keeping that, at least for now,
+//but some splats should be displayed a certain color, such as highlight what was just dropped.
+Splat.prototype.forkRoot_setColor = function(optionalListOfRedGreenBlue){
+	let color = optionalListOfRedGreenBlue || this.preferredColor();
+	rootSplat.setSplit(this.forkRootSplate(this.splate().setRGB(color[0],color[1],color[2]))); //red green blue
+};
+
+//2023-1-1 I like the randomizing of color when mouseover so am keeping that, at least for now,
+//but some splats should be displayed a certain color, such as highlight what was just dropped.
+Splat.prototype.preferredColor = function(){
+	if(false && (options.highlightWhatWasJustDropped && uiState.simpleDragUimode_cursor_splat == this)){
+		/*if(options.highlightWhatWasJustDropped){
+			if(uiState.simpleDragUimode_cursor_splat && uiState.simpleDragUimode_cursor_splat.dobs.self){
+				uiState.simpleDragUimode_cursor_splat.dobs.self.style.backgroundColor = '#'+options.highlightWhatWasJustDropped_color.join('');
+			}
+		}*/
+		return options.highlightWhatWasJustDropped_color; //[red,green,blue], each 0..255.
+	}else{
+		return [randRed(),randGreen(),randBlue()];
+	}
+};
+
 //returns a Split for use in a root Splat, cuz Splat is mutable and Split and Splate are used as immutable.
 //UPDATE: param is a split, not a splate. If you want a splate instead, you can reuse the 2 child splits with a different splate here.
 //goes all the way up to a root splate (such as rootSplat or dragSplat).
@@ -4074,7 +4108,8 @@ var setSelSplat = splat=>{
 	let prevSelSplat = selSplat;
 	selSplat = splat;
 	selSplat.transformSplate(splate=>splate.setIsDisplayIcon(true));
-	selSplat.forkRootSplit_randomizeColor_inRootSplat();
+	//selSplat.forkRootSplit_randomizeColor_inRootSplat();
+	selSplat.forkRoot_setColor();
 	//if(prevSelSplat && prevSelSplat != selSplat) prevSelSplat.displayLocal();
 	//throw 'TODO use setSplit but must forkEdit which is selected first';
 	//selSplat.displayLocal();
@@ -4431,7 +4466,8 @@ var updateOverlays = ()=>{
 		simpleDragUimode_cursor.style.visibility = 'visible';
 		//use uiState.dropDirection with uiState.simpleDragUimode_cursor_splat to do the drop later if dropped.
 		//For now, is just displaying where it would drop.
-		let splat = uiState.simpleDragUimode_cursor_splat = wouldtoOrTo || wouldfromOrFrom || clickCircSplat;
+		//let splat = uiState.simpleDragUimode_cursor_splat = wouldtoOrTo || wouldfromOrFrom || clickCircSplat;
+		let splat = uiState.simpleDragUimode_cursor_splat = wouldtoOrTo || wouldfromOrFrom;
 		//if(wouldtoOrTo){
 		if(splat){
 			let d = splat.dobs.self;
@@ -4509,6 +4545,23 @@ var updateOverlays = ()=>{
 			splatWithDragLine.dobs.dragLine.style.backgroundColor = whatColorShouldDragLineBe();
 		}
 	}
+	
+	if(options.highlightWhatWasJustDropped){
+		if(uiState.highlightLastSplatDropped){
+			let displayOverWhat = uiState.highlightLastSplatDropped.dobs.self;
+			if(displayOverWhat){
+				//uiState.simpleDragUimode_cursor_splat.dobs.self.style.backgroundColor = '#'+options.highlightWhatWasJustDropped_color.join('');
+				let icon = Dob('displayThisOnWhatWasLastDropped');
+				icon.style.top = dobY(displayOverWhat)+'px';
+				let displayOnLeft = uiState.highlightLastSplatDropped_dropDirection=='left'; //else right
+				icon.style.left = (displayOnLeft ? dobX(displayOverWhat) : (dobX(displayOverWhat)+dobWidth(displayOverWhat)))+'px';
+				//icon.style.width = dobWidth(displayOverWhat)+'px';
+				icon.style.height = dobHeight(displayOverWhat)+'px';
+				icon.style.width = '3px';
+			}
+		}
+	}
+	
 	if(options.loglev>2) console.log('updateOverlays clickcirctest menuDob.innerHTML.length='+menuDob.innerHTML.length);
 	//uiState.removeClickCircMenuAsap = false;
 };
@@ -5259,6 +5312,8 @@ var newGameUimodeByGetterAndSetter = (name,getter,setter)=>{
 var endMetaInsert = ()=>{
 	if(options.logMetaInsert) console.log('MMMMMMMMMMM endMetaInsert');
 	let splat = uiState.simpleDragUimode_cursor_splat; //TO
+	uiState.highlightLastSplatDropped = splat;
+	uiState.highlightLastSplatDropped_dropDirection = uiState.dropDirection;
 	if(splat){
 		let dropWhatSplat = anyfromSplat();
 		if(!dropWhatSplat){
@@ -5298,6 +5353,8 @@ var endMetaInsert = ()=>{
 	}
 	afterDrop();
 };
+
+
 
 //In case clickCircMenu has multiple vars, put them all here. Start with just the fn thats copy/pasted.
 var uiState = {
@@ -5671,7 +5728,9 @@ window.onload = ()=>{
 		
 		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85"></div>
 		
-		<div id=popupMenuDob style="position:absolute;z-index:10000005;background-color:gray;top:0px;left:0px"></div>
+		<div id=displayThisOnWhatWasLastDropped style="position:absolute;z-index:10000005;background-color:white;top:0px;left:0px;opacity:.85;width=20px;height:3px"></div>
+		
+		<div id=popupMenuDob style="position:absolute;z-index:10000006;background-color:gray;top:0px;left:0px"></div>
 	</div>
 	
 	<center>

@@ -3486,9 +3486,9 @@ const Wikibinator203 = (()=>{
 				if(bitIndex < 0 || siz <= bitIndex) return 0; //outside cbt range
 				if(siz == 1) return (this == vm.ops.Bit1) ? 1 : 0; //is Bit0 or Bit1
 				if(bitIndex < siz/2){
-					return this.l.bitAt(bitIndex);
+					return this.l.n.bitAt(bitIndex);
 				}else{
-					return this.r.bitAt(bitIndex-siz/2);
+					return this.r.n.bitAt(bitIndex-siz/2);
 				}
 			}
 		};
@@ -5745,7 +5745,11 @@ const Wikibinator203 = (()=>{
 		vm.FuncallCache = function(func,param,optionalStackStuff){
 			this.func = func;
 			this.param = param;
+			
+			//FIXME should this be the top StackStuff instead of vm.defaultStackStuff? See the code around vm.mask_* and
+			//vm.stackTime and vm.stackMem etc. Theres a current StackStuff too.
 			this.stackStuff = optionalStackStuff || vm.defaultStackStuff;
+			
 			this.ret = null; //func, param, and ret, are all what lambdize returns.
 			//should it be this? //this.touch = ++vm.touchCounter;
 			this.touch = ++this.touchCounter; //for garbcol of old funcallcaches. FIXME this.touchCounter? or vm.touchCounter? why was i thinking that vm==this? doesnt seem like that would be true.
@@ -6968,9 +6972,9 @@ const Wikibinator203 = (()=>{
 									if(yL.n.eq(zL)){ //parents are same height, and the 2 left childs equal, so compare right childs recursively
 										let yR = y.n.R();
 										let zR = z.n.R();
-										ret = vm.ops.GodelLessThan(yR,zR);
+										ret = vm.ops.GodelLessThan(yR)(zR);
 									}else{ //parents are same height, and the 2 left childs do NOT equal, so compare by left childs recursively.
-										ret = vm.ops.GodelLessThan(yL,zL);
+										ret = vm.ops.GodelLessThan(yL)(zL);
 									}
 								}
 							}
@@ -10475,11 +10479,11 @@ const Wikibinator203 = (()=>{
 		//GodelLessThan compares first by height, so im changing ghi to ghijk so its the same height as hello.
 		//bitstrings go in cbt of powOf2 size, with the last 1 bit being the first bit of padding.
 		//Theres also a (TypevalC U) prefix of that meaning utf8 text.
-		vm.test('Treemap size 3 abc returns 5', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) abc)'), vm.eval('5'));
+		vm.test('Treemap size 3 hello returns world', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) ghijk 6 (Tm Em hello world Em) hello)'), vm.eval('world'));
 		vm.test('Treemap size 3 ghijk returns 6',
-			vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) ghijk)'),
+			vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) ghijk 6 (Tm Em hello world Em) ghijk)'),
 			vm.eval('6'));
-		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) hello world (Tm Em ghijk 6 Em) bbb)'), U);
+		vm.test('Treemap size 3 bbb not found returns U', vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) abc 5 Em) ghijk 6 (Tm Em hello world Em) bbb)'), U);
 		let Em = vm.ops.EmptyTreemap(vm.ops.GodelLessThan);
 		vm.test('PutNoBal first key/val into an EmptyTreemap', vm.ops.PutNoBal(vm.ops.L)(vm.ops.R)(Em),
 			vm.ops.Treemap(vm.ops.GodelLessThan)(Em)(vm.ops.L)(vm.ops.R)(Em));
