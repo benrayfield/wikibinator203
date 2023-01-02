@@ -8297,17 +8297,65 @@ const Wikibinator203 = (()=>{
 						this.viewToStringRecurse(view.r(), viewing, true); //FIXME
 						if(!inVararg) viewing.tokens.push('}'); //FIXME
 					*/
+					}break; case 'ST2': case 'ST3+':{
+						//let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound; //FIXME
+						//let displayPushPop = isRightRecursion || callerSyty != 'S3+' || displayPound; //FIXME
+						let displayPushPop = isRightRecursion || (callerSyty != 'ST2' && callerSyty != 'ST3+') || displayPound; //FIXME
+						if(displayPushPop) viewing.tokens.push('<'); //FIXME
+						//this.viewToStringRecurse(view.l(), viewing);
+						let skipT = syty=='ST2';
+						//let recurseLeft = view.l().r();
+						let recurseLeft = view.l().r(); //x in (S x z)
+						if(skipT){ //x is (T y). Get y.
+							recurseLeft = recurseLeft.r();
+						}
+						let recurseRight = view.r();
+						this.viewToStringRecurse(recurseLeft, viewing, syty, false);
+						viewing.tokens.push(' ');
+						if(2<=vm.loglev)console.log('< pushed space');
+						this.viewToStringRecurse(recurseRight, viewing, syty, true); //FIXME
+						if(displayPushPop) viewing.tokens.push('>'); //FIXME
 					}break; case '_1':{
+						//TODO instead of having a _1 syntax, just use Xyz[abc def] and Xyz:[abc def] etc syntax,
+						//where lack of space (such as : instead of space or just no char) between 2 things means normal call,
+						//and if its a small name (such as max 3 chars?, such as Fo For Seq _ Qes "," T etc,
+						//it would (TODO) display that way automatically.
 						viewing.tokens.push('_');
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
+					//}break; case 'T1': case 'T1<>':{
 					}break; case 'T1':{
 						viewing.tokens.push(',');
 						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					}break; case 'C': case 'S1':{ //C is normal call (a b c d e) aka ((((a b) c) d) e)
+					}break; case 'T1<>':{
+						//let skipT = callerSyty==FIXMEFIXME;
+						let skipT = callerSyty=='ST3+'; //The code "this.syntaxType = 'ST3+'; //skip ST2. FIXME???" below. FIXME??? This is getting tangled.
+						//let skipT = false; //FIXME
+						if(!skipT){
+							viewing.tokens.push(',');
+						}
+						this.viewToStringRecurse(view.r(), viewing, syty, true);
+					}break; case 'C': case 'S1': case 'ST1': case 'S_ST2': case 'S_ST3+': case 'S_T1<>':{ //C is normal call (a b c d e) aka ((((a b) c) d) e)
 						if(view.builtInName){
+							//FIXME always use .localName instead of builtInName?
 							viewing.tokens.push(view.builtInName);
 						}else{
-							let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
+							//let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
+							
+							//all these sytys are displayed as (...).
+							//Exclude 'S_T1<>' from callerSytyIsSimilar so theres an inner and outer <> like <<a b c> d> means {,{,a b c} d}
+							//so cant merge to <a b c d> cuz that would mean {,a b c d}.
+							//FIXME 2022-1-2-1130aEST when I put 'S_T1<>' in the cases here but not in similar,
+							//vm.eval('<<a b c> g>')+'' -> '<,<a b c> g>' which wrongly has an extra ','.
+							//vm.eval('(L <<a b c> g>)')+'   '+vm.eval('(R <<a b c> g>)')+'       '+vm.eval('<<a b c> g>')
+							// --> '(S ,<a b c>)   g       <,<a b c> g>', which shows it does not have an extra ',' in the fns,
+							//so its probably a tostring bug similar to the lack of isFoldL where it should fold L aka fold the T/, so --> <<a b c> g>.
+							//Maybe the problem is in this code[[[
+							//	}break; case 'T1': case 'T1<>':{
+							//	viewing.tokens.push(',');
+							//	this.viewToStringRecurse(view.r(), viewing, syty, true);
+							//]]]
+							let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1' || callerSyty=='ST1' || callerSyty == 'S_ST2' || callerSyty == 'S_ST3+';
+							
 							let displayPushPop = isRightRecursion || !callerSytyIsSimilar || displayPound;
 							if(displayPushPop) viewing.tokens.push('(');
 							this.viewToStringRecurse(view.l(), viewing, syty, false);
@@ -8493,7 +8541,13 @@ const Wikibinator203 = (()=>{
 				this.syntaxType = 'U';
 				//dont call lsyty rsyty or lrsyty past U cuz might infloop
 				
-			//TODO GV aka getvar syntax, displayed as < ... >	
+			//UPDATE: <a b c d> means {,a b c d} and will have sytys similar to S0 S1 S2,
+			//that mean the innermost (S x y) is (S ,x y) aka (S (T x) y). Call that ST1 ST2 ST3+.
+			//ST1 is (S ,x).
+			//ST2 is (S ,x y), displayed as <x y>.
+			//ST3+ is {,x y z} (or more after the z) displayed as <x y z>. Theres not an extra , cuz that would be {,{,x y} z} which is wrong.
+			//ST3 can have ST3 or ST2 as its left_then_right child... (AnST3+ AnST2or3+ y).
+			//OLD: TODO GV aka getvar syntax, displayed as < ... >	
 			}else if(!fn.n.l && fn.n.blob){
 				//is a view of a Uint8Array without childs (they are lazyEvaled)
 				this.syntaxType = 'Blob';
@@ -8510,15 +8564,55 @@ const Wikibinator203 = (()=>{
 				let rsyty = this.rsyty();
 				//let lrsyty = this.lrsyty();
 				if(lsyty == 'S0'){
-					this.syntaxType = 'S1';
+					if(rsyty == 'T1<>'){
+						/*Fixing bug 2022-1-2...
+						vm.eval('<<a b c> g>')+'' -> '{,<a b c> g}'
+						Thats correct but not normed. It should be -> '<<a b c> g>'.
+						Syty of ,<a b c> is T1<>.
+						If left syty is S0 (is vm.ops.S) and rsyty (right syty) is 'T1<>' then self syty should be S_ST2, meaning it has the T/,
+						which is unlike ST3+ that does not add a T/, .
+						
+						S_ST2 might be wrong. Should this.syntaxType be ST1? Figure it out...
+						*/
+						//this.syntaxType = 'S_ST2'; //Example: (S ,<a b c>)
+						//this.syntaxType = 'ST1'; //Example: (S ,<a b c>)
+						this.syntaxType = 'S_T1<>'; //Example: (S ,<a b c>)
+					}else if(rsyty == 'ST2'){
+						this.syntaxType = 'S_ST2'; //Example: (S <a b>). If call that on c, you get <a b c> which is instantly halted.
+					}else if(rsyty == 'ST3+'){
+						this.syntaxType = 'S_ST3+'; //Example: (S <a b c d>). If call that on e, you get <a b c d e> which is instantly halted.
+					}else if(rsyty == 'T1'){
+						//TODO merge with "if(rsyty == 'T1<>')" above?
+						this.syntaxType = 'ST1'; //do isFoldL so it doesnt display the T but displays <...> around it.
+					}else{
+						this.syntaxType = 'S1';
+					}
 				}else if(lsyty == 'S1'){
 					this.syntaxType = 'S2';
+				}else if(lsyty == 'ST1'){
+					this.syntaxType = 'ST2';
+				}else if(lsyty == 'ST2' || lsyty == 'ST3+'){
+					this.syntaxType = 'ST3+';
+				}else if(lsyty == 'S_ST2' || lsyty == 'S_ST3+'){ //Example S_ST2: (S <a b>). Example S_ST3+: (S <a b c d>).
+					this.syntaxType = 'ST3+';
+				}else if(lsyty == 'S_T1<>'){
+					this.syntaxType = 'ST3+'; //skip ST2. FIXME???
+					//this.syntaxType = 'ST2'; //FIXME??
 				}else if(lsyty == 'IC0' || lsyty == 'IC+'){
 					this.syntaxType = 'IC+';
 				}else if(lsyty == '_0'){ //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
 					this.syntaxType = '_1';
 				}else if(lsyty == 'T0'){ //FIXME remove isUnaryToken syntax and make a lack of space between things, or : between things if they cant have a space, mean (a (b (c d))) such as a(b c)d  or a(b)(c)d or (a b)c:d all mean the same thing.
-					this.syntaxType = 'T1';
+					if(rsyty == 'ST2' || rsyty == 'ST3+'){
+						//Fixing (TODO verify)... Bug 2023-1-2 vm.eval('{,<a b c <d e f> g> b}')+'' -> '<a b c <d e f> g b>'
+						//vm.eval('{,[a b c <d e f> g] b}')+'' -> '<[Abc#[a b c] <d e f> g] b>', which is correct.
+						//It appears the problem is syty='ST1' happens without checking whats in the T/,
+						//which is another <...>, aka a ST2 or ST3+. Dont make ST1 if whats right of the T is a ST2 or ST3+.
+						this.syntaxType = 'T1<>' //so know not to make a ST2 from it, cuz that would be an extra T/,
+					}else{
+						this.syntaxType = 'T1';
+					}
+					//this.syntaxType = 'T1';
 				}else{
 					this.syntaxType = 'C'; //normal call (a b c d e) aka ((((a b) c) d) e)
 				}
@@ -9539,14 +9633,19 @@ const Wikibinator203 = (()=>{
 						for(let c=1; c<this.childs.length; c++){
 							ret = S(ret)(this.childs[c].eval(map));
 						}
+					}else if(this.listType == '<'){ //<a b c> means {,a b c}.
+						if(!this.childs.length) return Ident; //FIXME is that what empty <> means? Should this infloop (cuz ur not supposed to write that)?
+						ret = vm.ops.T(this.childs[0].eval(map));
+						for(let c=1; c<this.childs.length; c++){
+							ret = S(ret)(this.childs[c].eval(map));
+						}
+						//NEW, YES: throw 'TODO I might use <a b c> to mean {,a b c}';
+						//OLD: throw 'TODO <...>/?GetVarDeep syntax, this='+this;
 					}else if(this.listType == '['){ //incur list. [a b c d] means (Infcur a b c d).
 						ret = ops.Infcur;
 						for(let childParseTree of this.childs){
 							ret = ret(childParseTree.eval(map));
 						}
-					}else if(this.listType == '<'){ //TODO to find comments about this search for ?2
-						throw 'TODO I might use <a b c> to mean {,a b c}';
-						//throw 'TODO <...>/?GetVarDeep syntax, this='+this;
 					}else{
 						throw 'Unknown listType='+this.listType;
 					}
@@ -10532,6 +10631,25 @@ const Wikibinator203 = (()=>{
 		vm.test('6*6+8*8===10**2', vm.eval('(+ (* 6 6) (* 8 8))'), vm.eval('(** 10 2)'));
 		
 		vm.test('[ and ] display in {[hello world] abc}. It was displaying as {hello world abc}', vm.eval('{[hello world] abc}')+'', '{[hello world] abc}');
+		
+		vm.test('<a> becomes ,a', vm.eval('<a>')+'', ',a');
+		
+		let code345 = '<a b>';
+		vm.test(code345+' parses and tostrings to itself', vm.eval(code345)+'', code345);
+		
+		let code525 = '<<a b c> d e>';
+		vm.test(code525+' parses and tostrings to itself', vm.eval(code525)+'', code525);
+		
+		let code535 = '<,,,,,<a b c> d e>';
+		vm.test(code535+' parses and tostrings to itself', vm.eval(code535)+'', code535);
+		
+		let code545 = '<,<a b c> d e>';
+		vm.test(code545+' parses and tostrings to itself', vm.eval(code545)+'', code545);
+		
+		let code3434345 = '<hello world <<<a b c [d e] f> g> zz>>';
+		vm.test(code3434345+' parses and tostrings to itself', vm.eval(code3434345)+'', code3434345);
+		
+		vm.test('{,a b c d} becomes <a b c d>', vm.eval('{,a b c d}')+'', '<a b c d>');
 		
 		vm.extraTests = [];
 		

@@ -930,8 +930,19 @@ var sytyToPushChar_ = {
 	S0: '(',
 	S1: '(',
 	S2: '{',
+	ST1: '(',
+	ST2: '<',
+	'ST3+': '<',
+	'S_T1<>': '(',
+	S_ST2: '(',
+	'S_ST3+': '(',
 	//T1: ',',
-	T1: 'T', //Change ',' to 'T' 
+	//T1: 'T', //Change ',' to 'T' 
+	T1: ',', //Change ',' to 'T' 
+	//T1 and T1<> are both vm.ops.T of 1 param. The different syty just chooses
+	//when to use <> inside <> vs when to use () and <> together to avoid an extra T/,.
+	//'T1<>': 'T', //Change ',' to 'T', in ',<...at least 2 things...>'.
+	'T1<>': ',', //Change ',' to 'T', in ',<...at least 2 things...>'.
 };
 
 var sytyToPushChar = syty=>(sytyToPushChar_[syty] || 'FIXME_WHAT_PUSH_CHAR_FOR_SYTY='+syty);
@@ -943,8 +954,21 @@ var sytyToPopChar_ = {
 	S0: ')',
 	S1: ')',
 	S2: '}',
+	ST1: ')',
+	ST2: '>',
+	'ST3+': '>',
+	'S_T1<>': ')',
+	S_ST2: ')',
+	'S_ST3+': ')',
+	
+	//Appears as <b>T<b>stuff...NOTHING, where that NOTHING is this empty string. Similar to {STUFF} or [STUFF] but its T instead of { or [ or (.
 	T1: '',
+	'T1<>': '',
 };
+
+//FIXME why does https://stackoverflow.com/questions/6234773/can-i-escape-html-special-chars-in-javascript say
+//to also do  .replace(/"/g, "&quot;") and .replace(/'/g, "&#039;"); ? Is that just in case its used in a string literal?
+var weakHtmlEscape = str=>str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 //check !==undefined cuz pop char for T1 is '' aka empty string cuz its just ',' (its push char) on the left.
 var sytyToPopChar = syty=>(sytyToPopChar_[syty]!==undefined ? sytyToPopChar_[syty] : 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
@@ -1253,13 +1277,13 @@ options.maxWidth_for_forkTryMaxWidth_ofRoot = 1000;
 
 //WARNING: when true, this makes it slow cuz does toString on fn at every rectangle for html popup title=,
 //which includes inner fns in inner rects recursively. Makes it maybe 10 times slower when just 1/7 of screen filled.
-//options.displayWholeTostringAtEachRect = true; //very slow
-options.displayWholeTostringAtEachRect = false; //fast enough
+options.displayWholeTostringAtEachRect = true; //very slow
+//options.displayWholeTostringAtEachRect = false; //fast enough
 if(options.displayWholeTostringAtEachRect) console.log('WARNING: options.displayWholeTostringAtEachRect is true, which is useful for finding bugs by hover mouse over things, but makes it very slow. TODO make it adjust the popupTitle when mouse goes over it instead of precomputing all of them, which would be faster but not as fast as turning this off completely.');
 
 
-//options.displaySplateDetailExceptFnAtEachRect = true;
-options.displaySplateDetailExceptFnAtEachRect = false;
+options.displaySplateDetailExceptFnAtEachRect = true;
+//options.displaySplateDetailExceptFnAtEachRect = false;
 
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
@@ -1280,6 +1304,8 @@ options.displayVarargLists = true;
 
 options.displayVarargS = true; //sCurryList. use with isFoldL.
 //options.displayVarargS = false; //sCurryList. use with isFoldL.
+
+options.displayVarargST = true; //<a b c> means {,a b c}. If true, display it as <...> if first in {...} is prefixed by T. (T x) is often written as ,x .
 
 //options.displayDebugInfoAboutVarargS = true; //sCurryList. use with isFoldL.
 options.displayDebugInfoAboutVarargS = false; //sCurryList. use with isFoldL.
@@ -2450,6 +2476,12 @@ Splat.prototype.splate = function(){
 	return this.split.splate;
 };
 
+//FIXME this needs to be around 10, instead of less, cuz of this code adding <b> and </b> and in some cases changing < to &lt;, etc.
+//That makes it be longer as string than visually.
+//let prefix = '<b>'+weakHtmlEscape(sytyToPushChar(syty))+'</b>';
+//let suffixfarright = '';
+//for(let i=tabSizeInSpaces-prefix.length; i>0; i--) prefix += '&nbsp;'; //TODO optimize all one string, not loop
+//
 //FIXME move this to options.tabSizeInSpaces
 //let tabSizeInSpaces = 10; //cuz the spaces are really small for some reason. FIXME why are they so small.
 //let tabSizeInSpaces = 2; //cuz the spaces are really small for some reason. FIXME why are they so small.
@@ -2914,10 +2946,10 @@ Splat.prototype.setSplit = function(split){
 			this.dobs.right.innerHTML = '';
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
-			let prefix = '<b>'+sytyToPushChar(syty)+'</b>';
+			let prefix = '<b>'+weakHtmlEscape(sytyToPushChar(syty))+'</b>';
 			let suffixfarright = '';
 			for(let i=tabSizeInSpaces-prefix.length; i>0; i--) prefix += '&nbsp;'; //TODO optimize all one string, not loop
-			let suffix = '<b>'+sytyToPopChar(syty)+'</b>';
+			let suffix = '<b>'+weakHtmlEscape(sytyToPopChar(syty))+'</b>';
 			for(let i=tabSizeInSpaces-suffix.length; i>0; i--) suffix += '&nbsp;'; //TODO optimize all one string, not loop
 			if(splate.isDisplayName){
 				//suffix += '#TODONAMEHERE';
@@ -3388,9 +3420,18 @@ var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
 //the callerSyty and isRightRecursion are similar to this code in prototype VM:
 //	vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
 //
-var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRightRecursion){
+//var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRightRecursion){
+var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCallerCallerSyty, optionalIsRightRecursion){
 	let callerSyty = optionalCallerSyty || 'C';
+	
+	//optionalCallerCallerSyty was added 2023-1-2 so ,x in (S ,x y) knows to not display the T/,
+	//(S ,x y) aka <x y>. (S (S ,x y) z) aka (x y z), notice theres no T/, in the outer (...) cuz thats a ST3+, and the inner is a ST2.
+	//You dont need optionalCallerCallerSyty for (...) or [...] or {...} syntax, just the new <...> syntax.
+	//WAIT... why didnt i need that in Wikibinator203VM.jsw hich only uses callerSyty?
+	let callerCallerSyty = optionalCallerCallerSyty || 'C';
+	
 	let isRightRecursion = !!optionalIsRightRecursion;
+	
 	let syty = fnToSyty(fn);
 	//FIXME should depend on parent syty, or parent of parent of parent... How did VM do it? Check vm.View.prototype.syty.
 	let isOpen = fn!==U; //aka !fn.n.isLeaf(). U is the universal combinator/lambda.
@@ -3435,6 +3476,35 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	}else if(options.displayVarargNormalCallPairs && callerSyty == 'C' && syty == 'C' && !isRightRecursion){
 		isDisplayPushAndPopChars = false;
 	//}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && isDisplayChilds){
+	//}else if(options.displayVarargST && (callerSyty == 'S_ST2' || callerSyty == 'S_ST3+')  && !isRightRecursion && isDisplayChilds){
+	}else if(options.displayVarargST && (callerSyty == 'ST2' || callerSyty == 'ST3+')  && !isRightRecursion && isDisplayChilds){
+		//also 'ST1' (and 'S_T1<>') here. Experimenting. FIXME???
+		
+		//fnToSyty(vm.eval('(S ,<a b>)'))+'    '+fnToSyty(vm.eval('(S ,[a b])')) --> 'S_T1<>    ST1'
+		
+		//when self is (S ,a) and selfSyty is ST1, callerSyty is ST2, 2022-1-2-1245pEST, it didnt match any of these if/else,
+		//so it displays in tree UI as: <(S <b>T</b>a) b>.
+		//I want it to instead NOTisDisplayPushAndPopChars for (...) there, isFoldL on the S,
+		//and (it already does) isFoldL on the (T a). For the (T a) I'll probably need a new var in Splate,
+		//cuz its already folding L (not displaying the left Splat of (T a) aka not displaying the T,
+		//but the <b>T</b> is displayed as a pushChar (isDisplayPushAndPopChars is true).
+		//Or maybe dont need a new var in Splat and use isDisplayPushAndPopChars of false instead. Try that first. TODO.
+		
+		
+		isFoldL = true;
+		isDisplayPushAndPopChars = false;
+	}else if(options.displayVarargST && (callerSyty == 'S_ST2' || callerSyty == 'S_ST3+')  && !isRightRecursion && isDisplayChilds){
+		//FIXME this is duplicate of code below, as of 2023-1-2-303pEST.
+		isFoldL = true;
+		isDisplayPushAndPopChars = false;
+	}else if(options.displayVarargST && (callerSyty == 'S_ST2' || callerSyty == 'S_ST3+')  && isRightRecursion && isDisplayChilds){
+		//2023-1-2-3pEST changed from !isRightRecursion to isRightRecursion, cuz left is S, and this is a ST2 or ST3+.
+	
+		//FIXME also 'ST1' (and 'S_T1<>') here? (moving that to the above else).
+		
+		//isFoldL = true; leave this as false. Example: This is (S ,a b) aka <a b>, inside (S (S ,a b) c) aka <a b c>.
+		//Leave foldL as false so the ,a (or better if just a) is displayed.
+		isDisplayPushAndPopChars = false;
 	}else if(options.displayVarargS && callerSyty == 'S2' && syty == 'S1' && !isRightRecursion && isDisplayChilds){
 		isFoldL = true;
 		isDisplayPushAndPopChars = false;
@@ -3471,8 +3541,14 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 		}	
 	}
 	
-	if(options.foldT && syty=='T1' && isDisplayChilds){
+	//if(options.foldT && syty=='T1' && isDisplayChilds){
+	if(options.foldT && (syty=='T1' || syty=='T1<>') && isDisplayChilds){
+		//FIXME it still displays '<b>T</b>' in the same place it displays { [ (, even though its technically folding the left child,
+		//there should be another var (TODO) to tell it not to display that. Also theres syty of 'T1<>' such as (T <a b c>) aka ,<a b c>.
 		isFoldL = true;
+		if(callerCallerSyty == 'ST2' || callerCallerSyty == 'ST3+'){
+			isDisplayPushAndPopChars = false;
+		}
 		isUnary = true;
 	}
 	
@@ -3496,8 +3572,10 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRigh
 	let rightSplit = null;
 	//if(isOpen && isDisplayPushAndPopChars){
 	if(isDisplayChilds){
-		leftSplit = newSplitForFn_experimental(fn.n.L(),syty,false); //callerSyty
-		rightSplit = newSplitForFn_experimental(fn.n.R(),syty,true); //callerSyty
+		//leftSplit = newSplitForFn_experimental(fn.n.L(),syty,false); //callerSyty
+		//rightSplit = newSplitForFn_experimental(fn.n.R(),syty,true); //callerSyty
+		leftSplit = newSplitForFn_experimental(fn.n.L(),syty,callerSyty,false); //fn,callerSyty,callerCallerSyty,left
+		rightSplit = newSplitForFn_experimental(fn.n.R(),syty,callerSyty,true); //fn,callerSyty,callerCallerSyty,right
 	}
 	return getSplit(splate,leftSplit,rightSplit);
 };
@@ -5813,7 +5891,7 @@ window.onload = ()=>{
 			<div style="display:inline-block">
 				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
 				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
-			</div>
+			</div><br>
 			
 			<textarea rows=5 cols=90 readonly id=codeErr></textarea>
 			
