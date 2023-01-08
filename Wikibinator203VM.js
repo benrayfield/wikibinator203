@@ -7622,9 +7622,10 @@ const Wikibinator203 = (()=>{
 		
 		vm.uu = vm.u(vm.u);
 		
+		//optionalNumParams defaults to 0. Example: compare to a nonnormed form of vm.ops.Infcur with 0 params is checking is it an infcur/[].
 		//returns bit of is the param the same o8 and number of params after the op.
 		//such as is it a vm.ops.Treemap of 5 params (6th param is getKey and causes eval).
-		vm.isSameOpAndNumParams = (fn, op, numParams)=>(fn.n.o8()===op.n.o8() && numParams===(op.n.cur()-7));
+		vm.isSameOpAndNumParams = (fn, op, optionalNumParams)=>(fn.n.o8()===op.n.o8() && (optionalNumParams||0)===(fn.n.cur()-7));
 		
 		vm.isSameOp = (fn, op)=>(fn.n.o8()===op.n.o8());
 		
@@ -10650,6 +10651,10 @@ const Wikibinator203 = (()=>{
 		vm.test(code3434345+' parses and tostrings to itself', vm.eval(code3434345)+'', code3434345);
 		
 		vm.test('{,a b c d} becomes <a b c d>', vm.eval('{,a b c d}')+'', '<a b c d>');
+		
+		vm.test('{,a b c d} becomes <a b c d>', vm.eval('{,a b c d}')+'', '<a b c d>');
+		
+		vm.test('(<+ <* I#(F U) I> ,3> 10)', vm.eval('(<+ <* I#(F U) I> ,3> 10)'), '103');
 		
 		vm.extraTests = [];
 		

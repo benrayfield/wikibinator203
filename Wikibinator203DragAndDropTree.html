@@ -512,6 +512,44 @@ const popupDragButton = 'mouseRightButton'; //controls[popupDragButton] is 0 (up
 
 const metaInsertButton = 'mouseLeftButton';
 
+var eventToButtonName = event=>{
+	switch(event.button){
+		case 0:
+			return 'mouseLeftButton';
+		break; case 1:
+			return 'mouseMiddleButton';
+		break; case 2:
+			return 'mouseRightButton';
+		break; case 3:
+			return 'mouseFourthButton';
+		break; case 4:
+			return 'mouseFifthButton';
+		default:
+			return 'unknownButton';
+	}
+};
+
+var scheduledFunc = null;
+//schedule a func to run asap. sometimes js gets too busy and misses events etc, leaving drag and drop stuff on screen.
+var scheduleFunc = func=>{
+	if(scheduledFunc){
+		const prev = scheduledFunc;
+		scheduledFunc = ()=>{
+			prev();
+			func();
+		};
+	}else{
+		scheduledFunc = func;
+	}
+};
+var runScheduledFuncs = ()=>{
+	const prev = scheduledFunc;
+	scheduledFunc = null;
+	if(prev){
+		prev();
+	}
+};
+
 //TODO "SOLUTION: Fixing this by dividing Split into 2 classes: Split (immutable, up from any closed leafs),
 //and Splat (mutable, has dom nodes). Split.prototype.displayIn(Splat) fills in those dom nodes,
 //and removes some dom nodes if they're no longer used.
@@ -555,251 +593,196 @@ var Splat = function(parentSplatOrNull, selfDob){
 	selfDob.addEventListener(
 		'mousemove',
 		this.eventListenerMouseMove = function(event){
-			event.stopPropagation();
-			if(uiState.isDoingMouseUp){
-				if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
-				return;
-			}
-			controls.mouseY = event.pageY;
-			controls.mouseX = event.pageX;
-			
-			runScheduledFuncs();
-			
-			let isPopupDragButtonDown = controls[popupDragButton];
-			let isMetaInsertDragButtonDown = controls[metaInsertButton];
-			
-			//TODO use options.doMainDragging
-			if(options.basicTestOfLooseIconWhenMouseMoves){
-				//FIXME unset this in anything not currently dragging FROM or TO
-				//(so at most should be 2 splats with this true in the main/rootSplat tree excluding Action/thirdchilds if those are even used)
-				//let isDisplayIcon = true;
-				let isDisplayIcon = ThisSplat.splate().isDisplayIcon;
-				//let isDisplayIcon = false;
-				let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
-				let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
-				if(options.logMouseEvents) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
-				ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
-				if(options.logMouseEvents) console.log('mousemove did transformSplate with new icon position etc');
+			//requestAnimationFrame(()=>{
+				onDomEvent(event);
+				event.stopPropagation();
+				//if(uiState.isDoingMouseUp){
+				//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				//	return;
+				//}
+				controls.mouseY = event.pageY;
+				controls.mouseX = event.pageX;
 				
-				//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
-				//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
-			}
-			
-			
-			if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
-			//event.stopPropagation();
-			if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
-				//ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
-				ThisSplat.forkRoot_setColor();
-			}
-			//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
-			if(options.fillDropDobWithTestWhenNearestToMouse){
-				//let dob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
-				let splatdob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
-				//dob.innerHTML = 'DROP'+Date.now();
-				if(splatdob){
-					//splatdob.splat.dobs[splatdob.dobName].innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
-					//splatdob.dob().innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
-					let txt = splatdob.dobName;
-					txt = Math.random()<.5 ? txt.toUpperCase() : txt.toLowerCase();
-					splatdob.dob().innerHTML = txt;
+				runScheduledFuncs();
+				
+				let isPopupDragButtonDown = controls[popupDragButton];
+				let isMetaInsertDragButtonDown = controls[metaInsertButton];
+				
+				//TODO use options.doMainDragging
+				if(options.basicTestOfLooseIconWhenMouseMoves){
+					//FIXME unset this in anything not currently dragging FROM or TO
+					//(so at most should be 2 splats with this true in the main/rootSplat tree excluding Action/thirdchilds if those are even used)
+					//let isDisplayIcon = true;
+					let isDisplayIcon = ThisSplat.splate().isDisplayIcon;
+					//let isDisplayIcon = false;
+					let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
+					let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
+					if(options.logMouseEvents) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
+					ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
+					if(options.logMouseEvents) console.log('mousemove did transformSplate with new icon position etc');
+					
+					//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
+					//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
 				}
-			}
-			
-			if(options.doMainDragging){
-				if(isPopupCircularMenu()){
-					//console.log('mousemove isPopupCircularMenu (TODO)');
-					updateOverlays();
-				}else{
-					
-					//FIXME if doing the metaInsert kind of drag, set this to 0 or 1 (which side always does self, not parent?).
-					let verticalFractionBetweenSelfVsParent = options.fractionRecurse;
-					if(uiState.lastMouseButtonDown == metaInsertButton){
-						//0 is parent. 1 is self. .5 is height chooses at mid height in rect.
-						//FIXME should this be 0 or 1? want parent, i think, but need experiments... No, I'm changing it to want self (not parent) and will choose parent or not etc from there.
-						//verticalFractionBetweenSelfVsParent = 0; //parent
-						verticalFractionBetweenSelfVsParent = 1; //self
+				
+				
+				if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
+				//event.stopPropagation();
+				if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
+					//ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
+					ThisSplat.forkRoot_setColor();
+				}
+				//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
+				if(options.fillDropDobWithTestWhenNearestToMouse){
+					//let dob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+					let splatdob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+					//dob.innerHTML = 'DROP'+Date.now();
+					if(splatdob){
+						//splatdob.splat.dobs[splatdob.dobName].innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
+						//splatdob.dob().innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
+						let txt = splatdob.dobName;
+						txt = Math.random()<.5 ? txt.toUpperCase() : txt.toLowerCase();
+						splatdob.dob().innerHTML = txt;
 					}
-					
-					//if(isPopupDragButtonDown){
-					if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
-						//ThisSplat.doDuringDrag(
-						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
-						if(splatfyfx){
-							splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
-						}else{
-							console.log('screenYXToSplatfyfx returned null so cant doDuringDrag');
-						}
-						//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
+				}
+				
+				if(options.doMainDragging){
+					if(isPopupCircularMenu()){
+						//console.log('mousemove isPopupCircularMenu (TODO)');
+						updateOverlays();
 					}else{
-						//FIXME this is happening after release mouse button, as if drag hadnt just happened.
-						//ThisSplat.doBeforeDrag(
-						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
-						if(splatfyfx){
-							splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
-						}else{
-							console.log('screenYXToSplatfyfx returned null so cant doBeforeDrag');
+						
+						//FIXME if doing the metaInsert kind of drag, set this to 0 or 1 (which side always does self, not parent?).
+						let verticalFractionBetweenSelfVsParent = options.fractionRecurse;
+						if(uiState.lastMouseButtonDown == metaInsertButton){
+							//0 is parent. 1 is self. .5 is height chooses at mid height in rect.
+							//FIXME should this be 0 or 1? want parent, i think, but need experiments... No, I'm changing it to want self (not parent) and will choose parent or not etc from there.
+							//verticalFractionBetweenSelfVsParent = 0; //parent
+							verticalFractionBetweenSelfVsParent = 1; //self
 						}
-						//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+						
+						//if(isPopupDragButtonDown){
+						if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
+							//ThisSplat.doDuringDrag(
+							//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+							let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
+							if(splatfyfx){
+								splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
+							}else{
+								console.log('screenYXToSplatfyfx returned null so cant doDuringDrag');
+							}
+							//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
+						}else{
+							//FIXME this is happening after release mouse button, as if drag hadnt just happened.
+							//ThisSplat.doBeforeDrag(
+							//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+							let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
+							if(splatfyfx){
+								splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
+							}else{
+								console.log('screenYXToSplatfyfx returned null so cant doBeforeDrag');
+							}
+							//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+						}
 					}
+				}
+			//});
+			
+			if(uiState.lastMouseButtonDown){ //is doing a drag, and this button is or was down
+				if(!event.buttons){ //no mouse buttons are down
+					console.log('mousemove is doing a mouseup just in case that event was dropped, event.buttons='+event.buttons+' and lastMouseButtonDown='+uiState.lastMouseButtonDown+' Its ok if both happen cuz it will ignore later calls of it until another mousedown.');
+					globalOnMouseUp(null); //call with no event. it will use uiState.lastMouseButtonDown instead.
+					if(uiState.lastMouseButtonDown) throw 'in mousemove, globalOnMouseUp didnt unset lastMouseButtonDown';
 				}
 			}
 		}
 	);
-	
-	var eventToButtonName = event=>{
-		switch(event.button){
-			case 0:
-				return 'mouseLeftButton';
-			break; case 1:
-				return 'mouseMiddleButton';
-			break; case 2:
-				return 'mouseRightButton';
-			break; case 3:
-				return 'mouseFourthButton';
-			break; case 4:
-				return 'mouseFifthButton';
-			default:
-				return 'unknownButton';
-		}
-	};
-	
-	var scheduledFunc = null;
-	//schedule a func to run asap. sometimes js gets too busy and misses events etc, leaving drag and drop stuff on screen.
-	var scheduleFunc = func=>{
-		if(scheduledFunc){
-			const prev = scheduledFunc;
-			scheduledFunc = ()=>{
-				prev();
-				func();
-			};
-		}else{
-			scheduledFunc = func;
-		}
-	};
-	var runScheduledFuncs = ()=>{
-		const prev = scheduledFunc;
-		scheduledFunc = null;
-		if(prev){
-			prev();
-		}
-	};
 	
 	selfDob.addEventListener(
 		'mousedown',
 		this.eventListenerMouseDown = function(event){
-			event.stopPropagation();
-			if(uiState.isDoingMouseUp){
-				if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
-				return;
-			}
-			document.body.style.backgroundColor = '#ccc'; //FIXME remove this
-			//console.log('mousedown '+ThisSplat);
-			//event.stopPropagation();
-			uiState.removeClickCircMenuAsap = false;
-			let btn = eventToButtonName(event);
-			if(options.logMouseEvents) console.log('mousedown '+btn);
-			controls[uiState.lastMouseButtonDown = btn] = 1;
-			//if(btn == 'mouseLeftButton'){
-			//if(btn == metaInsertButton){
-				/* This was clickCircMenu, but thats being merged into dropCircMenu (put that on right mouse button)
-				then make a new kind of drag and drop (metaInsert) on left mouse button.
-				
-				//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
-				//doClickCircMenu();
-				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-				console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
-				if(splatfyfx){
-						splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
-				}else{
-						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+			//requestAnimationFrame(()=>{
+				onDomEvent(event);
+				event.stopPropagation();
+				//if(uiState.isDoingMouseUp){
+				//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+				//	return;
+				//}
+				document.body.style.backgroundColor = '#ccc'; //FIXME remove this
+				//console.log('mousedown '+ThisSplat);
+				//event.stopPropagation();
+				uiState.removeClickCircMenuAsap = false;
+				let btn = eventToButtonName(event); //FIXME can be multiple buttons, see event.buttons and event.which
+				if(options.logMouseEvents) console.log('mousedown '+btn);
+				controls[uiState.lastMouseButtonDown = btn] = 1;
+				//if(btn == 'mouseLeftButton'){
+				//if(btn == metaInsertButton){
+					/* This was clickCircMenu, but thats being merged into dropCircMenu (put that on right mouse button)
+					then make a new kind of drag and drop (metaInsert) on left mouse button.
+					
+					//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+					//doClickCircMenu();
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+					if(splatfyfx){
+							splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+					}else{
+							console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+					}*/
+					//console.log('TODO mouseLeftButton');
+				//}else if(btn == popupDragButton){
+				if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
+					if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+						setSelSplat(ThisSplat);
+					}
+					if(options.doMainDragging){
+						if(options.logMouseEvents) console.log('for dropcirc, mousedown doMainDragging');
+						//ThisSplat.doStartDrag(
+						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+						if(splatfyfx){
+							splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+						}else{
+							if(options.logMouseEvents) console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+						}
+						//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+					}
+				}
+				/*if(btn == 'mouseLeftButton'){
+					if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+						setSelSplat(ThisSplat);
+					}
+					if(options.doMainDragging){
+						console.log('for dropcirc, mousedown doMainDragging');
+						//ThisSplat.doStartDrag(
+						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+						if(splatfyfx){
+							splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+						}else{
+							console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+						}
+						//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+					}
+				}else if(btn == 'mouseRightButton'){
+					//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+					//doClickCircMenu();
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+					console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+					if(splatfyfx){
+							splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+					}else{
+							console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+					}
 				}*/
-				//console.log('TODO mouseLeftButton');
-			//}else if(btn == popupDragButton){
-			if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
-				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-					setSelSplat(ThisSplat);
-				}
-				if(options.doMainDragging){
-					if(options.logMouseEvents) console.log('for dropcirc, mousedown doMainDragging');
-					//ThisSplat.doStartDrag(
-					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-					if(splatfyfx){
-						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
-					}else{
-						if(options.logMouseEvents) console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-					}
-					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
-				}
-			}
-			/*if(btn == 'mouseLeftButton'){
-				if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-					setSelSplat(ThisSplat);
-				}
-				if(options.doMainDragging){
-					console.log('for dropcirc, mousedown doMainDragging');
-					//ThisSplat.doStartDrag(
-					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-					if(splatfyfx){
-						splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
-					}else{
-						console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-					}
-					//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
-				}
-			}else if(btn == 'mouseRightButton'){
-				//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
-				//doClickCircMenu();
-				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-				console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
-				if(splatfyfx){
-						splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
-				}else{
-						console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-				}
-			}*/
+			//});
 		}
 	);
 	
-	selfDob.addEventListener(
+	/*selfDob.addEventListener(
 		'mouseup',
-		this.eventListenerMouseUp = function(event){
-			try{
-				uiState.isDoingMouseUp = true;
-				document.body.style.backgroundColor = 'white'; //FIXME remove this
-				//console.log('mouseup '+ThisSplat);
-				event.stopPropagation();
-				let btn = eventToButtonName(event);
-				if(options.logMouseEvents) console.log('mouseup '+btn);
-				controls[btn] = 0;
-				//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-				//	setSelSplat(ThisSplat);
-				//}
-				//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
-				//if(options.doMainDragging && btn == 'mouseLeftButton'){
-				if(options.doMainDragging && btn == popupDragButton){
-					//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
-					//doDropCircMenu();
-					doDropCircMenuOrHasPreChosen();
-					//doEndDrag();
-				}else if(btn == metaInsertButton){
-					//scheduleFunc(()=>{
-						endMetaInsert();
-					//});
-				}
-				//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
-				//	doClickCircMenu();
-				//}
-				uiState.lastMouseButtonDown = null;
-			}finally{
-				uiState.isDoingMouseUp = false;
-			}
-		}
-	);
+		this.eventListenerMouseUp = globalOnMouseUp
+	);*/
 	
 	this.parentSplat = parentSplatOrNull || null; //null if this is a top Splat (probably just these 2: rootSplat and dragSplat)
 	this.leftSplat = null; //null if not viewing left child
@@ -809,6 +792,79 @@ var Splat = function(parentSplatOrNull, selfDob){
 
 };
 
+//allow event to be null, to use controls.mouseLeftButton and controls.mouseRightButton (each being 0 or 1) etc,
+//so it knows which went up. Im gonna try doing that and calling this on null from mousemove
+//if theres no buttons pressed AND there were buttons pressed before, cuz its been missing some events.
+var globalOnMouseUp = function(event){
+	
+	//this allows multiple calls of globalOnMouseUp (such as one from mousemove and one from mousedown,
+	//without duplicating the resulting behaviors. Its been dropping some mouseup events, so I'm going to call this from mousemove too.
+	if(!uiState.lastMouseButtonDown){
+		console.log('globalOnMouseUp ignored, cuz no lastMouseButtonDown');
+		return;
+	}
+	//requestAnimationFrame(()=>{
+		if(event){
+			onDomEvent(event);
+		}
+		//try{
+		//	uiState.isDoingMouseUp = true;
+			document.body.style.backgroundColor = 'white'; //FIXME remove this
+			//console.log('mouseup '+ThisSplat);
+			if(event){
+				event.stopPropagation();
+			}
+			
+			console.log('globalOnMouseUp, controls was = '+JSON.stringify(controls));
+			//let btn;
+			/*if(event){
+				btn = eventToButtonName(event);
+			}else{
+				/*
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":504,"mouseX":759,"mouseXDragFrom":0,"mouseLeftButton":1}
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":590,"mouseX":750,"mouseXDragFrom":0,"mouseLeftButton":1}
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":423,"mouseX":870,"mouseXDragFrom":0,"mouseLeftButton":1}
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":481,"mouseX":847,"mouseXDragFrom":0,"mouseLeftButton":0}
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":526,"mouseX":873,"mouseXDragFrom":0,"mouseLeftButton":1}
+				Wikibinator203DragAndDropTree.html:796 globalOnMouseUp, controls was = {"mouseY":483,"mouseX":855,"mouseXDragFrom":0,"mouseLeftButton":0,"mouseRightButton":1}
+				*
+				//if(controls.mouseLeftButton){
+				//}else{
+				//}
+				if(uiState.lastMouseButtonDown){
+					fixmefixme
+				}else{
+					throw 'No lastMouseButtonDown';
+				}
+			}*/
+			let btn = uiState.lastMouseButtonDown;
+			
+			if(options.logMouseEvents) console.log('mouseup '+btn);
+			controls[btn] = 0;
+			//if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+			//	setSelSplat(ThisSplat);
+			//}
+			//if(options.doMainDragging && uiState.lastMouseButtonDown == 'mouseLeftButton'){
+			//if(options.doMainDragging && btn == 'mouseLeftButton'){
+			if(options.doMainDragging && btn == popupDragButton){
+				//last mouse button down was left (for dragging). right button is for clickCircMenu, not dropCircMenu.
+				//doDropCircMenu();
+				doDropCircMenuOrHasPreChosen();
+				//doEndDrag();
+			}else if(btn == metaInsertButton){
+				//scheduleFunc(()=>{
+					endMetaInsert();
+				//});
+			}
+			//dont need this at mouseup cuz that menu appears when mouse down: if(btn == 'mouseRightButton'){
+			//	doClickCircMenu();
+			//}
+			uiState.lastMouseButtonDown = null;
+		//}finally{
+		//	uiState.isDoingMouseUp = false;
+		//}
+	//});
+};
 
 
 //If mouseY is not given, uses controls.mouseY. Returns a fraction if mouse is inside my rect, else it might be outside that range.
@@ -993,10 +1049,10 @@ Splat.prototype.updateSelfDivStyle = function(){
 Splat.prototype.copyEventListenersIntoDob = function(dob){
 	if(!this.eventListenerMouseMove) throw 'No this.eventListenerMouseMove';
 	if(!this.eventListenerMouseDown) throw 'No this.eventListenerMouseDown';
-	if(!this.eventListenerMouseUp) throw 'No this.eventListenerMouseUp';
+	//if(!this.eventListenerMouseUp) throw 'No this.eventListenerMouseUp';
 	dob.addEventListener('mousemove', this.eventListenerMouseMove);
 	dob.addEventListener('mousedown', this.eventListenerMouseDown);
-	dob.addEventListener('mouseup', this.eventListenerMouseUp);
+	//dob.addEventListener('mouseup', this.eventListenerMouseUp);
 };
 
 //FIXME this needs to be called to update color of any dragline, even if the splats dont need updating (by bigHash of their content).
@@ -1195,6 +1251,11 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+options.do_mouseOverSplatToStringCode = true;
+
+options.borderWidth = 0; //normal
+//options.borderWidth = 10; //for testing. lets you see foldL etc.
+
 //options.refillTimeAndMemoryEtcAfterEachDrop = true;
 options.refillTimeAndMemoryEtcAfterEachDrop = false;
 
@@ -1209,13 +1270,15 @@ options.logTodos = false;
 
 options.logNotDraggingToAndFromSameSplat = false;
 
-options.logMetaR = false;
+//options.logMetaR = false;
+options.logMetaR = true;
 
 options.logDirectL = false;
 
 options.logWidthAndWrappingStuff = false;
 
-options.logMetaInsert = false;
+//options.logMetaInsert = false;
+options.logMetaInsert = true;
 
 options.logLm_TO_splat = true; //true for testing
 //options.logLm_TO_splat = false; //normal
@@ -1277,13 +1340,13 @@ options.maxWidth_for_forkTryMaxWidth_ofRoot = 1000;
 
 //WARNING: when true, this makes it slow cuz does toString on fn at every rectangle for html popup title=,
 //which includes inner fns in inner rects recursively. Makes it maybe 10 times slower when just 1/7 of screen filled.
-options.displayWholeTostringAtEachRect = true; //very slow
-//options.displayWholeTostringAtEachRect = false; //fast enough
+//options.displayWholeTostringAtEachRect = true; //very slow
+options.displayWholeTostringAtEachRect = false; //fast enough
 if(options.displayWholeTostringAtEachRect) console.log('WARNING: options.displayWholeTostringAtEachRect is true, which is useful for finding bugs by hover mouse over things, but makes it very slow. TODO make it adjust the popupTitle when mouse goes over it instead of precomputing all of them, which would be faster but not as fast as turning this off completely.');
 
 
-options.displaySplateDetailExceptFnAtEachRect = true;
-//options.displaySplateDetailExceptFnAtEachRect = false;
+//options.displaySplateDetailExceptFnAtEachRect = true;
+options.displaySplateDetailExceptFnAtEachRect = false;
 
 //options.displayOnly_setSplit_inLiteral = true;
 options.displayOnly_setSplit_inLiteral = false;
@@ -2213,8 +2276,8 @@ Split.prototype.estimateWidthIfOneLine = function(){
 	if(!this.estimateWidthIfOneLine_){
 		let est = 0;
 		let splate = this.splate;
-		//est += borderWidth*2;
-		est += borderWidth+1.5;
+		//est += options.borderWidth*2;
+		est += options.borderWidth+1.5;
 		if(splate.isDisplayPushAndPopChars){
 			if(splate.isLiteral) throw 'isLiteral AND isDisplayPushAndPopChars, splate='+splate;
 			//est += options.estimatedFontWidth*2;
@@ -2488,7 +2551,7 @@ Splat.prototype.splate = function(){
 let tabSizeInSpaces = 10; //cuz the &nbsp;spaces are really small for some reason. FIXME why are they so small.
 //let tabSizeInSpaces = 3; //the thin stuff on the left where [ is top left and ] is top right, or similar for { } ( ).
 
-let borderWidth = 0;
+//let borderWidth = 0;
 //let borderWidth = 2;
 //let borderWidth = 3;
 //let borderWidth = 5;
@@ -2776,8 +2839,13 @@ var dobY = dob=>(dob.getBoundingClientRect().top+window.pageYOffset);
 var dobX = dob=>(dob.getBoundingClientRect().left+window.pageXOffset);
 var dobYEnd = dob=>(dobY(dob)+dobHeight(dob));
 var dobXEnd = dob=>(dobX(dob)+dobWidth(dob));
-var dobHeight = dob=>dob.clientHeight;
-var dobWidth = dob=>dob.clientWidth;
+
+//var dobHeight = dob=>dob.clientHeight;
+var dobHeight = dob=>dob.offsetHeight; //include border
+
+//var dobWidth = dob=>dob.clientWidth;
+var dobWidth = dob=>dob.offsetWidth; //include border
+
 var dobCenterY = dob=>(dobY(dob)+dobHeight(dob)/2);
 var dobCenterX = dob=>(dobX(dob)+dobWidth(dob)/2);
 //to solve the problem of some dobs being much wider than their content, this goes just a little to the right from the left border but not past the center.
@@ -2923,7 +2991,7 @@ Splat.prototype.setSplit = function(split){
 		}
 		style.backgroundColor = colorStr(red*brightMul,green*brightMul,blue*brightMul);
 		//style.borderWidth = '15px';
-		style.borderWidth = borderWidth+'px';
+		style.borderWidth = options.borderWidth+'px';
 		//FIXME borderWidth of 0 is still getting a little tilt, is not displayed as 0
 		style.borderColor = colorStr(red,green,blue);
 		
@@ -3562,8 +3630,10 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 	let blue = randBlue(); //FIXME should be deterministic
 	//let isDisplayIcon = true; //FIXME
 	let isDisplayIcon = false; //FIXME
-	let looseIconYFraction = Math.random(); //FIXME
-	let looseIconXFraction = Math.random(); //FIXME
+	//let looseIconYFraction = Math.random(); //FIXME
+	//let looseIconXFraction = Math.random(); //FIXME
+	let looseIconYFraction = .5;
+	let looseIconXFraction = .5;
 	let linePath = ''; //FIXME
 	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu. also adding 'clickcirc' 2022-12-18+.
 	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
@@ -3743,6 +3813,40 @@ var doDropCircMenu = ()=>{
 	}
 	return uiState.splatClickedWhenCircMenuAppears;
 };*/
+
+//append here instead of
+var debugLogg = [];
+var maxDebugLogListLen = 100000;
+var shrinkToDebugLogListLen = Math.ceil(maxDebugLogListLen/2);
+var debugLog = x=>{
+	debugLogg.push(x);
+	if(debugLogg.length > maxDebugLogListLen){
+		console.log('Shrinking debugLogg');
+		debugLogg = debugLogg.slice(debugLogg.length-shrinkToDebugLogListLen, debugLogg.length); //keep last shrinkToDebugLogListLen
+	}
+	console.log('DEBUGLOG: '+JSON.stringify(x));
+};
+
+var onDomEvent = event=>{
+	debugLog({type:'domEvent', deType:event.type, deButtons:event.buttons, deButton:event.button, deEventPhase:event.eventPhase});
+	if(options.do_mouseOverSplatToStringCode && event.type=='mousemove'){
+		let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+		if(splatfyfx){
+			let splat = splatfyfx.splat;
+			let code = Dob('mouseOverSplatToStringCode').value.trim();
+			if(code){
+				try{
+					let func = eval(code);
+					let out = func(splat);
+					Dob('mouseOverSplatToStringCode_out').innerHTML = ''+out;
+				}catch(e){
+					Dob('mouseOverSplatToStringCode_out').innerHTML = 'ERROR: '+e;
+					throw e;
+				}
+			}
+		}
+	}
+};
 
 //theres 2 circMenus: (left mouse button) drag and (right mouse button) click.
 var doClickCircMenu = ()=>{
@@ -4834,7 +4938,178 @@ Splat.prototype.directL = function(fromSplat){
 };
 
 //fromSplat --drag_metaL_way--> this. Modifies this.
+//TODO copy comments from this.metaL_old_2022_1_8(fromSplat); before deleting that.
 Splat.prototype.metaL = function(fromSplat){
+	//return this.metaL_old_2022_1_8(fromSplat);
+	//throw 'FIXME';
+	
+	
+	let to = this;
+	let from = fromSplat;
+	if(!to) throw 'No TO Splat';
+	if(!from) throw 'No FROM Splat';
+	
+	//metaL is more complex than metaR, directL, or directR. Its the counterpart of metaR. At a lower level is directL and directR.
+	//
+	//Theres 2 (maybe 3?) cases (as of 2022-11-17) when metaL acts different than directL, the {...} syntax and the [...] syntax,
+	//and maybe the (...) syntax but that one is harder to know where it ends since if you keep looking at fn.L().L().L()... you'll always reach U,
+	//but that info will be in syty and is based on how its displayed, not just the fn.
+	//
+	//TODO these comments are duplicated in the if/elses below, so should remove them here?...
+	//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)
+	//dropLeft (Infcur a b c) -> (Infcur dropLeft a b c)
+	//aka dropLeft [[a b] c] -> [[[dropLeft] a] b] c]
+	//aka dropLeft [a b c] -> [dropLeft a b c]
+	//aka dropLeft ((Infcur a) b) c) -> ((((Infcur dropLeft) a) b) c)
+	
+
+	//The { kind of drag and drop is the most complex.
+	//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
+	//aka dropLeft {a b c} -> {dropLeft a b c}
+	//https://en.wikipedia.org/wiki/SKI_combinator_calculus
+	
+	
+	
+	let syty = to.syty();
+	
+	//Cuz of complexity in syty added by <...> syntax (added more sytys that are partially duplicates), use listType instead. 
+	//( { [ < (and maybe unary types like ',' '_' etc?), whichever is displayed first when keep looking left.
+	let listType = to.listType();
+	let parentListType = to.parentSplat ? to.parentSplat.listType() : 'C';
+	
+	let toFn = to.splate().fn;
+	let fromFn = from.splate().fn;
+	console.log('MMMMMMMMMMM metaL fromFn='+fromFn+' toFn='+toFn);
+	
+	let replaceParent = true;
+	let retFn;
+	//if(syty == 'IC+'){ //[...] syntax. Not an empty []/Infcur.
+	if(parentListType == '['){ //not empty []/infcur (syty of IC0). Should be a syty of IC+ aka infcur/[] list of at least 1 thing.
+		//console.log('Drag metaL, parentListType='+parentListType+', calling the infcur/[] list way, fromFn='+fromFn+' toFn='+toFn);
+		//retFn = metaLOfInfcur(fromFn,toFn);
+		//replaceParent = false;
+		if(to.isRightChild() && to.parentSplat.splate().fn.n.L() != vm.ops.Infcur){ //not (S To) which happens when To is leftmost in {...}
+			let leftSibling = to.parentSplat.leftSplat;
+			if(!leftSibling){
+				throw 'No leftSibling';
+			}
+			leftSibling.metaR(from);
+			return;
+		}else{
+			throw 'TODO';
+			//retFn = metaLOfS2(fromFn,toFn);
+			//replaceParent = false;
+		}
+	//}else if(syty == 'S2' || (syty == 'S1' && this.parentSyty() == 'S2')){ //{...} syntax, or (S a).
+	}else if(parentListType == '{'){
+		//dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c)	
+		if(to.isRightChild() && to.parentSplat.splate().fn.n.L() != vm.ops.S){ //not (S To) which happens when To is leftmost in {...}
+			//console.log('Drag metaL, parentListType='+parentListType+', calling the sCurryList way, fromFn='+fromFn+' toFn='+toFn);
+			//retFn = metaLOfS2(fromFn,toFn); //metaLOfS2 also handles of S1
+			//let parentFn = to.parentSplat.splate().fn;
+			
+			let leftSibling = to.parentSplat.leftSplat;
+			if(!leftSibling){
+				throw 'No leftSibling';
+			}
+			leftSibling.metaR(from);
+			return;
+			/*
+			//retFn = metaLOfS2(fromFn,parentFn);
+			retFn = vm.ops.S(leftSibling)(fromFn); //retFn = metaROfS2(fromFn,parentFn); since metaROfS2 is so simple, just inline it here.
+			replaceParent = true;
+			//replaceParent = false;
+			*/
+			
+			//FIXMEFIXMEFIXME
+		}else{ //is left child
+			retFn = metaLOfS2(fromFn,toFn);
+			replaceParent = false;
+			//FIXMEFIXMEFIXME
+		}
+	}else if(parentListType == '<'){
+		let parentFn = to.parentSplat.splate().fn;
+		if(to.isRightChild() && parentFn.n.L() != vm.ops.S){ //not (S To) which happens when To is leftmost in {...}
+			//console.log('Drag metaL, parentListType='+parentListType+', calling the sCurryList way, fromFn='+fromFn+' toFn='+toFn);
+			//retFn = metaLOfS2(fromFn,toFn); //metaLOfS2 also handles of S1
+			//let parentFn = to.parentSplat.splate().fn;
+			
+			let leftSibling = to.parentSplat.leftSplat;
+			if(!leftSibling){
+				if(parentFn.n.L() == vm.ops.T){ //is probably the first T in <...>. TODO verify.
+					//Replace (S (T To))  with (S (S (T From) To)), but replace the (T To) with (S (T From) To) since replaceParent is true
+					//(T To) is to.parentSplat
+					retFn = vm.ops.S(vm.ops.T(fromFn))(toFn);
+					//retFn = vm.ops.S(vm.ops.S(vm.ops.T(fromFn))(toFn));
+					replaceParent = true;
+					//to.parentSplat.metaL(from);
+					//return;
+				}else{
+					throw 'No leftSibling';
+				}
+			}else{
+				leftSibling.metaR(from);
+				return;
+				/*
+				//retFn = metaLOfS2(fromFn,parentFn);
+				retFn = vm.ops.S(leftSibling)(fromFn); //retFn = metaROfS2(fromFn,parentFn); since metaROfS2 is so simple, just inline it here.
+				replaceParent = true;
+				//replaceParent = false;
+				*/
+				
+				//FIXMEFIXMEFIXME
+			}
+		}else{ //is left child
+			retFn = metaLOfS2(fromFn,toFn);
+			replaceParent = false;
+			//FIXMEFIXMEFIXME
+		}
+	
+	}else if(parentListType == '('){
+		throw 'TODO';
+	}else if(parentListType == ','){
+		throw 'TODO';
+	}else{
+		console.log('metaL else, just doing normal callpair. fromFn='+fromFn+' toFn='+toFn);
+		this.directL(fromSplat);
+		console.log('metaL did directL');
+		return;
+	}
+	
+	console.log('Drag metaL, parentListType='+parentListType+', returned '+retFn);
+
+	
+	let newRootSplit;
+	console.log('metaL replaceParent='+replaceParent);
+	if(replaceParent){
+		let parent = to.parentSplat;
+		let isRightRecursion = to.isRightChild();
+		let callerSyty = parent.callerSyty();
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		//This isnt right??? cuz... (get whole comment from directL)
+		let newRootSplitFromParent = parent.forkRootSplit(newSplit); //may call lambdas
+		newRootSplit = newRootSplitFromParent;
+	}else{ //this is more like directL, but it did metaL insert such as to become the first in a [...] list.
+		let callerSyty = to.callerSyty();
+		let isRightRecursion = to.isRightChild(); //FIXME? why is it to.isRightChild() in both replaceParent==true and ==false? Shouldnt it be parent.isRightChild() in 1 of those?
+		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
+		console.log('newSplit='+newSplit);
+		newRootSplit = to.forkRootSplit(newSplit); //may call lambdas
+	}
+	
+	
+	//rootSplat.setSplit(newRootSplitFromParent);
+	rootSplat.setSplit(newRootSplit);
+	if(options.updateDisplayToWrap_afterEachDropCircMenuCommand){
+		updateDisplayToWrap();
+	}
+	console.log('END: Drag: metaL');
+};
+
+
+//fromSplat --drag_metaL_way--> this. Modifies this.
+//FIXME when .metaL is working, remove this.
+Splat.prototype.metaL_old_2022_1_8 = function(fromSplat){
 
 	let to = this;
 	let from = fromSplat;
@@ -5068,18 +5343,31 @@ Splat.prototype.metaR = function(fromSplat){
 	
 	let syty = to.syty();
 	
+	let listType = to.listType();
+	//if(listType == '<' && syty=='T1'){ //is
+	//}
+	
 	let toFn = to.splate().fn;
 	let fromFn = from.splate().fn;
 	if(options.logMetaR) console.log('MMMMMMMMMMM metaR fromFn='+fromFn+' toFn='+toFn);
 	
 	let retFn;
-	if(syty == 'S2'){
+	/*if(syty == 'ST2'){
+		//the <...> syntax aka stCurryList. <x y z> is (S (S (T x) y) z). Only the innermost one gets T.
+		let S = vm.ops.S;
+		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', calling the stCurryList way which is the sCurryList since only innermost gets another T, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
+		retFn = S(toFn)(fromFn);
+	}else if(syty == 'S2'){
+	*/
+	//if(syty == 'S2'){
+	if(syty == 'S2' || syty == 'ST2' || syty == 'ST3+' || listType == '<'){
 		//the {...} syntax aka sCurryList. {x y z} is (S (S x y) z).
 		//So just prefix another S... (S to from) aka {to from} cuz this is metaR the R part.
 		let S = vm.ops.S;
 		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', calling the sCurryList way, calling '+S+' on '+toFn+' then what that returns called on '+fromFn);
 		retFn = S(toFn)(fromFn);
-	}else if(syty == 'S1'){
+	//}else if(syty == 'S1'){
+	}else if(syty == 'S1' || syty == 'ST1' || syty == 'S_ST2' || syty == 'S_ST3' || syty == 'S_T1'){ //FIXME is it S_T1 or ST1?
 		if(options.logMetaR) console.log('Drag metaR, syty='+syty+', calling as callpair then prefix sCurryList way, calling (S (toFn fromFn)), toFn='+toFn+', fromFn='+fromFn);
 		retFn = S(toFn(fromFn));
 	}else{
@@ -5413,6 +5701,67 @@ var newGameUimodeByGetterAndSetter = (name,getter,setter)=>{
 //	throw 'TODO';
 //};
 
+var cancelDragThenThrow = throwThis=>{
+	console.log('setting uiState.lastMouseButtonDown to error to avoid mousemove doing mouseup');
+	uiState.lastMouseButtonDown = 'error'; //so mousemove doesnt do mouseup after the mouseup failed cuz of error. dont do mouseup anyways.
+	throw throwThis;
+};
+
+/*
+//in list defined by splat.listType. Null if this is the leftmost in that list (but is not the list itself).
+Splat.prototype.leftSiblingOrNull = function(){
+	if(!this.parentSplat){
+		return null; //there is no left sibling if theres no parent.
+	}
+	if(this.isRightChild()){
+		if(this.parentSplat.leftSplat){
+			this.parentSplat.leftSplat
+		}
+		FIXMEFIXME
+	}else{ //is left child
+		if(this.parentSplat.splate().isDisplayPushAndPopChars){
+			return null;
+		}
+		FIXMEFIXME
+	}
+	FIXMEFIXME
+};*/
+
+//One of: ( { [ < (and maybe unary types like ',' '_' etc?), whichever is displayed first when keep looking left.
+//Does not count those not displayed, like (TypevalB U) in (TypevalB U bytesOf_abc) which is displayed as abc,
+//or AName when earlier AName#(...stuff...). Only includes lists actually displayed as lists by splat.splate().isDisplayPushAndPopChars.
+//If reaches root (no parentSplat), its a '(' (syty of 'C') list, whether thats displayed or not.
+//Dont cache this in Splat cuz Splat is Mutable but Split and Splate are immutable and are displayed in pooled/reused Splats.
+Splat.prototype.listType = function(){
+	if(this.splate().isDisplayPushAndPopChars){
+		return sytyToPushChar(this.splate().syty);
+	}else if(!this.parentSplat){
+		return '('; //normal callpair is default if theres no parent.
+	}else{
+		return this.parentSplat.listType();
+	}
+};
+
+/*dont need this cuz infcur/[] doesnt have isDisplayPushAndPopChars of true. its a lone token.
+Splat.prototype.listTypeNoEmpty = function(){
+	let lt = this.listType();
+	if(lt == '[' && vm.isSameOpAndNumParams(this.splate().fn,vm.ops.Infcur)){
+		if(this.parentSplat){
+			return this.parentSplat.listTypeNoEmpty();
+		}else{
+			return '('; //normal callpair is default if theres no parent.
+		}
+	}else{
+		return lt;
+	}
+}*/
+
+/*
+//related to listType. Example of an empty list is [] since its vm.ops.Infcur and is normally displayed as [] but is not a [ ... ] list containing childs.
+Splat.prototype.isEmptyList = function(){
+};
+*/
+
 //This is called when mouseup of btn==metaInsertButton, at the end of a drag where it has a cursor-like vertical line
 //between 2 lambdas in a {...} [...] or (...) that it should do metaL or metaR in.
 //Which splat to do that in, and the left vs right side of it? Theres vars in uiState for it (put there at runtime):
@@ -5424,26 +5773,64 @@ var endMetaInsert = ()=>{
 	uiState.highlightLastSplatDropped = splat;
 	uiState.highlightLastSplatDropped_dropDirection = uiState.dropDirection;
 	if(splat){
-		let dropWhatSplat = anyfromSplat();
+		let dropWhatSplat = anyfromSplat(); //FROM
 		if(!dropWhatSplat){
-			throw 'No dropWhatSplat=anyfromSplat so cant endMetaInsert to uiState.simpleDragUimode_cursor_splat='+splat;
+			cancelDragThenThrow('No dropWhatSplat=anyfromSplat so cant endMetaInsert to uiState.simpleDragUimode_cursor_splat='+splat);
 		}
 		let direction = uiState.dropDirection;
 		if(direction == 'left'){
+			
+			//splat.parentSplat.metaL(dropWhatSplat);
+			splat.metaL(dropWhatSplat);
+			/*if(splat.isRightChild()){
+				let goLeft = splat;
+				//while(goLeft.parentSplat && goLeft.isRightChild() && !goLeft.leftSplat && !goLeft.splate().isDisplayPushAndPopChars){
+				//while(goLeft.parentSplat && !goLeft.leftSplat && !goLeft.splate().isDisplayPushAndPopChars){
+				while(goLeft.parentSplat && !goLeft.splate().isDisplayPushAndPopChars){
+					goLeft = goLeft.parentSplat;
+				}
+				if(options.logMetaInsert) console.log('leftLeft.metaR direction=left, goLeft fn = '+goLeft.splat().fn);
+				goLeft.metaR(dropWhatSplat);
+			}else{
+				throw 'TODO';
+			}*/
+			
+			/*
 			if(splat.isRightChild()){
 				let leftSibling = splat.parentSplat.leftSplat;
-				if(!leftSibling){
-					throw 'endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead, but there is no left sibling splat of '+splat+', which normally happens when isFoldL. parent.isFoldL='+splat.parentSplat.splate().isFoldL;
+				if(leftSibling){
+					if(options.logMetaInsert) console.log('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead');
+					//This is cuz metaL is only for putting stuff in the leftmost part of a {...} or [...] or (...) list,
+					//and if you want to put stuff anywhere farther to the right, you use metaR, or directR works too for that if its a (...) list.
+					leftSibling.metaR(dropWhatSplat);
+					if(options.logMetaInsert) console.log('endMetaInsert direction=left done metaR from left sibling.');
+				}else{
+					//one reason leftSplat might not be there is splat.splate().isFoldL. Another reason is ~someSplate.isOpen.
+					//Either way, skip past the part not displayed. There might be a few edge-cases for this... TODO...
+					//* if its the leftmost thing in a {} <> [] () list, and its own left isnt displayed.
+					//* if its NOT the leftmost thing in a {} <> [] () list, and its own left isnt displayed.
+					//and there might be some complexity around <> vs {} where <a b c> means {,a b c}.
+					
+					let parentParent = splat.parentSplat.parentSplat;
+					if(!parentParent){
+						cancelDragThenThrow('No parent of parent splat');
+					}
+					let leftLeft = parentParent.leftSplat;
+					if(!leftLeft){
+						cancelDragThenThrow('No leftLeft splat');
+					}
+					if(options.logMetaInsert) console.log('leftLeft.metaR direction=left, leftLeft fn = '+leftLeft.splat().fn);
+					leftLeft.metaR(dropWhatSplat);
+					
+					//throw 'FIXMEFIXME';
+					/* cancelDragThenThrow('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead, but there is no left sibling splat of '+splat+', which normally happens when isFoldL. parent.isFoldL='+splat.parentSplat.splate().isFoldL);
+					*
 				}
-				if(options.logMetaInsert) console.log('endMetaInsert direction=left isRightChild, so about to do metaR from left sibing instead');
-				//This is cuz metaL is only for putting stuff in the leftmost part of a {...} or [...] or (...) list,
-				//and if you want to put stuff anywhere farther to the right, you use metaR, or directR works too for that if its a (...) list.
-				leftSibling.metaR(dropWhatSplat);
-				if(options.logMetaInsert) console.log('endMetaInsert direction=left done metaR from left sibling.');
 			}else{ //is left child
 				if(options.logMetaInsert) console.log('endMetaInsert direction=left isLeftChild so doing metaL');
 				splat.metaL(dropWhatSplat);
 			}
+			*/
 			
 			//splat.metaL(dropWhatSplat);
 		}else if(direction == 'right'){
@@ -5771,6 +6158,10 @@ var display_copyOfPopupMenuToPreChoose = ()=>{
 
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
+	rootDob.addEventListener('mouseup', event=>{
+		console.log('rootDob_mouseup');
+		globalOnMouseUp(event);
+	}); //cuz keeps losing mouseup events
 	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
@@ -5885,6 +6276,8 @@ window.onload = ()=>{
 			<div id=copyOfPopupMenuToPreChoose></div><br>
 			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
+			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
+			<h1>FIX THIS: whenDropMetaInsertOntoAFoldL(such as ,x or x or 2.34)ItThrowsCuzTheresNoLeftChildToMetaRFrom</h1>
 			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
 			
