@@ -1251,6 +1251,9 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+//if true then deleting x in <x y z> returns <y z>. If false, it returns {y z}.
+options.deletingFirstInSTListMovesTheTRightElseDeletesTheT = true;
+
 options.do_mouseOverSplatToStringCode = true;
 
 options.borderWidth = 0; //normal
@@ -1681,7 +1684,7 @@ dragStep is 'no' (not dragging, not displaying the icon where it would drag if m
 'to' (the from and to splats and icons are decided, ready to do the drag, which causes lambda called on lambda finds/creates lambda, then all dragSteps become 'no' again).
 */
 var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds,
-		isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
+		isFoldL, isUnary, isShowDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep){
 
 	
@@ -1733,7 +1736,7 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	this.isUnary = !!isUnary;
 	if(isUnary && !isDisplayChilds) throw 'can only isUnary if isDisplayChilds';
 	
-	this.showDropDobs = !!showDropDobs;
+	this.isShowDropDobs = !!isShowDropDobs;
 	
 	//get name from this.fn.n.nameEtc() which can be this.fn.n.localName or this.fn.n.locid(),
 	//but you can only change this.fn.n.localName, and changing it might contradict the immutable design of Splate
@@ -2033,7 +2036,7 @@ var fnMeta = fn=>{
 //but in this early prototype of the UI I'm modifying vars in it cuz forkEditing it isnt working yet.
 Splate.prototype.copy = function(){
 	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars,
-		this.isDisplayChilds, this.isFoldL, this.isUnary, this.showDropDobs, this.isSelected, this.red, this.green, this.blue,
+		this.isDisplayChilds, this.isFoldL, this.isUnary, this.isShowDropDobs, this.isSelected, this.red, this.green, this.blue,
 		this.isDisplayIcon, this.looseIconYFraction, this.looseIconXFraction, this.linePath, this.dragStep);
 };
 
@@ -2064,11 +2067,11 @@ Splate.prototype.simpleLeftOrRightSplate = function(isRight){
 		let isOneLine = true;
 		let isLiteral = false;
 		let isDisplayPushAndPopChars = !this.fn.n.isLeaf();
-		//let showDropDobs = isOpen;
-		let showDropDobs = false;
+		//let isShowDropDobs = isOpen;
+		let isShowDropDobs = false;
 		let isSelected = false;
 		//FIXME dont use random
-		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, showDropDobs, isSelected, randRed(), randGreen(), randBlue());
+		return new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isShowDropDobs, isSelected, randRed(), randGreen(), randBlue());
 	}
 };
 */
@@ -2539,6 +2542,98 @@ Splat.prototype.splate = function(){
 	return this.split.splate;
 };
 
+
+
+
+//some convenience funcs to get whats in the (used as immutable) splate (in this mutable Splat)...
+
+Splat.prototype.fn = function(){
+	return this.split.splate.fn;
+};
+
+Splat.prototype.syty = function(){
+	return this.split.splate.syty;
+};
+
+Splat.prototype.isOpen = function(){
+	return this.split.splate.isOpen;
+};
+
+Splat.prototype.isOneLine = function(){
+	return this.split.splate.isOneLine;
+};
+
+Splat.prototype.isLiteral = function(){
+	return this.split.splate.isLiteral;
+};
+
+Splat.prototype.isDisplayName = function(){
+	return this.split.splate.isDisplayName;
+};
+
+Splat.prototype.isDisplayPushAndPopChars = function(){
+	return this.split.splate.isDisplayPushAndPopChars;
+};
+
+Splat.prototype.isDisplayChilds = function(){
+	return this.split.splate.isDisplayChilds;
+};
+
+Splat.prototype.isFoldL = function(){
+	return this.split.splate.isFoldL;
+};
+
+Splat.prototype.isUnary = function(){
+	return this.split.splate.isUnary;
+};
+
+Splat.prototype.isShowDropDobs = function(){
+	return this.split.splate.isShowDropDobs;
+};
+
+Splat.prototype.isSelected = function(){
+	return this.split.splate.isSelected;
+};
+
+Splat.prototype.red = function(){
+	return this.split.splate.red;
+};
+
+Splat.prototype.green = function(){
+	return this.split.splate.green;
+};
+
+Splat.prototype.blue = function(){
+	return this.split.splate.blue;
+};
+
+//the small circle icon that follows mouse. TODO move that and dragLine to overlays (updateOverlays).
+Splat.prototype.isDisplayIcon = function(){
+	return this.split.splate.isDisplayIcon;
+};
+
+//the small circle icon that follows mouse. TODO move that and dragLine to overlays (updateOverlays).
+Splat.prototype.looseIconYFraction = function(){
+	return this.split.splate.looseIconYFraction;
+};
+
+//the small circle icon that follows mouse. TODO move that and dragLine to overlays (updateOverlays).
+Splat.prototype.looseIconXFraction = function(){
+	return this.split.splate.looseIconXFraction;
+};
+
+Splat.prototype.linePath = function(){
+	return this.split.splate.linePath;
+};
+
+Splat.prototype.dragStep = function(){
+	return this.split.splate.dragStep;
+};
+
+
+
+
+
 //FIXME this needs to be around 10, instead of less, cuz of this code adding <b> and </b> and in some cases changing < to &lt;, etc.
 //That makes it be longer as string than visually.
 //let prefix = '<b>'+weakHtmlEscape(sytyToPushChar(syty))+'</b>';
@@ -3001,13 +3096,13 @@ Splat.prototype.setSplit = function(split){
 		let syty = splate.syty;
 		let fn = splate.fn;
 		
-		//let showDropDobs = splate.showDropDobs;
+		//let isShowDropDobs = splate.isShowDropDobs;
 		
 		
 		if(splate.isLiteral){
 			let literal = toLiteralString(splate.fn); //FIXME with max size in chars
 			this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
-			//showDropDobs = false;
+			//isShowDropDobs = false;
 			
 			//adding this 2022-11-20-1232pEST
 			this.dobs.left.innerHTML = '';
@@ -3154,7 +3249,7 @@ Splat.prototype.setSplit = function(split){
 		}
 		
 		//UPDATE 2022-12-17 Action (third child) and drop dobs are not used anymore since dragging creates a line between 2 places.
-		if(splate.showDropDobs){
+		if(splate.isShowDropDobs){
 			if(splate.isAttractDropLeft()){
 				this.dobs.dropleft.innerHTML = '(dropleft)';
 			}
@@ -3480,10 +3575,11 @@ var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
 //This is replacing newSplateForFnAsRoot but better cuz its stateless and doesnt have to be root, can be for any Splat in tree of Splats.
 //
 //Remember, a Split is immutable and can have many parents,
-//but a Splat is mutable (its only state is Splate and dobs/domObjects derived from Splate) and can have at most 1,
-//and Split and Splat both contain only Splate and childs (of same type, Split vs Splat).1
+//but a Splat is mutable (its only state is Splate and dobs/domObjects derived from Splate) and always has exactly 1 Splate,
+//and Split and Splat both contain only Splate and childs (of same type, Split vs Splat)).
 //
 //optionalCallerSyty defaults to 'C'. VM says "C is normal call (a b c d e) aka ((((a b) c) d) e)".
+//UPDATE 2023-1, theres also optionalCallerCallerSyty which is needed for the <...> syntax.
 //
 //the callerSyty and isRightRecursion are similar to this code in prototype VM:
 //	vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
@@ -3620,10 +3716,10 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 		isUnary = true;
 	}
 	
-	//let showDropDobs = isOpen;
-	//let showDropDobs = false;
-	let showDropDobs = options.alwaysShowDropDobs;
-	//let showDropDobs = true;
+	//let isShowDropDobs = isOpen;
+	//let isShowDropDobs = false;
+	let isShowDropDobs = options.alwaysShowDropDobs;
+	//let isShowDropDobs = true;
 	let isSelected = false;
 	let red = randRed(); //FIXME should be deterministic
 	let green = randGreen(); //FIXME should be deterministic
@@ -3636,7 +3732,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 	let looseIconXFraction = .5;
 	let linePath = ''; //FIXME
 	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu. also adding 'clickcirc' 2022-12-18+.
-	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, showDropDobs, isSelected, red, green, blue,
+	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, isShowDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep);
 	let leftSplit = null;
 	let rightSplit = null;
@@ -4813,6 +4909,17 @@ var sListToJsList = sList=>{
 	return ret;
 };
 
+//<a b c> is a stList, aka {,a b c}. Returns jsList:[a b c].
+var stListToJsList = sList=>{
+	let ret = sListToJsListReversed(sList);
+	ret.reverse();
+	if(ret[0].n.L() != vm.ops.T){
+		throw 'First in stListToJsList is not prefixed by T: '+ret[0];
+	}
+	ret[0] = ret[0].n.R(); //remove T in (T ret[0])
+	return ret;
+};
+
 //dropLeft (S (S a b) c) -> (S (S (S dropLeft a) b) c).
 //If theMaybeS2 is not an S2, thats the baseCase, just returns (S draggedL theMaybeS2) aka {draggedL theMaybeS2}.
 //2 fns.
@@ -5407,6 +5514,9 @@ var dropCircMenu = [
 	{
 		pic: 'pic/copyTo.png',
 		func: ()=>{
+		
+			//TODO why isnt copyTo using Splat.setFn(fn,isMeta)?
+			
 			console.log('NEAREND: Drag: copyTo');
 			let from = anyfromSplat();
 			let to = anytoSplat();
@@ -5879,11 +5989,21 @@ var getSplatMouseIsOverElseNull = ()=>{
 	//return splatAtYX(controls.mouseY, controls.mouseX); //FIXME
 };
 
+//its L is vm.ops.S. Its not S itself.
+var sytyHasSPrefix = syty=>(syty=='S1' || syty=='ST1' || syty=='S_T1<>' || syty=='S_ST2' || syty=='S_ST3');
+
+//its L is vm.ops.T. Its not T itself.
+var sytyHasTPrefix = syty=>(syty=='T1' || syty=='T1<>');
+
+//Its L L is vm.ops.S. Its not S itself.
+var sytyHasSPrePrefix = syty=>(syty=='S2' || syty=='ST2' || syty=='ST3+');
+
+//TODO testcase of delete <abc def> in <<abc def> ghi jkl> returns <ghi jkl>.
 Splat.prototype.deleteMe = function(isMetaDelete){
 	//FIXME this changes {abc def ghi} to {S def ghi} if delete the top of abc,
 	//but if its going to put it back in {...} then the S shouldnt happen again.
 
-	console.log('NEAREND: clickCircMenu: delete (ignores what you dragged, just deletes whatever you dropped it on)');
+	console.log('splatDelete, NEAREND: clickCircMenu: delete (ignores what you dragged, just deletes whatever you dropped it on)');
 	//let from = anyfromSplat();
 	//let to = anytoSplat();
 	//let to = anyclickcircSplat();
@@ -5901,6 +6021,176 @@ Splat.prototype.deleteMe = function(isMetaDelete){
 		//if(options.deleteKnowsAboutS2Etc){
 		if(isMetaDelete){
 			let parentSyty = to.parentSyty();
+			
+			/*sytys: IC0: '[',
+			'IC+': '[',
+			C: '(',
+			S0: '(',
+			S1: '(',
+			S2: '{',
+			ST1: '(',
+			ST2: '<',
+			'ST3+': '<',
+			'S_T1<>': '(',
+			S_ST2: '(',
+			'S_ST3+': '(',
+			T1: ',', //Change ',' to 'T' 
+			'T1<>': ',', //Change ',' to 'T', in ',<...at least 2 things...>'.
+			*/
+			
+
+			
+			let listType = this.listType();
+			if(sytyHasSPrePrefix(parentSyty)){ //parentSyty == 'S2' etc
+				let parentFn = parent.splate().fn;
+				console.log('splatDelete retFn='+retFn+' syty='+to.splate().syty+' parentSyty='+parentSyty+' toFn='+thisFn+' parentFn='+parent.splate().fn);
+				//console.log('options.deleteKnowsAboutS2Etc adding an S');
+				//retFn = vm.ops.S(retFn);
+				if(isRightRecursion){
+					retFn = deleteMetaROfS2(parentFn);
+				}else{
+					retFn = deleteMetaLOfS2(parentFn);
+				}
+				doSimpleDelete = false;
+			}else if(sytyHasSPrefix(parentSyty) && sytyHasSPrePrefix(to.parentParentSyty())){ //parentSyty == 'S1' && to.parentParentSyty()=='S2' etc
+			
+				//maybe it works both ways?
+				//if(isRightRecursion){
+				//	throw 'TODO handle isRightRecursion=true here in parentSyty S1 parentParentSyty S2, but that probably wont happen cuz the S is not displayed cuz should be isFoldL.';
+				//}
+				
+				//happens when deleting the down side (selects self and to the left)
+				//of {abc def} in {abc def ghi jkl}, for example.
+				//syty of {abc def} is S2, and its parentSyty is S1 cuz (S (S {abc def} ghi) jkl).
+				//So want to delete the (S {abc def}) instead of just {abc def},
+				//and leave {ghi jkl} aka (S ghi jkl).
+				//
+				//Or similar for deleting abc or {abc def ghi} instead of deleting {abc def}.
+				console.log('splatDelete recursing to metaDelete parent, so dont expect to see "END: clickCircMenu: delete" cuz ending right after that.');
+				to.parentSplat.deleteMe(isMetaDelete); //know to.parentSplat exists cuz its syty isnt 'C'
+				console.log('splatDelete END recursing to metaDelete parent.');
+				return;
+			}else if(parentSyty == 'IC0' || parentSyty == 'IC+'){
+				//Infcur/[] list such as [a b c] in [a b c d e] aka ([] a b c d e).
+				//Infcur/[] just appends params and never evals. It has no length limit.
+				//let parentIsRightRecursion = parent.isRightChild();
+				//if(!parentIsRightRecursion){ //is left
+				if(!isRightRecursion){ //is left
+					console.log('splatDelete IC isRightRecursion');
+					let parentFn = parent.splate().fn;
+					let rightSibling = parentFn.n.R();
+					retFn = vm.ops.Infcur(rightSibling);
+					doSimpleDelete = false;
+				}
+				//thisFn is wrong. want to delete thisFn and keep whats right of it, but with Infcur left of that...
+				//if(!isRightRecursion){
+				//	retFn = vm.ops.Infcur(thisFn);
+				//	doSimpleDelete = false;
+				//}
+				//else parentIsRightRecursion, just do normal delete, like deleting the d in [a b c d e]
+				//should do ([a b c] e) which evals to [a b c e].
+			}else if(listType=='<' && sytyHasTPrefix(parentSyty) && !to.parentSplat.splate().isDisplayPushAndPopChars){
+				//is first thing in <...>, doesnt display the T/, prefix of that first thing cuz being first in <...> implied T/, prefix.
+				console.log('splatDelete is first thing in <...>');
+				
+				/* When deleting <abc def> in <<abc def> ghi ...> 2023-1-9
+				thisFn+''
+				'<abc def>'
+				to.parentSplat.splate().fn+''
+				',<abc def>'
+				to.parentSplat.parentSplat.splate().fn+''
+				'(S ,<abc def>)'
+				to.parentSplat.parentSplat.parentSplat.splate().fn+''
+				'<<abc def> ghi>'
+				*/
+				if(to.parentSplat.parentSplat && to.parentSplat.parentSplat.parentSplat){
+					console.log('splatDelete deleting first thing in <...>');
+					
+					//to.parentSplat is ,to
+					//to.parentSplat.parentSplat is (S ,to)
+					//to.parentSplat.parentSplat.parentSplat is <to x> for some x. Aka (S ,to x) aka (S (T to) x) aka ((S (T to)) x).
+					//FIXME, should x get a T prefix (to keep the <...>) or should nothing have a T prefix so it becomes a {...}?
+					//Define that in options.deletingFirstInSTListMovesTheTRightElseDeletesTheT. Added that option.
+					//let st2 = to.parentSplat.parentSplat.parentSplat; //TODO rename this to st2or3p? Wait to see if this fixes it.
+					let st2or3p = to.parentSplat.parentSplat.parentSplat; //renamed, this was called st2. It worked for deleting <abc def> in <<abc def> ghi>
+					//If it was a ST3+ then its first thing wouldnt have the T prefix of the first thing in ST2.
+					//if(st2.splate().syty != 'ST2'){
+					if(st2or3p.splate().syty != 'ST2' && st2or3p.splate().syty != 'ST3+'){
+						//TODO update comments with the "As I designed it (which I may regret later" etc, rename to st2or3p.
+						throw 'Expected a syty=ST2 or =ST3+ but found a '+st2or3p.splate().syty+' in fn='+st2or3p.splate.fn;
+					}
+					let x = st2or3p.fn().n.R(); //st2 is <to x>.
+					let fn;
+					if(options.deletingFirstInSTListMovesTheTRightElseDeletesTheT){
+						//st2or3p is <to x>. Replace it with ,x. It may be inside a ST3+ in which case that innermost ST3+ should become a ST2 starting with x,
+						//but that maybe wont happen until update whole tree again. Theres bugs in the updating of splat/splate/split as of 2023-1-9.
+						fn = vm.ops.T(x);
+					}else{
+						//st2or3p is <to x>. Replace it with x. It may be inside a ST3+ in which case that innermost ST3+ should become a S2 starting with x,
+						//but that maybe wont happen until update whole tree again. Theres bugs in the updating of splat/splate/split as of 2023-1-9.
+						fn = x;
+					}
+					st2or3p.setFn(fn,true); //true isMeta
+					return;
+					
+					/*A strange combo of sytys I designed for <...> as the first thing in an outer <...>.
+					I'm not sure if this is a bug or not but it was hard to get it working in vm.eval and the treeUI 2022-12,
+					so I dont want to change the sytys.
+					..
+					As I designed it (which I may regret later, not sure if its completely consistent or the simplest way to organize it,
+					and the whole <...> syntax added another depth of need callerCallerSyty instead of just callerSyty which adds complexity)
+					,<abc def> has syty of T1<> and <<abc def> ghi> has syty of ST3+ as it skips ST2.
+					Normally the first thing in a ST3+ is a ST2,
+					but I was having some problem getting it to display as <<abc def> ghi> instead of <abc def ghi>,
+					as they're both {,b c} aka {,{,abc def} ghi} so it was a problem for them to have the same syty (both ST2 before this design).
+					..
+					Instead, figure out how to make it work with the menu and dragAndDrop commands (delete, copy, etc).
+					So it appears that what I thought was st2 (i named a js var that in code above) maybe should be st2or3p???
+					....
+					Deleting <abc def> out of <<abc def> ghi>...
+					st2.fn()+''
+					'<<abc def> ghi>'
+					st2.splate().syty
+					'ST3+'
+					st2.leftSplat.splate().syty
+					'S_T1<>'
+					st2.leftSplat.splate().fn+''
+					'(S ,<abc def>)'
+					st2.leftSplat.rightSplat.splate().fn+''
+					',<abc def>'
+					st2.leftSplat.rightSplat.splate().syty+''
+					'T1<>'
+					st2.leftSplat.rightSplat.rightSplat.splate().syty+''
+					'ST2'
+					st2.leftSplat.rightSplat.rightSplat.splate().fn+''
+					'<abc def>'
+					*/
+					
+					//console.log('splatDelete getting to.parentSplat.parentSplat.parentSplat.rightSplat');
+					//retFn = to.parentSplat.parentSplat.parentSplat.rightSplat.splate().fn; //If TO is <abc def> then retFn is ghi.
+					
+					
+					/*FIXMEFIXME have to do sCurryList recursively similar to as in deleteMetaROfS2(parentFn);
+					Will need to replace parent or parent of parent or something like that.
+					Theres a Splat.setFn func or something like that, which could call here and return right after.
+					Remember that ST3+ doesnt start with a (T something), and ST2 does. <a b c d> means {,a b c d} aka {{{,a b} c} d}
+					and , is another name for T which is normally used when theres no space between them.
+					todo use stListToJsList
+					*/
+					
+					
+					//doSimpleDelete = false;
+				}else{
+					console.log('splatDelete couldnt to.parentSplat.parentSplat.parentSplat.rightSplat so doing nothing. FIXME??');
+					return;
+				}
+			}
+			
+			
+			
+			/*
+			//this code worked before added <...> syntax which also uses T1<> ST1 S_T1<> ST2 ST3+.
+			//but since T1 may also be T1<>, and S1 may also be ST1 or S_T1<>, thats likely to break the code below...
 			if(parentSyty == 'S2'){
 				let parentFn = parent.splate().fn;
 				console.log('retFn='+retFn+' syty='+to.splate().syty+' parentSyty='+parentSyty+' toFn='+thisFn+' parentFn='+parent.splate().fn);
@@ -5941,15 +6231,18 @@ Splat.prototype.deleteMe = function(isMetaDelete){
 					retFn = vm.ops.Infcur(rightSibling);
 					doSimpleDelete = false;
 				}
-				/* thisFn is wrong. want to delete thisFn and keep whats right of it, but with Infcur left of that...
-				if(!isRightRecursion){
-					retFn = vm.ops.Infcur(thisFn);
-					doSimpleDelete = false;
-				}*/
+				//thisFn is wrong. want to delete thisFn and keep whats right of it, but with Infcur left of that...
+				//if(!isRightRecursion){
+				//	retFn = vm.ops.Infcur(thisFn);
+				//	doSimpleDelete = false;
+				//}
 				//else parentIsRightRecursion, just do normal delete, like deleting the d in [a b c d e]
 				//should do ([a b c] e) which evals to [a b c e].
 			}
 			//TODO Infcur/[] list. check syty is IC+ or IC0 etc.
+			*/
+				
+				
 			
 			/*
 			//TODO test this with X/delete on {abc def ghi jkl}
@@ -5964,7 +6257,7 @@ Splat.prototype.deleteMe = function(isMetaDelete){
 		}
 		if(doSimpleDelete){ //the simple way of X/delete. Replace parent with self's sibling in that parent. Each fn has 2 child fns.
 			if(isRightRecursion){
-				console.log('clickCircMenu then delete, is right, so delete right and replace parent with left');
+				console.log('splatDelete doSimpleDelete isRightRecursion, clickCircMenu then delete, is right, so delete right and replace parent with left');
 				
 				//parent.leftSplat will be null if this is displayed as {abc def ghi} and
 				//you delete (top half of, to select abc, not "{abc"). It works on bottom half, as of 2022-12-21.
@@ -5973,12 +6266,12 @@ Splat.prototype.deleteMe = function(isMetaDelete){
 				//retFn = parent.leftSplat.splate().fn;
 				retFn = parent.splate().fn.n.L();
 			}else{ //is left recursion
-				console.log('clickCircMenu then delete, is left, so delete left and replace parent with right');
+				console.log('splatDelete doSimpleDelete LEFT!isRightRecursion, so delete left and replace parent with right');
 				//retFn = parent.rightSplat.splate().fn;
 				retFn = parent.splate().fn.n.R();
 			}
 		}
-		console.log('Returned '+retFn);
+		console.log('splatDelete returned '+retFn);
 		let callerSyty = parent.callerSyty();
 		let newSplit = newSplitForFn_experimental(retFn, callerSyty, isRightRecursion); //fixme wrap to what max width?
 		//This isnt right??? cuz... (get whole comment from directL)
@@ -6277,7 +6570,7 @@ window.onload = ()=>{
 			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
-			<h1>FIX THIS: whenDropMetaInsertOntoAFoldL(such as ,x or x or 2.34)ItThrowsCuzTheresNoLeftChildToMetaRFrom</h1>
+			<h1>FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.</h1>
 			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
 			

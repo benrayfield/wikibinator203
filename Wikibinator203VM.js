@@ -6095,6 +6095,27 @@ const Wikibinator203 = (()=>{
 		vm.addOp('??', null, false, 4, '(?? x y val map) -> map forkEdited to map key (?? x y) to val.');
 		vm.addOp('TreemapNorm',null,false,1,'(TreemapNorm map) -> map forkEdited to be nearly completeBinaryTree (still an avl tree).');
 		vm.addOp('TreemapVerify',null,false,1,'(TreemapVerify map) -> T or F depending if map is a valid Treemap datastruct. Its always a valid fn, but an example of invalid is if it contains more than 1 unique comparator or is in a wrong sorted order by that comparator. Does NOT verify comparator always halts or sorts consistently (TODO only optimize if comparator is known consistent, which can be proven by it being a forest of nands or forest of ops on int32s or on int16s etc, basically anything that could go in an opencl ndrange kernel or webgl shaders (GLSL) (excluding roundoff, use less bits to handle that) can be proven to halt for all possible pair of params, and ...');
+		//
+		//vm.addOp = (name,prefix,isStrange,curriesLeft,description)
+		//
+		//
+		//TODO derive S, Pair, FuncOf6Params, etc from tape* ops from these, but keep S as separate opcode too. Just as testcases to make sure its flexible enuf...
+		//TODO??? The datastruct of tape is [...left side of tape... register [...right side of tape in reverse order...]]???
+		vm.addOp('TapeSlideL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeSlideL Tape) -> forkEdited lambda-sparse-turing-tape slid to left.');
+		vm.addOp('TapeSlideR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeSlideR Tape) -> forkEdited lambda-sparse-turing-tape slid to right.');
+		vm.addOp('TapeCopy',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeCopy Tape) -> forkEdited lambda-sparse-turing-tape with center of tape copied to register.');
+		vm.addOp('TapePaste',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapePaste Tape) -> forkEdited lambda-sparse-turing-tape with register copied to center of tape.');
+		vm.addOp('TapeCall',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeCall Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (register centerOfTape) aka by the fn in register called on the fn in center of tape.');
+		vm.addOp('TapePair',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapePair Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (Pair register centerOfTape)');
+		vm.addOp('TapeGetL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetL Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (L register).');
+		vm.addOp('TapeGetLR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetLR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetR (TapeGetL register)). Useful for getting X in (Pair x y), especially such Pairs created by TapePair. You can also get that by (Pair x y T) and get y by (Pair x y F).');
+		vm.addOp('TapeGetR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (R register).');
+		//TODO vm.addOp('TapeDoTape',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. ');
+		//TODO vm.addOp('TapeImport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 2 params, copies one param to the register in the tape, and returns forkEdited tape.');
+		//TODO vm.addOp('TapeExport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 1 param, the tape, and gets whats in its register. TODO rename this to tapeReturn? or should there be both separate opcodes?');
+		//
+		//
+		
 		
 		
 		
