@@ -980,8 +980,10 @@ Splat.prototype.parentDob = function(){
 var childDobNames = 'prefix dropleft left dropmid literal right dropright suffix'.split(' ');
 
 var sytyToPushChar_ = {
-	IC0: '[',
+	'0CI': '-', //vm.ops.Rucfni uses - = and displays opposite order as Infcur/[]
+	IC0: '[', //vm.ops.Infcur
 	'IC+': '[',
+	'+CI': '-', //vm.ops.Rucfni
 	C: '(',
 	S0: '(',
 	S1: '(',
@@ -1004,8 +1006,10 @@ var sytyToPushChar_ = {
 var sytyToPushChar = syty=>(sytyToPushChar_[syty] || 'FIXME_WHAT_PUSH_CHAR_FOR_SYTY='+syty);
 
 var sytyToPopChar_ = {
-	IC0: ']',
-	'IC+': ']',
+	'0CI': '=', //vm.ops.Rucfni uses - = and displays opposite order as Infcur/[]
+	IC0: ']', //vm.ops.Infcur
+	'+CI': '=',
+	'IC+': ']', //vm.ops.Rucfni
 	C: ')',
 	S0: ')',
 	S1: ')',
@@ -6570,7 +6574,10 @@ window.onload = ()=>{
 			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
-			<h1>FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.</h1>
+			<h1>
+				TODO [] is Infcur. -= is Rucfni (infcur spelled backward). Make lisp-like syntax like -car -cons a b== or maybe it should be .car .cons .a .b or maybe the .thing aka get var thing from Treemap (stateless) state (second param, first is linkedlist of params).<br>
+				FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.
+			</h1>
 			<div id=logOut></div><br>
 			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
 			

@@ -5983,9 +5983,10 @@ const Wikibinator203 = (()=>{
 			//TODO 'op' + 2 hex digits?
 			let numLeadingZeros = Math.clz32(o8);
 			let curriesSoFar = 31-numLeadingZeros;
+			let isStrange = false;
 			let curriesLeft = 7-curriesSoFar;
 			let name = 'Op'+o8.toString(2);
-			vm.addOp(name, null, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
+			vm.addOp(name, null, isStrange, curriesLeft, name+' has '+curriesSoFar+' params. Op is known at 7 params, and is copied from left child after that.');
 		}
 		vm.o8OfF = vm.addOp('F',null,false,2,'the church-false lambda aka λy.λz.z. (f u) is identityFunc. To keep closing the quine loop simple, identityFunc is (u u u u u u u u u) aka (f u), but technically (u u u u u u u u anything) is also an identityFunc since (f anything x)->x. (l u)->(u u u u u u u u u). (r u)->u. (l u (r u))->u, the same way (l anythingX (r anythingX))->anythingX forall halted lambda anythingX.');
 		if(vm.o8OfF != 128) throw 'vm.o8OfF must be 128 so (L U) -> (U U U U U U U U U) and (R U) -> U, to close the quine loop.';
@@ -6001,17 +6002,6 @@ const Wikibinator203 = (()=>{
 		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.');
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda, same as does OpByte param equal 0x01.');
 		
-		vm.o8OfInfcur = vm.addOp('Infcur',null,true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
-		
-		vm.o8OfS = vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
-		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
-		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
-		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
-		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
-		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
-		//TypevalB or TypevalC
-		vm.o8IsOfTypeval = o8=>((o8 & 0b11111110) == vm.o8OfTypevalB);
-		
 		//It is by design that a fn/lambda cant know evilbit==true vs evilbit==false about any fn/lambda,
 		//since thats only a bit in some kinds of ids, a thing to say about a lambda, not about the lambda itself.
 		
@@ -6021,6 +6011,18 @@ const Wikibinator203 = (()=>{
 		
 		//FIXME need about 5 opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .');
 		vm.addOp('MaskByte',null,false,1,'returns a cbt8 whose bits are a mask of the 8 vm.mask_*, in params header. This means those wont be able to be reordered without breaking calls of MaskByte.');
+		
+		vm.o8OfInfcur = vm.addOp('Infcur','[]',true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.');
+		vm.o8OfRucfni = vm.addOp('Rucfni','-=',true,vm.maxCurriesLeft,'Rucfni aka -=. Does exact same thing as Infcur but is normally displayed in reverse. Example [a b c d -e f g h i=] is both together and is (Infcur a b c d (Rucfni i h g f e)). [] is infcur. -= is rucfni. TODO use this with the tape (fntape) opcodes. Tape should be made of this.');
+		
+		vm.o8OfS = vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
+		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
+		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
+		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
+		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
+		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
+		//TypevalB or TypevalC
+		vm.o8IsOfTypeval = o8=>((o8 & 0b11111110) == vm.o8OfTypevalB);
 		
 		//vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?');
 		
@@ -6036,17 +6038,19 @@ const Wikibinator203 = (()=>{
 		when params should differ but is reusing that instead.
 		*/
 		
+		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
+		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
+		
 		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,1,'It works like this: {{L Lambdo} (x y) (todo add comment param here...) [+ [* x x] *[y y]] 6 8}->100. {L Lambdo} is written as λ and its opcode is vm.o8OfLambda. The (x y ...) can be any num of params up to around 250 (todo whats the exact number? check vm.max* vars). OLD... Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).');
 		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
-		vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).');
+		//vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).');
 		//Maybe its better to focus on optimizing Lambda and MutLam, which have named params. vm.addOp('Vararg',null,true,2,'(Vararg [a b c d] e) -> (a [a b c d e]), maybe viewed as (<a b c d> e) -> (a <a b c d e>)? So (Vararg [a b c d]) is displayed as <a b c d>? Used for deriving syntaxes like <M keyA valA keyB valB>.');
 		vm.o8OfP = vm.addOp('P',null,false,2,'(P LambdaOrMutLamOrListOfObvalObkeyvalEtc ParamName) -> value of ParamName in (Lambda ...) etc, usually in [(Lambda ... all params except last) LastParam] since thats what FuncBody inside that Lambda call is called on [...] and FuncBody normally calls P to get specific params.');
 		if(!(vm.o8OfLambdo&1)) throw 'o8 of Lambdo must be odd.';
 		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
 		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").');
-		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))');
-		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.');
+		
 		//addOp(name,prefix,isStrange,curriesLeft,description)
 		vm.o8OfHypercombinator = vm.addOp('Hyperleaf',null,true,1,'(Hyperleaf. The "hypercompute leaf combinator", just a binary forest data structure that prevents anything but combos of itself from being its params, and limits it to 7 stored params, and in abstract math it has 8 params but its always lazy-eval so the 8th param always infloops. You call it by looking along HypercomputeRedA and HypercomputeRedB edges. Its opcodes include the hypercomputing kinds of: S T F L R ISLEAF PAIR LAZYTHREEWAYCALL_CARDINALITYA_FUNC_PARAM SEMANTICFORDOESNOTHALT SEMANTICFORCALLERDOESNOTHAVEENOUGHCARDINALITYTOLOOKALONGTHATEDGE SEMANTICFORRETURNEDWHATSALONGREDAORBEDGE GETCALLERSCARDINALITYASLINKEDLISTOFTTTTASUNARY and maybe a few other operators, and one very important operator that branches at the first (of 7 or 8 params) param, which is a lambda of 6 params (if first param is the leaf hypercombinator, else first param is anything else).');
 		//TODO vm.lazyEvalOfDoesPEqualNP = ...; //Call this on Hypercombinator (the hyper leaf) to get hyper_T or hyper_F,
@@ -6100,21 +6104,33 @@ const Wikibinator203 = (()=>{
 		//
 		//
 		//TODO derive S, Pair, FuncOf6Params, etc from tape* ops from these, but keep S as separate opcode too. Just as testcases to make sure its flexible enuf...
-		//TODO??? The datastruct of tape is [...left side of tape... register [...right side of tape in reverse order...]]???
+		//TODO??? The datastruct of tape is [...left side of tape... register -tapeCenter ...right side of tape...=]
+		//aka (Infcur ...left side of tape... register (Rucfni ...tape of side right...)).
 		vm.addOp('TapeSlideL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeSlideL Tape) -> forkEdited lambda-sparse-turing-tape slid to left.');
 		vm.addOp('TapeSlideR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeSlideR Tape) -> forkEdited lambda-sparse-turing-tape slid to right.');
 		vm.addOp('TapeCopy',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeCopy Tape) -> forkEdited lambda-sparse-turing-tape with center of tape copied to register.');
 		vm.addOp('TapePaste',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapePaste Tape) -> forkEdited lambda-sparse-turing-tape with register copied to center of tape.');
-		vm.addOp('TapeCall',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeCall Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (register centerOfTape) aka by the fn in register called on the fn in center of tape.');
-		vm.addOp('TapePair',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapePair Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (Pair register centerOfTape)');
+		vm.addOp('TapeCall',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeCall Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetRegister Tape (TapeGetCenter Tape)) aka by the fn in register called on the fn in center of tape.');
+		//vm.addOp('TapePair',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapePair Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (Pair (TapeGetRegister Tape) (TapeGetCenter Tape))');
+		vm.addOp('TapeInfcur',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeInfcur Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by [(TapeGetRegister Tape) (TapeGetCenter Tape)]');
+		vm.addOp('TapeRucfni',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeInfcur Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by -(TapeGetRegister Tape) (TapeGetCenter Tape)=');
 		vm.addOp('TapeGetL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetL Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (L register).');
-		vm.addOp('TapeGetLR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetLR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetR (TapeGetL register)). Useful for getting X in (Pair x y), especially such Pairs created by TapePair. You can also get that by (Pair x y T) and get y by (Pair x y F).');
+		vm.addOp('TapeGetRegister',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetRegister Tape) -> gets the register in [...left side of tape... register -tapeCenter ...right side of tape...=].');
+		vm.addOp('TapeGetCenter',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetCenter Tape) -> gets the tapeCenter in [...left side of tape... register -tapeCenter ...right side of tape...=].');
+		vm.addOp('TapeGetLR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetLR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetR (TapeGetL register)). Useful for getting x in [x y] aka (Infcur x y), or y in -x y= aka (Rucfni y x), especially such []s created by TapeInfcur and -=s created by TapeRucfni.');
+		//vm.addOp('TapeGetRL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetRL Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetL (TapeGetR (TapeGetRegister Tape)). Useful for getting y in -x y= aka (Rucfni y x) such as created by TapeRucfni. No thats wrong, you use TapeGetLR for that too.');
 		vm.addOp('TapeGetR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (R register).');
 		//TODO vm.addOp('TapeDoTape',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. ');
 		//TODO vm.addOp('TapeImport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 2 params, copies one param to the register in the tape, and returns forkEdited tape.');
 		//TODO vm.addOp('TapeExport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 1 param, the tape, and gets whats in its register. TODO rename this to tapeReturn? or should there be both separate opcodes?');
 		//
 		//
+		
+		//vm.addOp('MatmulInt16',null,false,5,'(MatmulInt16 SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of int16s. Returns a cbt. This is a place to hook in GPU optimization.');
+		
+		vm.addOp('MatmulF',null,false,5,'(MatmulF SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of float32s. Returns a cbt. This is a place to hook in GPU optimization, though its not general enough for everything GPU does. Check isAllowSinTanhSqrtRoundoffEtc.');
+		
+		vm.addOp('MatmulD',null,false,5,'(MatmulD SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of float64s. Returns a cbt. This is a place to hook in GPU optimization or might have to do it in CPU or do it as int math etc if for example in WebGL it only supports float32 but not float64 or maybe supports float64 during the multiply of 2 float32s then stores it as float64. Check isAllowSinTanhSqrtRoundoffEtc.');
 		
 		
 		
@@ -6181,11 +6197,11 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		///OLD, cuz this can be done simpler by having just 1 key type that can be done by K= and KK= and K=C.
+		///OLD, cuz this can be done simpler by having just 1 key type that can be done by KE and KKE and KEC.
 		Keys must have .cur of at least 2, cuz val is their next param.
-		(K= key val map)->forkEditedMap. Key is (K= key).
-		(K=C key valAsCbtOrMaybeTypevalOfCbt map)->forkEditedMap. Key is (K=C key). For storing double[] int[] etc.
-		(KK= keyA keyB val map)->forkEditedMap. Key is (KK= keyA keyB).
+		(KE key val map)->forkEditedMap. Key is (KE key).
+		(KEC key valAsCbtOrMaybeTypevalOfCbt map)->forkEditedMap. Key is (KEC key). For storing double[] int[] etc.
+		(KKE keyA keyB val map)->forkEditedMap. Key is (KKE keyA keyB).
 		(NormMap map)->forkEditedMap. Makes a nearly completeBinaryTree with at most the last row being incomplete.
 		(K? key map) -> val from map, or U if not exist.
 		(KK? keyA keyB map) -> val from map, or U if not exist.
@@ -6239,7 +6255,7 @@ const Wikibinator203 = (()=>{
 			All 3 are a tree sorted by a given comparator.
 		Maybe the "...fewParams..." should contain a comparator but NOT a normer or putter or any other funcs,
 			and put those kind of things in the getters setters normers etc funcs???
-		((Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm (Tm ...) (KK= a b c) (Tm ...))
+		((Treemap CompareFirstByIdThenByGodelLikeNumber)#Tm (Tm ...) (KKE a b c) (Tm ...))
 			but how would putter (Put (key val) map)->forkEditedMap or (key val map)->forkEditedMap...
 				How would putter know which datastruct?
 		A nearlyCompleteBinaryTree is a valid avl tree since balance at every node is between -1 and 1.
@@ -6271,17 +6287,17 @@ const Wikibinator203 = (()=>{
 		..
 		What fn would be an empty Treemap? (Tm U U U), (where I havent decided what params go in Tm yet)?
 		If U is a keyval, then key is (F U) and val is U, cuz (L U)->(F U) aka identityFunc, and (R U)->U.
-		If you wanted identityFunc as key, you'd instead write it as (K= identityFunc val),
-		so in that case the Treemap key would be (K= identityFunc).
+		If you wanted identityFunc as key, you'd instead write it as (KE identityFunc val),
+		so in that case the Treemap key would be (KE identityFunc).
 		If its instead identityFunc directly, aka the keyval is U,
 		could use that similar to null, meaning its not there.
 		In general, Treemap will use keyval as (key val), so key must take at least 2 more params,
 		since (key val) must be halted. key is also a func to forkEdit a Treemap, to PUT that val at that key,
-		so in Fo/While/IfElse/Mut/etc, _[(KK= ballA x 5) (KK= ballA y 2.3)] can be used as a func to
+		so in Fo/While/IfElse/Mut/etc, _[(KKE ballA x 5) (KKE ballA y 2.3)] can be used as a func to
 		forkEdit the state (that those loops/ifelse/etc are using) to,
 		as you'd write it in javascript for example, ballA.x = 5; ballA.y = 2.3; then return forkEdited state.
-		Those (KK= ballA x 5) and (KK= ballA y 2.3) etc are inside Treemap.
-		Treemap is sorted by (SomeComparator (KK= ballA x 5) (KK= ballA y 2.3)) -> T or F (or maybe -1 0 or 1?).
+		Those (KKE ballA x 5) and (KKE ballA y 2.3) etc are inside Treemap.
+		Treemap is sorted by (SomeComparator (KKE ballA x 5) (KKE ballA y 2.3)) -> T or F (or maybe -1 0 or 1?).
 		..
 		or, instead of Treemap opcode, how about just [] lists inside eachother, that are in sorted order
 		by some comparator (as a param somewhere), so [a b c d e] could be [[a b][c [d e]]] or [[a b c d]e] etc.
@@ -6315,24 +6331,24 @@ const Wikibinator203 = (()=>{
 		
 			
 		(Tm#(Treemap comparator balancer) left keyval right getkey).
-		(Tm U (KK= x y z) U (KK= x y)) -> z.
+		(Tm U (KKE x y z) U (KKE x y)) -> z.
 		This is general enuf to do avl and trie.
-		(KK= x y 5 (Tm U (KK= x y z) U)) ->
-			 (Tm U (KK= x y 5) U).
+		(KKE x y 5 (Tm U (KKE x y z) U)) ->
+			 (Tm U (KKE x y 5) U).
 		comparator ruturms T or F (maybe 2 kinds of F, differing in prefix, to say equal or not?) depending if lessthan... Example: GodelLessThan op is a comparator.
 		Or do i want to specialize in avl for fewer objects created by balancing while forkediting? How about the Put fn goes where balancer is now? Put can also remove, by val being U?
 			
 		((Avl Cmp343)#Av left here right getValOfThisKey)
-		(Av (Av U (K=C y ACbt) U) (KK= x y z) (Av ...) (KK= x y)) -> z
-		(AvlPut map (KK= x y z)) -> map forkedited to have key (KK= x y) -> val z.
+		(Av (Av U (KEC y ACbt) U) (KKE x y z) (Av ...) (KKE x y)) -> z
+		(AvlPut map (KKE x y z)) -> map forkedited to have key (KKE x y) -> val z.
 		
 		The avltreemap will be similar to https://docs.oracle.com/javase/7/docs/api/java/util/NavigableMap.html
 		
 		Different comparators could compare different ways.
-		Some could just compare by idElseGodellikenumber of (KK= a b) in (KK= a b c),
-		and others could compare first by a, then by b, if it happens to be a KK=,
+		Some could just compare by idElseGodellikenumber of (KKE a b) in (KKE a b c),
+		and others could compare first by a, then by b, if it happens to be a KKE,
 		since that would allow searching for fields of an object,
-		as KK= is designed for object oriented programming in Mut/IfElse/Fo/etc opcodes.
+		as KKE is designed for object oriented programming in Mut/IfElse/Fo/etc opcodes.
 		
 		Use this SOLUTION: avltreemapWithComparatorParam and use fn.n.id()
 			(which is small for small strings and at most 32 bytes so maybe size 65 chars as text)
@@ -6349,7 +6365,7 @@ const Wikibinator203 = (()=>{
 			Be careful to only optimize if know the comparator always halts and compares consistently,
 			cuz if it wouldnt have halted in middle calculations that were done as Mut instead,
 			then thats an error to halt. If its the main id function with GodelLessThan breaking ties, thats true.
-			In this treemap, have (K= comparator k val) (K=C comparator k cbt) and (KK= comparator a b val).
+			In this treemap, have (KE comparator k val) (KEC comparator k cbt) and (KKE comparator a b val).
 			The L of all of those is the avl key.
 			Maybe also fn, double, and few other types that are in Mut.
 		/*...
@@ -6361,7 +6377,7 @@ const Wikibinator203 = (()=>{
 			check it every time. The latter is simpler.
 			A derived (by λ opcode) avltreemap would look something like this...
 			(Avl GodelLessThan_orOtherComparator TheHeight LeftAvlOrLeaf RightAvlOrLeaf)
-			But since a keyVal can be anything, such as [KK= a b c] or (Avl GodelLessThan ...) etc,
+			But since a keyVal can be anything, such as [KKE a b c] or (Avl GodelLessThan ...) etc,
 			need a way to specify that a LeftAvlOrLeaf is a leaf vs nonleaf.
 			Could do it as 2 (instead of 1) of TheHeight.
 			(Avl GodelLessThan_orOtherComparator LeftHeight RightHeight LeftAvlOrLeaf RightAvlOrLeaf)
@@ -6398,10 +6414,10 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		vm.addOp('K=',null,false,3,'(K= Key Val Map) -> forkEdited map with (K= Key) mapped to Val.');
-		vm.addOp('KK=',null,false,4,'(K= KeyA KeyB Val Map) -> forkEdited map with (KK= KeyA KeyB) mapped to Val.');
-		vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (K= Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (K= Key)).');
-		vm.addOp('KK?',null,false,3,'(K? KeyA KeyB Map) -> val of (K= KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KK= KeyA KeyB)).');
+		vm.addOp('KE',null,false,3,'(KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
+		vm.addOp('KKE',null,false,4,'(KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.');
+		vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
+		vm.addOp('KK?',null,false,3,'(K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
 		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map');
 		/*
 		//
@@ -6413,21 +6429,21 @@ const Wikibinator203 = (()=>{
 		//vm.addOp('ObVal',null,false,2,'(ObVal ob val) -> Val, whichever is the last ObVal of that Key');
 		vm.addOp('BtflGet',null,false,2,'Bring To Front List Get. (BtflGet X [... (X Y) ...]) -> Y. This is the GET that K? and KK? and K?C use internally. Use this with BtflPut.');
 		vm.addOp('BtflPut',null,false,2,'Bring To Front List Put. (BtflPut (X Y) [... (X Z) ...]) -> [... (X Y)], or [...] without (X Y) if Y is U cuz all missing vals are viewed as U. This is the GET that K? and KK? and K?C use internally. Use this with BtflGet.');
-		vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
-		vm.addOp('K=',null,false,3,'(K= Key Val [...]) -> [... (K= Key Val)], just appends a key/val pair to the end of the list');
-		vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
-		vm.addOp('K=C',null,false,3,'(K=C Key Cbt [...]) -> [... (K=C Key Cbt)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
-		vm.addOp('KK?',null,false,3,'(KK? Ob Key [... (OK= Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
-		vm.addOp('KK=',null,false,4,'(KK= Ob Key Val [...]) -> [... (KK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
+		vm.addOp('K?',null,false,2,'(K? Key [... (KE Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
+		vm.addOp('KE',null,false,3,'(KE Key Val [...]) -> [... (KE Key Val)], just appends a key/val pair to the end of the list');
+		vm.addOp('K?C',null,false,2,'(K?C Key [... (KEC Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
+		vm.addOp('KEC',null,false,3,'(KEC Key Cbt [...]) -> [... (KEC Key Cbt)], just appends a key and its val as cbt (C) to the end of the list, separately from KE and K? vals');
+		vm.addOp('KK?',null,false,3,'(KK? Ob Key [... (OKE Ob Key Val) ...]) -> Val, whichever is the last ObVal of that Ob and Key');
+		vm.addOp('KKE',null,false,4,'(KKE Ob Key Val [...]) -> [... (KKE Ob Key Val)], just appends an ob/key/val triple to the end of the list');
 		*/
 		
 		
-		//TODO opcodes for read and write cbt, similar to K? and K= (which are for fn in general) but specific to cbt as an optimization,
+		//TODO opcodes for read and write cbt, similar to K? and KE (which are for fn in general) but specific to cbt as an optimization,
 		//and opcodes for reading and writing inside a cbt at a size 1, 8, 16, 32, or 64 in it, such as reading or writing a double,
 		//especiall in a vm.Mut (which is an optimization of a [...] stateless state). A Mut has a js map/{} of string to Mut and a Float64Array, Uint8Array, etc, that share the same buffer,
 		//but those are details to work out... TODO.
-		//Replace this with K=: vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
-		//Replace this with OK=: vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
+		//Replace this with KE: vm.addOp('ObVal',null,false,2,'used with opmut and _[...] etc.');
+		//Replace this with OKE: vm.addOp('ObKeyVal',null,false,3,'used with opmut and _[...] etc.');
 		//Replace this with C=: vm.addOp('ObCbt',null,false,2,'used with opmut and _[...] etc.');
 
 		//vm.addOp('Mut',null,false,6,'Used with opmut* and lambdaParams*. This is a snapshot of a key/fourVals, normally used in a [...] stream/Infcur. (Mut cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped) is halted, and add 1 more param and it infloops). FIXME should Mut be a little varargAx-like as it could verify its params are those types (but unlike varargAx, guarantees it verifies fast)?');
@@ -6446,13 +6462,14 @@ const Wikibinator203 = (()=>{
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify');
 		*/
 		
-		vm.addOp('+',null,false,2,'[+ 2 3]->5 (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
+		vm.addOp('+',null,false,2,'(+ 2 3)->5. (+[I I *[,5 I]] ,10) -> 70. OLD... (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
 		vm.addOp('*',null,false,2,'[* 2 3]->6 (3*2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or *(X Y Z)State -> * of {Z State}, {Y State}, and {X State}, for vararg in (...)/infcurList. See + for details on doubles in general. (((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList)))');
-		vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
+		//vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
+		vm.addOp('Mi',null,false,2,'double minus double. See + for details on doubles in general.');
 		vm.addOp('%',null,false,2,'double mod double. See + for details on doubles in general.');
 		vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.');
 		vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.');
-		vm.addOp('--',null,false,2,'--(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.');
+		vm.addOp('Mii',null,false,2,'Minus minus. Mii(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.');
 		vm.addOp('**',null,false,2,'[** 2 10]->1024. See + for details on doubles in general.');
 		vm.addOp('&',null,false,2,'double & double (cast both to int32 first, &, then back to double). See + for details on doubles in general.');
 		vm.addOp('|',null,false,2,'double | double (cast both to int32 first, |, then back to double). See + for details on doubles in general.');
@@ -6513,6 +6530,9 @@ const Wikibinator203 = (()=>{
 		vm.addOp('EmulateUsingInt32s',null,false,1,'There are some float32 and float64/double opcodes. These are well defined across multiple languages, at least what is most common for rounding behaviors etc (see IEEE754 but thats still a little vague), like a*b or a+b or 1/b or a/b or Math.sin(a) or Math.exp(a))... Use (EmulateUsingInt32s SomeOpcode) to get a definition of it (callable as a lambda the same way) that is always deterministic, made of int AND int, int XOR int, int shiftleft int, int multiply int, etc... the kinds of ops that are found in most hardware, though GPU.js compiling to GLSL shaders can only handle i think int16 or (nondeterministicly) float32, or it might be int24. EmulateUsingInt32s will be how to operate the strictest mode of wikibinator203, which must be completely deterministic so it syncs at the "cellular automata speed of light" in the real world. Even the int32 ops would be derived from S T Pair and other simple lambdas, but TODO should that be returned somewhere (could just derive it at runtime instead of making opcodes for it, since its mostly a math abstraction rarely used literally.');
 		vm.addOp('EmulateUsingInt16s',null,false,1,'like EmulateUsingInt32s but using int16 ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32.');
 		vm.addOp('EmulateUsingInt8s',null,false,1,'like EmulateUsingInt32s and EmulateUsingInt16s but using byte ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32, AND if you want those 16 (or it might go up to int24) bits to multiply or add 2 int8s in etc, or maybe that would work in int16s.');
+		
+		vm.addOp('Car',null,false,2,'(LisplikeEval -,Car ,-,Cons .x .y== TreemapAsState). Should the inner -...= be prefixed by , ? OLD... -Car -Cons .x .y= TreemapAsState= returns (.x TreemapAsState) aka (TreemapAsState x). FIXME im not sure which should be dynamic and which should be quoted, such as should it be -.car -.cons .x .y= TreemapAsState= ? Or -car -cons x y= TreemapAsState= ? And should it need a separate LisplikeEval func (derive it using lambda opcode?)? FIXME the TreemapAsState must be called by (...). All lisplike funcs will take exactly 2 params: their params as a -...= linkedlist AND TreemapAsState. Could do it as everything is dynamic, so put T/, prefix to quote. (LisplikeEval -,Car -,Cons .x .y== TreemapAsState)');
+		vm.addOp('Cdr',null,false,2,'See Car.');
 		
 		
 		//removed, replaced by the Lambda op and MutLam op: vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? UPDATE: that syntax puts the #Name on the left instead of the right, but no syntax is part of the spec, and all possible syntaxes can be made from the universal lambda.');
@@ -7099,24 +7119,24 @@ const Wikibinator203 = (()=>{
 						ret = vm.bit(x.n.d()>=y.n.d());
 					break;case o['K?']:{
 						
-						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (K= Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (K= Key)).');
-						let key = vm.ops['K='](x);
+						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
+						let key = vm.ops['KE'](x);
 						let map = z;
 						ret = map(key);
 						
 						
 						/*
-						//vm.addOp('K?',null,false,2,'(K? Key [... (K= Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
-						//(K? a [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> bb
-						//(K? d [(K= a b) (K= d vald) (K= a c) (K= a bb)]) -> vald
+						//vm.addOp('K?',null,false,2,'(K? Key [... (KE Key Val) ...]) -> Val, whichever is the last ObVal of that Key');
+						//(K? a [(KE a b) (KE d vald) (KE a c) (KE a bb)]) -> bb
+						//(K? d [(KE a b) (KE d vald) (KE a c) (KE a bb)]) -> vald
 						let key = y;
 						let stream = z;
-						let search = vm.ops['K='](key);
+						let search = vm.ops['KE'](key);
 						ret = U; //in case not found
 						while(stream.n.hasMoreThan7Params()){
-							let item = stream.n.r; //item in the stream such as (K= Key Val)
+							let item = stream.n.r; //item in the stream such as (KE Key Val)
 							if(item.n.l === search){
-								ret = item.n.r; //Val in [... (K= Key Val) ...]
+								ret = item.n.r; //Val in [... (KE Key Val) ...]
 								break;
 							}
 							stream = stream.n.l;
@@ -7130,32 +7150,32 @@ const Wikibinator203 = (()=>{
 						
 					//}break;case o['OK?']:
 					}break;case o['KK?']:
-						//vm.addOp('KK?',null,false,3,'(KK= KeyA KeyB Map) -> val of (K= KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KK= KeyA KeyB)).');
+						//vm.addOp('KK?',null,false,3,'(KKE KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
 						
 						
-						let key = vm.ops['KK='](x)(y); //x is KeyA. y is KeyB.
+						let key = vm.ops['KKE'](x)(y); //x is KeyA. y is KeyB.
 						let map = z;
 						ret = map(key); //get val of (K
 						
-					break;case o['K=']:{
-						//vm.addOp('K=',null,false,3,'(K= Key Val Map) -> forkEdited map with (K= Key) mapped to Val.');
+					break;case o['KE']:{
+						//vm.addOp('KE',null,false,3,'(KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
 						
-						let key = l.n.L(); //(K= Key)
+						let key = l.n.L(); //(KE Key)
 						let val = l.n.R(); //Val
 						let map = z;
 						//ret = vm.ops.TreemapPut(key)(val)(map);
 						ret = vm.put(key,val,map);
 						
 						
-					//}break;case o['OK=']:
-					}break;case o['KK=']:
-						//vm.addOp('OK=',null,false,4,'(OK= Ob Key Val [...]) -> [... (OK= Ob Key Val)], just appends an ob/key/val triple to the end of the list');
+					//}break;case o['OKE']:
+					}break;case o['KKE']:
+						//vm.addOp('OKE',null,false,4,'(OKE Ob Key Val [...]) -> [... (OKE Ob Key Val)], just appends an ob/key/val triple to the end of the list');
 						throw 'TODO';
-					break;case o['K=C']:
-						//vm.addOp('K=C',null,false,3,'(K=C Key C [...]) -> [... (K=C Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from K= and K? vals');
+					break;case o['KEC']:
+						//vm.addOp('KEC',null,false,3,'(KEC Key C [...]) -> [... (KEC Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from KE and K? vals');
 						throw 'TODO';
 					break;case o['K?C']:
-						//vm.addOp('K?C',null,false,2,'(K?C Key [... (K=C Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
+						//vm.addOp('K?C',null,false,2,'(K?C Key [... (KEC Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
 						throw 'TODO';
 					break;case o.While:{
 						let condition = x;
@@ -7211,8 +7231,8 @@ const Wikibinator203 = (()=>{
 						let varName = c; //var names are normally utf8 strings but can be any lambda
 						//let varName_asKey = vm.ops.FIXME FIXME;
 						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
-						//let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
-						let varName_asKey = vm.ops['K='](varName); //Example: (K= i) being set to (double)0 or 1 or 2 or 3...
+						//let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
+						let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
 						
 						//let start = 0;
 						let endExcl = x.n.d(); //UpTo as double/float64
@@ -9737,7 +9757,7 @@ const Wikibinator203 = (()=>{
 			vm.verifyTokensListHasNoDuplicateNames(tok);
 			
 			/*let fromTok = tok[parsing.from]; //Examples: ( { [ < hello 'hello world' 3.45 , _
-			if(fromTok === undefined) throw 'parsing, frokTok===undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
+			if(fromTok === undefined) throw 'parsing, frokToKE==undefined. This might happen if parser is broken (are you changing the syntax by modifying a parser? If so, you should do that at user level, lambdas that make lambdas, but just needed 1 syntax to boot that process.). Or maybe the code isnt valid wikibinator203 code.';
 			console.log('PARSING====fromTok='+fromTok);
 			*
 			parsing.toExcl = parsing.from+1;
