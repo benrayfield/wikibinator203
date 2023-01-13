@@ -6574,6 +6574,32 @@ window.onload = ()=>{
 			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
+			<div>
+			wikib treeui fix the cant drop at same place to and from, by 2 dragsteps per splate. no, do in uistate 2 splats.
+no, instead... xllrlr_xpos_ypos is coordinate. put 2 of those and some button stuff and highlight stuff in uistate, and onsolete those parts of splate.
+<br><br>
+Do all of these as vm.ops.Treemap etc, including wrappers of byte[].<br>
+* small circle icon for FROM or wouldFroim.<br>
+* small circle icon for TO or wouldTo.<br>
+* dragLine.<br>
+* outer border rect drag FROM.<br>
+* inner border rect drag TO.<br>
+* border of rect just BEFORE the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* border of rect just dropped, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* border of rect just AFTER the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* treemap of gamepads, keyboard buttons, mouse position, etc, but only those parts whose value is nonzero at the time. Values are double.<br>
+* treemap of sound channels in, in blocks of time or func of time to amplitude or something like that.<br>
+* treemap of video in (webcams)<br>
+* treemap of video out (canvases) as func that returns pixel bytes when called on something (or just the literal bytes?)<br>
+* todo should the password and mutableWrapperLambda incoming stuff be part of this? Might need a private area (make sure not to share these parts accidentally as cache etc)? Incoming and outgoing messages are not private (cuz its WIKIbinator), but password is, so if u want privacy u have to derive an encryption lambda.<br>
+* listweb-like treemap, for PrilistStacks (see those in the java version of listweb), but fns are the names.<br>
+..<br>
+**** Do I want a syntax andOr treeUI thing for treemaps? Maybe later, but im gonna get some or all of the aboive stuff working first. Treemap is already designed to be human readable, just not human editable directly. Its keys are in sorted order, and key/val always go together. But it doesnt yet display or maybe not even allow big blobs yet. ive been using them only up to how big an id can be but past that, it seems to have some bugs if I remember correctly.
+<br><br>
+XLLRLRL (to select which rect) and y and x fractions (where in it, or negative or above 1 for outside it but in its same coords), for each of FROM and TO and any other 2d points in tree coordinates. Borders dont need the x and y, or the x and y are always 0 or 1.
+<br><br>
+Hook in gamepads, mouse, and keyboard too. But is now a good time for that? Its part of input, and seems to fit well with this design, so YES. Also, byte arrays for microphone and webcam, and maybe also outputs for speakers and a separate canvas (not in the tree)? These could all go in either uiState or a new useAsImmutable datastruct of jsMaps. Just make {}s that have __bigHash var in them? {bigHash_: null, vars: {}, ...} or something like that? Or I could use a vm.ops.Treemap which can wrap byte arrays etc. Why not use that? Is it fast enuf? YES.
+			</div>
 			<h1>
 				TODO [] is Infcur. -= is Rucfni (infcur spelled backward). Make lisp-like syntax like -car -cons a b== or maybe it should be .car .cons .a .b or maybe the .thing aka get var thing from Treemap (stateless) state (second param, first is linkedlist of params).<br>
 				FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.

@@ -6128,9 +6128,15 @@ const Wikibinator203 = (()=>{
 		
 		//vm.addOp('MatmulInt16',null,false,5,'(MatmulInt16 SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of int16s. Returns a cbt. This is a place to hook in GPU optimization.');
 		
+		/*
 		vm.addOp('MatmulF',null,false,5,'(MatmulF SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of float32s. Returns a cbt. This is a place to hook in GPU optimization, though its not general enough for everything GPU does. Check isAllowSinTanhSqrtRoundoffEtc.');
 		
+		vm.addOp('MatmulFAsD',null,false,5,'Same as MatmulF except uses D/Float64 calculations in the middle');
+		
+		vm.addOp('MatmulFAsDIn32x32x32',null,false,5,'TODO...');
+		
 		vm.addOp('MatmulD',null,false,5,'(MatmulD SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of float64s. Returns a cbt. This is a place to hook in GPU optimization or might have to do it in CPU or do it as int math etc if for example in WebGL it only supports float32 but not float64 or maybe supports float64 during the multiply of 2 float32s then stores it as float64. Check isAllowSinTanhSqrtRoundoffEtc.');
+		*/
 		
 		
 		

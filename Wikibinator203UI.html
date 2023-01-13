@@ -1,0 +1,30 @@
+<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<script src="Wikibinator203VM.js" charset="UTF-8"></script>
+<script src="Wikibinator203UI.js" charset="UTF-8"></script>
+<script>
+
+const wui = Wikibinator203UI;
+const U = Wikibinator203;
+const vm = Wikibinator203.n.vm; //anyWikibinator203Lambda.n is its vm.Node instance, wrapped in a lambda by vm.lambdize(node)
+var wuiRootDob;
+
+var makeFirstState = ()=>{
+	return U;
+};
+
+window.onload = ()=>{
+	wui.Dob('displayWuiBasics').innerHTML = 'displayWuiBasics: '+JSON.stringify(wui);
+	wuiRootDob = wui.Dob('wuiRootDob');
+	let firstState = makeFirstState();
+	
+};
+
+</script>
+<body>
+<div id=wuiRootDob></div>
+<br><br>
+TODO use Wikibinator203 and Wikibinator203UI, which are 2 vars that the 2 scripts created.
+<div id=displayWuiBasics></div>
+	
+</body></html>
