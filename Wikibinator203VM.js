@@ -4858,9 +4858,56 @@ const Wikibinator203 = (()=>{
 		};
 		
 		//does a treemap have a given key? returns true/false (not T/F).
-		vm.has = (key,map)=>{
+		vm.has = (getKey,map)=>{
 			if(!map.n.isNonemptyTree()) return false;
-			throw 'TODO';
+			let comparator = map.n.treeComparator();
+			let key = map.n.treeKey(); //(Treemap comparator leftTree key val rightTree)
+			let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+			if(compared===T){ //getKey < key
+				//ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
+				return vm.has(key, map.n.leftTree());
+			}else{ //key <= getKey
+				if(getKey.n.eq(key)){ //getKey equals key
+					//ret = val;
+					return true;
+				}else{ //key < getKey
+					//ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+					return vm.has(key, map.n.rightTree());
+				}
+			}
+			
+			/*break;case o.Treemap:{
+			//vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
+			//(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)
+			let comparator = a;
+			let leftTreemap = b;
+			let key = c;
+			let val = x;
+			let rightTreemap = y;
+			let getKey = z;
+			//FIXME what should this return? T or F? Or 3 possible vals: [T F], [F F], [F T] for less eq right?
+			//Or should it be T, I (identityfunc aka (F U), or F?
+			
+			/*
+			if(key.eq(getKey)){ //check if it equals key here first, so theres less calls of the comparator which costs more than equals???
+				ret = val;
+			}else{
+				let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+				let child = vm.bit(compared) ? leftChild : rightChild; //FIXME is this backward?
+				ret = child(getKey);
+			}*
+			
+			let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+			if(compared===T){ //getKey < key
+				ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
+			}else{ //key <= getKey
+				if(getKey.n.eq(key)){ //getKey equals key
+					ret = val;
+				}else{ //key < getKey
+					ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+				}
+			}
+			*/
 		};
 		
 		/*
@@ -6088,7 +6135,10 @@ const Wikibinator203 = (()=>{
 		vm.addOp('DoAvlBal',null,false,1,'(DoAvlBal (Treemap ...)) -> forkEdited treemap with max difference of AvlHeight between any 2 avl childs (of same Treemap parent) being 1. Avl balance is supposed to be -1, 0, or 1 at each node. Each node is a Treemap or EmptyTreemap. An EmptyTreemap is always balanced.');
 		vm.addOp('AvlHeightD',null,false,1,'(AvlHeightD (Treemap_or_EmptyTreemap ...)) -> a double, such as (TypevalC application/x-IEEE754-double 0x0000000000000000) aka 0. Since double only does integers up to pow(2,53), this must infinite loop ({I I}{I I}) if avlHeight >= pow(2,53).');
 		vm.addOp('PutNoBal',null,false,3,'TreemapPutNoBal renamed to PutNoBal. (PutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.');
-		vm.addOp('TreemapPut',null,false,3,'(TreemapPut key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)');
+		
+		//renaming TreemapPut to Put.
+		vm.addOp('Put',null,false,3,'(Put key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)');
+		
 		vm.addOp('Del',null,false,2,'(Del Key (Treemap ...)) -> forkEdited treemap/emptytreemap with that key/val gone, balanced as if by DoAvlBal after removing it, even if as an optimization thats done at the same time.');
 		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.');
 		vm.addOp('GodelLessThan', null, false, 2, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.');
@@ -6137,6 +6187,17 @@ const Wikibinator203 = (()=>{
 		
 		vm.addOp('MatmulD',null,false,5,'(MatmulD SizeA SizeB SizeC CbtAB CbtBC) -> AC of size (* SizeA SizeC). Sizes are in units of float64s. Returns a cbt. This is a place to hook in GPU optimization or might have to do it in CPU or do it as int math etc if for example in WebGL it only supports float32 but not float64 or maybe supports float64 during the multiply of 2 float32s then stores it as float64. Check isAllowSinTanhSqrtRoundoffEtc.');
 		*/
+		
+		
+		//excluding VarargAx and Hyper* opcodes (which may take infinity cycles to verify),
+		//would the given 2 params f p, called on eachother (f p), halt/returnSomething 
+		//WouldBeInstantlyHalted
+		//nevermind, just use Cur to get number of curries until it evals next.
+		
+		
+		
+		
+		
 		
 		
 		
@@ -6418,12 +6479,12 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		
-		
+		vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map');
+		vm.addOp('DE',null,false,3,'Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.');
 		vm.addOp('KE',null,false,3,'(KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
 		vm.addOp('KKE',null,false,4,'(KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.');
-		vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
-		vm.addOp('KK?',null,false,3,'(K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
+		vm.addOp('K?',null,false,2,'TODO rename K? to K, and rename KK? to KK. (K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
+		vm.addOp('KK?',null,false,3,'TODO rename K? to K, and rename KK? to KK. (K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
 		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map');
 		/*
 		//
@@ -6469,7 +6530,7 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		vm.addOp('+',null,false,2,'(+ 2 3)->5. (+[I I *[,5 I]] ,10) -> 70. OLD... (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)');
-		vm.addOp('*',null,false,2,'[* 2 3]->6 (3*2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or *(X Y Z)State -> * of {Z State}, {Y State}, and {X State}, for vararg in (...)/infcurList. See + for details on doubles in general. (((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList)))');
+		vm.addOp('*',null,false,2,'(* 2 3)->6 (3*2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or *[X Y Z]State -> * of {Z State}, {Y State}, and {X State}, for vararg in (...)/infcurList. See + for details on doubles in general. (((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList)))');
 		//vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
 		vm.addOp('Mi',null,false,2,'double minus double. See + for details on doubles in general.');
 		vm.addOp('%',null,false,2,'double mod double. See + for details on doubles in general.');
@@ -7031,7 +7092,7 @@ const Wikibinator203 = (()=>{
 						//vm.isSameOpAndNumParams = (fn, op, numParams)=>(fn.n.o8()===op.n.o8() && numParams===(op.n.cur()-7));
 						ret = vm.wrapDouble(z.n.treemapHeight());
 						throw 'TODO';
-					}break;case o.TreemapPut:{
+					}break;case o.Put:{
 						ret = vm.put(x,y,z); //key, val, map.
 						//map(key) is how to get value of that key from the map. Returns U if doesnt contain that. Can check if it has a key/val with TreemapHas.
 					}break;case o.Del:{
@@ -7126,7 +7187,7 @@ const Wikibinator203 = (()=>{
 					break;case o['K?']:{
 						
 						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
-						let key = vm.ops['KE'](x);
+						let key = vm.ops.KE(y);
 						let map = z;
 						ret = map(key);
 						
@@ -7183,7 +7244,16 @@ const Wikibinator203 = (()=>{
 					break;case o['K?C']:
 						//vm.addOp('K?C',null,false,2,'(K?C Key [... (KEC Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
 						throw 'TODO';
-					break;case o.While:{
+					break;case o.D:{ //get Double value, as value of (DE key). counterpart of DE. Similar to vm.ops['K?'] which im thinking of renaming to just K.
+						let key = vm.ops.DE(y);
+						let map = z;
+						ret = map(key).n.d(); //get double
+					}break;case o.DE:{ //set Double Equal to a val. Similar to KE.
+						let key = l.n.L(); //(DE Key)
+						let val = l.n.R().n.d(); //Val. d() gets double.
+						let map = z;
+						ret = vm.put(key,val,map);
+					}break;case o.While:{
 						let condition = x;
 						let loopBody = y;
 						let state = z;
@@ -7231,6 +7301,8 @@ const Wikibinator203 = (()=>{
 						//FIXME using Treemap/EmptyTreemap opcodes instead of btfl...
 						
 						//(Fo varName LoopSize LoopBody State)
+						// Fo c       x        y        z
+						
 						//loops varName from (double)0 to (double)LoopSize-1
 						//adjusting that in State (a btfl) then loopBody becomes loopBody(State),
 						//and at end, restores varName to whatever it was before (in State) and returns last State.
@@ -7238,7 +7310,10 @@ const Wikibinator203 = (()=>{
 						//let varName_asKey = vm.ops.FIXME FIXME;
 						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
 						//let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
-						let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
+						
+						//KE means Key Equal, set that key equal to a given value in a given treemap. Similar to KKE which has 2 keys.
+						//K? and KK? gets what that puts. Maybe should just call those K and KK.
+						let varName_asKey = vm.ops.KE(varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
 						
 						//let start = 0;
 						let endExcl = x.n.d(); //UpTo as double/float64
@@ -7248,25 +7323,30 @@ const Wikibinator203 = (()=>{
 						//sorted first by 256 or 512 bit id (of lambda) and breaking ties (hash collisions) by GodelLessThan.
 						//In that treemap are normally things like (? hello world), (?? object key value),
 						//or (?C catPic463 (TypevalB application/jpeg <...bytes of jpg pic of a cat...>)).
-						let state = z;
+						let state = z; //Example: (EmptyTreemap GodelLessThan), but you probably want to use an idMaker where GodelLessThan only breaks ties.
 						
 						//let prevVarVal = vm.btflGet(state, varName_asKey);
 						let prevVarVal = state(varName_asKey); //returns U if its mapped to U or if it has no such key/val.
-						let hadPrevVal = prevVarVal!==U || vm.has(varName_asKey,state);
-						let putThatVar = vm.ops.TreemapPut(varName_asKey);
+						let hadPrevVal = prevVarVal!==U || vm.has(varName_asKey,state); //val of U means either its not there or it maps to U.
+						//Dont need this cuz varName_asKey is already the putter of itself. let putThatVar = vm.ops.Put(varName_asKey);
 						for(let val=0; val<endExcl; val++){
 							//ignore possible changes of varName's val by loopBody.
 							
 							//OLD, cuz using avl treemap instead of btfl for loops/if/else/etc state: state = vm.btflPut(state, varName_asKey(val));
 							//FIXME... state = (val)(state)
-							state = putThatVar(val)(state);
+							//state = putThatVar(val)(state);
+							
+							//(KE key val map) -> forkEdited map with (KE key) mapped to val. varName_asKey is (KE key).
+							//(KE x) is a putter of x.
+							state = varName_asKey(val)(state);
 							
 							
 							state = loopBody(state);
 						}
 						//restore val of varName to what it was before this loop, even if loop changed it.
 						if(hadPrevVal){
-							state = putThatVar(prevVarVal)(state); //FIXME what if val was 0
+							//state = putThatVar(prevVarVal)(state); //FIXME what if val was 0
+							state = varName_asKey(prevVarVal)(state); //FIXME what if val was 0
 						}else{
 							state = vm.del(varName_asKey,state); //remove key/val.
 						}
@@ -10702,6 +10782,19 @@ const Wikibinator203 = (()=>{
 		vm.test('{,a b c d} becomes <a b c d>', vm.eval('{,a b c d}')+'', '<a b c d>');
 		
 		vm.test('(<+ <* I#(F U) I> ,3> 10)', vm.eval('(<+ <* I#(F U) I> ,3> 10)'), '103');
+		
+		vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
+			'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))');
+			
+		vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 5 is (Fo y 5 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (EmptyTreemap GodelLessThan) (DE x))]')+'', '[the number of unique binary trees at most height 5 is 677]');
+			
+		/*[TheLoop#<Fo ,y ,20 <KE ,x <+ <K? ,x> ,100>>>
+		(KE x 333 (EmptyTreemap GodelLessThan))
+		(TheLoop U (EmptyTreemap GodelLessThan))
+		yo yo
+		(TheLoop U (KE x 333 (EmptyTreemap GodelLessThan)))
+		]
+		*/
 		
 		vm.extraTests = [];
 		

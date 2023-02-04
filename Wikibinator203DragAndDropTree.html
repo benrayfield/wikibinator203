@@ -490,11 +490,17 @@ var dragLineFromYXToYX = ()=>{
 	if(wouldfromOrFrom && wouldtoOrTo){
 		let dobFrom = wouldfromOrFrom.dobs.self;
 		let dobTo = wouldtoOrTo.dobs.self;
-		return [ //drag line
+		/*return [ //drag line
 			dobY(dobFrom)+dobHeight(dobFrom)*wouldfromOrFrom.splate().looseIconYFraction, //fromY
 			dobX(dobFrom)+dobWidth(dobFrom)*wouldfromOrFrom.splate().looseIconXFraction, //fromX
 			dobY(dobTo)+dobHeight(dobTo)*wouldtoOrTo.splate().looseIconYFraction, //toY
 			dobX(dobTo)+dobWidth(dobTo)*wouldtoOrTo.splate().looseIconXFraction //toX
+		];*/
+		return [ //drag line
+			dobY(dobFrom)+dobHeight(dobFrom)*uiState.from.looseIconYFraction, //fromY
+			dobX(dobFrom)+dobWidth(dobFrom)*uiState.from.looseIconXFraction, //fromX
+			dobY(dobTo)+dobHeight(dobTo)*uiState.to.looseIconYFraction, //toY
+			dobX(dobTo)+dobWidth(dobTo)*uiState.to.looseIconXFraction //toX
 		];
 	}else{
 		return null; //dont display drag line
@@ -588,196 +594,7 @@ var Splat = function(parentSplatOrNull, selfDob){
 	};
 	
 	
-	const ThisSplat = this;
-	
-	selfDob.addEventListener(
-		'mousemove',
-		this.eventListenerMouseMove = function(event){
-			//requestAnimationFrame(()=>{
-				onDomEvent(event);
-				event.stopPropagation();
-				//if(uiState.isDoingMouseUp){
-				//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
-				//	return;
-				//}
-				controls.mouseY = event.pageY;
-				controls.mouseX = event.pageX;
-				
-				runScheduledFuncs();
-				
-				let isPopupDragButtonDown = controls[popupDragButton];
-				let isMetaInsertDragButtonDown = controls[metaInsertButton];
-				
-				//TODO use options.doMainDragging
-				if(options.basicTestOfLooseIconWhenMouseMoves){
-					//FIXME unset this in anything not currently dragging FROM or TO
-					//(so at most should be 2 splats with this true in the main/rootSplat tree excluding Action/thirdchilds if those are even used)
-					//let isDisplayIcon = true;
-					let isDisplayIcon = ThisSplat.splate().isDisplayIcon;
-					//let isDisplayIcon = false;
-					let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
-					let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
-					if(options.logMouseEvents) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
-					ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
-					if(options.logMouseEvents) console.log('mousemove did transformSplate with new icon position etc');
-					
-					//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
-					//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
-				}
-				
-				
-				if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
-				//event.stopPropagation();
-				if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
-					//ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
-					ThisSplat.forkRoot_setColor();
-				}
-				//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
-				if(options.fillDropDobWithTestWhenNearestToMouse){
-					//let dob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
-					let splatdob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
-					//dob.innerHTML = 'DROP'+Date.now();
-					if(splatdob){
-						//splatdob.splat.dobs[splatdob.dobName].innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
-						//splatdob.dob().innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
-						let txt = splatdob.dobName;
-						txt = Math.random()<.5 ? txt.toUpperCase() : txt.toLowerCase();
-						splatdob.dob().innerHTML = txt;
-					}
-				}
-				
-				if(options.doMainDragging){
-					if(isPopupCircularMenu()){
-						//console.log('mousemove isPopupCircularMenu (TODO)');
-						updateOverlays();
-					}else{
-						
-						//FIXME if doing the metaInsert kind of drag, set this to 0 or 1 (which side always does self, not parent?).
-						let verticalFractionBetweenSelfVsParent = options.fractionRecurse;
-						if(uiState.lastMouseButtonDown == metaInsertButton){
-							//0 is parent. 1 is self. .5 is height chooses at mid height in rect.
-							//FIXME should this be 0 or 1? want parent, i think, but need experiments... No, I'm changing it to want self (not parent) and will choose parent or not etc from there.
-							//verticalFractionBetweenSelfVsParent = 0; //parent
-							verticalFractionBetweenSelfVsParent = 1; //self
-						}
-						
-						//if(isPopupDragButtonDown){
-						if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
-							//ThisSplat.doDuringDrag(
-							//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-							let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
-							if(splatfyfx){
-								splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
-							}else{
-								console.log('screenYXToSplatfyfx returned null so cant doDuringDrag');
-							}
-							//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
-						}else{
-							//FIXME this is happening after release mouse button, as if drag hadnt just happened.
-							//ThisSplat.doBeforeDrag(
-							//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-							let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
-							if(splatfyfx){
-								splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
-							}else{
-								console.log('screenYXToSplatfyfx returned null so cant doBeforeDrag');
-							}
-							//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
-						}
-					}
-				}
-			//});
-			
-			if(uiState.lastMouseButtonDown){ //is doing a drag, and this button is or was down
-				if(!event.buttons){ //no mouse buttons are down
-					console.log('mousemove is doing a mouseup just in case that event was dropped, event.buttons='+event.buttons+' and lastMouseButtonDown='+uiState.lastMouseButtonDown+' Its ok if both happen cuz it will ignore later calls of it until another mousedown.');
-					globalOnMouseUp(null); //call with no event. it will use uiState.lastMouseButtonDown instead.
-					if(uiState.lastMouseButtonDown) throw 'in mousemove, globalOnMouseUp didnt unset lastMouseButtonDown';
-				}
-			}
-		}
-	);
-	
-	selfDob.addEventListener(
-		'mousedown',
-		this.eventListenerMouseDown = function(event){
-			//requestAnimationFrame(()=>{
-				onDomEvent(event);
-				event.stopPropagation();
-				//if(uiState.isDoingMouseUp){
-				//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
-				//	return;
-				//}
-				document.body.style.backgroundColor = '#ccc'; //FIXME remove this
-				//console.log('mousedown '+ThisSplat);
-				//event.stopPropagation();
-				uiState.removeClickCircMenuAsap = false;
-				let btn = eventToButtonName(event); //FIXME can be multiple buttons, see event.buttons and event.which
-				if(options.logMouseEvents) console.log('mousedown '+btn);
-				controls[uiState.lastMouseButtonDown = btn] = 1;
-				//if(btn == 'mouseLeftButton'){
-				//if(btn == metaInsertButton){
-					/* This was clickCircMenu, but thats being merged into dropCircMenu (put that on right mouse button)
-					then make a new kind of drag and drop (metaInsert) on left mouse button.
-					
-					//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
-					//doClickCircMenu();
-					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-					console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
-					if(splatfyfx){
-							splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
-					}else{
-							console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-					}*/
-					//console.log('TODO mouseLeftButton');
-				//}else if(btn == popupDragButton){
-				if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
-					if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-						setSelSplat(ThisSplat);
-					}
-					if(options.doMainDragging){
-						if(options.logMouseEvents) console.log('for dropcirc, mousedown doMainDragging');
-						//ThisSplat.doStartDrag(
-						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-						if(splatfyfx){
-							splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
-						}else{
-							if(options.logMouseEvents) console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-						}
-						//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
-					}
-				}
-				/*if(btn == 'mouseLeftButton'){
-					if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
-						setSelSplat(ThisSplat);
-					}
-					if(options.doMainDragging){
-						console.log('for dropcirc, mousedown doMainDragging');
-						//ThisSplat.doStartDrag(
-						//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
-						let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-						if(splatfyfx){
-							splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
-						}else{
-							console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-						}
-						//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
-					}
-				}else if(btn == 'mouseRightButton'){
-					//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
-					//doClickCircMenu();
-					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
-					console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
-					if(splatfyfx){
-							splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
-					}else{
-							console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
-					}
-				}*/
-			//});
-		}
-	);
+	//const ThisSplat = this;	
 	
 	/*selfDob.addEventListener(
 		'mouseup',
@@ -790,6 +607,89 @@ var Splat = function(parentSplatOrNull, selfDob){
 	
 	this.createDobsIfNotExist(); //other than selfDob which is given
 
+};
+
+var globalOnMouseDown = function(event){
+	//requestAnimationFrame(()=>{
+	
+		controls.mouseY = event.pageY;
+		controls.mouseX = event.pageX;
+		const ThisSplat = splatAtYX(controls.mouseY,controls.mouseX); //so this function is not specific to a splat and can move it to rootDob.
+		
+		onDomEvent(event);
+		event.stopPropagation();
+		//if(uiState.isDoingMouseUp){
+		//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+		//	return;
+		//}
+		document.body.style.backgroundColor = '#ccc'; //FIXME remove this
+		//console.log('mousedown '+ThisSplat);
+		//event.stopPropagation();
+		uiState.removeClickCircMenuAsap = false;
+		let btn = eventToButtonName(event); //FIXME can be multiple buttons, see event.buttons and event.which
+		if(options.logMouseEvents) console.log('mousedown '+btn);
+		controls[uiState.lastMouseButtonDown = btn] = 1;
+		//if(btn == 'mouseLeftButton'){
+		//if(btn == metaInsertButton){
+			/* This was clickCircMenu, but thats being merged into dropCircMenu (put that on right mouse button)
+			then make a new kind of drag and drop (metaInsert) on left mouse button.
+			
+			//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+			//doClickCircMenu();
+			let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+			console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+			if(splatfyfx){
+					splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+			}else{
+					console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+			}*/
+			//console.log('TODO mouseLeftButton');
+		//}else if(btn == popupDragButton){
+		if(btn == popupDragButton || btn == metaInsertButton){ //both of these should start a drag, but different ways of ending it.
+			if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+				setSelSplat(ThisSplat);
+			}
+			if(options.doMainDragging){
+				if(options.logMouseEvents) console.log('for dropcirc, mousedown doMainDragging');
+				//ThisSplat.doStartDrag(
+				//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+				if(splatfyfx){
+					splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+				}else{
+					if(options.logMouseEvents) console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+				}
+				//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+			}
+		}
+		/*if(btn == 'mouseLeftButton'){
+			if(options.simple_setSelSplat_ofWhateverDobMouseTouches){
+				setSelSplat(ThisSplat);
+			}
+			if(options.doMainDragging){
+				console.log('for dropcirc, mousedown doMainDragging');
+				//ThisSplat.doStartDrag(
+				//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+				let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+				if(splatfyfx){
+					splatfyfx.splat.doStartDrag(splatfyfx.fy, splatfyfx.fx);
+				}else{
+					console.log('for dropcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+				}
+				//console.log('after doStartDrag from='+findSplatWithDragStep('from'));
+			}
+		}else if(btn == 'mouseRightButton'){
+			//doDropCircMenu(); //2022-12-17 i'm trying to use doDropCircMenu for both the clickCircMenu and the dropCircMenu so todo rename this func
+			//doClickCircMenu();
+			let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
+			console.log('clickcirctest mouseRightButton splatfyfx='+splatfyfx);
+			if(splatfyfx){
+					splatfyfx.splat.doStartClickCirc(splatfyfx.fy, splatfyfx.fx);
+			}else{
+					console.log('for clickcirc, screenYXToSplatfyfx returned null so cant doStartDrag');
+			}
+		}*/
+	//});
 };
 
 //allow event to be null, to use controls.mouseLeftButton and controls.mouseRightButton (each being 0 or 1) etc,
@@ -864,6 +764,126 @@ var globalOnMouseUp = function(event){
 		//	uiState.isDoingMouseUp = false;
 		//}
 	//});
+};
+
+var globalOnMouseMove = function(event){
+	//requestAnimationFrame(()=>{
+		onDomEvent(event);
+		event.stopPropagation();
+		//if(uiState.isDoingMouseUp){
+		//	if(options.logMouseEvents) console.log('mousemove is ignored cuz uiState.isDoingMouseUp');
+		//	return;
+		//}
+		controls.mouseY = event.pageY;
+		controls.mouseX = event.pageX;
+		const ThisSplat = splatAtYX(controls.mouseY,controls.mouseX); //so this function is not specific to a splat and can move it to rootDob.
+		
+		runScheduledFuncs();
+		
+		let isPopupDragButtonDown = controls[popupDragButton];
+		let isMetaInsertDragButtonDown = controls[metaInsertButton];
+		
+		//TODO use options.doMainDragging
+		if(options.basicTestOfLooseIconWhenMouseMoves){
+			//FIXME i updated this code to use setIconStuffInUiState 2023-1-15 but then didnt test it cuz
+			//options.basicTestOfLooseIconWhenMouseMoves is false, so its not the code thats running.
+		
+			//FIXME unset this in anything not currently dragging FROM or TO
+			//(so at most should be 2 splats with this true in the main/rootSplat tree excluding Action/thirdchilds if those are even used)
+			let isDisplayIcon = true;
+			//let isDisplayIcon = ThisSplat.splate().isDisplayIcon;
+			//let isDisplayIcon = false;
+			let looseIconYFraction = (controls.mouseY-dobY(selfDob))/dobHeight(selfDob); //FIXME what if height is 0?
+			let looseIconXFraction = (controls.mouseX-dobX(selfDob))/dobWidth(selfDob); //FIXME what if width is 0?
+			if(options.logMouseEvents) console.log('mousemove setting looseIconYFraction='+looseIconYFraction+' and looseIconXFraction='+looseIconXFraction);
+			//ThisSplat.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction).setIsDisplayIcon(isDisplayIcon));
+			if(ThisSplat.isDragFrom()){
+				console.log('mousemove isDragFrom splat='+ThisSplat);
+				//false is FROM. true is TO. It can be none, one, or both of those.
+				ThisSplat.setIconStuffInUiState(false, looseIconYFraction, looseIconXFraction, isDisplayIcon);
+			}
+			if(ThisSplat.isDragTo()){
+				console.log('mousemove isDragTo splat='+ThisSplat);
+				ThisSplat.setIconStuffInUiState(true, looseIconYFraction, looseIconXFraction, isDisplayIcon);
+			}
+			
+			if(options.logMouseEvents) console.log('mousemove did transformSplate with new icon position etc');
+			
+			//this.dobs.looseIcon.style.top = (dobY(self)+dobHeight(self)*splate.looseIconYFraction)+'px';
+			//this.dobs.looseIcon.style.left = (dobX(self)+dobWidth(self)*splate.looseIconXFraction)+'px';
+		}
+		
+		
+		if(options.logMouseEvents) console.log('controls = '+JSON.stringify(controls)+(selSplat ? (' dobDist to selSplat self = '+dobDist(selSplat.dobs.self,controls.mouseY,controls.mouseX)) : ''));
+		//event.stopPropagation();
+		if(options.simple_randomizeColor_ofWhateverDobMouseTouches){
+			//ThisSplat.forkRootSplit_randomizeColor_inRootSplat();
+			ThisSplat.forkRoot_setColor();
+		}
+		//if(ThisSplat.parentSplat) ThisSplat.parentSplat.forkRootSplit_randomizeColor_inRootSplat();
+		if(options.fillDropDobWithTestWhenNearestToMouse){
+			//let dob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+			let splatdob = rootSplat.nearestDrop(controls.mouseY,controls.mouseX);
+			//dob.innerHTML = 'DROP'+Date.now();
+			if(splatdob){
+				//splatdob.splat.dobs[splatdob.dobName].innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
+				//splatdob.dob().innerHTML = Math.random()<.5 ? 'DROP' : 'drop';
+				let txt = splatdob.dobName;
+				txt = Math.random()<.5 ? txt.toUpperCase() : txt.toLowerCase();
+				//splatdob.dob().innerHTML = txt;
+				splatdob.dobs.self.innerHTML = txt;
+			}
+		}
+		
+		if(options.doMainDragging){
+			if(isPopupCircularMenu()){
+				//console.log('mousemove isPopupCircularMenu (TODO)');
+				updateOverlays();
+			}else{
+				
+				//FIXME if doing the metaInsert kind of drag, set this to 0 or 1 (which side always does self, not parent?).
+				let verticalFractionBetweenSelfVsParent = options.fractionRecurse;
+				if(uiState.lastMouseButtonDown == metaInsertButton){
+					//0 is parent. 1 is self. .5 is height chooses at mid height in rect.
+					//FIXME should this be 0 or 1? want parent, i think, but need experiments... No, I'm changing it to want self (not parent) and will choose parent or not etc from there.
+					//verticalFractionBetweenSelfVsParent = 0; //parent
+					verticalFractionBetweenSelfVsParent = 1; //self
+				}
+				
+				//if(isPopupDragButtonDown){
+				if(isPopupDragButtonDown || isMetaInsertDragButtonDown){
+					//ThisSplat.doDuringDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
+					if(splatfyfx){
+						splatfyfx.splat.doDuringDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('screenYXToSplatfyfx returned null so cant doDuringDrag');
+					}
+					//console.log('after doDuringDrag from='+findSplatWithDragStep('from')+"\nwouldTo="+findSplatWithDragStep('wouldTo'));
+				}else{
+					//FIXME this is happening after release mouse button, as if drag hadnt just happened.
+					//ThisSplat.doBeforeDrag(
+					//	ThisSplat.looseIconYFractionAtMouseY(controls.mouseY), ThisSplat.looseIconXFractionAtMouseX(controls.mouseX));
+					let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX, verticalFractionBetweenSelfVsParent);
+					if(splatfyfx){
+						splatfyfx.splat.doBeforeDrag(splatfyfx.fy, splatfyfx.fx);
+					}else{
+						console.log('screenYXToSplatfyfx returned null so cant doBeforeDrag');
+					}
+					//console.log('after doBeforeDrag wouldFrom='+findSplatWithDragStep('wouldFrom'));
+				}
+			}
+		}
+	//});
+	
+	if(uiState.lastMouseButtonDown){ //is doing a drag, and this button is or was down
+		if(!event.buttons){ //no mouse buttons are down
+			console.log('mousemove is doing a mouseup just in case that event was dropped, event.buttons='+event.buttons+' and lastMouseButtonDown='+uiState.lastMouseButtonDown+' Its ok if both happen cuz it will ignore later calls of it until another mousedown.');
+			globalOnMouseUp(null); //call with no event. it will use uiState.lastMouseButtonDown instead.
+			if(uiState.lastMouseButtonDown) throw 'in mousemove, globalOnMouseUp didnt unset lastMouseButtonDown';
+		}
+	}
 };
 
 
@@ -1050,14 +1070,14 @@ Splat.prototype.updateSelfDivStyle = function(){
 	sty.borderColor = colorStr(red,green,blue);
 };*/
 
-Splat.prototype.copyEventListenersIntoDob = function(dob){
-	if(!this.eventListenerMouseMove) throw 'No this.eventListenerMouseMove';
-	if(!this.eventListenerMouseDown) throw 'No this.eventListenerMouseDown';
+//Splat.prototype.copyEventListenersIntoDob = function(dob){
+	//if(!this.eventListenerMouseMove) throw 'No this.eventListenerMouseMove';
+	//if(!this.eventListenerMouseDown) throw 'No this.eventListenerMouseDown';
 	//if(!this.eventListenerMouseUp) throw 'No this.eventListenerMouseUp';
-	dob.addEventListener('mousemove', this.eventListenerMouseMove);
-	dob.addEventListener('mousedown', this.eventListenerMouseDown);
+	//dob.addEventListener('mousemove', this.eventListenerMouseMove);
+	//dob.addEventListener('mousedown', this.eventListenerMouseDown);
 	//dob.addEventListener('mouseup', this.eventListenerMouseUp);
-};
+//};
 
 //FIXME this needs to be called to update color of any dragline, even if the splats dont need updating (by bigHash of their content).
 //dragLine should be an overlay (updateOverlays) but 2022-12-29 it isnt, so going to scan for which have a drop line
@@ -1175,7 +1195,7 @@ Splat.prototype.createDobsIfNotExist = function(){
 		d.looseIcon.style.width = options.iconSize;
 		d.looseIcon.style.visibility = 'hidden';
 		//this.updateDobIconsVisibility(false); //set looseIcon.style.visibility to 'visible' or 'hidden' and (TODO) maybe same for hardIcon
-		this.copyEventListenersIntoDob(d.looseIcon); //Without this, the icon waits to move until mouse goes outside the icon, so it looks jumpy.
+		//this.copyEventListenersIntoDob(d.looseIcon); //Without this, the icon waits to move until mouse goes outside the icon, so it looks jumpy.
 		
 		
 		//line from an icon in the FROM splat to here (the TO splat), an icon in each.
@@ -1255,6 +1275,10 @@ Splat.prototype.createDobsIfNotExist = function(){
 
 var options = {};
 
+//between 0 and 1, probably best for this to always be .5. Its the horizontal fraction that the left vs right
+//side is dropped onto for metaInsert (metaInsertButton, which as of 2023-1-15 is the left mouse button)
+options.leftRightSplit = .5;
+
 //if true then deleting x in <x y z> returns <y z>. If false, it returns {y z}.
 options.deletingFirstInSTListMovesTheTRightElseDeletesTheT = true;
 
@@ -1275,7 +1299,8 @@ options.highlightWhatWasJustDropped_color = [255,255,255]; //red green blue
 
 options.logTodos = false;
 
-options.logNotDraggingToAndFromSameSplat = false;
+options.allowDragToAndFromSameSplat = true;
+options.logNotDraggingToAndFromSameSplat = true;
 
 //options.logMetaR = false;
 options.logMetaR = true;
@@ -1311,7 +1336,9 @@ options.test_alwaysDisplayWhere_simpleDragUimode_wouldInsertEvenIfNotDragging = 
 options.displayDragFromBorder = true;
 options.displayDragToBorder = true;
 
-options.displayDragFromSurface = false; //dont need these anymore now that theres displayDragFromBorder/displayDragToBorder
+//options.displayDragFromSurface = true; //dont need these anymore now that theres displayDragFromBorder/displayDragToBorder
+options.displayDragFromSurface = false;
+//options.displayDragToSurface = true;
 options.displayDragToSurface = false;
 
 //TODO have X (delete) and metaX (metaDelete) icons.
@@ -1761,7 +1788,8 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	//2022-12-29 linePath isnt used in splate. Instead, you get where line is from and to by searching the tree for splate.dragStep.
 	this.linePath = linePath || ''; //something like 'UUUULRLL', or '' if none. If this doesnt select a displayed splat then the line doesnt appear.
 	
-	this.dragStep = dragStep || 'no';
+	//this.dragStep = dragStep || 'no';
+	this.dragStep = 'TODORemoveDragStepFromSplate';
 	
 };
 
@@ -1966,6 +1994,7 @@ Splate.prototype.setLinePath = function(linePath){
 };
 
 
+//UPDATE 2023-1, moving dragStep etc into uiState, not in Splat or Splate anymore, but until finish that, leave it in Splate too.
 //forkEdit
 Splate.prototype.setDragStep = function(dragStep){
 	if(this.dragStep === dragStep) return this;
@@ -2630,8 +2659,79 @@ Splat.prototype.linePath = function(){
 	return this.split.splate.linePath;
 };
 
+/* Cant do this cuz a splat can have multiple dragSteps. Its a map uiState.dragSteps[dragStep] -> splat, so dragStep is key and splat is value.
 Splat.prototype.dragStep = function(){
-	return this.split.splate.dragStep;
+	//return this.split.splate.dragStep;
+	return splatToDragStep(this);
+};
+*/
+
+var unsetDragStep = dragStep=>{
+	uiState.dragSteps[dragStep] = null;
+};
+
+Splat.prototype.unsetDragStepIfItsMe = function(dragStep){
+	if(!dragStep || dragStep == 'no'){
+		return;
+	}
+	if(uiState.dragSteps[dragStep] == this){
+		uiState.dragSteps[dragStep] = null;
+	}
+};
+
+Splat.prototype.setDragStep = function(dragStep){
+	if(!dragStep){
+		throw 'No dragStep='+dragStep;
+	}
+	uiState.dragSteps[dragStep] = this;
+};
+
+/*
+var splatToDragStep = splat=>{
+	for(let dragStep in uiState.dragSteps){
+		if(uiState.dragSteps[dragStep] == splat){
+			return splat;
+		}
+	}
+	return 'no';
+};*/
+
+Splat.prototype.setDragStepAndInSomeCasesUnsetOthers = function(dragStep){
+	console.log('setDragStepAndInSomeCasesUnsetOthers dragStep='+dragStep+' splat='+this);
+	if(!dragStep){
+		dragStep = 'no';
+	}
+	this.setDragStep(dragStep);
+	switch(dragStep){
+		case 'wouldFrom':
+			unsetDragStep('from');
+			unsetDragStep('wouldTo');
+			unsetDragStep('to');
+			unsetDragStep('dropCircMenu');
+		break;case 'from':
+			this.unsetDragStepIfItsMe('wouldFrom');
+		break;case 'wouldTo':
+			//nothing
+		break;case 'to':
+			this.unsetDragStepIfItsMe('wouldTo');
+		break;case 'dropCircMenu':
+			this.unsetDragStepIfItsMe('wouldTo');
+			this.unsetDragStepIfItsMe('to');
+		break;default:
+			throw 'Unknown dragStep='+dragStep;
+	}
+	updateOverlays();
+};
+
+//'no' and null are same dragStep. dragStep is key, and splat is value, so the same splat can be set as multiple dragSteps, such as 'to' and 'from' at once.
+var setDragStep = (splat,dragStep)=>{
+	if(dragStep == 'no'){
+		dragStep = null;
+	}
+	//removeSplatFromDragSteps(splat);
+	if(dragStep){
+		uiState.dragSteps[dragStep] = splat;
+	}
 };
 
 
@@ -2758,6 +2858,7 @@ var toLiteralString = fn=>{
 	return literal;
 };
 
+/* moving dragStep into uiState, so can only use it with splats, not splates that dont know which splat.
 //WARNING: as of 2022-12-29 this can be true even if it was a mousedown then mouseup without moving the mouse,
 //so there is no dragStep=='wouldFrom' or dragStep=='from', so theres no dragLine to display,
 //but it would be inefficient to scan for which Splat has that *from dragStep, so letting this return true anyways,
@@ -2766,6 +2867,12 @@ var toLiteralString = fn=>{
 Splate.prototype.isDisplayDragLine = function(){
 	//FIXME get rid of isDisplayIcon?
 	return this.isDisplayIcon && (this.dragStep==='to' || this.dragStep==='wouldTo' || this.dragStep==='dropCircMenu');
+};
+*/
+Splat.prototype.isDisplayDragLine = function(){
+	//FIXME get rid of isDisplayIcon?
+	let dragStep = splatToDragStep(this);
+	return this.splate().isDisplayIcon && (dragStep==='to' || dragStep==='wouldTo' || dragStep==='dropCircMenu');
 };
 
 //Used with isUnary such as (T x) which doesnt display the T as splat but displays T as a prefix "T" instead, similar to a prefix "{" or prefix "[" or prefix "(".
@@ -3274,6 +3381,8 @@ Splat.prototype.setSplit = function(split){
 		d.looseIcon.style.height = options.iconSize;
 		d.looseIcon.style.width = options.iconSize;
 		*/
+		
+		/*Moving looseIcon and dragLine etc from Splat and Splate to uiState 2023-1
 		if(splate.isDisplayIcon){ //FIXME remove "true ||".
 			let self = this.dobs.self;
 			//this.dobs.looseIcon.style.verticalAlign = (splate.looseIconYFraction*100)+'%';
@@ -3284,153 +3393,9 @@ Splat.prototype.setSplit = function(split){
 			//TODO adjust by half width and height of icon.
 			this.dobs.looseIcon.style.top = Math.round(dobY(self)+dobHeight(self)*splate.looseIconYFraction-options.iconSize/2)+'px';
 			this.dobs.looseIcon.style.left = Math.round(dobX(self)+dobWidth(self)*splate.looseIconXFraction-options.iconSize/2)+'px';
-		}
-		if(splate.isDisplayDragLine()){
+		}*/
 		
-		
-		
-		
-			/* This code in the directed graph UI html displays angled lines.
-			UIEdge.prototype.display = function(){
-				if(!displayUiedges) return;
-				if(!this.dob){
-					let parentDob = mainDiv;
-					//let parentDob = document.body;
-					//let parentDob = this.from.dob;
-					//if(!parentDob) throw 'UINode hasnt displayed yet so cant display edge from it, this='+this;
-				
-					//this.dob = Dob(parentDob,'div'); //put edge's div it in the div of the UINode its from.
-					this.dob = Dob(parentDob,'div');
-					this.dob.style.position = cssPositionType;
-					//this.dob.style.height = '50px';
-					//this.dob.style.width = '13px';
-					//this.dob.style.width = '5px';
-					//this.dob.style.width = '2px';
-					//this.dob.style.height = '154px';
-					//TODO css for angle
-					//this.dob.style['background-color'] = randColorStr();
-					this.dob.style.background = 'url('+typeToPic[this.type]+')';
-					this.dob.style['z-index'] = -1;
-				}
-				
-
-				
-				//https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix
-				let diffY = this.to.pos[0]-this.from.pos[0];
-				let diffX = this.to.pos[1]-this.from.pos[1];
-				let diffLen = Math.hypot(diffY,diffX);
-				this.dob.style.height = '2px';
-				this.dob.style.width = Math.ceil(diffLen)+'px';
-				let normY = between(-1,diffY/diffLen,1);
-				let normX = between(-1,diffX/diffLen,1);
-				//let angle = Math.asin(normY);
-				
-				
-				let a = normX;
-				let b = normY;
-				let c = -normY;
-				let d = normX;
-				
-				
-				//let a = 1/Math.sqrt(2), b = 0, c = 0, d = 1/Math.sqrt(2);
-				//let a = 1, b = 0, c = 0, d = 1;
-				//let a = Math.sin(angle), b = Math.cos(angle), c = -Math.cos(angle), d = Math.sin(angle);
-				//this.dob.style.width = '90px';
-				//let a = -1, b = 0, c = 0, d = -1;
-				//let a = 5, b = 0, c = 0, d = 5;
-				
-				//let a = 1;
-				//let b = 2.1;//let b = .3;
-				//let c = 0; //let c = -.1;
-				//let d = 1;
-				
-				//let tx = 0;
-				//let ty = 0;
-				
-				//midpoint cuz [style.transform matrix or matrix3d] uses center of dob as (0,0,0) instead of top left corner as usual in html and as usual in opengl and other 3d frameworks.
-				//let ty = this.from.pos[0]+diffY/2;
-				//let tx = this.from.pos[1]+diffX/2;
-				let ty = (this.from.pos[0]+this.to.pos[0])/2;
-				let tx = (this.from.pos[1]+this.to.pos[1])/2;
-				//let ty = this.from.pos[0];
-				//let tx = this.from.pos[1];
-				//let ty = this.to.pos[0];
-				//let tx = this.to.pos[1];
-				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
-				
-				
-				//a = diffY*.01;
-				//d = diffX*.01;
-				
-				//if(this.type == 'l'){ ty += 20; tx += 20; }
-				//if(this.type == 'r'){ ty += 35; tx += 35; }
-				//if(this.type == 'e'){ ty += 50; tx += 50; }
-				this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
-				//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
-				
-				this.dob.style['background-position'] = edgeBackgroundOffset+'px';
-				
-			};
-			*/
-		
-		
-		
-		
-		
-		
-		
-			let dob = this.dobs.dragLine;		
-			//this splate should be the TO, and another splate should be the FROM. Max 1 dragLine displayed at once on screen.
-			let yxyx = dragLineFromYXToYX();
-			if(!yxyx){
-				if(options.allow_doDropCircMenu_afterClickWithoutDrag){
-					console.log('This might be an "ugly hack" where a TO exists but not a FROM cuz of a click without a drag (which happens cuz merged clickCircMenu into dropCircMenu). Check the comment on isDisplayDragLine and allow_doDropCircMenu_afterClickWithoutDrag.');
-				}else{
-					throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
-				}
-			}else{
-				let diffY = yxyx[2]-yxyx[0];
-				let diffX = yxyx[3]-yxyx[1];
-				let diffLen = Math.hypot(diffY,diffX);
-				if(diffLen > 0){
-					//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
-					dob.style.height = options.dragLineThick+'px';
-					dob.style.width = Math.ceil(diffLen)+'px';
-					dob.style.visibility = 'visible';
-					let normY = between(-1,diffY/diffLen,1);
-					let normX = between(-1,diffX/diffLen,1);
-					let a = normX;
-					let b = normY;
-					let c = -normY;
-					let d = normX;
-					let ty = (yxyx[0]+yxyx[2])/2;
-					let tx = (yxyx[1]+yxyx[3])/2;
-					tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
-					dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
-					
-					/*
-					let len = Math.hypot(yxyx[0]-yxyx[2], yxyx[1]-yxyx[3]);
-					//width is already set by something in options, when that dob is created.
-					//TODO update it here every time in case options changes?
-					dob.style.height = len+'px';
-					let a = 1;
-					let b = 0;
-					let c = 0;
-					let d = 1;
-					let e = yxyx[3];
-					let f = yxyx[2];
-					dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+e+','+f+')';
-					*/
-				}else{
-					console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
-				}
-
-			}
-		}else{
-			this.dobs.dragLine.style.visibility = 'hidden';
-		}
-		
-		this.updateDobIconsVisibility();
+		//let updateOverlays do it instead... this.updateDragStuffIfNeeded();
 		
 		
 		//UPDATE 2022-12-17 Action (third child) and drop dobs are not used anymore since dragging creates a line between 2 places.
@@ -3455,8 +3420,164 @@ Splat.prototype.setSplit = function(split){
 	}
 };
 
+/*
+Splat.prototype.updateDragStuffIfNeeded = function(){
+
+	//if(splate.isDisplayDragLine()){
+	if(this.isDisplayDragLine()){
+	
+	
+	
+	
+		/* This code in the directed graph UI html displays angled lines.
+		UIEdge.prototype.display = function(){
+			if(!displayUiedges) return;
+			if(!this.dob){
+				let parentDob = mainDiv;
+				//let parentDob = document.body;
+				//let parentDob = this.from.dob;
+				//if(!parentDob) throw 'UINode hasnt displayed yet so cant display edge from it, this='+this;
+			
+				//this.dob = Dob(parentDob,'div'); //put edge's div it in the div of the UINode its from.
+				this.dob = Dob(parentDob,'div');
+				this.dob.style.position = cssPositionType;
+				//this.dob.style.height = '50px';
+				//this.dob.style.width = '13px';
+				//this.dob.style.width = '5px';
+				//this.dob.style.width = '2px';
+				//this.dob.style.height = '154px';
+				//TODO css for angle
+				//this.dob.style['background-color'] = randColorStr();
+				this.dob.style.background = 'url('+typeToPic[this.type]+')';
+				this.dob.style['z-index'] = -1;
+			}
+			
+
+			
+			//https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function/matrix
+			let diffY = this.to.pos[0]-this.from.pos[0];
+			let diffX = this.to.pos[1]-this.from.pos[1];
+			let diffLen = Math.hypot(diffY,diffX);
+			this.dob.style.height = '2px';
+			this.dob.style.width = Math.ceil(diffLen)+'px';
+			let normY = between(-1,diffY/diffLen,1);
+			let normX = between(-1,diffX/diffLen,1);
+			//let angle = Math.asin(normY);
+			
+			
+			let a = normX;
+			let b = normY;
+			let c = -normY;
+			let d = normX;
+			
+			
+			//let a = 1/Math.sqrt(2), b = 0, c = 0, d = 1/Math.sqrt(2);
+			//let a = 1, b = 0, c = 0, d = 1;
+			//let a = Math.sin(angle), b = Math.cos(angle), c = -Math.cos(angle), d = Math.sin(angle);
+			//this.dob.style.width = '90px';
+			//let a = -1, b = 0, c = 0, d = -1;
+			//let a = 5, b = 0, c = 0, d = 5;
+			
+			//let a = 1;
+			//let b = 2.1;//let b = .3;
+			//let c = 0; //let c = -.1;
+			//let d = 1;
+			
+			//let tx = 0;
+			//let ty = 0;
+			
+			//midpoint cuz [style.transform matrix or matrix3d] uses center of dob as (0,0,0) instead of top left corner as usual in html and as usual in opengl and other 3d frameworks.
+			//let ty = this.from.pos[0]+diffY/2;
+			//let tx = this.from.pos[1]+diffX/2;
+			let ty = (this.from.pos[0]+this.to.pos[0])/2;
+			let tx = (this.from.pos[1]+this.to.pos[1])/2;
+			//let ty = this.from.pos[0];
+			//let tx = this.from.pos[1];
+			//let ty = this.to.pos[0];
+			//let tx = this.to.pos[1];
+			tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+			
+			
+			//a = diffY*.01;
+			//d = diffX*.01;
+			
+			//if(this.type == 'l'){ ty += 20; tx += 20; }
+			//if(this.type == 'r'){ ty += 35; tx += 35; }
+			//if(this.type == 'e'){ ty += 50; tx += 50; }
+			this.dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+			//this.dob.style.transform = 'matrix3d('+a+','+b+',0,0,  '+c+','+d+',0,0,  0,0,1,0,  '+tx+','+ty+',0,1)';
+			
+			this.dob.style['background-position'] = edgeBackgroundOffset+'px';
+			
+		};
+		*
+	
+	
+	
+	
+	
+	
+	
+		let dob = this.dobs.dragLine;		
+		//this splate should be the TO, and another splate should be the FROM. Max 1 dragLine displayed at once on screen.
+		let yxyx = dragLineFromYXToYX();
+		if(!yxyx){
+			if(options.allow_doDropCircMenu_afterClickWithoutDrag){
+				console.log('This might be an "ugly hack" where a TO exists but not a FROM cuz of a click without a drag (which happens cuz merged clickCircMenu into dropCircMenu). Check the comment on isDisplayDragLine and allow_doDropCircMenu_afterClickWithoutDrag.');
+			}else{
+				throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
+			}
+		}else{
+			let diffY = yxyx[2]-yxyx[0];
+			let diffX = yxyx[3]-yxyx[1];
+			let diffLen = Math.hypot(diffY,diffX);
+			if(diffLen > 0){
+				//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
+				dob.style.height = options.dragLineThick+'px';
+				dob.style.width = Math.ceil(diffLen)+'px';
+				dob.style.visibility = 'visible';
+				let normY = between(-1,diffY/diffLen,1);
+				let normX = between(-1,diffX/diffLen,1);
+				let a = normX;
+				let b = normY;
+				let c = -normY;
+				let d = normX;
+				let ty = (yxyx[0]+yxyx[2])/2;
+				let tx = (yxyx[1]+yxyx[3])/2;
+				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+				
+				/*
+				let len = Math.hypot(yxyx[0]-yxyx[2], yxyx[1]-yxyx[3]);
+				//width is already set by something in options, when that dob is created.
+				//TODO update it here every time in case options changes?
+				dob.style.height = len+'px';
+				let a = 1;
+				let b = 0;
+				let c = 0;
+				let d = 1;
+				let e = yxyx[3];
+				let f = yxyx[2];
+				dob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+e+','+f+')';
+				*
+			}else{
+				console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
+			}
+
+		}
+	}else{
+		this.dobs.dragLine.style.visibility = 'hidden';
+	}
+	
+	this.updateDobIconsVisibility();
+
+};*/
+
+
+//FIXME the icons and dragLine are being moved to uiState, and when thats working, will remove them from Splat and Splate.
 Splat.prototype.updateDobIconsVisibility = function(forceThisValTrueOrFalse){
-	let isVisible = (forceThisValTrueOrFalse!==undefined) ? forceThisValTrueOrFalse : this.splate().isDisplayIcon;
+	//let isVisible = (forceThisValTrueOrFalse!==undefined) ? forceThisValTrueOrFalse : this.splate().isDisplayIcon;
+	let isVisible = true; //FIXME
 	//TODO if theres also a hardIcon (that snaps onto any corner or maybe few other places), do that too here.
 	//this.dobs.looseIcon.style.display = this.splate().isDisplayIcon ? 'visible' : 'hidden';
 	this.dobs.looseIcon.style.visibility = isVisible ? 'visible' : 'hidden';
@@ -3818,7 +3939,8 @@ Splat.prototype.doStartClickCirc = function(looseIconYFraction,looseIconXFractio
 
 
 //no, wouldFrom, from, wouldTo, to, dropCircMenu.
-var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===splat.splate().dragStep));
+//var findSplatWithDragStep = dragStep=>rootSplat.findFirst(splat=>(dragStep===splat.splate().dragStep));
+var findSplatWithDragStep = dragStep=>(uiState.dragSteps[dragStep] || null);
 
 //filter(splate)->true or false. Finds the first one like that, else (TODO verify its null instead of undefined) null.
 var findSplat = filter=>rootSplat.findFirst(filter);
@@ -3828,7 +3950,10 @@ var findSplat = filter=>rootSplat.findFirst(filter);
 Splat.prototype.doBeforeDrag = function(looseIconYFraction,looseIconXFraction){
 	//console.log('doBeforeDrag looseIconYFraction='+looseIconYFraction);
 	let countBefore = countCallsOf_setSplit;
-	this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+	
+	//this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+	this.setIconStuffInUiStateIfs(looseIconYFraction, looseIconXFraction); //leave off optionalIsDisplayIcon param so it doesnt change that.
+	
 	let count = countCallsOf_setSplit-countBefore;
 	if(vm.loglev>1) console.log('doBeforeDrag change of countCallsOf_setSplit is '+count);
 	//TODO optimize dont update screen until setDragStuff?
@@ -3863,10 +3988,11 @@ Splat.prototype.doDuringDrag = function(looseIconYFraction,looseIconXFraction){
 	//console.log('doDuringDrag');
 	let wouldfromOrFrom = findSplatWithDragStep('from') || findSplatWithDragStep('wouldFrom');
 	if(!wouldfromOrFrom) throw 'No splat with dragStep of "from" or "wouldFrom", so cant doDuringDrag';
-	if(wouldfromOrFrom === this){
+	if(!options.allowDragToAndFromSameSplat && wouldfromOrFrom === this){
 		if(options.logNotDraggingToAndFromSameSplat) console.log('Not dragging from and to same splat. FIXME that should be allowed (maybe have dragStepFrom and dragStepTo fields instead of just dragStep?), but for now Im just trying to get drag and drop working at all. this='+this);
 	}else{
-		this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+		//this.transformSplate(splate=>splate.setLooseIconYFraction(looseIconYFraction).setLooseIconXFraction(looseIconXFraction));
+		this.setIconStuffInUiStateIfs(looseIconYFraction, looseIconXFraction); //leave off optionalIsDisplayIcon param so it doesnt change that.
 		//TODO optimize dont update screen until setDragStuff?
 		setDragStuff(wouldfromOrFrom,'from',this,'wouldTo');
 	}
@@ -3897,12 +4023,18 @@ var doDropCircMenu = ()=>{
 			throw 'No dragStep of "to" so cant doDropCircMenu';
 		}
 	}
-	let dragStep = dropMenuAtSplat.splate().dragStep;
-	if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
+	//let dragStep = dropMenuAtSplat.splate().dragStep;
+	//if(dragStep == 'wouldTo' || dragStep == 'to'){ //is starting dropCircMenu, so set its position.
+	if(uiState.dragSteps.wouldTo==dropMenuAtSplat || uiState.dragSteps.to==dropMenuAtSplat){ //is starting dropCircMenu, so set its position.
 		globalVars.dropCircMenuCenterY = controls.mouseY;
 		globalVars.dropCircMenuCenterX = controls.mouseX;
 	}
-	dropMenuAtSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
+	
+	
+	//dropMenuAtSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
+	dropMenuAtSplat.setDragStepAndInSomeCasesUnsetOthers('dropCircMenu');
+	
+	
 	updateOverlays();
 };
 
@@ -3948,6 +4080,7 @@ var onDomEvent = event=>{
 	}
 };
 
+/*
 //theres 2 circMenus: (left mouse button) drag and (right mouse button) click.
 var doClickCircMenu = ()=>{
 	//let toSplat = findSplatWithDragStep('to');
@@ -3970,6 +4103,7 @@ var doClickCircMenu = ()=>{
 	//toSplat.transformSplate(splate=>splate.setDragStep('dropCircMenu'));
 	updateOverlays();
 };
+*/
 
 //called after a drag and drop.
 var afterDrop = ()=>{
@@ -3998,6 +4132,8 @@ var doEndDrag = dropCircMenuItem=>{
 	//FIXME? this line was added before there were 2 circ menus (dropCircMenu and clickCircMenu). This was just for dropCircMenu.
 	setDragStuff(null,null,null,null); //set all dragStep to 'no', ready for next drag.
 	uiState.removeClickCircMenuAsap = true;
+	
+	change_dropCircMenu_to_ghost();
 	
 	afterDrop();
 	
@@ -4033,6 +4169,40 @@ Splat.prototype.findFirst = function(query){
 	return null; //not found
 };
 
+//remove it from values of uiState.dragSteps
+var removeSplatFromDragSteps = splat=>{
+	for(let dragStep in uiState.dragSteps){
+		if(uiState.dragSteps[dragStep] == splat){
+			uiState.dragSteps[dragStep] = null;
+		}
+	}
+};
+
+//replaces rootSplat.split. splatA andOr splatB can be null to ignore those pairs of params.
+var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
+	if(splatA){
+		splatA.setDragStepAndInSomeCasesUnsetOthers(dragStepA);
+	}
+	if(splatB){
+		splatB.setDragStepAndInSomeCasesUnsetOthers(dragStepB);
+	}
+	setDragStep(splatB,dragStepB);
+	/*if(dragStepA == 'no'){
+		dragStepA = null;
+	}
+	if(dragStepB == 'no'){
+		dragStepB = null;
+	}
+	if(splatA){
+		removeSplatFromDragSteps(splatA);
+		uiState.dragSteps[dragStepA] = splatA;
+	}
+	if(splatB){
+		removeSplatFromDragSteps(splatB);
+		uiState.dragSteps[dragStepB] = splatB;
+	}*/
+};
+/*
 //replaces rootSplat.split. splatA andOr splatB can be null to ignore those pairs of params.
 var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
 	/*if(!splatA){
@@ -4043,7 +4213,7 @@ var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
 	if(!splatB){
 		splatB = rootSplat;
 		dragStepB = 'no';
-	}*/
+	}*
 	
 	if(options.loglev > 2){
 		//FIXME remove these lines of test code
@@ -4058,6 +4228,7 @@ var setDragStuff = function(splatA, dragStepA, splatB, dragStepB){
 	
 	rootSplat.transformSplit(split=>split.forkDragStuff(rootSplat, splatA, dragStepA, splatB, dragStepB));
 };
+*/
 
 //returns a Split to replace this one. splatA andOr splatB can be null to ignore those (TODO test),
 //and sets isDisplayIcon to false where dragStep is 'no' and everywhere else (at most 2 splats) sets it to true.
@@ -4605,6 +4776,9 @@ var Branch = function(h, w){
 //This is true if any splat.splate().dragStep=='dropCircMenu'.
 var isPopupCircularMenu = ()=>!!(findSplatWithDragStep('dropCircMenu') || anyclickcircSplat());
 
+//As of 2023-1 this is where dragLine, the FROM and TO looseIcons, and border outlines of FROM and TO are displayed,
+//instead of in Splat/Split/Splate, but I'm still fixing bugs during that redesign.
+//
 //TODO everything you see while dragging, but for now 2022-11-1 I'm just putting the 2 overlay divs here
 //and leaving the icons and dragLine in splat.dobs.dragLine etc, but eventually all that should be here,
 //especially considering I want more icons in the splats.
@@ -4612,7 +4786,8 @@ var updateOverlays = ()=>{
 
 	let wouldfromOrFrom = anyfromSplat();
 	//let wouldtoOrTo = anytoSplat();
-	let wouldtoOrTo = anytoSplat() || anyclickcircSplat(); //so borders and select display even if dragStep=='clickcirc'
+	//let wouldtoOrTo = anytoSplat() || anyclickcircSplat(); //so borders and select display even if dragStep=='clickcirc'
+	let wouldtoOrTo = anytoSplat(); //removed clickCirc menu by merging it into dropCircMenu.
 	
 	/*
 	//2022-12-29 clickCircMenu has been merged into dropCircMenu
@@ -4655,7 +4830,9 @@ var updateOverlays = ()=>{
 	}else if(wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu'){
 		whichMenu = 'dropCircMenu';
 	}*/
-	let whichMenu = (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu') ? 'dropCircMenu' : null;
+	//let whichMenu = (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu') ? 'dropCircMenu' : null;
+	let whichMenu = uiState.dragSteps.dropCircMenu ? 'dropCircMenu' : null;
+	console.log('updateOverlays whichMenu='+whichMenu);
 	
 	//displays just outside the border of mouseover_sected rect
 	let mouseOverSelect_top = Dob('mouseOverSelect_top');
@@ -4787,16 +4964,26 @@ var updateOverlays = ()=>{
 			let h = dobHeight(d);
 			let w = dobWidth(d);
 			
-			let isLeft = splat.splate().looseIconXFraction < .5;
-			simpleDragUimode_cursor.style.top = y+'px';
-			simpleDragUimode_cursor.style.height = h+'px';
-			simpleDragUimode_cursor.style.width = thick+'px';
-			if(isLeft){
-				uiState.dropDirection = 'left';
-				simpleDragUimode_cursor.style.left = (x-thick/2)+'px';
+			//let isLeft = splat.splate().looseIconXFraction < .5;
+			let isLeft = undefined; //moved looseIcon from Splate to uiState
+			if(splat.isDragTo()){ //or could be FROM and TO at once, but in that case use TO since its more recent
+				isLeft = uiState.to.looseIconXFraction < options.leftRightSplit; //Example: options.leftRightSplit could be .5
+			}else if(splat.isDragFrom()){
+				isLeft = uiState.from.looseIconXFraction < options.leftRightSplit;
 			}else{
-				uiState.dropDirection = 'right';
-				simpleDragUimode_cursor.style.left = (x+w-thick/2)+'px';
+				console.log('updateOverlays display_simpleDragUimode_cursor splat is not isDragFrom or isDragTo, so not setting isLeft to true or false or moving icons. splat='+splat);
+			}
+			if(isLeft !== undefined){
+				simpleDragUimode_cursor.style.top = y+'px';
+				simpleDragUimode_cursor.style.height = h+'px';
+				simpleDragUimode_cursor.style.width = thick+'px';
+				if(isLeft){
+					uiState.dropDirection = 'left';
+					simpleDragUimode_cursor.style.left = (x-thick/2)+'px';
+				}else{
+					uiState.dropDirection = 'right';
+					simpleDragUimode_cursor.style.left = (x+w-thick/2)+'px';
+				}
 			}
 		}else{ //random position, for testing
 			simpleDragUimode_cursor.style.top = randInt(500)+'px';
@@ -4813,48 +5000,61 @@ var updateOverlays = ()=>{
 	
 	//let menuDob = Dob(whichMenu);
 	let menuDob = Dob('popupMenuDob');
+	let menuDobHtml = menuDob.innerHTML.trim();
+	console.log('updateOverlays about to choose to display popup menu, menuDobHtml.length='+menuDobHtml.length);
 	if(whichMenu != null && whichMenu!='clickCircMenu'){ //merged clickCircMenu into dropCircMenu.
+		console.log('idempotent display popup menu..');
 		if(options.loglev>2) console.log('updateOverlays clickcirctest whichMenu='+whichMenu);
 		//FIXME it appears it keeps rebuilding this dob when it doesnt need to. 2022-12-17 for now im just going to empty it each time first.
 		//menuDob.innerHTML = '';
 		//if((whichMenu=='clickCircMenu' && !uiState.removeClickCircMenuAsap) || (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu')){
-			let menuList = eval(whichMenu);
-			for(let i=0; i<menuList.length; i++){
-				let picUrl = menuList[i].pic;
-				let pic = Nob('img',menuDob);
-				pic.style.position = 'absolute';
-				attr(pic,'src',picUrl);
-				let centerY = globalVars.dropCircMenuCenterY;
-				let centerX = globalVars.dropCircMenuCenterX;
-				let angle = -halfPi+twoPi*i/menuList.length; //first is straight up. Continue clockwise around, putting icons.
-				//let radius = options.dropCircMenuRadius;
-				let radius = options.radiusOfMenu[whichMenu];
-				let size = options.dropCircMenuIconSize;
-				pic.style.top = (centerY-size/2+radius*Math.sin(angle))+'px';
-				pic.style.left = (centerX-size/2+radius*Math.cos(angle))+'px';
-				pic.style.height = size+'px';
-				pic.style.width = size+'px';
-				const dropCircMenuItem = menuList[i];
-				pic.addEventListener(
-					'mouseover',
-					event=>doEndDrag(dropCircMenuItem)
-				);
+			if(menuDobHtml == ''){
+				console.log('createy popup menu');
+				let menuList = eval(whichMenu);
+				for(let i=0; i<menuList.length; i++){
+					let picUrl = menuList[i].pic;
+					let pic = Nob('img',menuDob);
+					pic.style.position = 'absolute';
+					attr(pic,'src',picUrl);
+					let centerY = globalVars.dropCircMenuCenterY;
+					let centerX = globalVars.dropCircMenuCenterX;
+					let angle = -halfPi+twoPi*i/menuList.length; //first is straight up. Continue clockwise around, putting icons.
+					//let radius = options.dropCircMenuRadius;
+					let radius = options.radiusOfMenu[whichMenu];
+					let size = options.dropCircMenuIconSize;
+					pic.style.top = (centerY-size/2+radius*Math.sin(angle))+'px';
+					pic.style.left = (centerX-size/2+radius*Math.cos(angle))+'px';
+					pic.style.height = size+'px';
+					pic.style.width = size+'px';
+					const dropCircMenuItem = menuList[i];
+					pic.addEventListener(
+						'mouseover',
+						event=>doEndDrag(dropCircMenuItem)
+					);
+				}
+			}else{
+				console.log('popup menu: Not filling popupMenuDob again, its still popped up with icons around a circle, menuDobHtml.length='+menuDobHtml.length);
 			}
 		//}else{
 		//	//uiState.removeClickCircMenuAsap = false;
 		//	menuDob.innerHTML = '';
 		//}
 	}else{
+		console.log('erase popup menu, was menuDobHtml.length='+menuDobHtml.length);
 		if(options.loglev>2) console.log('updateOverlays clickcirctest emptying_menuDob clickCircSplat='+(clickCircSplat?'nonnull':'null'));
 		menuDob.innerHTML = ''; //Without this, clickCircMenu doesnt disappear after use it.
 	}
+	
+	let dragLineDob = Dob('dragLineDob');
 	if(options.updateDragLineColorIn_updateOverlays_thisIsAnUglyHackTodoMoveDragLineToBeAnOverlay){
-		let splatWithDragLine = findSplat(splat=>splat.splate().isDisplayDragLine());
+		//let splatWithDragLine = findSplat(splat=>splat.splate().isDisplayDragLine());
+		/*let splatWithDragLine = findSplat(splat=>splat.isDisplayDragLine()); //TODO optimize since its one of the splats in uiState.dragSteps
 		if(splatWithDragLine){
 			//the ugly hack, cuz updating those dobs (dom objects) should only happen cuz of
 			//change in splatWithDragLine.splate(), and Splate is used as immutable. Split is also used as immutable.
 			splatWithDragLine.dobs.dragLine.style.backgroundColor = whatColorShouldDragLineBe();
-		}
+		}*/
+		dragLineDob.style.backgroundColor = whatColorShouldDragLineBe();
 	}
 	
 	if(options.highlightWhatWasJustDropped){
@@ -4872,6 +5072,116 @@ var updateOverlays = ()=>{
 			}
 		}
 	}
+	
+	/*for(let dragStep in uiState.dragSteps){
+		let splat = uiState.dragSteps[dragStep];
+		if(splat){
+			splat.updateDragStuffIfNeeded();
+		}
+	}*/
+	
+	/*let isDisplayDragLine = uiState.from.isDisplayIcon && uiState.to.isDisplayIcon; //TODO color depends on which kind of drag (see options map for colors)
+	if(isDisplayDragLine){
+		console.log('Displaying dragLineDob='+dragLineDob+' TODO move resize and rotate it to be between FROM and TO drag icons');
+		dragLineDob.style.visibility = 'visible';
+	}else{
+		console.log('Hiding dragLineDob='+dragLineDob);
+		dragLineDob.style.visibility = 'hidden';
+	}*/
+	
+	let yxyx = dragLineFromYXToYX(); //null if dont display dragLine, else is 4 numbers.
+	if(yxyx){
+		//let dob = this.dobs.dragLine;		
+		//let dob = dragLineDob;
+		//this splate should be the TO, and another splate should be the FROM. Max 1 dragLine displayed at once on screen.
+		//let yxyx = dragLineFromYXToYX();
+		/*if(!yxyx){
+			if(options.allow_doDropCircMenu_afterClickWithoutDrag){
+				console.log('This might be an "ugly hack" where a TO exists but not a FROM cuz of a click without a drag (which happens cuz merged clickCircMenu into dropCircMenu). Check the comment on isDisplayDragLine and allow_doDropCircMenu_afterClickWithoutDrag.');
+			}else{
+				throw 'No dragLineFromYXToYX, so not displaying dragLine, but why is isDisplayDragLine true? this='+this;
+			}
+		}else{
+		*/
+			let diffY = yxyx[2]-yxyx[0];
+			let diffX = yxyx[3]-yxyx[1];
+			let diffLen = Math.hypot(diffY,diffX);
+			if(diffLen > 0){
+				//FIXME got it wrong which of width vs height to make the thin dimensions when created that dob. flipping that here...
+				dragLineDob.style.height = options.dragLineThick+'px';
+				dragLineDob.style.width = Math.ceil(diffLen)+'px';
+				dragLineDob.style.visibility = 'visible';
+				let normY = between(-1,diffY/diffLen,1);
+				let normX = between(-1,diffX/diffLen,1);
+				let a = normX;
+				let b = normY;
+				let c = -normY;
+				let d = normX;
+				let ty = (yxyx[0]+yxyx[2])/2;
+				let tx = (yxyx[1]+yxyx[3])/2;
+				tx -= diffLen/2; //without this, it appears to the right of where it should be, in some strange coordinate system that rotates around the middle of a div, or something.
+				dragLineDob.style.transform = 'matrix('+a+','+b+','+c+','+d+','+tx+','+ty+')';
+			}else{
+				console.log('Not completely (maybe will display wrong?) displaying dragLine of length '+diffLen);
+			}
+		//}
+	}else{
+		dragLineDob.style.visibility = 'hidden';
+	}
+	//this was Splat, but moved the code to here in updateOverlays. this.updateDobIconsVisibility();
+
+	for(let fromOrTo of ['from','to']){
+		let iconDob = Dob(fromOrTo+'Icon'); //fromIcon or toIcon
+		let beVisible = true;
+		if(uiState[fromOrTo].isDisplayIcon){
+			console.log('TODO display uiState.'+fromOrTo+' icon, looseIconYFraction='+uiState[fromOrTo].looseIconYFraction+' looseIconXFraction='+uiState[fromOrTo].looseIconXFraction+' icon='+iconDob);
+			iconDob.style.visibility = 'visible';
+			/*
+			let wouldfromOrFrom = anyfromSplat();
+			let wouldtoOrTo = anytoSplat();
+			if(wouldfromOrFrom && wouldtoOrTo){
+				let dobFrom = wouldfromOrFrom.dobs.self;
+				let dobTo = wouldtoOrTo.dobs.self;
+				return [ //drag line
+					dobY(dobFrom)+dobHeight(dobFrom)*uiState.from.looseIconYFraction, //fromY
+					dobX(dobFrom)+dobWidth(dobFrom)*uiState.from.looseIconXFraction, //fromX
+					dobY(dobTo)+dobHeight(dobTo)*uiState.to.looseIconYFraction, //toY
+					dobX(dobTo)+dobWidth(dobTo)*uiState.to.looseIconXFraction //toX
+				];
+			}*/
+			let splat = fromOrTo=='to' ? anytoSplat() : anyfromSplat();
+			if(splat){
+				let y = dobY(splat.dobs.self)+dobHeight(splat.dobs.self)*uiState[fromOrTo].looseIconYFraction;
+				let x = dobX(splat.dobs.self)+dobWidth(splat.dobs.self)*uiState[fromOrTo].looseIconXFraction;
+				y -= dobHeight(iconDob)/2;
+				x -= dobWidth(iconDob)/2;
+				iconDob.style.top = y+'px';
+				iconDob.style.left = x+'px';			
+				/*Moving looseIcon and dragLine etc from Splat and Splate to uiState 2023-1
+				if(splate.isDisplayIcon){ //FIXME remove "true ||".
+					let self = this.dobs.self;
+					//this.dobs.looseIcon.style.verticalAlign = (splate.looseIconYFraction*100)+'%';
+					//this.dobs.looseIcon.style.horizontalAlign = (splate.looseIconXFraction*100)+'%';
+					
+					this.dobs.looseIcon.style.height = options.iconSize+'px';
+					this.dobs.looseIcon.style.width = options.iconSize+'px';
+					//TODO adjust by half width and height of icon.
+					this.dobs.looseIcon.style.top = Math.round(dobY(self)+dobHeight(self)*splate.looseIconYFraction-options.iconSize/2)+'px';
+					this.dobs.looseIcon.style.left = Math.round(dobX(self)+dobWidth(self)*splate.looseIconXFraction-options.iconSize/2)+'px';
+				}*/
+				iconDob.style.height = options.iconSize+'px';
+				iconDob.style.width = options.iconSize+'px';
+			}else{
+				console.log('WARNING: uiState.'+fromOrTo+'.isDisplayIcon is true but splat='+splat);
+				beVisible = false;
+			}
+		}
+		if(!beVisible){
+			console.log('hide uiState.'+fromOrTo+' icon = '+iconDob);
+			iconDob.style.visibility = 'hidden';
+		}
+	}
+	
 	
 	Dob('vmStats').innerHTML = '<nobr title="This stops the browser tab from crashing if you write an infinite loop, gives up early."><input type=button onclick="vm.refill(); updateOverlays();" value="refill"></input> vm.stackTime='+vm.stackTime+' vm.stackMem='+vm.stackMem+'</nobr>';
 	
@@ -5752,12 +6062,12 @@ UIMode.prototype.onEvent = function(event){
 
 var simpleDragUimode = new UIMode('simpleDragUimode');
 simpleDragUimode.onEvent = function(event){
-	consoe.log('TODO simpleDragUimode.event='+event);
+	console.log('TODO simpleDragUimode.event='+event);
 };
 
 var popupDragUimode = new UIMode('popupDragUimode');
 popupDragUimode.onEvent = function(event){
-	consoe.log('TODO popupDragUimode.event='+event);
+	console.log('TODO popupDragUimode.event='+event);
 };
 
 //Example: 'XRRL' -> _[L R R] aka (Seq [L R R]),
@@ -5964,10 +6274,151 @@ var endMetaInsert = ()=>{
 	afterDrop();
 };
 
+//If you leave off optionalIsDisplayIcon, it doesnt set it to true or false.
+//Either way, only sets stuff depending on this.isDragFrom() and this.isDragTo()
+Splat.prototype.setIconStuffInUiStateIfs = function(looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon){
+	if(this.isDragFrom()){
+		console.log('mousemove isDragFrom splat='+this);
+		//false is FROM. true is TO. It can be none, one, or both of those.
+		setIconStuffInUiState(false, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon);
+	}
+	if(this.isDragTo()){
+		console.log('mousemove isDragTo splat='+this);
+		setIconStuffInUiState(true, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon);
+	}
+};
+
+//moving looseIconYFraction, looseIconXFraction, isDisplayIcon, etc from Splate to uiState.
+//If you leave off optionalIsDisplayIcon, it doesnt set it to true or false.
+//Splat.prototype.setIconStuffInUiState = function(isToElseFrom, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon){
+var setIconStuffInUiState = function(isToElseFrom, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon){
+	let toVsFrom = isToElseFrom ? 'to' : 'from';
+	uiState[toVsFrom].looseIconYFraction = looseIconYFraction;
+	uiState[toVsFrom].looseIconXFraction = looseIconXFraction;
+	//uiState[toVsFrom].isDisplayIcon = isDisplayIcon;
+	optionalIsDisplayIcon = true; //FIXME remove this line
+	if(optionalIsDisplayIcon !== undefined){
+		uiState[toVsFrom].isDisplayIcon = optionalIsDisplayIcon;
+	}
+};
+
+//Is this Splat the only one being dragged FROM (if any) right now, in uiState?
+//In the redesign 2023-1, the same Splat can be both isDragFrom and isDragTo,
+//such as if you right click, or if left-drag or right-drag from and to the same splat/rectangle.
+//Also see Splat.dragStep() and Splat.setDragStep(dragStepString).
+Splat.prototype.isDragFrom = function(){
+	console.log('isDragFrom? uiState.dragSteps.wouldFrom exists='+!!uiState.dragSteps.wouldFrom+' equalsThis?='+(uiState.dragSteps.wouldFrom==this));
+	console.log('isDragFrom? uiState.dragSteps.from exists='+!!uiState.dragSteps.from+' equalsThis?='+(uiState.dragSteps.from==this));
+	return uiState.dragSteps.wouldFrom==this || uiState.dragSteps.from==this;
+};
+
+//Is this Splat the only one being dragged TO (if any) right now, in uiState?
+Splat.prototype.isDragTo = function(){
+	console.log('isDragTo? uiState.dragSteps.wouldTo exists='+!!uiState.dragSteps.wouldTo+' equalsThis?='+(uiState.dragSteps.wouldTo==this));
+	console.log('isDragTo? uiState.dragSteps.to exists='+!!uiState.dragSteps.to+' equalsThis?='+(uiState.dragSteps.to==this));
+	console.log('isDragTo? uiState.dragSteps.dropCircMenu exists='+!!uiState.dragSteps.dropCircMenu+' equalsThis?='+(uiState.dragSteps.dropCircMenu==this));
+	return uiState.dragSteps.wouldTo==this || uiState.dragSteps.to==this || uiState.dragSteps.dropCircMenu==this;
+};
+
+/*TODO i want it to remember dragLine and some colored rect outlines, keep them on screen,
+until next drag starts, and a way to get them off the screen without doing another drag,
+and I want a separate wouldFrom icon than the from icon.
+Which dragSteps should this be organized as?
+Normally FROM deletes WOULDFROM, but I want [FROM only] or both, depending if user
+has pushed some button (or waited t time?) for the previous drag to have gone away.
+..
+This is getting too complex by outerjoining it with the buttons (which there will be more of later).
+Divide it by lastMouseButtonDown first.
+Define the various states...
+STATE_notDragging_noPrevDragDisplayed -> [STATE_popupDragButton_draggingFrom_choosingTo OR STATE_metaInsertButton_draggingFrom_choosingTo]
+STATE_notDragging_prevDragDisplayed -> [STATE_popupDragButton_draggingFrom_choosingTo OR STATE_metaInsertButton_draggingFrom_choosingTo]
+STATE_popupDragButton_draggingFrom_choosingTo -> STATE_draggingFromTo_choosingIcon
+STATE_popupDragButton_draggingFromTo_choosingIcon -> [STATE_notDragging_noPrevDragDisplayed OR STATE_notDragging_prevDragDisplayed]
+..
+STATE_metaInsertButton_draggingFrom_choosingTo -> STATE_draggingFromTo_choosingIcon
+..
+const popupDragButton = 'mouseRightButton'; //controls[popupDragButton] is 0 (up) or 1 (down)
+const metaInsertButton = 'mouseLeftButton';
+..
+..
+..
+Divide it by lastMouseButtonDown first, various states
+if(uiState.lastMouseButtonDown == metaInsertButton){
+	STATE_notDragging_prevDragDisplayed -> [STATE_notDragging_noPrevDragDisplayed OR STATE_metaInsertButton_draggingFrom_choosingTo]
+	STATE_notDragging_noPrevDragDisplayed -> STATE_metaInsertButton_draggingFrom_choosingTo
+	STATE_metaInsertButton_draggingFrom_choosingTo -> STATE_notDragging_prevDragDisplayed
+}else if(uiState.lastMouseButtonDown == popupDragButton){
+	STATE_notDragging_prevDragDisplayed -> [STATE_notDragging_noPrevDragDisplayed OR STATE_popupDragButton_draggingFrom_choosingTo].
+	STATE_notDragging_noPrevDragDisplayed -> STATE_popupDragButton_draggingFrom_choosingTo
+	STATE_popupDragButton_draggingFrom_choosingTo -> STATE_popupDragButton_draggingFromTo_choosingIcon
+	STATE_popupDragButton_draggingFromTo_choosingIcon -> STATE_notDragging_prevDragDisplayed
+}else if(TODO add more buttons here, not just mouse button){
+	//TODO
+}else{
+	//nothing
+}
+FIXME how do you choose, in STATE_notDragging_prevDragDisplayed, to go to STATE_notDragging_noPrevDragDisplayed
+(aka to stop displaying the prev dragLine etc without starting another drag)?
+
+Do I want uiState.uimode.onEvent(event) to be called, or just keep doing it all merged in uiState?
+Doesnt seem they can be completely separated yet cuz of shared dragSteps.wouldFrom, uiState.wikibClipboard, etc.
+
+
+Planned solution: uiState.dragSteps.ghost.
+"//happens after dropCircMenu. displays earlier dragLine, selected from and to, etc. can happen during WOULDFROM, but is erased when FROM starts again.
+ghost: null,"
+If you want to get rid of it "choose, in STATE_notDragging_prevDragDisplayed, to go to STATE_notDragging_noPrevDragDisplayed"
+then use this code: uiState.dragSteps.ghost = null; updateOverlays();
+aka change_dropCircMenu_to_ghost();
+
+TODO all dropCircMenu funcs should move dropCircMenu to ghost, so it wont display the circ menu anymore but will remember it a short time.
+
+
+*/
+
+//TODO this might also be used if theres another kind of menu with an extra step at the end later, but as of 2023-1-21 its only dropCircMenu.
+var change_dropCircMenu_to_ghost = ()=>{
+	if(uiState.dragSteps.dropCircMenu){
+		console.log('change_dropCircMenu_to_ghost working as normal');
+		uiState.dragSteps.ghost = uiState.dragSteps.dropCircMenu;
+		uiState.dragSteps.dropCircMenu = null;
+		updateOverlays();		
+	}else{
+		console.log('change_dropCircMenu_to_ghost found no uiState.dragSteps.dropCircMenu so doing nothing');
+	}
+};
+
+var removeGhost = ()=>{
+	if(uiState.dragSteps.ghost){
+		uiState.dragSteps.ghost = null;
+		updateOverlays();
+	}
+};
 
 
 //In case clickCircMenu has multiple vars, put them all here. Start with just the fn thats copy/pasted.
 var uiState = {
+	dragSteps: { //splats, at most 1 splat per dragStep at a time. All others have dragStep of 'no'.
+		wouldFrom: null,
+		from: null,
+		wouldTo: null,
+		to: null,
+		dropCircMenu: null,
+		
+		//happens after dropCircMenu. displays earlier dragLine, selected from and to, etc. can happen during WOULDFROM, but is erased when FROM starts again.
+		ghost: null,
+	},
+	from: { //about uiState.dragSteps['wouldFrom' or 'from']
+		looseIconYFraction: 0,
+		looseIconXFraction: 0,
+		isDisplayIcon: false,
+	},
+	to: { //about uiState.dragSteps['wouldTo' or 'to' or 'dropCircMenu']
+		looseIconYFraction: 0,
+		looseIconXFraction: 0,
+		isDisplayIcon: false,
+	},
+	
 	lastMouseButtonDown: 'unknownButton',
 	wikibClipboard: U, //clickCopy and clipPaste use this.
 	
@@ -6455,10 +6906,18 @@ var display_copyOfPopupMenuToPreChoose = ()=>{
 
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
+	rootDob.addEventListener('mousedown', event=>{
+		console.log('rootDob_mousedown');
+		globalOnMouseDown(event);
+	});
 	rootDob.addEventListener('mouseup', event=>{
 		console.log('rootDob_mouseup');
 		globalOnMouseUp(event);
-	}); //cuz keeps losing mouseup events
+	}); //cuz keeps losing mouseup events, moved mouseup events to global. Then for a different reason moved mousedown and mousemove events to global.
+	rootDob.addEventListener('mousemove', event=>{
+		console.log('rootDob_mousemove');
+		globalOnMouseMove(event);
+	});
 	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
@@ -6511,6 +6970,7 @@ window.onload = ()=>{
 	<div id=globalDobs>
 		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
 		<div id=globalToOverlay style="pointer-events:none;position:absolute;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001"></div>
+		
 		<div id=mouseOverSelect_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#fff"></div>
 		<div id=mouseOverSelect_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#fff"></div>
 		<div id=mouseOverSelect_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#ddd"></div>
@@ -6523,11 +6983,17 @@ window.onload = ()=>{
 		<div id=mouseOverSelect2_bottom style
 		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#0c1"></div>
 		
-		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85"></div>
+		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85;pointer-events:none"></div>
 		
-		<div id=displayThisOnWhatWasLastDropped style="position:absolute;z-index:10000005;background-color:white;top:0px;left:0px;opacity:.85;width=20px;height:3px"></div>
+		<div id=displayThisOnWhatWasLastDropped style="position:absolute;z-index:10000005;background-color:white;top:0px;left:0px;opacity:.85;width=20px;height:3px;pointer-events:none"></div>
 		
-		<div id=popupMenuDob style="position:absolute;z-index:10000006;background-color:gray;top:0px;left:0px"></div>
+		<img id="fromIcon" src="pic/from_transparent.png" style="position:absolute;z-index:10000006;pointer-events:none"></div>
+		
+		<img id="toIcon" src="pic/to_transparent.png" style="position:absolute;z-index:10000007;pointer-events:none"></div>
+		
+		<div id=dragLineDob style="position:absolute;z-index:10000008;background-color:#0ff;top:0px;left:0px;width:50px;height:50px;pointer-events:none"></div>
+		
+		<div id=popupMenuDob style="position:absolute;z-index:10000009;background-color:gray;top:0px;left:0px"></div>
 	</div>
 	
 	<center>
@@ -6574,6 +7040,17 @@ window.onload = ()=>{
 			<div id=vmStats></div><br>
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
+			<div id=logOut></div><br>
+			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
+			
+			<div style="display:inline-block">
+				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
+				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
+			</div><br>
+			<input type=button onclick="vm.eval(Dob('codeIn').value);" value="eval code without try/catch, so can see stacktrace on console"></input><br>
+			
+			<textarea rows=5 cols=90 readonly id=codeErr></textarea>
+			
 			<div>
 			wikib treeui fix the cant drop at same place to and from, by 2 dragsteps per splate. no, do in uistate 2 splats.
 no, instead... xllrlr_xpos_ypos is coordinate. put 2 of those and some button stuff and highlight stuff in uistate, and onsolete those parts of splate.
@@ -6604,15 +7081,6 @@ Hook in gamepads, mouse, and keyboard too. But is now a good time for that? Its 
 				TODO [] is Infcur. -= is Rucfni (infcur spelled backward). Make lisp-like syntax like -car -cons a b== or maybe it should be .car .cons .a .b or maybe the .thing aka get var thing from Treemap (stateless) state (second param, first is linkedlist of params).<br>
 				FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.
 			</h1>
-			<div id=logOut></div><br>
-			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
-			
-			<div style="display:inline-block">
-				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
-				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
-			</div><br>
-			
-			<textarea rows=5 cols=90 readonly id=codeErr></textarea>
 			
 		</td></tr></table>
 	</center>
