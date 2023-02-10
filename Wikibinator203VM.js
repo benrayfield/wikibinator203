@@ -10786,7 +10786,9 @@ const Wikibinator203 = (()=>{
 		vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
 			'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))');
 			
-		vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 5 is (Fo y 5 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (EmptyTreemap GodelLessThan) (DE x))]')+'', '[the number of unique binary trees at most height 5 is 677]');
+		//vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 5 is (Fo y 5 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (EmptyTreemap GodelLessThan) (DE x))]')+'', '[the number of unique binary trees at most height 5 is 677]');
+		vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+'', '[the number of unique binary trees at most height 4 is 677]');
+		//throw 'FIXME start at 1 instead of 0. it goes height0=1 2 5 26 height4=677. The map is empty so starts as double value of U being 0.';
 			
 		/*[TheLoop#<Fo ,y ,20 <KE ,x <+ <K? ,x> ,100>>>
 		(KE x 333 (EmptyTreemap GodelLessThan))
