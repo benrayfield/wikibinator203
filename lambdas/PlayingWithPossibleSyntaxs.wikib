@@ -1,0 +1,181 @@
+
+/* TODO rename this file to remove the .js ending. i just put that so it looks like js colors in editor temporarily. End with .wikib.
+
+As of 2023-3-3 I'm adding new syntax, and possibly adjusting existing syntax, of wikibinator203.
+Users will have the ability to make completely new syntaxs, as each is a lambda,
+but this is just to get started, that I'm coding in vm.eval and in some parts of the html UIs.
+
+Here's what it does so far:
+U is the universal function, from which all opcodes are derived,
+	but I'll write opcodes directly anyways such as Infcur, S, T, F, despite those are calls of U on itself.
+(x y) is x called on y, such as (U U).
+(x y z) is ((x y) z).
+,x is (T x). ,,x is (T (T x)) and so on.
+{a b} is (S a b).
+{a b c} is {{a b} c} and so on.
+<a b> is {,a b}.
+<a b c> is {,a b c} and so on.
+[] is Infcur.
+[a] is (Infcur a).
+[a b c] is (Infcur a b c) and so on.
+0b0 is Bit0.
+0b1 is Bit1.
+(0b0 0b1) returns 0b01. Similarly for (0b11 0b01) returns it as hex 0xd. Hex if it has at least 4 bits.
+0xff in hex is the byte 255 in baseTen.
+0xffffffffffffffffffffffffffffffff and so on, can be literal bits, of any small powOf2 size,
+but when they get too big theyre written as (0xffffffffffffffffffffffffffffffff 0xffffffffffffffffffffffffffffffff) etc.
+Anything that starts with a lowercase letter and is small and has no whitespace, is itself as a string literal.
+	A string literal is (TypevalB U TheBytes)
+Anything that starts with an uppercase letter or certain other chars, is a Name#,
+	like I in [this I#(F U) is an identity function and here it is again I].
+Theres certain chars which are parsed by themself and act as names, including "_" (is Seq) and "," (is T).
+Numbers, like 2.34, are a syntax for (TypevalC application/x-IEEE754-double 0xfff..theBytes...ff), similar to stringLiterals,
+	though that string application/x-IEEE754-double maybe should be much smaller such as just d.
+
+Thats "what it does so far". Next, Im thinking about adding a syntax for the opcodes OOToO, TGet, TPut, etc,
+that will be used with the vm.Mut optimizations (will normally be compiled to javascript eval andOr GPU.js but can run in interpreted mode),
+and its basically meant to be similar to procedural javascript code that does loops, if/else, += * / etc,
+but inside lambdas as it will be forkEdits of a stateless/immutable Treemap state.
+A treemap comes in, does some calculations using mutable vm.Mut optimizations, and takes a snapshot of its state as a treemap,
+which guarantees the exact same output as if it had been computed in interpreted mode
+(unless you further speed it up with vm.mask_* to allow nondeterministic roundoff).
+
+fn means a wikib lambda, such as U or [a b c]. fns (plural).
+
+//Heres some example javascript...
+let x = {};
+x.y = {};
+x.y.sum = 0;
+x.sumOfSquares = 0;
+for(let i=0; i<500; i++){
+	x.y.sum += i;
+	x.sumOfSquares += i*i;
+}
+return x.sumOfSquares;
+
+Thats not wikib code. Thats javascript code. In wikib, I want a syntax which doesnt conflict with "what it does so far"
+and also makes it a small simple code to write that.
+A Treemap comes in. In this case its empty.
+
+A vm.Mut optimization is basically javascript objects (TODO) (or in some cases compiled to GPU, TODO),
+that have a primaryKey of a fn. A Mut is a mutable map of Mut to Mut, AND a Mut has a few fields in it,
+containing a float64, a dup (not yet deduped necessarily, for speed) fn, and a typed blob such as a Float64Array(8192) of a powOf2 number of bits.
+To avoid allocating a new Mut for loop counter and other float64 vars, use the float64 field in a Mut,
+such as by (DPut sum 5) puts 5 in the var "sum"'s float64 field.
+
+GET of x.y.sum would be written as .x.y.sum if you want the Mut in Mut in Mut of x then y then sum.
+But if you want the float64 field in that last Mut, you need a DGet or DPut,
+and thats whats bothering me, that it takes extra chars to say so.
+I might want it to look like .x.y.sum.D or .x.y.sum$ or $x.y.sum or something like that.
+It seems confusing to put $ (if that is the DPut/DGet symbol, undecided so far) on the left since its outermost.
+But if dont start with . then x.y would mean "x".y cuz x by itself is a stringlit.
+
+Also I'm using -= as syntax chars to mean an opposite of Infcur list, a Rucfni list, which is like in the parsing order of lisp,
+and its important it be those chars specificly cuz they occur on a qwerty keyboard beside eachother,
+so cant have = as a syntax char for other things. Choose some other char for that. Ive been using E to mean equals,
+like in KKE (though im probably renaming that).
+
+If .x.y.sum$ compiles to js code rootMut.λx.λy.λsum.λD,
+then i was thinking .x.y.sum$= should compile to rootMut.λx.λy.λsum.λD= BUT cant use the = char cuz its used for something else.
+How about & cuz some programmers associate it with an address in C code.
+.x.y.sum$&
+&.x.y.sum$
+.x.y.sum$^
+^.x.y.sum$
+
+Also, .x can mean to get the x var in a (λ [x y z] comment funcbody ...params...), where .x would occur various places in funcbody.
+That, and in Treemap used with these vm.Mut optimizations, are its 2 main usecases.
+
+Also, I might want to redesign the Fo For IfElse If etc opcodes to use (...) and have <...> behaviors built in,
+since theres rarely a usecase for them to be in (...) so it will run more efficiently and use less nodes to build that in at opcode level.
+
+Im thinking maybe its best to leave the PUT code to use existing <...> {...} etc syntax, and just have these new syntaxs for GET.
+???
+
+(DPut .x.y.sum <* .x.otherThing$ ,3>) //if "redesign the Fo For IfElse If etc opcodes to use (...) and have <...> behaviors built in,"
+<DPut .x.y.sum <* .x.otherThing$ ,3>> //if NOT "redesign the Fo For IfElse If etc opcodes to use (...) and have <...> behaviors built in,".
+
+.x is (OToO x)
+.x.y is (OOToO (OToO x) y) ??FIXME should it be (OOToO x y) instead?? Should both kinds exist?
+.x.y.sum is (OOToO (OOToO (OToO x) y) sum)
+.x.y.sum$ is (DGet (OOToO (OOToO (OToO x) y) sum))
+.x.y% is (DupFnGet (OOToO (OToO x) y))
+
+M is rootMut, in a certain call of lambdas using vm.Mut optimization. Its an instance of vm.Mut. TODO vm.Mut.prototype.NewPtr.
+
+
+_[
+	//FIXME dont use NewTreemap for .x and .x.y etc, cuz in (OOToO x y) etc, which goes in the returned Treemap, that web allows cycles.
+	//<Put ,x NewTreemap> //NewTreemap uses the same comparator as the incoming treemap
+	//or should it be (SPut ,x NewTreemap)?
+	//<Put .x NewTreemap>
+
+	<Put ,x NewId>
+
+	//x.y.sum = 0;
+	<Put .x.y sum 0>
+
+]
+
+FIXME i want a NewId opcode, or better, a derived func since might want to start each thread at a different id, or binheap indexing or something.
+The problem is, it needs to return a forkEdited treemap AND the next id.
+How to set a var to such an id?
+//(LastId 0) in Treemap
+//(NewId TreeMap)
+..
+SOLUTION???
+//in Treemap this maps to the last ptr made by something like (NewPtr x) which .x would then return, allowing you to (NewPtr .x),
+//or something like that. How does .x vs .x.y work in this?
+Opcode: (PtrMaker {...func that returns what LastPtr should map to in the Treemap and is called by NewPtr...})
+Opcode: LastPtr
+Opcode: (NewPtr x y) //compiles to js code M[x][y] = M.NewPtr(...something...), but must put something at M[x] first. Returns forkEdited M.
+Before doing NewPtr, everything maps to U, which Treemap returns if it has no mapping for a key.
+//(NewPtr x) //compiles to js code: M[x] = M.NewPtr(); return M; After this, .x returns such ptr which is any fn.
+(NewPtr x) //compiles to js code: M[x] = M.NewPtr(); return M; After this, .x returns such ptr which is any fn.
+(NewPtr x) is same as (NewPtr I x), cuz I gets treemap? Doesnt seem right,
+	cuz (even tho I does get the Treemap state) you wouldnt put (OOToO ThatTreemap x) as key in forkEdit of ThatTreemap.
+	Seems that multiple NewPtr vs NewPtrr vs NewPtrrr funcs are needed, andOr (NewPtrs [x y z...]). Ok, also have that func.
+(NewPtrr .x y) //compiles to js code: M[x] = M[wikibEvalGivenCurrentTreemap .x][y].NewPtr(); return M; After this, .x.y returns such ptr which is any fn.
+(NewPtrr .x.y z)
+(NewPtrs [x y z]) aka NewPtrs[x y z], or should it be (NewPtrs -x y z=) as a Rucfni list?
+NewPtrsIf[x y z] is same as NewPtrs[x y z] but only if M[x] is not U, and M[x][y] is not U, and so on. Does not replace them if they already have some val.
+(NewPtrIf x)
+(NewPtrrIf .x y)
+
+
+let x = {};
+x.y = {};
+x.y.sum = 0;
+x.sumOfSquares = 0;
+for(let i=0; i<500; i++){
+	x.y.sum += i;
+	x.sumOfSquares += i*i;
+}
+return x.sumOfSquares;
+
+
+
+_[  //let x = {};
+	//x.y = {};
+	//x.y.sum = 0; except uses the double field in sum instead of sum directly.
+	NewPtrsIf[x y sum]
+	(NewPtrIf .x sumOfSquares)
+	(Dput .x.y.sum ,0)
+	(Dput .x.sumOfSquares ,0)
+	//for(let i=0; i<500; i++){
+	(Fo i ,500
+		_[  //x.y.sum += i;
+			(DPlusEq .x.y.sum .i)
+			(DPlusEq .x.sumOfSquares <* .i .i>)
+	)   ]
+	.x.sumOfSquares //return M[x][sumOfSquares]
+]
+
+
+UPDATE: replacing "." with "/" in syntax like .a.b.sum which becomes /a/b/sum so it doesnt interfere with 2.34 and urls etc.
+
+UPDATE: use ^ instead of % to mean dupFn, like /a/b^ instead of /a/b% so it doesnt interfere with %ff urlEscaping.
+
+*/
+
+let x = 5;
