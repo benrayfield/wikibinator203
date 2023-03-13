@@ -5600,6 +5600,13 @@ const Wikibinator203 = (()=>{
 		//TODO faster localIds instead of strings in map. use an Int32Array and a [], or something like that, for faster hashtable specialized in nodes.
 		vm.funcallCacheMap = {};
 		
+		//FIXME this might cause problems with vm.Node.blob (shared Uint8Arrays each between 1 or more vm.Nodes) and maybe vm.Node in general.
+		vm.clearCache = function(){
+			console.log('vm.clearCache');
+			vm.funcallCacheMap = {};
+			vm.dedupHashtable = {};
+		};
+		
 		//BTFL is Bring To Front List, made of Infcur/[] aka "stream/[]".
 		//I'm making it a BTFL, instead of just appending, so it doesnt get too big.
 		//I'm also going to optimize most uses of it so it doesnt get stored as a BTFL
@@ -5703,6 +5710,7 @@ const Wikibinator203 = (()=>{
 		const twoPow32 = Math.pow(2,32);
 		const twoPow53 = Math.pow(2,32);
 		const randInt = ()=>(Math.floor(Math.random()*twoPow32)|0); //FIXME does this make negatives ever? Its supposed to.
+		const randIntSize = size=>Math.floor(Math.random()*size); //FIXME does this make negatives ever? Its supposed to.
 		//const hashIntSalts = new Int32Array(13);
 		const hashIntSalts = new Int32Array(30);
 		const hashingInts = new Int32Array(9); //put 8 ints in here (5 from each of 2 Nodes) starting at index 0 to hash, and get the hash from index 8.
@@ -6014,7 +6022,7 @@ const Wikibinator203 = (()=>{
 		//prefix is like _ for Seq, as in _[...], a 1 char prefix that doesnt need a space between it and its param, or null to not have one. TODO rename prefix to opAbbrev.
 		vm.addOp = (name,prefix,isStrange,curriesLeft,description)=>{
 			let o8 = vm.opInfo.length;
-			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc. Or maybe make a separate kind of object called Blob thats simpler and faster than lambdize of Node, and have Node wrap Blob, and Blob will still have localId but that might overlap part or all of the blob content? Also, a double/float64 maybe should count as a Blob? TODO: auto dedup every lambdize/Node thats a cbt thats at most 256 bits or 512 bits if using 512 bit ids, so have a vm option for cbt height to dedup, and since big blobs that copy between cpu and gpu etc will be wrappers of Int32Array etc that are usually bigger than 256 bits, it will auto not dedup those (just wrap as it is), and wont need to create lambdize/Node for those in most cases (use them as js arrays).';
+			if(o8 >= 256) throw 'Max 128 opcodes, whose o8 is 128 to 255. Tried to add vm.ops.'+name+'. 0 is evaling. 1 to 127 is the first 0-6 params, before the op is known at 7 params. If you want to redesign this to use different ops, you could replace the last half of vm.opInfo, but you must keep the first half. You could change it to have a different number of ops, such as 1024 ops, using a bigger array twice as big as the number of ops, but then youd need to take some bits from the header int such as only having 13 bits of curriesLeft so up to 8191 curries instead of 2^16-1 curries. But its a universal lambda and that shouldnt be needed. Everyone can use the same opcodes and make all possible programs with that. You might want to use a different universalLambda/opcodes if its easier to optimize for certain kinds of things, but I think this one will be GPU.js optimizable, javascript eval optimizable, etc. Or maybe make a separate kind of object called Blob thats simpler and faster than lambdize of Node, and have Node wrap Blob, and Blob will still have localId but that might overlap part or all of the blob content? Also, a double/float64 maybe should count as a Blob? TODO: auto dedup every lambdize/Node thats a cbt thats at most 256 bits or 512 bits if using 512 bit ids, so have a vm option for cbt height to dedup, and since big blobs that copy between cpu and gpu etc will be wrappers of Int32Array etc that are usually bigger than 256 bits, it will auto not dedup those (just wrap as it is), and wont need to create lambdize/Node for those in most cases (use them as js arrays).';
 			//TODO vm.o8ToLambda[vm.nextOpO8] = 
 			//vm.opcodeToO8[name] = vm.nextOpO8;
 			//vm.opcodesDescription[name] = (description || 'TODO write description of opcode '+name);
@@ -6481,8 +6489,358 @@ const Wikibinator203 = (()=>{
 		
 		vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map');
 		vm.addOp('DE',null,false,3,'Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.');
-		vm.addOp('KE',null,false,3,'(KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
-		vm.addOp('KKE',null,false,4,'(KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.');
+		
+		
+		/*
+		FIXME choose to change order of params here, such as <KE (F U) GetKey GetVal> where (F U) gets the Treemap,
+		or choose not to reorder. I was about ready to reorder it that way but then what should it put as key in the treemap,
+		since (KE Key) would no longer be a prefix of it? Maybe do it both ways,
+		but put (KE Key) and (KKE KeyA KeyB) in the map nomatter which one did it?
+		Do I want an op that does the same as <KE (F U)> aka {,KE (F U)} aka (S (T KE) (F U))?
+		That being the kind of KE (choose 1, drop the other from VM, TODO) where map is first param not last param.
+		Do I want an op that calls (KE key val) on 2 params when its given 1 param? and the
+		same param is used twice? (PP (KE key val) map) -> (KE key val map map). That way i could keep map as third param,
+		but need <...> instead of (...). (PP <KE GetKey GetVal>)??? That still has the problem of what goes in the map as key,
+		is it (KE key) or does it include that theoretical PP op too?
+		The best solution so far seems to be the KE op does (KE map key val) -> forkedited map, and to use (<<KE I> GetKey GetVal> map),
+		and make some opcodes or just use [...], for what that puts as key in the map. ???
+		TODO list out all the depths of recursion that go in the map, and primitive types,
+		and solve them all at once here...
+		It needs to know bit size of 8 16 32 or 64 bits, but maybe not if 32 is a float vs int, and if 64 is double vs long, etc.
+		It needs up to 2 keys, but not 3, cuz (object key value) is enough to recurse things like .a.b.c.def.ghi,
+		and in that case it first gets the 'a' key from map, then what that returns gets 'b' key from map, and so on. Thats just a getter.
+		vm.Mut will be flat for deduped fn keys (that joined with whichMutCallGroup) are primaryKey of a Mut so Mut as a mutable map of Mut to Mut,
+		and nonflat in having an extra depth of Float64Array or Int32Array etc at some js field,
+		and having a .dupFn js field, etc (might name these differently), and having a field thats a single mutable float64/double, etc.
+		The purpose of these ops is to be a snapshot, in a treemap, of that vm.Mut optimization, and to run it slowly in interpreted mode
+		when not using that optimization. Need opcode for each of those things, including such fields in Mut and to modify just a part of an array in Mut
+		such as (DE key val Map) should instead be (DE Map key val).
+		Need to know if there will be a different js field in Mut for Float64Array vs Int32Array etc, vs will that be a Buffer (js object)
+		which those can share and overlap. And is a Mut allowed to have more than 1 such array? The array can be replaced by another array of var size
+		at runtime, but probably best not to allow copying ptr to it to have multiple incoming ptrs to it from multiple Muts.
+		It should stay as being the array value of that Mut. Size and primType of it must be chooseable at runtimee.
+		..
+		*/
+		
+		
+		
+		
+		
+		/*SOLUTION: key is the getter, something like (but choose shorter names) (MutMut keya keyb) (MutD keya) (MutDupFn keya) (MutTypedBlob keya).
+		The "change order of params here, such as <KE (F U) GetKey GetVal>" problem exists in alot of the loop/if/read/write ops im still coding,
+		including Fo, If (or was it IfElse or Ife?), DE (set the (MutD keya) double val equal to a val), KKE, etc. Should rename some of those.
+		Setter for (MutTypedBlob keya) would replace the whole blob at once, but also need setters with an extra int param for which index in the blob
+		in units of uint8 int32 float32 float64 (and maybe a few other prim types?), like... (DE map player5sBallX 3.45) or <DEi ,player5sBallX ,3.45>
+		where DEi#<DE I#(F U)>. Or something like that. Thats the single number val in a mut (and snapshot of it in treemap).
+		The one with extra param might be (DDE map 7 3.45), where D means double/float64, or (todo find better name) if I means int then (DIE map 7.3.45).
+		E in these names means set EQUAL to.
+		These would usually be viewed, in text form, more like <DE .players.bob.x ,3.45> or maybe even .players.bob.x=,3.45
+		where .players.bob.x= is a lambda that takes a map param and a value and returns a forkEdited map,
+		but I probably got the number of params or <> vs {} vs () (s-curry-level etc) wrong and need to think about it more.
+		.players in vm.Mut optimizations would be js code like "rootMut.idOfTheStringPlayers",
+		and .players.bob.x would be js code like "rootMut.idOfTheStringPlayers.idOfTheStringBob.idOfTheStringX",
+		but only for keys that wont ever overlap existing keys in the vm.Mut type such as .toString so add a prefix.
+		It might end up generating js code like "m.λplayer.λbob.λx = (m.λplayer.λalice.λx*3);" where λalice might be returned by vm.eval('alice').n.id();
+		Just tested it, vm.eval('alice').n.id() does return 'λalice'.
+		Lambdas that arent short strings without whitespace etc, just give the full 256 bit id prefixed by 'λ'.
+		So just use the .id() of the lambda, whatever it is. So variable names can be lambdas in general, not just strings.
+		TODO before doing vm.Mut optimization, verify theres no keys that start with λ in vm.Mut,
+		and verify that no lambda in the call to be optimized can get the call to be optimized during forkEditing of it (as Treemap states)
+		and if it can then run it in slow intepreted mode instead.
+		*/
+
+
+		//(MutMut keya keyb) (MutD keya) (MutDupFn keya) (MutTypedBlob keya).
+		//Call it O instead of mut, for Object. Leave M for Map.
+		//vm.addOp('OGetO',null,false,2,'(OGetO key map)->(map key). (OGetO key) as datastruct meaning Mut, not Mut[Mut] like in OOGetO. They are all called on some root vm.Mut (Treemap normally). This gets directly from the Treemap just one level deep, instead of 2 levels deep like in OOGetO. That root treemap is the param.');
+		//vm.addOp('OOGetO',null,false,3,'(OOGetO keyA keyB) as datastruct meaning Mut[Mut]. Maps to (if this is a key in a Treemap) a fn, and in the vm.Mut optimization its Mut[Mut]->Mut. Next param is normally Treemap and get value of (OOGetO keyA keyB) from it. (TheTreemap x) gets value of x.'); //(MutMut keya keyb)
+		//FIXME where do i write the value type? Its Double/D but if i dont write the value in OO (its value type is O)
+		//then its inconsistent to name it that way here.
+		//vm.addOp('OGetD',null,false,2,' maps to (if this is a key in a Treemap) a float64/Double. Next param is normally Treemap and get value of (OGetD keyA) from it.  (TheTreemap x) gets value of x.'); //(MutD keya)
+		//vm.addOp('OGetDupO',null,false,2,'(OGetDupO keyA) maps to (if this is a key in a Treemap) a fn/lambda/O that in vm.Mut optimization tends to not be deduped for speed, like you can wrap big arrays and call GPU or CPU on combos of them without deduping them yet.. Next param is normally Treemap and get value of (OGetDupO keyA) from it.  (TheTreemap x) gets value of x.'); //(MutD keya) //(MutDupFn keya)
+		//vm.addOp('OGetBlob',null,false,2,'(OGetBlob keyA) maps to (if this is a key in a Treemap) a typed blob (though that isnt enforced) such as (TypevalC "application/x-IEEE-754-doubles" ...bits of 1024 doubles...). Next param is normally Treemap and get value of (OGetDupO keyA) from it.  (TheTreemap x) gets value of x.'); //(MutTypedBlob keya).
+		//rename them later to something shorter. just use those names for now.
+		//vm.addOp('OOPutO',null,false,4,' (OOPutO map keyA keyB val) -> forkEdited map with (OOGetO keyA keyB) mapped to val. Most often used in {<OOPutO I#(F U)> GetKeyA GetKeyB GetVal}.');
+		//vm.addOp('OPutD',null,false,3,' (OPutD map key 2.34) -> forkEdited map with (OGetD key) mapped to 2.34. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		//vm.addOp('OPutDupO',null,false,3,' (OPutDupO map key val) -> forkEdited map with (OGetDupO key) mapped to val. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		//vm.addOp('OPutBlob',null,false,3,' (OPutBlob map key val) -> forkEdited map with (OGetBlob key) mapped to val. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		//TODO get and put doubles, floats, ints, bytes, etc (and is it signed or unsigned bytes>), and whole typedblobs, and maybe cbts by themself?
+		//Also length funcs of such blobs, (Do these parts later...) and maybe concat, subrange, newemptyblob, etc.
+		//Or... a single typed put, that takes int param and where it puts it depends on sizeof(type).
+		vm.addOp('PrimSize',null,false,1,'(PrimSize (TypevalC ...)) -> 8..64 etc. (PrimSize of a TypevalB or TypevalC of doubles ints floats uint8s etc) in bits, such as 64 for a double array, 32 for an int array or float array, etc. TODO shorten and decide on which contentTypes will be used for such arrays, such as application/x-IEEE754-doubles for double array.');
+		
+		vm.addOp('TGet',null,false,2,'Typed primitive array gET. (TGet array index) -> val at that index in the array.');
+		vm.addOp('TPut',null,false,3,'Typed primitive array pUT. (TPut array index val) -> forkEdited array. Check (PrimSize array) for the size put in it. If its not a typed array, returns it as is. This will work with vm.Mut optimization without checking which size of array it is.');
+		
+		/*
+		vm.addOp('ZGet',null,false,2,'(ZGet cbtArray cbt32Index) -> Bit1 or Bit0, at that bit index in the array.');
+		vm.addOp('ZPut',null,false,3,'(ZPut cbtArray cbt32Index cbt1) -> forkEdited cbtArray with that Bit1 or Bit0 put at the index.');
+		*/
+		
+		vm.addOp('BGet',null,false,2,'(BGet cbtArray cbt32Index) -> raw byte at that index');
+		vm.addOp('BPut',null,false,3,'(BPut cbtArray cbt32Index cbt8Val) -> forkEdited cbtArray with that raw byte put at the index.');
+		
+		/*
+		vm.addOp('CPut',null,false,2,'(CGet cbtArray cbt32Index) -> raw short/int16/char at that index.');
+		vm.addOp('CPut',null,false,3,'(CPut cbtArray cbt32Index cbt16Val) -> forkEdited cbtArray with that raw short/char put at the index.');
+		
+		vm.addOp('IGet',null,false,2,'(IGet cbtArray cbt32Index) -> raw int/float at the index.');
+		vm.addOp('IPut',null,false,3,'(IPut cbtArray cbt32Index cbt32Val) -> forkEdited cbtArray with that raw int/float put at the index.');
+		
+		vm.addOp('JGet',null,false,2,'(JGet cbtArray cbt32Index) -> raw long/double put at the index.');
+		vm.addOp('JPut',null,false,3,'(JPut cbtArray cbt32Index cbt64Val) -> forkEdited cbtArray with that raw long/double put at the index.');
+		*/
+		
+		
+		
+		/*
+		TODO choose syntax .abc.def is O/Mut, but if in that Mut want to get one of the fields
+		(double, dupFn, typedBlob, or something inside the typedBlob, what syntax for that?) And should there be syntax for TGet BGet IGet etc?
+		
+		Heres some symbols on keyboard I maybe havent used yet, that might be available for these new syntaxs...
+		~ ! @ $ % ^ &
+		.abc.def
+		.abc.def$
+		.abc.def@
+		.abc.def!
+		
+		$abc.def
+		@abc.def
+		!abc.def
+		.abc.def.d
+		.abc.def.f
+		.abc.def.c
+		
+		Something like those should work. Next, And should there be syntax for TGet BGet IGet etc?...
+		
+		What smaller syntax for <TGet .abc.def ,20>, which in javascript would be abc.def[20] ?
+		
+		I dont like having to prefix things with "." like .abc means to GET abc from a param map: (OGetO abc).
+		(OGetO abc map) is how its called on state.
+		But ive been using anything that starts with lowercase as a string literal,
+		and anything that starts with uppercase or certain chars as a Name#.
+		*/
+		
+		
+		
+
+		
+		vm.addOp('KE',null,false,3,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+. (KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
+		//vm.addOp('KE',null,false,3,'(KE Map Key Val) -> forkEdited map with (KE Key) mapped to Val.');
+		vm.addOp('KKE',null,false,4,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+.  (KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.');
+		//vm.addOp('KKE',null,false,4,'(KKE Map KeyA KeyB Val) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.');
+		
+		
+		/* TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+.
+		Opcode: (Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
+		Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+		Opcode: (D a SomeMap) -> (SomeMap (D a))
+		Opcode: (O a SomeMap) -> (SomeMap (O a))
+		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+		*/
+		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du a SomeMap) -> (SomeMap (Du a)). Get potentially dup (not yet deduped) fn, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.');
+		vm.o8OfBl = vm.addOp('Bl',null,false,2,'(Bl a SomeMap) -> (SomeMap (Bl a)). Get potentially dup typed blob such a TypevalB or TypevalC of a uint8 short int float32 or float64 etc primitive array, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.');
+		vm.o8OfD = vm.addOp('D',null,false,2,'(D a SomeMap) -> (SomeMap (D a)). Normally used with typed double/float64 and often vm.Mut optimization.');
+		vm.o8OfO = vm.addOp('O',null,false,2,'(O a SomeMap) -> (SomeMap (O a)). /varName 1 level deep. Normally used with vm.Mut optimization.');
+		vm.o8OfOO = vm.addOp('OO',null,false,3,'(O varName secondVarName SomeMap) -> (SomeMap (O a)). /varName/secondVarName 2 levels deep. Normally used with vm.Mut optimization.');
+		vm.o8OfGoO = vm.addOp('GoO',null,false,3,'(O getVarName secondVarName SomeMap) -> (SomeMap (OO (getVarName SomeMap) secondVarName)). /varName/secondVarName 2 levels deep but used when its deeper than 2 such as /varName/secondVarName/thirdVarName. Normally used with vm.Mut optimization.');
+		
+		
+		
+		/*
+		newsyntaxfixmefixme
+		TODO syntax for /a/b/sum$ meaning (D (OOToO (OOToO a b) sum)) or maybe it means (D (OOToO (OToO a) b) sum))?
+		UPDATE: Since the outer OOToO in (OOToO (OOToO a b) sum) has to work, the inner one has to be (OOToO (OToO a) b),
+			cuz it should be (OOToO Getter literal Map) -> (Getter Map)... FIXME continue that. what is it missing?
+		..
+		Or maybe it should be writable as Os[a b sum]$ ?
+		FIXMEFIXME
+		/a mut directly, its primaryKey, what it gets from the Treemap from key (OToO a).
+		/a$ mut double
+		/a^ mut dupFn
+		/a~ mut typedBlob.
+		/a/b/sum$
+		(Dget /a/b/sum *[/a/somethingXYZ$ <* /a/c$ ,2>])
+		TODO write testcases. put them in the "extraTests" for now, while they're not passing yet.
+		Start very simple, small code.
+		TODO also use ZGet SPut IGet OOPutO etc.
+		TODO make extraTests have a string to display on the button in the html, that when u click the button it runs the test.
+		TODO AugmentedBalls.wikib file has some wikib code that I want to use with webcam and canvas, but those opcodes dont exist yet.
+		TODO start using evilbit in first byte, if havent already, and get the vm.mask_* bits into the id, and finish the ids asap.
+		
+		
+		
+		TODO figure out how the rects will display recursively in /a/b/sum$ etc or should it be $/a/b/sum or $/sum/b/a or what order?
+		(nevermind: Just here, use [] to mean such rects, instead of Infcur list... (nevermind, use (...) in (...) for that, cuz thats how it actually occurs.)
+		Which of these "(D (OOToO (OOToO a b) sum)) or maybe it means (D (OOToO (OToO a) b) sum))"?
+		cuz it should be (OOToO Getter literal Map) -> (Getter Map)... FIXME continue that. what is it missing?
+		...
+		All 4 of these could be keys in Treemap in the vm.Mut optimizations[
+			(OToO a)
+			(OOToO (OToO a) b)
+			(OOToO (OOToO (OToO a) b) sum)
+			(Dget (OOToO (OOToO (OToO a) b) sum))
+		]
+		The fns have to be in this order:
+		(Dget (OOToO (OOToO (OToO a) b) sum))
+		so choose how it should display:
+		/a/b/sum$
+		Now merge them...
+		(Dget (OOToO (OOToO (OToO "/" a) "/" b) "/" sum) "$")
+		And similar to isFoldL, hide the parts other than / a / b / sum $.
+		That would further complicate the UI by requiring "/" be displayed in middle of 2 childs, and complicates the logic of when that happens.
+		"$" being at the end, instead of middle, is simpler.
+		Could make a syty for OOToO0 OOToO1 OOToO2 etc.
+		Its doable, but is there a simpler way?
+		
+		Add testcase for (Dget (OOToO (OOToO (OToO a) b) sum)) displaying as /a/b/sum$
+		
+		Theres already isUnary syntax, but things going in middle and end, instead of the start/left, complicates parsing.
+		Maybe should do the parsing as "/a/b/sum$" comes in and is parsed all at once.
+		/a comes in. (OToO a)
+		Next is /b. (OOToO (OToO a) b).
+		Next is /sum (OOToO (OOToO (OToO a) b) sum).
+		Next is $. (Dget (OOToO (OOToO (OToO a) b) sum)).
+		
+		"cuz it should be (OOToO Getter literal Map) -> (Getter Map)... FIXME continue that. what is it missing?"
+		(OToO a SomeMap) -> (SomeMap (OToO a)).
+		//(OOToO (OToO a) b SomeMap) -> (SomeMap (SomeMap (OToO a))) FIXME wheres the b?
+		(OOToO (OToO a) b SomeMap) -> (SomeMap (OOToO (OToO a) b)) Is that right? Probably not. It needs to get the value of key (OToO a) from SomeMap.
+		It might be ok to have it 2 levels deep that way, as (OOToO (OToO a) b), but NOT 3 levels deep, cuz OOToO is as deep as it goes, not OOOToO,
+		and ur supposed to use multiple OOToO to do anything deeper than 2 levels such as /a/b/c/a/a is 5 levels deep.
+		(OOToO (OOToO (OToO a) b) sum SomeMap) -> what???
+		Basically theres supposed to be a pair of fns [(OOToO x y) or (OOToO (OToO x) y) ???] as key
+		and anything as val, as a way of using Treemap in vm.Mut optimization,
+		AND there can be single key (OToO x) and its val.
+		But thats not fitting together. Something needs adjusting in this design.
+		..
+		Maybe the keys should be (OToO a) and (OOToO a b) for levels 1 and 2 BUT for level 3 it uses an op other than OOToO, thats similar to OOToO...
+		(OtherKindOf_OOToO (OOToO a b) sum)
+		(OtherKindOf_OOToO (OOToO a b) sum SomeMap) -> (SomeMap (OOToO (SomeMap (OOToO a b)) sum)) ??? Is that right? I dont like its so many fns.
+		It looks probably right. TODO verify. And even if so, can it be redesigned to use less fns?
+		Also, need to verify it at depth 4, not just depth 3, before moving on to redesigning it...
+		(OtherKindOf_OOToO (OOToO a b) sum SomeMap) -> (SomeMap (OOToO (SomeMap (OOToO a b)) sum)) //depth 3
+		(OtherKindOf_OOToO (OtherKindOf_OOToO (OOToO a b) sum) fourth SomeMap) -> what??? //depth 4. IS THIS RIGHT???
+		something seems wrong. Calling the first param of OtherKindOf_OOToO or not, calling the first param of OOToO or not.
+		
+		Focus on the bigger depths of OOToO-related stuff, where its first param has to be called on SomeMap.
+		(OtherKindOf_OOToO CallMeOnSomeMap nextKey SomeMap) -> what?
+		thinking, some parts... (CallMeOnSomeMap SomeMap)
+		(Something (CallMeOnSomeMap SomeMap) nextKey)
+		(SomeMap (Something (CallMeOnSomeMap SomeMap) nextKey))
+		(Something (CallMeOnSomeMap SomeMap) nextKey SomeMap) -> (SomeMap (Something (CallMeOnSomeMap SomeMap) nextKey))
+		..
+		Can I merge DoOOToO with OOToO (to be just 1 opcode), or must it be 2 opcodes?
+		(DoOOToO (DoOOToO ...) nextKey SomeMap) -> what?
+		(DoOOToO (DoOOToO ...) nextKey SomeMap) -> (SomeMap (OOToO (DoOOToO ... SomeMap) nextKey))
+		That would work, though maybe not the most efficient way (TODO), but what would (OOToO a b SomeMap) do?
+		(OOToO a b SomeMap) would do (SomeMap (OOToO a b)).
+		(DoOOToO  (OOToO a b) sum SomeMap) -> (SomeMap (OOToO (OOToO a b SomeMap) sum)).
+		Appears could merge DoOOToO into OOToO, and use (OOToO ,a b) when dont want to recurse into a,
+		but the ,a aka (T a) might be a problem in the key of Treemap.
+		..
+		???
+		(OOToO (OOToO ,a b) sum SomeMap) -> (OOToO (OOToO ,a b SomeMap) sum SomeMap) ???
+		(OOToO (OOToO ,a b SomeMap) sum SomeMap) -> ??
+		First do (OOToO ,a b SomeMap).
+		(OOToO ,a b SomeMap) -> (SomeMap (OOToO (,a SomeMap) b))
+		(SomeMap (OOToO (,a SomeMap) b)) -> (SomeMap (OOToO a b)) No thats wrong, cuz (OOToO ,a b SomeMap) just dropped the , in ,a.
+		I could define OOToO to have a base case if its first param starts with , aka (OOToO ,a b SomeMap) -> (SomeMap (OOToO ,a b))
+		else does (OOToO x y SomeMap) -> (SomeMap (OOToO (x SomeMap) y)).
+		I dont like that cuz its complex. I therfore choose not to merge DoOOToO with OOToO.
+		Rename DoOOToO to GoOToO.
+		So its now GoOToO and OOToO.
+		Rename GoOToO to GoO. Rename OOToO to OO.
+		..
+		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+		..
+		(OO a b SomeMap) -> (SomeMap (OO a b))
+		(GoO (OO a b) c SomeMap) -> (SomeMap (OO (SomeMap (OO a b)) c))
+		(GoO (GoO (OO a b) c) d SomeMap) -> (SomeMap (OO (SomeMap (OO (SomeMap (OO a b)) c)) d))
+		Ok these OO and GoO opcodes look right.
+		..
+		Next, add the opcode O (rename OToO to O).
+		(O a SomeMap) -> (SomeMap (O a))
+		..
+		Theres now a nonnormed form of (OO a b): (GoO (O a) b).
+		Problem is if SomeMap had (OO a b) as key but you called (SomeMap (GoO (O a) b)) looking for it.
+		(GoO (O a) b SomeMap) and (OO a b SomeMap) both return (SomeMap (OO a b)),
+		so its ok as long as in vm.Mut optimization it doesnt use calls of GoO as keys in the main state.
+		..
+		Opcode: (O a SomeMap) -> (SomeMap (O a))
+		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+		..
+		These opcodes (that havent been implemented in vm.rootEvaler as of 2023-3-8) need to be redesigned[[
+		Renamed to O: vm.addOp('OGetO',null,false,2,'(OGetO key map)->(map key). (OGetO key) as datastruct meaning Mut, not Mut[Mut] like in OOGetO. They are all called on some root vm.Mut (Treemap normally). This gets directly from the Treemap just one level deep, instead of 2 levels deep like in OOGetO. That root treemap is the param.');
+		Renamed to OO: vm.addOp('OOGetO',null,false,3,'(OOGetO keyA keyB) as datastruct meaning Mut[Mut]. Maps to (if this is a key in a Treemap) a fn, and in the vm.Mut optimization its Mut[Mut]->Mut. Next param is normally Treemap and get value of (OOGetO keyA keyB) from it. (TheTreemap x) gets value of x.'); //(MutMut keya keyb)
+		Add GoO.
+		//FIXME where do i write the value type? Its Double/D but if i dont write the value in OO (its value type is O)
+		//then its inconsistent to name it that way here.
+		vm.addOp('OGetD',null,false,2,' maps to (if this is a key in a Treemap) a float64/Double. Next param is normally Treemap and get value of (OGetD keyA) from it.  (TheTreemap x) gets value of x.'); //(MutD keya)
+		vm.addOp('OGetDupO',null,false,2,'(OGetDupO keyA) maps to (if this is a key in a Treemap) a fn/lambda/O that in vm.Mut optimization tends to not be deduped for speed, like you can wrap big arrays and call GPU or CPU on combos of them without deduping them yet.. Next param is normally Treemap and get value of (OGetDupO keyA) from it.  (TheTreemap x) gets value of x.'); //(MutD keya) //(MutDupFn keya)
+		vm.addOp('OGetBlob',null,false,2,'(OGetBlob keyA) maps to (if this is a key in a Treemap) a typed blob (though that isnt enforced) such as (TypevalC "application/x-IEEE-754-doubles" ...bits of 1024 doubles...). Next param is normally Treemap and get value of (OGetDupO keyA) from it.  (TheTreemap x) gets value of x.'); //(MutTypedBlob keya).
+		//rename them later to something shorter. just use those names for now.
+		vm.addOp('OOPutO',null,false,4,' (OOPutO map keyA keyB val) -> forkEdited map with (OOGetO keyA keyB) mapped to val. Most often used in {<OOPutO I#(F U)> GetKeyA GetKeyB GetVal}.');
+		vm.addOp('OPutD',null,false,3,' (OPutD map key 2.34) -> forkEdited map with (OGetD key) mapped to 2.34. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		vm.addOp('OPutDupO',null,false,3,' (OPutDupO map key val) -> forkEdited map with (OGetDupO key) mapped to val. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		vm.addOp('OPutBlob',null,false,3,' (OPutBlob map key val) -> forkEdited map with (OGetBlob key) mapped to val. Most often used in {<OPutD I#(F U)> GetKey GetVal}.');
+		]]
+		..
+		Or maybe theyre ok as they are, but write them out anyways, and do some examples with O OO GoO...
+		Opcode: (Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
+		Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+		Opcode: (D a SomeMap) -> (SomeMap (D a))
+		Opcode: (O a SomeMap) -> (SomeMap (O a))
+		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+		..
+		/a/b/sum$ is (D (GoO (OO a b) sum)) and might compile to javascript M.λa.λb.λsum.λD
+		/a/b/c/a/a^ is (Du (GoO (GoO (GoO (OO a b) c) a) a)) and might compile to javascript M.λa.λb.λc.λa.λa.λsum.λDu
+		a^ is (Du a) and might compile to javascript M.λa.λDu
+		These examples and code it should generate looks right.
+		Next, some opcodes for stuff inside cbts (which might be outside the scope of this /a/b/sum$ etc stuff?) but write it below and try to work it out,
+		and either way, right after that, make these opcodes, test them, then upgrade vm.eval and the tree UI html to do the new syntax...
+		..
+		[[[
+		TODO get and put doubles, floats, ints, bytes, etc (and is it signed or unsigned bytes>), and whole typedblobs, and maybe cbts by themself?
+		Also length funcs of such blobs, (Do these parts later...) and maybe concat, subrange, newemptyblob, etc.
+		Or... a single typed put, that takes int param and where it puts it depends on sizeof(type).
+		vm.addOp('PrimSize',null,false,1,'(PrimSize (TypevalC ...)) -> 8..64 etc. (PrimSize of a TypevalB or TypevalC of doubles ints floats uint8s etc) in bits, such as 64 for a double array, 32 for an int array or float array, etc. TODO shorten and decide on which contentTypes will be used for such arrays, such as application/x-IEEE754-doubles for double array.');
+		
+		vm.addOp('TGet',null,false,2,'Typed primitive array gET. (TGet array index) -> val at that index in the array.');
+		vm.addOp('TPut',null,false,3,'Typed primitive array pUT. (TPut array index val) -> forkEdited array. Check (PrimSize array) for the size put in it. If its not a typed array, returns it as is. This will work with vm.Mut optimization without checking which size of array it is.');
+		
+		vm.addOp('ZGet',null,false,2,'(ZGet cbtArray cbt32Index) -> Bit1 or Bit0, at that bit index in the array.');
+		vm.addOp('ZPut',null,false,3,'(ZPut cbtArray cbt32Index cbt1) -> forkEdited cbtArray with that Bit1 or Bit0 put at the index.');
+		
+		vm.addOp('BGet',null,false,2,'(BGet cbtArray cbt32Index) -> raw byte at that index');
+		vm.addOp('BPut',null,false,3,'(BPut cbtArray cbt32Index cbt8Val) -> forkEdited cbtArray with that raw byte put at the index.');
+		
+		vm.addOp('CPut',null,false,2,'(CGet cbtArray cbt32Index) -> raw short/int16/char at that index.');
+		vm.addOp('CPut',null,false,3,'(CPut cbtArray cbt32Index cbt16Val) -> forkEdited cbtArray with that raw short/char put at the index.');
+		
+		vm.addOp('IGet',null,false,2,'(IGet cbtArray cbt32Index) -> raw int/float at the index.');
+		vm.addOp('IPut',null,false,3,'(IPut cbtArray cbt32Index cbt32Val) -> forkEdited cbtArray with that raw int/float put at the index.');
+		
+		vm.addOp('JGet',null,false,2,'(JGet cbtArray cbt32Index) -> raw long/double put at the index.');
+		vm.addOp('JPut',null,false,3,'(JPut cbtArray cbt32Index cbt64Val) -> forkEdited cbtArray with that raw long/double put at the index.');
+		]]]
+		..
+		The syntax will only be for GET, not PUT. TGet (or some variant of it) will be used with key (Bl someDoubles) and val (TypevalB application/x-IEEE754-doubles BytesOfDoubleArray).
+		TGet
+		"(TGet array index) -> val at that index in the array".
+		Should it just be <TGet /a/b/theDoubleArray +[*[/a/offset$ ,4] ,2]> and not have a syntax just for it? Probably so.
+		Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO.
+		But first, write testcases into vm.extraTests, and upgrade the extraTests system to have a string name of each test.
+		*/
+		
+		
+		
+		
+		
 		vm.addOp('K?',null,false,2,'TODO rename K? to K, and rename KK? to KK. (K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
 		vm.addOp('KK?',null,false,3,'TODO rename K? to K, and rename KK? to KK. (K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
 		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map');
@@ -6550,9 +6908,9 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Sine',null,false,1,'Sine of double. See + for details on doubles in general.');
 		vm.addOp('Sqrt',null,false,1,'Sqrt of double. See + for details on doubles in general.');
 		//vm.addOp('Dplusraw',null,false,2,'raw means just the bits, not wrapped in a typeval. add to doubles/float64s to get a float64, or if in that op that allows reduced precision to float32 (such as in gpu.js) then that, but the result is still abstractly a double, just has less precision, and in gpujs would still be float32s during middle calculations.');
-		vm.addOp('StreamGet',null,false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.');
-		vm.addOp('StreamPut',null,false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]');
-		vm.addOp('StreamPack',null,false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].');
+		//vm.addOp('StreamGet',null,false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.');
+		//vm.addOp('StreamPut',null,false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]');
+		//vm.addOp('StreamPack',null,false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].');
 		vm.addOp('Get32BitsInCbt',null,false,2,'(get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val');
 		vm.addOp('Put32BitsInCbt',null,false,3,'(put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks');
 		//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks');
@@ -6600,6 +6958,8 @@ const Wikibinator203 = (()=>{
 		
 		vm.addOp('Car',null,false,2,'(LisplikeEval -,Car ,-,Cons .x .y== TreemapAsState). Should the inner -...= be prefixed by , ? OLD... -Car -Cons .x .y= TreemapAsState= returns (.x TreemapAsState) aka (TreemapAsState x). FIXME im not sure which should be dynamic and which should be quoted, such as should it be -.car -.cons .x .y= TreemapAsState= ? Or -car -cons x y= TreemapAsState= ? And should it need a separate LisplikeEval func (derive it using lambda opcode?)? FIXME the TreemapAsState must be called by (...). All lisplike funcs will take exactly 2 params: their params as a -...= linkedlist AND TreemapAsState. Could do it as everything is dynamic, so put T/, prefix to quote. (LisplikeEval -,Car -,Cons .x .y== TreemapAsState)');
 		vm.addOp('Cdr',null,false,2,'See Car.');
+		
+		//vm.addOp('SomeOpcode3425345',null,false,2,'FIXME');
 		
 		
 		//removed, replaced by the Lambda op and MutLam op: vm.addOp('OpCommentedFuncOfOneParam',false,3,'(OpCommentedFuncOfOneParam commentXYZ FuncOfOneParam Param)->(FuncOfOneParam Param), and it can (but is not required, as with any syntax) be used like FuncOfOneParam##CommentXYZ, which means commentXYZ (notice lowercase c/C) is the first param aka \'commentXYZ\' AND happens to be the #LocalName (capital), as a way to display it, but if the comment differs from that then it would be displayed as expanded (...). #LocalNames might default to that name unless its already in use or if its too big a name. Its only for display either way, so doesnt affect ids. This will be optimized for, to ignore it when generating javascript or gpu.js code etc (neither of which are part of the Wikibinator203 spec) IF it can be proven that the (...) itself is not used and just the (FuncOfOneParam Param) is used. Example: {,& (>> 4) ,15}##VoxGreen4 means(OpCommentedFuncOfOneParam voxGreen4 {,& (>> 4) ,15})#VoxGreen4. Or, FIXME, maybe swap the first 2 params? UPDATE: that syntax puts the #Name on the left instead of the right, but no syntax is part of the spec, and all possible syntaxes can be made from the universal lambda.');
@@ -7184,6 +7544,33 @@ const Wikibinator203 = (()=>{
 					break;case o.Gte:
 						//greaterThanOrEqual
 						ret = vm.bit(x.n.d()>=y.n.d());
+					break;case o.Du:{
+						//(Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
+						let map = z;
+						let Du_then_key = l;
+						ret = map(Du_then_key);
+					}break;case o.Du:{
+						//Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+						let map = z;
+						let Bl_then_key = l;
+						ret = map(Bl_then_key);
+					}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:
+						ret = z(l); //map(allParamsExceptLast)
+						
+						/*Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+						Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+						Opcode: (D a SomeMap) -> (SomeMap (D a))
+						Opcode: (O a SomeMap) -> (SomeMap (O a))
+						Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+						*/
+					break;case o.GoO:
+						//Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+						//Like OO except the first key is a getter, not a literal first key.
+						//Any number of keys can be chained in that getter, like /a/b/c/a/xyz in /a/b/c/a/xyz/sum.
+						let map = z;
+						let secondKey = y;
+						let getFirstKey = x;
+						ret = map(vm.ops.OO(getFirstKey(map))(secondKey));
 					break;case o['K?']:{
 						
 						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
@@ -7216,7 +7603,7 @@ const Wikibinator203 = (()=>{
 						
 						
 					//}break;case o['OK?']:
-					}break;case o['KK?']:
+					}break;case o['KK?']:{
 						//vm.addOp('KK?',null,false,3,'(KKE KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).');
 						
 						
@@ -7224,7 +7611,7 @@ const Wikibinator203 = (()=>{
 						let map = z;
 						ret = map(key); //get val of (K
 						
-					break;case o['KE']:{
+					}break;case o['KE']:{
 						//vm.addOp('KE',null,false,3,'(KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.');
 						
 						let key = l.n.L(); //(KE Key)
@@ -8155,10 +8542,13 @@ const Wikibinator203 = (()=>{
 			//if(view.builtInName && view.fn != ops.Infcur){ //FIXME
 			//if(view.fn.localName && view.fn != ops.Infcur){ //FIXME
 
-			let FN = view.fn();
+			//let FN = view.fn(); //FN is a vm.Node. view.fn is a lambda.
+			let FN = view.fn.n; //FN is a vm.Node. view.fn is a lambda.
 			let isCbt = FN.isCbt();
 			let isSmallCbt = isCbt;//TODO && (FN.cbtSize()<=256); //or what should the max cbt size (in bits) be to display as literal?
 			let isTypevalDisplayedAsLiteral = false; //may become true
+			
+			let fnOp = FN.o8();
 			
 			//let isTypevalOf2Params = FN.o8()==vm.o8OfTypeval && FN.curriesLeft()==1;
 			
@@ -8332,168 +8722,193 @@ const Wikibinator203 = (()=>{
 				//Should that be syntaxtype 'S' or '(S' etc?
 				
 				let syty = view.syty();
-				switch(syty){
-					case 'GV':{ //<...>
-						throw 'TODO';
-					//break; case 'start[':
-					}break; case 'IC0':{
-					
-						viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
-					
-						/*if(isRightRecursion){
+									
+				let isLastCur = FN.curriesLeft()==1;
+				//These next few if/else do ops: O OO GoO D Du Bl. TODO Bl aka typed blob getter. They will often be used in vm.Mut optimization.
+				if(isLastCur && fnOp==vm.o8OfO){ //Example: /a in /a$ aka (D (O a))
+					viewing.tokens.push('/');
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //a in (O a)
+				}else if(isLastCur && fnOp==vm.o8OfOO){ //Example: /a/b in /a/b/sum$
+					//vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
+					viewing.tokens.push('/');
+					this.viewToStringRecurse(view.l().r(), viewing, syty, true); //a in (OO a b). view.l() is (OO a). view.l().r() is a.
+					viewing.tokens.push('/');
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //b in (OO a b). view.r() is b.
+				}else if(isLastCur && fnOp==vm.o8OfGoO){ //Example: (GoO /a/b sum) in /a/b/sum$
+					this.viewToStringRecurse(view.l().r(), viewing, syty, false); //output /a/b in /a/b/sum
+					//This makes vm.eval('(GoO (OO a b) c)')+'' do 'GoO /a/b/c' but dont want the GoO displayed: this.viewToStringRecurse(view.l(), viewing, syty, false); //output /a/b in /a/b/sum
+					viewing.tokens.push('/');
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //output sum in /a/b/sum
+				}else if(isLastCur && fnOp==vm.o8OfD){ //Example: (D /a/b/sum) is displayed as /a/b/sum$
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //output /a/b in /a/b/sum
+					viewing.tokens.push('$');
+				}else if(isLastCur && fnOp==vm.o8OfDu){ //Example: (Du /a/b/sum) is displayed as /a/b/sum^
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //output /a/b in /a/b/sum
+					viewing.tokens.push('^');
+				}else{
+					switch(syty){
+						case 'GV':{ //<...>
+							throw 'TODO';
+						//break; case 'start[':
+						}break; case 'IC0':{
+						
 							viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
-						}else{
-							let callerSytyIsSimilar = callerSyty=='IC0' || callerSyty=='IC+';
-							if(!callerSytyIsSimilar) viewing.tokens.push('[');
-							this.viewToStringRecurse(view.l(), viewing, syty, false);
-							viewing.tokens.push(' ');
-							console.log('start[ pushed space');
-							this.viewToStringRecurse(view.r(), viewing, syty, true);
-							if(!callerSytyIsSimilar) viewing.tokens.push(']');
-						}*/
-					
-						/*
-						viewing.tokens.push('['); //FIXME
-						if(view.fn != ops.Infcur){
-							this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
-							viewing.tokens.push(' ');
-							console.log('start[ pushed space');
-							this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
-						}
-						viewing.tokens.push(']'); //FIXME
-						*/
 						
-					}break; case 'IC+':{
-					
-						//let displayPushPop = isRightRecursion || displayPound; //FIXME does "|| displayPound" have any effect here?
-						let displayPushPop = isRightRecursion || displayPound || (callerSyty != 'IC+' && callerSyty != 'IC0'); //FIXME does "|| displayPound" have any effect here?
-						if(displayPushPop) viewing.tokens.push('[');
-						if(view.lsyty() != 'IC0'){
-							this.viewToStringRecurse(view.l(), viewing, syty, false);
-							viewing.tokens.push(' ');
-							if(2<=vm.loglev)console.log('[ pushed space');
-						}
-						this.viewToStringRecurse(view.r(), viewing, syty, true);
-						if(displayPushPop) viewing.tokens.push(']');
-					
-						/*
-						//if(!inVararg) viewing.tokens.push('['); //FIXME
-						//if(view.fn != ops.Infcur){
-							this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
-							viewing.tokens.push(' ');
-							console.log('[ pushed space');
-							this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
-						//}
-						//if(!inVararg) viewing.tokens.push(']'); //FIXME
+							/*if(isRightRecursion){
+								viewing.tokens.push('[]'); //empty Infcur list aka Infcur itself
+							}else{
+								let callerSytyIsSimilar = callerSyty=='IC0' || callerSyty=='IC+';
+								if(!callerSytyIsSimilar) viewing.tokens.push('[');
+								this.viewToStringRecurse(view.l(), viewing, syty, false);
+								viewing.tokens.push(' ');
+								console.log('start[ pushed space');
+								this.viewToStringRecurse(view.r(), viewing, syty, true);
+								if(!callerSytyIsSimilar) viewing.tokens.push(']');
+							}*/
 						
-						/*
-						if(!inVararg) viewing.tokens.push('['); //FIXME
-						if(view.fn != ops.Infcur){
-							this.viewToStringRecurse(view.l(), viewing, true); //FIXME
-							viewing.tokens.push(' ');
-							console.log('[ pushed space');
-							this.viewToStringRecurse(view.r(), viewing, true); //FIXME
-						}
-						if(!inVararg) viewing.tokens.push(']'); //FIXME
-						*/
-						/*if(!inVararg){
+							/*
 							viewing.tokens.push('['); //FIXME
-							this.viewToStringRecurse(view.l(), viewing, true);
-							viewing.tokens.push(' ');
-							this.viewToStringRecurse(view.r(), viewing, true); //FIXME
-							//FIXME? viewToStringRecurse will do this: viewing.tokens.push(']');
+							if(view.fn != ops.Infcur){
+								this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
+								viewing.tokens.push(' ');
+								console.log('start[ pushed space');
+								this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+							}
 							viewing.tokens.push(']'); //FIXME
-						}else{
+							*/
 							
-						}*/
-					//break; case '{':
-					}break; case 'S2':{
-						let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound;
-						if(displayPushPop) viewing.tokens.push('{'); //FIXME
-						//this.viewToStringRecurse(view.l(), viewing);
-						this.viewToStringRecurse(view.l().r(), viewing, syty, false);
-						viewing.tokens.push(' ');
-						if(2<=vm.loglev)console.log('{ pushed space');
-						this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
-						if(displayPushPop) viewing.tokens.push('}'); //FIXME
-					/*break; case '{':
-						if(!inVararg) viewing.tokens.push('{'); //FIXME
-						//this.viewToStringRecurse(view.l(), viewing);
-						this.viewToStringRecurse(view.l().r(), viewing, true);
-						viewing.tokens.push(' ');
-						console.log('{ pushed space');
-						this.viewToStringRecurse(view.r(), viewing, true); //FIXME
-						if(!inVararg) viewing.tokens.push('}'); //FIXME
-					*/
-					}break; case 'ST2': case 'ST3+':{
-						//let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound; //FIXME
-						//let displayPushPop = isRightRecursion || callerSyty != 'S3+' || displayPound; //FIXME
-						let displayPushPop = isRightRecursion || (callerSyty != 'ST2' && callerSyty != 'ST3+') || displayPound; //FIXME
-						if(displayPushPop) viewing.tokens.push('<'); //FIXME
-						//this.viewToStringRecurse(view.l(), viewing);
-						let skipT = syty=='ST2';
-						//let recurseLeft = view.l().r();
-						let recurseLeft = view.l().r(); //x in (S x z)
-						if(skipT){ //x is (T y). Get y.
-							recurseLeft = recurseLeft.r();
-						}
-						let recurseRight = view.r();
-						this.viewToStringRecurse(recurseLeft, viewing, syty, false);
-						viewing.tokens.push(' ');
-						if(2<=vm.loglev)console.log('< pushed space');
-						this.viewToStringRecurse(recurseRight, viewing, syty, true); //FIXME
-						if(displayPushPop) viewing.tokens.push('>'); //FIXME
-					}break; case '_1':{
-						//TODO instead of having a _1 syntax, just use Xyz[abc def] and Xyz:[abc def] etc syntax,
-						//where lack of space (such as : instead of space or just no char) between 2 things means normal call,
-						//and if its a small name (such as max 3 chars?, such as Fo For Seq _ Qes "," T etc,
-						//it would (TODO) display that way automatically.
-						viewing.tokens.push('_');
-						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					//}break; case 'T1': case 'T1<>':{
-					}break; case 'T1':{
-						viewing.tokens.push(',');
-						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					}break; case 'T1<>':{
-						//let skipT = callerSyty==FIXMEFIXME;
-						let skipT = callerSyty=='ST3+'; //The code "this.syntaxType = 'ST3+'; //skip ST2. FIXME???" below. FIXME??? This is getting tangled.
-						//let skipT = false; //FIXME
-						if(!skipT){
-							viewing.tokens.push(',');
-						}
-						this.viewToStringRecurse(view.r(), viewing, syty, true);
-					}break; case 'C': case 'S1': case 'ST1': case 'S_ST2': case 'S_ST3+': case 'S_T1<>':{ //C is normal call (a b c d e) aka ((((a b) c) d) e)
-						if(view.builtInName){
-							//FIXME always use .localName instead of builtInName?
-							viewing.tokens.push(view.builtInName);
-						}else{
-							//let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
-							
-							//all these sytys are displayed as (...).
-							//Exclude 'S_T1<>' from callerSytyIsSimilar so theres an inner and outer <> like <<a b c> d> means {,{,a b c} d}
-							//so cant merge to <a b c d> cuz that would mean {,a b c d}.
-							//FIXME 2022-1-2-1130aEST when I put 'S_T1<>' in the cases here but not in similar,
-							//vm.eval('<<a b c> g>')+'' -> '<,<a b c> g>' which wrongly has an extra ','.
-							//vm.eval('(L <<a b c> g>)')+'   '+vm.eval('(R <<a b c> g>)')+'       '+vm.eval('<<a b c> g>')
-							// --> '(S ,<a b c>)   g       <,<a b c> g>', which shows it does not have an extra ',' in the fns,
-							//so its probably a tostring bug similar to the lack of isFoldL where it should fold L aka fold the T/, so --> <<a b c> g>.
-							//Maybe the problem is in this code[[[
-							//	}break; case 'T1': case 'T1<>':{
-							//	viewing.tokens.push(',');
-							//	this.viewToStringRecurse(view.r(), viewing, syty, true);
-							//]]]
-							let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1' || callerSyty=='ST1' || callerSyty == 'S_ST2' || callerSyty == 'S_ST3+';
-							
-							let displayPushPop = isRightRecursion || !callerSytyIsSimilar || displayPound;
-							if(displayPushPop) viewing.tokens.push('(');
-							this.viewToStringRecurse(view.l(), viewing, syty, false);
-							viewing.tokens.push(' ');
-							if(2<=vm.loglev)console.log('( pushed space');
+						}break; case 'IC+':{
+						
+							//let displayPushPop = isRightRecursion || displayPound; //FIXME does "|| displayPound" have any effect here?
+							let displayPushPop = isRightRecursion || displayPound || (callerSyty != 'IC+' && callerSyty != 'IC0'); //FIXME does "|| displayPound" have any effect here?
+							if(displayPushPop) viewing.tokens.push('[');
+							if(view.lsyty() != 'IC0'){
+								this.viewToStringRecurse(view.l(), viewing, syty, false);
+								viewing.tokens.push(' ');
+								if(2<=vm.loglev)console.log('[ pushed space');
+							}
 							this.viewToStringRecurse(view.r(), viewing, syty, true);
-							if(displayPushPop) viewing.tokens.push(')');
+							if(displayPushPop) viewing.tokens.push(']');
+						
+							/*
+							//if(!inVararg) viewing.tokens.push('['); //FIXME
+							//if(view.fn != ops.Infcur){
+								this.viewToStringRecurse(view.l(), viewing, syty, false); //FIXME
+								viewing.tokens.push(' ');
+								console.log('[ pushed space');
+								this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+							//}
+							//if(!inVararg) viewing.tokens.push(']'); //FIXME
+							
+							/*
+							if(!inVararg) viewing.tokens.push('['); //FIXME
+							if(view.fn != ops.Infcur){
+								this.viewToStringRecurse(view.l(), viewing, true); //FIXME
+								viewing.tokens.push(' ');
+								console.log('[ pushed space');
+								this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+							}
+							if(!inVararg) viewing.tokens.push(']'); //FIXME
+							*/
+							/*if(!inVararg){
+								viewing.tokens.push('['); //FIXME
+								this.viewToStringRecurse(view.l(), viewing, true);
+								viewing.tokens.push(' ');
+								this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+								//FIXME? viewToStringRecurse will do this: viewing.tokens.push(']');
+								viewing.tokens.push(']'); //FIXME
+							}else{
+								
+							}*/
+						//break; case '{':
+						}break; case 'S2':{
+							let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound;
+							if(displayPushPop) viewing.tokens.push('{'); //FIXME
+							//this.viewToStringRecurse(view.l(), viewing);
+							this.viewToStringRecurse(view.l().r(), viewing, syty, false);
+							viewing.tokens.push(' ');
+							if(2<=vm.loglev)console.log('{ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, syty, true); //FIXME
+							if(displayPushPop) viewing.tokens.push('}'); //FIXME
+						/*break; case '{':
+							if(!inVararg) viewing.tokens.push('{'); //FIXME
+							//this.viewToStringRecurse(view.l(), viewing);
+							this.viewToStringRecurse(view.l().r(), viewing, true);
+							viewing.tokens.push(' ');
+							console.log('{ pushed space');
+							this.viewToStringRecurse(view.r(), viewing, true); //FIXME
+							if(!inVararg) viewing.tokens.push('}'); //FIXME
+						*/
+						}break; case 'ST2': case 'ST3+':{
+							//let displayPushPop = isRightRecursion || callerSyty != 'S2' || displayPound; //FIXME
+							//let displayPushPop = isRightRecursion || callerSyty != 'S3+' || displayPound; //FIXME
+							let displayPushPop = isRightRecursion || (callerSyty != 'ST2' && callerSyty != 'ST3+') || displayPound; //FIXME
+							if(displayPushPop) viewing.tokens.push('<'); //FIXME
+							//this.viewToStringRecurse(view.l(), viewing);
+							let skipT = syty=='ST2';
+							//let recurseLeft = view.l().r();
+							let recurseLeft = view.l().r(); //x in (S x z)
+							if(skipT){ //x is (T y). Get y.
+								recurseLeft = recurseLeft.r();
+							}
+							let recurseRight = view.r();
+							this.viewToStringRecurse(recurseLeft, viewing, syty, false);
+							viewing.tokens.push(' ');
+							if(2<=vm.loglev)console.log('< pushed space');
+							this.viewToStringRecurse(recurseRight, viewing, syty, true); //FIXME
+							if(displayPushPop) viewing.tokens.push('>'); //FIXME
+						}break; case '_1':{
+							//TODO instead of having a _1 syntax, just use Xyz[abc def] and Xyz:[abc def] etc syntax,
+							//where lack of space (such as : instead of space or just no char) between 2 things means normal call,
+							//and if its a small name (such as max 3 chars?, such as Fo For Seq _ Qes "," T etc,
+							//it would (TODO) display that way automatically.
+							viewing.tokens.push('_');
+							this.viewToStringRecurse(view.r(), viewing, syty, true);
+						//}break; case 'T1': case 'T1<>':{
+						}break; case 'T1':{
+							viewing.tokens.push(',');
+							this.viewToStringRecurse(view.r(), viewing, syty, true);
+						}break; case 'T1<>':{
+							//let skipT = callerSyty==FIXMEFIXME;
+							let skipT = callerSyty=='ST3+'; //The code "this.syntaxType = 'ST3+'; //skip ST2. FIXME???" below. FIXME??? This is getting tangled.
+							//let skipT = false; //FIXME
+							if(!skipT){
+								viewing.tokens.push(',');
+							}
+							this.viewToStringRecurse(view.r(), viewing, syty, true);
+						}break; case 'C': case 'S1': case 'ST1': case 'S_ST2': case 'S_ST3+': case 'S_T1<>':{ //C is normal call (a b c d e) aka ((((a b) c) d) e)
+							if(view.builtInName){
+								//FIXME always use .localName instead of builtInName?
+								viewing.tokens.push(view.builtInName);
+							}else{
+								//let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1';
+								
+								//all these sytys are displayed as (...).
+								//Exclude 'S_T1<>' from callerSytyIsSimilar so theres an inner and outer <> like <<a b c> d> means {,{,a b c} d}
+								//so cant merge to <a b c d> cuz that would mean {,a b c d}.
+								//FIXME 2022-1-2-1130aEST when I put 'S_T1<>' in the cases here but not in similar,
+								//vm.eval('<<a b c> g>')+'' -> '<,<a b c> g>' which wrongly has an extra ','.
+								//vm.eval('(L <<a b c> g>)')+'   '+vm.eval('(R <<a b c> g>)')+'       '+vm.eval('<<a b c> g>')
+								// --> '(S ,<a b c>)   g       <,<a b c> g>', which shows it does not have an extra ',' in the fns,
+								//so its probably a tostring bug similar to the lack of isFoldL where it should fold L aka fold the T/, so --> <<a b c> g>.
+								//Maybe the problem is in this code[[[
+								//	}break; case 'T1': case 'T1<>':{
+								//	viewing.tokens.push(',');
+								//	this.viewToStringRecurse(view.r(), viewing, syty, true);
+								//]]]
+								let callerSytyIsSimilar = callerSyty=='C' || callerSyty=='S1' || callerSyty=='ST1' || callerSyty == 'S_ST2' || callerSyty == 'S_ST3+';
+								
+								let displayPushPop = isRightRecursion || !callerSytyIsSimilar || displayPound;
+								if(displayPushPop) viewing.tokens.push('(');
+								this.viewToStringRecurse(view.l(), viewing, syty, false);
+								viewing.tokens.push(' ');
+								if(2<=vm.loglev)console.log('( pushed space');
+								this.viewToStringRecurse(view.r(), viewing, syty, true);
+								if(displayPushPop) viewing.tokens.push(')');
+							}
+						}break; default:{
+							throw 'Unknown syntaxtype: '+syty;
 						}
-					}break; default:{
-						throw 'Unknown syntaxtype: '+syty;
 					}
 				}
 				//so dont define it again, just use name, until the next tostring which should set
@@ -9664,6 +10079,12 @@ const Wikibinator203 = (()=>{
 		vm.maxCharsInWordLiteral = 50; //FIXME how much?
 		
 		vm.ParseTree.prototype.literalTokenToFn = function(literalToken){
+			//if(literalToken[0] == literalToken[0].toUpperCase()){ //if first char is capital
+			if(vm.isCapitalLetter(literalToken[0])){
+				//TODO optimize.
+				throw 'literal cant start with capital. Those are Names#. literalToken='+literalToken;
+			}
+			//FIXME check for whitespace. Throw if there is any.
 			//TODO optimize
 			if(literalToken.startsWith('0x')){ //cbt literal as hex like 0xab44ff09, always a powOf2 size.
 				throw 'TODO parse 0x literals';
@@ -9695,8 +10116,42 @@ const Wikibinator203 = (()=>{
 				*/
 				let num = parseFloat(literalToken);
 				return vm.wrapDouble(num); //vm.wrap would do same thing but with extra steps to check if its a double.
+			}else if(literalToken.startsWith('/')){
+				//like /a/b/sum$ means (D (GoO (OO a b) sum))
+				let ret = null;
+				let end = '';
+				if(literalToken.endsWith('$') || literalToken.endsWith('^')){ //$ does vm.ops.D, and ^ does vm.ops.Du
+					end = literalToken[literalToken.length-1];
+					literalToken = literalToken.substring(0,literalToken.length-1);
+				}
+				let partStrings = literalToken.split('/');
+				console.log('literalTokenToFn partStrings='+JSON.stringify(partStrings));
+				//skip i==0 the empty string since we know it starts with / and was split by / theres '' before it.
+				if(partStrings.length == 1){
+					throw 'No parts, something like /$ or / maybe, literalToken='+literalToken;
+				}else if(partStrings.length == 2){ //is only 1 part, like /a
+					console.log('literalTokenToFn partStrings1='+partStrings[1]+' literalToken='+literalToken);
+					ret = ops.O(this.literalTokenToFn(partStrings[1]));
+				}else{ //is at least 2 parts like /a/b or /a/b/c/a/a
+					console.log('literalTokenToFn partStrings1='+partStrings[1]+' partStrings2='+partStrings[2]+' literalToken='+literalToken);
+					ret = ops.OO(this.literalTokenToFn(partStrings[1]))(this.literalTokenToFn(partStrings[2]));
+					for(let i=3; i<partStrings.length; i++){
+						console.log('literalTokenToFn partStrings'+i+'='+partStrings[i]+' literalToken='+literalToken);
+						ret = ops.GoO(ret)(this.literalTokenToFn(partStrings[i])); //the cde then a then a in /a/b/cde/a/a
+					}
+				}
+				if(end){
+					if(end == '$'){
+						ret = ops.D(ret); //double/float64
+					}else if(end == '^'){
+						ret = ops.Du(ret); //the dup fn of vm.Mut optimization (or interpreted form)
+					}else{
+						throw 'end='+end;
+					}
+				}
+				return ret;
 			}else{
-				return vm.wrap(this.literalToken);
+				return vm.wrap(literalToken);
 			}
 		};
 		
@@ -9713,7 +10168,9 @@ const Wikibinator203 = (()=>{
 				let ret;
 				if(this.useExistingNameToken){
 					ret = map[this.useExistingNameToken];
-					if(!ret) throw 'Name not found: '+this.useExistingNameToken;
+					if(!ret){
+						throw 'Name not found: '+this.useExistingNameToken;
+					}
 				}else if(this.literalToken){
 					if(
 						(this.literalToken.length <= vm.maxCharsInWordLiteral) //max word literal length
@@ -10783,11 +11240,17 @@ const Wikibinator203 = (()=>{
 		
 		vm.test('(<+ <* I#(F U) I> ,3> 10)', vm.eval('(<+ <* I#(F U) I> ,3> 10)'), '103');
 		
-		vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
-			'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))');
-			
-		//vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 5 is (Fo y 5 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (EmptyTreemap GodelLessThan) (DE x))]')+'', '[the number of unique binary trees at most height 5 is 677]');
-		vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+'', '[the number of unique binary trees at most height 4 is 677]');
+		//FIXME this broke around 2023-3-8 when changing some opcodes, might have removed vm.ops.KE and been planning to replace it with O or Put or something. See O OO GoO D Dup Blob ops etc.
+		//Moving this to an extraTest.
+		//vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
+		//	'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))');
+		
+		
+		//FIXME this broke around 2023-3-8 when changing some opcodes, might have removed vm.ops.KE and been planning to replace it with O or Put or something. See O OO GoO D Dup Blob ops etc.
+		//Moving this to an extraTest.
+		//
+		//OLD: vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 5 is (Fo y 5 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (EmptyTreemap GodelLessThan) (DE x))]')+'', '[the number of unique binary trees at most height 5 is 677]');
+		//Moving this test: vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+'', '[the number of unique binary trees at most height 4 is 677]');
 		//throw 'FIXME start at 1 instead of 0. it goes height0=1 2 5 26 height4=677. The map is empty so starts as double value of U being 0.';
 			
 		/*[TheLoop#<Fo ,y ,20 <KE ,x <+ <K? ,x> ,100>>>
@@ -10800,19 +11263,186 @@ const Wikibinator203 = (()=>{
 		
 		vm.extraTests = [];
 		
+		vm.Test = function(name, getX, getY){
+			this.name = name;
+			this.getX = getX;
+			this.getY = getY;
+		};
+		vm.Test.prototype.run = function(){
+			vm.test(this.name, this.getX(), this.getY());
+		};
+		
+		//create a lazyevaled extraTest to be done later if user pushes button made by vm.htmlForExtraTests()
+		vm.xt = function(name, getX, getY){
+			vm.extraTests.push(new vm.Test(name, getX, getY));
+		};
+		
 		//TODO fix wikibTostringBugTheOldNamesArentGettingClearedAndAppearInNewCodeThatHasntDefinedThemYet then uncomment the next 2 tests.
-		vm.extraTests.push(()=>vm.test('Trivial test to make sure the extraTest buttons work, always passes', 1, 1));
-		vm.extraTests.push(()=>vm.test('After naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]'));
-		vm.extraTests.push(()=>vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]'));
-		vm.extraTests.push(()=>vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
+		//vm.extraTests.push(()=>vm.test('Trivial test to make sure the extraTest buttons work, always passes', 1, 1));
+		vm.xt('Trivial test to make sure the extraTest buttons work, always passes', ()=>1, ()=>1);
+		//vm.extraTests.push(()=>vm.test('After naming it Abc: eval of ,,_[a b c] tostring is same', vm.eval(',,_[a b c]')+'', ',,_[a b c]'));
+		vm.xt('After naming it Abc: eval of ,,_[a b c] tostring is same', ()=>(vm.eval(',,_[a b c]')+''), ()=>',,_[a b c]');
+		//vm.extraTests.push(()=>vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]'));
+		vm.xt('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', ()=>vm.eval(('[,,_[a b c]d Pair:x]')+''), ()=>'[,,_[a b c d] (Pair x)]');
+		//vm.extraTests.push(()=>vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
+		vm.xt("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
+		
+		//vm.extraTests.push(()=>vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
+		//	'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))'));
+		vm.xt('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.',
+			()=>(vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+''),
+			()=>'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))');
+
+		//vm.extraTests.push(()=>vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+'', '[the number of unique binary trees at most height 4 is 677]'));
+		vm.xt('Fo loop with Treemap state',
+			()=>(vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+''),
+			()=>'[the number of unique binary trees at most height 4 is 677]');
+		
+		//vm.extraTests.push(()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'});
+		vm.xt('this is a TODO about /a/b/sum$ syntax etc', ()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'}, ()=>'ignore');
+		
+		/*Opcode: (Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
+		Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
+		Opcode: (D a SomeMap) -> (SomeMap (D a))
+		Opcode: (O a SomeMap) -> (SomeMap (O a))
+		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
+		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
+		*/
+		
+		vm.mapABCD = vm.eval('(Put c d (Put a b (EmptyTreemap GodelLessThan)))');
+		vm.xt('Treemap Put, get a returns b', ()=>vm.mapABCD('a'), ()=>vm.eval('b'));
+		vm.xt('Treemap Put, get c returns d', ()=>vm.mapABCD('c'), ()=>vm.eval('d'));
+		vm.xt('Treemap Put, z not found so returns U', ()=>vm.mapABCD('z'), ()=>U);
+		
+		vm.xt('/a/b/sum$ evaled then tostringed looks like itself, but it could still be a single string which it shouldnt be', ()=>(vm.eval('/a/b/sum$')+''), ()=>'/a/b/sum$');
+		vm.xt('/a/b/sum$ evaled', ()=>(vm.eval('/a/b/sum$')+''), ()=>vm.eval('(D (GoO (OO a b) sum))'));
+		
+		vm.xt('/a called on a map gets b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('b'));
+		
+		vm.xt('/a/b called on a map gets c', ()=>(vm.eval('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
+		
+		vm.xt('/a/b/a called on a map gets d', ()=>(vm.eval('(/a/b/a (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan))))')), ()=>vm.eval('d'));
+		
+		vm.xt('/a/b/numberHolder$ called on a map gets 3.5', ()=>(vm.eval('(/a/b/numberHolder$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>3.5);
+		
+		vm.xt('(GoO (GoO (OO a b) c) d) displays as /a/b/c/d', ()=>(vm.eval('(GoO (GoO (OO a b) c) d)')+''), ()=>'/a/b/c/d');
+		vm.xt('(D (GoO (GoO (OO a b) c) d)) displays as /a/b/c/d$', ()=>(vm.eval('(D (GoO (GoO (OO a b) c) d))')+''), ()=>'/a/b/c/d$');
+		vm.xt('(D (D (D (GoO (GoO (OO a b) c) d)))) displays as /a/b/c/d$$$', ()=>(vm.eval('(D (D (D (GoO (GoO (OO a b) c) d))))')+''), ()=>'/a/b/c/d$$$');
+		//FIXME should it allow or not, the syntax  /a/b$/c/d to mean (GoO (GoO /a/b$ c) d)?
+		//Probably should throw cuz /a/b/c is only for strings that could be literals, not for evaling between 2 / /.
+		//If you want to do /a/b$/c/d write it out the long way: (GoO (GoO /a/b$ c) d).
+		//Even though 2023-3-11 (vm.ops.L(vm.eval('/a/b$/c'))+' -- '+vm.ops.R(vm.eval('/a/b$/c'))) returns '(GoO /a/b$) -- c'
+		//and vm.eval('/a/b$/c')+'' returns '/a/b$/c', which is parsing it correctly, it opens the door to /a/(Pair S T)/c etc
+		//and that syntax is harder to read and harder to display in tree UI html, so just make it do it the longer way, at least for now.
+		//If you dont like the syntax, you can derive a new one as a lambda at runtime eventually.
+		vm.xt('verify /a/b$/c throws cuz cant eval stuff between 2 / /, just string literals between them',
+			()=>{ try{ return vm.eval('/a/b$/c'); }catch(e){ return 'threw'; } }, ()=>'threw');
+		vm.xt('(Du (GoO (GoO (OO a b) c) d)) displays as /a/b/c/d^', ()=>(vm.eval('(Du (GoO (GoO (OO a b) c) d))')+''), ()=>'/a/b/c/d^');
+		vm.xt('(D (O a)) displays as /a$', ()=>(vm.eval('(D (O a))')+''), ()=>'/a$');
+		vm.xt('(L /a) is O', ()=>vm.eval('(L /a)'), ()=>ops.O);
+		vm.xt('(L /a$) is D', ()=>vm.eval('(L /a$)'), ()=>ops.D);
+		vm.xt('(R /a$) is /a', ()=>(vm.eval('(R /a$)')+''), ()=>'/a');
+		
+		/*
+		//FIXME this tree is deeper on one side than the other, which is expected since 2023-3-13 vm.put uses vm.putNoBal (no avl balancing)
+		//but I meant to write the balanced one here, and i might have misinterpreted what the 18 "for(let treemapCode of [" testcases generated.
+		let tmCode = '[Tm#(Treemap GodelLessThan) (Put cc dd (Put aa bb (Put ee ff Em#(EmptyTreemap GodelLessThan))))]';
+		vm.xt('Ascending order of treemap keys, and tostring, '+tmCode,
+			()=>(vm.eval(tmCode)+''), ()=>'[Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) aa bb (Tm Em cc dd (Tm Em ee ff Em)))]');
+		*/
+		
+		vm.xt('(/a (Put (O a) b (EmptyTreemap GodelLessThan))) -> b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')+''), ()=>'b');
+			
+		let tmReverse = '(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) ee ff Em) cc dd (Tm Em aa bb Em))';
+		let tmForward = '(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) aa bb Em) cc dd (Tm Em ee ff Em))';
+		vm.xt('Verify treemap in descending order doesnt find leftmost key ee, '+tmReverse,
+			()=>(vm.eval(tmReverse)('ee')), ()=>U);
+		vm.xt('Verify treemap in descending order doesnt find rightmost key aa, '+tmReverse,
+			()=>(vm.eval(tmReverse)('aa')), ()=>U);
+		vm.xt('Verify treemap in descending order does find leftmost key aa, '+tmForward,
+			()=>(vm.eval(tmForward)('aa')+''), ()=>'bb');
+		vm.xt('Verify treemap in descending order does find rightmost key ee, '+tmForward,
+			()=>(vm.eval(tmForward)('ee')+''), ()=>'ff');
+		
+		let i = 0;
+		for(let treemapCode of [
+			'(Put aa bb (Put cc dd (Put ee ff (EmptyTreemap GodelLessThan))))',
+			'(Put aa bb (Put ee ff (Put cc dd (EmptyTreemap GodelLessThan))))',
+			'(Put cc dd (Put aa bb (Put ee ff (EmptyTreemap GodelLessThan))))',
+			'(Put ee ff (Put aa bb (Put cc dd (EmptyTreemap GodelLessThan))))',
+			'(Put cc dd (Put ee ff (Put aa bb (EmptyTreemap GodelLessThan))))',
+			'(Put ee ff (Put cc dd (Put aa bb (EmptyTreemap GodelLessThan))))'
+		]){
+			let treemap = vm.eval(treemapCode);
+			vm.xt('treemap test i='+i+' 3keys treemapCode='+treemapCode+' aa -> bb', ()=>(vm.eval(treemapCode)('aa')+''), ()=>'bb');
+			vm.xt('treemap test i='+i+' 3keys treemapCode='+treemapCode+' cc -> dd', ()=>(vm.eval(treemapCode)('cc')+''), ()=>'dd');
+			vm.xt('treemap test i='+i+' 3keys treemapCode='+treemapCode+' ee -> ff', ()=>(vm.eval(treemapCode)('ee')+''), ()=>'ff');
+		}
+		/* This doesnt work cuz of treemap rotations andOr the innermost Put gets the top node, which ends up having 2 childs. Have to make the first node be
+		let cccccaaaaaeeeee = '(Put ccccc ddddd (Put aaaaa bbbbb (Put eeeee fffff (EmptyTreemap GodelLessThan))))';
+		vm.xt('Descending order of Treemap keys '+cccccaaaaaeeeee,
+			()=>/eeeee.*fffff.*ccccc.*ddddd.*aaaaa.*bbbbb/.test(vm.eval(cccccaaaaaeeeee)+''),
+			()=>true
+		);
+		vm.xt('Ascending order of Treemap keys '+cccccaaaaaeeeee,
+			()=>/aaaaa.*bbbbb.*ccccc.*ddddd.*eeeee.*fffff/.test(vm.eval(cccccaaaaaeeeee)+''),
+			()=>true
+		);*/
+		
+		let j = 0;
+		for(let treemapCode of [
+			'(Put ww xx (Put aa bb (Put cc dd (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put ww xx (Put aa bb (Put ee ff (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put ww xx (Put cc dd (Put aa bb (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put ww xx (Put ee ff (Put aa bb (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put ww xx (Put cc dd (Put ee ff (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			'(Put ww xx (Put ee ff (Put cc dd (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			
+			'(Put aa bb (Put ww xx (Put cc dd (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put aa bb (Put ww xx (Put ee ff (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put ww xx (Put aa bb (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put ww xx (Put aa bb (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put ww xx (Put ee ff (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put ww xx (Put cc dd (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			
+			'(Put aa bb (Put cc dd (Put ww xx (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put aa bb (Put ee ff (Put ww xx (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put aa bb (Put ww xx (Put ee ff (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put aa bb (Put ww xx (Put cc dd (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put ee ff (Put ww xx (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put cc dd (Put ww xx (Put aa bb (EmptyTreemap GodelLessThan)))))',
+			
+			'(Put aa bb (Put cc dd (Put ee ff (Put ww xx (EmptyTreemap GodelLessThan)))))',
+			'(Put aa bb (Put ee ff (Put cc dd (Put ww xx (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put aa bb (Put ee ff (Put ww xx (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put aa bb (Put cc dd (Put ww xx (EmptyTreemap GodelLessThan)))))',
+			'(Put cc dd (Put ee ff (Put aa bb (Put ww xx (EmptyTreemap GodelLessThan)))))',
+			'(Put ee ff (Put cc dd (Put aa bb (Put ww xx (EmptyTreemap GodelLessThan)))))'
+		]){
+			let treemap = vm.eval(treemapCode);
+			vm.xt('treemap test j='+j+' 4keys treemapCode='+treemapCode+' aa -> bb', ()=>(vm.eval(treemapCode)('aa')+''), ()=>'bb');
+			vm.xt('treemap test j='+j+' 4keystreemapCode='+treemapCode+' cc -> dd', ()=>(vm.eval(treemapCode)('cc')+''), ()=>'dd');
+			vm.xt('treemap test j='+j+' 4keys treemapCode='+treemapCode+' ee -> ff', ()=>(vm.eval(treemapCode)('ee')+''), ()=>'ff');
+			vm.xt('treemap test j='+j+' 4keys treemapCode='+treemapCode+' ww -> xx', ()=>(vm.eval(treemapCode)('ww')+''), ()=>'xx');
+		}
+
+		
+		//if(Math.random() < .5) throw 'TODO Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO';
+		
+		
+		
 		
 		vm.htmlForExtraTests = ()=>{
 			if(!vm || !vm.extraTests) throw 'Couldnt find vm or vm.extraTests';
 			let html = '<div id=vmExtraTests>';
+			let idPrefix = 'extraTestBtn_'+randIntSize(1e9)+randIntSize(1e9)+'_';
+			html += '<input type=button onclick="for(let i=0; i<vm.extraTests.length; i++) try{ document.getElementById(\''+idPrefix+'\'+i).click(); }catch(e){}" value="Test ALL"></input>&nbsp;&nbsp;&nbsp;';
+			html += '<input type=button onclick="if(!vm) throw \'No vm. TODO get it from Wikibinator203.n.vm or U.n.vm?\'; vm.clearCache()" value="Clear cache (warning, may cause dedup problems)"></input><br>';
 			for(let i=0; i<vm.extraTests.length; i++){
 				let x = vm.extraTests[i];
-				html += '<input id="extraTestBtn'+i+'" type=button onclick="try{ vm.extraTests['+i+'](); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+']()"></input>';
+				let name = vm.extraTests[i].name;
+				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+'].run(); // '+name+'"></input><br>';
 			}
 			html += '<div id=vmExtraTests>';
 			return html;

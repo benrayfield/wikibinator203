@@ -1,194 +1,70 @@
-(_[
+<	_[
 
-	(Put comment
-		[ im trying to rewrite augmentedballs as lambdas and make it work with webcam/canvas.
-			todo what should the outer object be? a treemap?
-			thats what calling a _[stuff] on EmptyTreemap does.
-		]
-	)
-
-	(Put simpleGraphicsExampleTEST32345
-		(λ [age height width] [the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"]
-			V_[ F[the NewVarsIf opcode does it just 1 level deep unlike NewPtrs[a b c] makes .a.b.c useable]
-				NewVarsIf[numBytes pix red green blue i]
-				(F "//*[vararg... eval each] or (* 2 3) with 2 params or of course <* ,2 ,3>.")
-				(Dput /numBytes *[/height /width ,4])
-				(BarrayPut /pix <NewBytes /numBytes>)
-				(DPut /red ,0)
-				(DPut /green ,0)
-				(DPut /blue ,0)
-				(DPut /blue ,0)
-				(DPut /i ,0)
-				(Fo y /height
-					(Fo x .width
-						_[	(Dput /pix +[/i /red$] <& ,255 +[/x *[/age$ ,35]]>)
-							(Dput /pix +[/i /green$] <& ,255 +[/x *[/y$ /age]]>)
-							(Dput /pix +[/i /blue$] <& ,255 *[,333 <Div /x$ /y$>]>)
-							F[next pixel] //this is how you write a comment in a loop ifelse etc. (F anything map) returns map.
-							(DPlusEq /i ,4)
-						]
-					)
-				)
-				F[gets pix then calls it on the Treemap state]
-				/pix
+		(Put comment
+			[ the outer lambda returns a Treemap when called on U aka is a lazyeval of a Treemap.
+				todo choose a better comparator than GodelLessThan at the end and the plan is
+				to use a comparator thats first by an idMaker and breaks ties by GodelLessThan.
+				im trying to rewrite augmentedballs as lambdas and make it work with webcam/canvas.
+				todo what should the outer object be? a treemap?
+				thats what calling a _[stuff] on EmptyTreemap does.
 			]
 		)
-	)
 
-	(Put normPixelsAllToSameBrightness 
-		(λ [targetSum U] [expects [pix h w] params in state param]
-			V_[ NewVarsIf[len retb sum mul]
-				F[its /h instead of /h$ and is /w instead of /w$ cuz those came in as λ params]
-				(Dput /len *[/h /w ,4])
-				(F "(DarrayPut .retb <NewDoubles /len$>)")
-				F[should this specify uint8Array vs uint8ClampedArray? or do that in "=b" vs "=B"?]
-				(BarrayPut /retb <NewBytes /len$>)
-				Foor[,i ,0 /len ,4
-					(F "//fixme, /[] and =[] arent for arrays (such as made by NewDoubles or newBytes).")
-					(F "//	theyre for state (Treemap or vm.Mut optimization of it, also merging λ params with treemap?)")
-					(F "//	use D[getKey getVal] or D[getOb getKey getVal] etc for that. D for doubles. B for bytes.")
-					(F "//=[,sum +[D[,pix +[/i /red]) D[,pix +[/i /green]] D[,pix +[/i /blue]]]]")
-					(F U)
-					(Dput /sum +[ (B /pix +[/i$ /red$]) (B /pix +[/i$ /green$]) (B /pix +[/i$ /blue$]) ])
-					(Dput /mul Div[/targetSum$ /sum$])
-					F[fixme truncate into byte? wrap into byte? js has uint8Array and uint8ClampedArray]
-					(Fo colorDim ,4 Bput[/retb +[/i$ /colorDim$] (D /pix *[/mul$ +[/i$ /colorDim$]])])
+		(Put simpleGraphicsExample
+			(λ [age height width] [the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"]
+				V_[ F[the NewVarsIf opcode does it just 1 level deep unlike NewPtrs[a b c] makes .a.b.c useable]
+					NewVarsIf[numBytes pix red green blue i]
+					(F "//*[vararg... eval each] or (* 2 3) with 2 params or of course <* ,2 ,3>.")
+					(Dput /numBytes *[/height /width ,4])
+					(BarrayPut /pix <NewBytes /numBytes>)
+					(DPut /red ,0)
+					(DPut /green ,0)
+					(DPut /blue ,0)
+					(DPut /blue ,0)
+					(DPut /i ,0)
+					(Fo y /height
+						(Fo x .width
+							_[	(Dput /pix +[/i /red$] <& ,255 +[/x *[/age$ ,35]]>)
+								(Dput /pix +[/i /green$] <& ,255 +[/x *[/y$ /age]]>)
+								(Dput /pix +[/i /blue$] <& ,255 *[,333 <Div /x$ /y$>]>)
+								F[next pixel .. this is how you write a comment in a loop ifelse etc. (F anything map) returns map]
+								(DPlusEq /i ,4)
+							]
+						)
+					)
+					F[gets pix then calls it on the Treemap state]
+					/pix
 				]
-				F[return retb from the Treemap]
-				/retb
-
-
-			]
+			)
 		)
-	)
 
+		(Put normPixelsAllToSameBrightness 
+			(λ [targetSum U] [expects [pix h w] params in state param]
+				V_[ NewVarsIf[len retb sum mul]
+					F[its /h instead of /h$ and is /w instead of /w$ cuz those came in as λ params]
+					(Dput /len *[/h /w ,4])
+					(F "(DarrayPut .retb <NewDoubles /len$>)")
+					F[should this specify uint8Array vs uint8ClampedArray? or do that in "=b" vs "=B"?]
+					(BarrayPut /retb <NewBytes /len$>)
+					Foor[,i ,0 /len ,4
+						(F "//fixme, /[] and =[] arent for arrays (such as made by NewDoubles or newBytes).")
+						(F "//	theyre for state (Treemap or vm.Mut optimization of it, also merging λ params with treemap?)")
+						(F "//	use D[getKey getVal] or D[getOb getKey getVal] etc for that. D for doubles. B for bytes.")
+						(F "//=[,sum +[D[,pix +[/i /red]) D[,pix +[/i /green]] D[,pix +[/i /blue]]]]")
+						(F U)
+						(Dput /sum +[ (B /pix +[/i$ /red$]) (B /pix +[/i$ /green$]) (B /pix +[/i$ /blue$]) ])
+						(Dput /mul Div[/targetSum$ /sum$])
+						F[fixme truncate into byte? wrap into byte? js has uint8Array and uint8ClampedArray]
+						(Fo colorDim ,4 Bput[/retb +[/i$ /colorDim$] (D /pix *[/mul$ +[/i$ /colorDim$]])])
+					]
+					F[return retb from the Treemap]
+					/retb
+					F[the retb means ]
 
-	/*
-	//TODO (Put key val) vs (SPut ,key ,val) vs <Put ,key ,val>?
-	(Put simpleGraphicsExample_TEST32345
-		(λ [age height width]
-			[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"]
-			V_[
-				F[the NewVarsIf opcode does it just 1 level deep unlike NewPtrs[a b c] makes .a.b.c useable]
-				NewVarsIf[numBytes pix red green blue i]
-				//(NewPtrIf numBytes) //the vm.Mut that the double/Dput/DGet/$ is a field in.
-				(Dput .numBytes *[.height .width ,4]) //*[vararg... eval each] or (* 2 3) with 2 params or of course <* ,2 ,3>.
-				//(NewPtrIf pix)
-				(BarrayPut .pix <NewBytes .numBytes>)
-				//(NewPtrIf red)
-				//(NewPtrIf green)
-				//(NewPtrIf blue)
-				//(NewPtrIf i)
-				//This is getting annoying. Look for some way to have it auto call NewPtrIf and NewPtrrIf and NewPtrsIf[...vararg...] etc.
-				(DPut .red ,0)
-				(DPut .green ,0)
-				(DPut .blue ,0)
-				(DPut .blue ,0)
-				(DPut .i ,0)
-				(Fo y .height
-					(Fo x .width
-						_[	(Dput .pix +[.i .red] <& ,255 +[.x *[.age ,35]]>)
-							(Dput .pix +[.i .green] <& ,255 +[.x *[.y .age]]>)
-							(Dput .pix +[.i .blue] <& ,255 *[,333 </ .x .y>]>)
-							F[next pixel] //this is how you write a comment in a loop ifelse etc. (F anything map) returns map.
-							(DPlusEq .i ,4)
-						]
-					)
-				)
-				F[gets pix then calls it on the Treemap state]
-				.pix
-				
-				
-				/*
-				//FIXME how to get the number inside Mut, not its primarykey? If I dont want to allocate a Mut for each change in its value, then use that.
-				=[,numBytes *[.height .width ,4]]
-				
-				This handles where its written (to numBytes) but not where its read from (.height and .width). Those both refer to muts in muts,
-				not OGetD. Make syntax for that? Need some way to GET the dupFn, double, cbt, etc after a .a.b.c etc. Choose suffix for .a.b.c etc.
-				<OPutD ,numBytes *[.height .width ,4]>
-				
-				
-				=[,numBytes *[.height .width ,4]]
-				=[,pix <NewBytes .numBytes>]
-				=[,red ,0]
-				=[,green ,1]
-				=[,blue ,2]
-				=[,i ,0]
-				<	Fo ,y .height
-					,<	Fo ,x .width
-						,_[	=[,pix +[.i .red] <& ,255 +[.x *[.age ,35]]>]
-							=[,pix +[.i .green] <& ,255 +[.x *[.y .age]]>]
-							=[,pix +[.i .blue] <& ,255 *[,333 </ .x .y>]>]
-				>	>	]	+=[,i ,4] //next pixel
-				.pix //gets pix then calls it on the Treemap state.
-				*/
-			]
+				]
+			)
 		)
-	)
-	*/
 
-	/*=[,simpleGraphicsExample_TEST32345
-		,(λ [age height width]
-			[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"] V_[
-			FIXME how to get the number inside Mut, not its primarykey? If I dont want to allocate a Mut for each change in its value, then use that.
-			=[,numBytes *[.height .width ,4]]
-			
-			This handles where its written (to numBytes) but not where its read from (.height and .width). Those both refer to muts in muts,
-			not OGetD. Make syntax for that? Need some way to GET the dupFn, double, cbt, etc after a .a.b.c etc. Choose suffix for .a.b.c etc.
-			<OPutD ,numBytes *[.height .width ,4]>
-			
-			
-			=[,numBytes *[.height .width ,4]]
-			=[,pix <NewBytes .numBytes>]
-			=[,red ,0]
-			=[,green ,1]
-			=[,blue ,2]
-			=[,i ,0]	
-			<	Fo ,y .height
-				,<	Fo ,x .width
-					,_[	=[,pix +[.i .red] <& ,255 +[.x *[.age ,35]]>]
-						=[,pix +[.i .green] <& ,255 +[.x *[.y .age]]>]
-						=[,pix +[.i .blue] <& ,255 *[,333 </ .x .y>]>]
-			>	>	]	+=[,i ,4] //next pixel
-			.pix //gets pix then calls it on the Treemap state.
-		]
-	)]
-	
-	=[,simpleGraphicsExample ,(λ [age height width]
-		[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"] V_[
-		=[,numBytes *[.height .width ,4]]
-		=[,pix <NewBytes .numBytes>]
-		=[,red ,0]
-		=[,green ,1]
-		=[,blue ,2]
-		=[,i ,0]	
-		<	Fo ,y .height
-			,<	Fo ,x .width
-				,_[	=[,pix +[.i .red] <& ,255 +[.x *[.age ,35]]>]
-					=[,pix +[.i .green] <& ,255 +[.x *[.y .age]]>]
-					=[,pix +[.i .blue] <& ,255 *[,333 </ .x .y>]>]
-		>	>	]	+=[,i ,4] //next pixel
-		.pix //gets pix then calls it on the Treemap state.
-	])]
-
-	=[,simpleGraphicsExample_OLD ,(λ [age height width]
-		[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"] V_[
-		=[,numBytes *[.height .width ,4]]
-		=[,pix <NewBytes .numBytes>]
-		=[,red ,0]
-		=[,green ,1]
-		=[,blue ,2]
-		=[,i ,0]	
-		Foo[,y .height
-			Foo[,x .width
-				=[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]]
-				=[,pix +[.i .green] &[,255 +[.x *[.y .age]]]]
-				=[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]]
-				+=[,i ,4] //next pixel
-			]
-		]
-		.pix //gets pix then calls it on the Treemap state.
-	])]
-	*/
-
-] (EmptyTreemap GodelLessThan))
+	]
+	,(EmptyTreemap GodelLessThan)
+>

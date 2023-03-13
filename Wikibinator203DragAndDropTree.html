@@ -1290,6 +1290,9 @@ options.borderWidth = 0; //normal
 //options.refillTimeAndMemoryEtcAfterEachDrop = true;
 options.refillTimeAndMemoryEtcAfterEachDrop = false;
 
+//options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13 = true;
+options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13 = false;
+
 //This is to help you not get confused when you drag and drop then it changes the shape of the tree,
 //so its hard to see where you just dropped it without this.
 //FIXME this is experimental 2023-1-1 and im first only implementing it for uiState.simpleDragUimode_cursor_splat (metaInsert, drag by mouseLeftButton).
@@ -2697,7 +2700,7 @@ var splatToDragStep = splat=>{
 };*/
 
 Splat.prototype.setDragStepAndInSomeCasesUnsetOthers = function(dragStep){
-	console.log('setDragStepAndInSomeCasesUnsetOthers dragStep='+dragStep+' splat='+this);
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('setDragStepAndInSomeCasesUnsetOthers dragStep='+dragStep+' splat='+this);
 	if(!dragStep){
 		dragStep = 'no';
 	}
@@ -4060,7 +4063,7 @@ var debugLog = x=>{
 };
 
 var onDomEvent = event=>{
-	debugLog({type:'domEvent', deType:event.type, deButtons:event.buttons, deButton:event.button, deEventPhase:event.eventPhase});
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) debugLog({type:'domEvent', deType:event.type, deButtons:event.buttons, deButton:event.button, deEventPhase:event.eventPhase});
 	if(options.do_mouseOverSplatToStringCode && event.type=='mousemove'){
 		let splatfyfx = screenYXToSplatfyfx(controls.mouseY, controls.mouseX);
 		if(splatfyfx){
@@ -4832,7 +4835,7 @@ var updateOverlays = ()=>{
 	}*/
 	//let whichMenu = (wouldtoOrTo && wouldtoOrTo.splate().dragStep === 'dropCircMenu') ? 'dropCircMenu' : null;
 	let whichMenu = uiState.dragSteps.dropCircMenu ? 'dropCircMenu' : null;
-	console.log('updateOverlays whichMenu='+whichMenu);
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('updateOverlays whichMenu='+whichMenu);
 	
 	//displays just outside the border of mouseover_sected rect
 	let mouseOverSelect_top = Dob('mouseOverSelect_top');
@@ -5001,7 +5004,7 @@ var updateOverlays = ()=>{
 	//let menuDob = Dob(whichMenu);
 	let menuDob = Dob('popupMenuDob');
 	let menuDobHtml = menuDob.innerHTML.trim();
-	console.log('updateOverlays about to choose to display popup menu, menuDobHtml.length='+menuDobHtml.length);
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('updateOverlays about to choose to display popup menu, menuDobHtml.length='+menuDobHtml.length);
 	if(whichMenu != null && whichMenu!='clickCircMenu'){ //merged clickCircMenu into dropCircMenu.
 		console.log('idempotent display popup menu..');
 		if(options.loglev>2) console.log('updateOverlays clickcirctest whichMenu='+whichMenu);
@@ -5040,7 +5043,7 @@ var updateOverlays = ()=>{
 		//	menuDob.innerHTML = '';
 		//}
 	}else{
-		console.log('erase popup menu, was menuDobHtml.length='+menuDobHtml.length);
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('erase popup menu, was menuDobHtml.length='+menuDobHtml.length);
 		if(options.loglev>2) console.log('updateOverlays clickcirctest emptying_menuDob clickCircSplat='+(clickCircSplat?'nonnull':'null'));
 		menuDob.innerHTML = ''; //Without this, clickCircMenu doesnt disappear after use it.
 	}
@@ -5134,7 +5137,9 @@ var updateOverlays = ()=>{
 		let iconDob = Dob(fromOrTo+'Icon'); //fromIcon or toIcon
 		let beVisible = true;
 		if(uiState[fromOrTo].isDisplayIcon){
-			console.log('TODO display uiState.'+fromOrTo+' icon, looseIconYFraction='+uiState[fromOrTo].looseIconYFraction+' looseIconXFraction='+uiState[fromOrTo].looseIconXFraction+' icon='+iconDob);
+			if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13){
+				console.log('TODO display uiState.'+fromOrTo+' icon, looseIconYFraction='+uiState[fromOrTo].looseIconYFraction+' looseIconXFraction='+uiState[fromOrTo].looseIconXFraction+' icon='+iconDob);
+			}
 			iconDob.style.visibility = 'visible';
 			/*
 			let wouldfromOrFrom = anyfromSplat();
@@ -6278,12 +6283,12 @@ var endMetaInsert = ()=>{
 //Either way, only sets stuff depending on this.isDragFrom() and this.isDragTo()
 Splat.prototype.setIconStuffInUiStateIfs = function(looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon){
 	if(this.isDragFrom()){
-		console.log('mousemove isDragFrom splat='+this);
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('mousemove isDragFrom splat='+this);
 		//false is FROM. true is TO. It can be none, one, or both of those.
 		setIconStuffInUiState(false, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon);
 	}
 	if(this.isDragTo()){
-		console.log('mousemove isDragTo splat='+this);
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('mousemove isDragTo splat='+this);
 		setIconStuffInUiState(true, looseIconYFraction, looseIconXFraction, optionalIsDisplayIcon);
 	}
 };
@@ -6307,16 +6312,20 @@ var setIconStuffInUiState = function(isToElseFrom, looseIconYFraction, looseIcon
 //such as if you right click, or if left-drag or right-drag from and to the same splat/rectangle.
 //Also see Splat.dragStep() and Splat.setDragStep(dragStepString).
 Splat.prototype.isDragFrom = function(){
-	console.log('isDragFrom? uiState.dragSteps.wouldFrom exists='+!!uiState.dragSteps.wouldFrom+' equalsThis?='+(uiState.dragSteps.wouldFrom==this));
-	console.log('isDragFrom? uiState.dragSteps.from exists='+!!uiState.dragSteps.from+' equalsThis?='+(uiState.dragSteps.from==this));
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13){
+		console.log('isDragFrom? uiState.dragSteps.wouldFrom exists='+!!uiState.dragSteps.wouldFrom+' equalsThis?='+(uiState.dragSteps.wouldFrom==this));
+		console.log('isDragFrom? uiState.dragSteps.from exists='+!!uiState.dragSteps.from+' equalsThis?='+(uiState.dragSteps.from==this));
+	}
 	return uiState.dragSteps.wouldFrom==this || uiState.dragSteps.from==this;
 };
 
 //Is this Splat the only one being dragged TO (if any) right now, in uiState?
 Splat.prototype.isDragTo = function(){
-	console.log('isDragTo? uiState.dragSteps.wouldTo exists='+!!uiState.dragSteps.wouldTo+' equalsThis?='+(uiState.dragSteps.wouldTo==this));
-	console.log('isDragTo? uiState.dragSteps.to exists='+!!uiState.dragSteps.to+' equalsThis?='+(uiState.dragSteps.to==this));
-	console.log('isDragTo? uiState.dragSteps.dropCircMenu exists='+!!uiState.dragSteps.dropCircMenu+' equalsThis?='+(uiState.dragSteps.dropCircMenu==this));
+	if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13){
+		console.log('isDragTo? uiState.dragSteps.wouldTo exists='+!!uiState.dragSteps.wouldTo+' equalsThis?='+(uiState.dragSteps.wouldTo==this));
+		console.log('isDragTo? uiState.dragSteps.to exists='+!!uiState.dragSteps.to+' equalsThis?='+(uiState.dragSteps.to==this));
+		console.log('isDragTo? uiState.dragSteps.dropCircMenu exists='+!!uiState.dragSteps.dropCircMenu+' equalsThis?='+(uiState.dragSteps.dropCircMenu==this));
+	}
 	return uiState.dragSteps.wouldTo==this || uiState.dragSteps.to==this || uiState.dragSteps.dropCircMenu==this;
 };
 
@@ -6907,15 +6916,15 @@ var display_copyOfPopupMenuToPreChoose = ()=>{
 window.onload = ()=>{
 	rootDob = Dob('rootDob');
 	rootDob.addEventListener('mousedown', event=>{
-		console.log('rootDob_mousedown');
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('rootDob_mousedown');
 		globalOnMouseDown(event);
 	});
 	rootDob.addEventListener('mouseup', event=>{
-		console.log('rootDob_mouseup');
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('rootDob_mouseup');
 		globalOnMouseUp(event);
 	}); //cuz keeps losing mouseup events, moved mouseup events to global. Then for a different reason moved mousedown and mousemove events to global.
 	rootDob.addEventListener('mousemove', event=>{
-		console.log('rootDob_mousemove');
+		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('rootDob_mousemove');
 		globalOnMouseMove(event);
 	});
 	Dob('extraTests').innerHTML = vm.htmlForExtraTests();

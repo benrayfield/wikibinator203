@@ -1,0 +1,73 @@
+TODO work out these last small details then start making the directedGraph for various math ideas, including exponentByRepeatedSquaring, collatzConjecture, pvsNp, areThereAnInfiniteNumberOfTwinPrimes, areHaltingOraclesPossible (of course false), godelCompletenessVsIncompleteness (incomplete, but how to write it...), and maybe (I'm not sure if i can do things this advanced) 3body and chuascircuit exactly using convergence by leastSquares at an infinite number of places, using some cardinality thats past the integers. Start making a map of math. Put this all in wikibinator203 in the hyperGreen hyperBlue hyperRed and opcodes, which maybe should take a carcom param and a hyperlambda param, and a (hyperLeaf carcom) opcode to start it, and as viewed from any carcom as leaf, its a 7 param universal func, of which at most 6 params are stored since its always lazyEval.
+
+UPDATE: first of 8 params is cardinalityComparator (cardcom). (carcom x y) -> T or F, depending if x<y,
+and you can get x==y by not carcom x y and not carcom y x (or maybe I'll put in La.Lb.Lc.a to go with La.Lb.Lc.b/True and La.Lb.Lc/False
+so theres 3 things it could return.
+Carcom is set externally and cant be changed from inside the hypercomputing directedGraph.
+Its a way to have more cardinalities than there are integers,
+such as sorting the integers with all the evens before all the odds, so the first odd (1) is the (infinity+1)'th integer in that sort.
+Another way to sort is by factoring an integer, where its sorted by how many of the biggest factor there is, then break ties by how many of the second biggest factor, and so on, such as 2*2*2*2*3*3*19*19*19 lessThan 2*2*2*2*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*3*19*19 lessThan 23.
+I couldnt decide on what kind of cardinality sorting to use, so I made it a param.
+Carcoms can be verified but at a few cardinalities up.
+A carcom is valid if the lowest cardinality is U/leaf and every pair of lambdas (which has at most 7 params and has some default/simplest carcom as its first param)
+is sorted in a consistent order by it, and it always halts. The default carcom is to sort first by height (U/leaf is height 0, (U U) is height 1, and so on), and break ties by comparing the 2 left childs (or skip if the 2 lefts are equal, which is fast to detect), and break ties by comparing the 2 right childs.
+IF a carcom is not valid, then the red edges should all go to cantcar, which should not cause any consistency problem in the design (such as implying halting oracles exist, which would disproveByContradiction that design) cuz it cant set carcom, has to keep whatever carcom its given as first of 8 params (and it only sees last 7 of those, which l r and isleaf "close the quine loop" as if second param is leaf (so a carcom acts like a leaf, a type of cardinality that a variant of the directed-graph is)).
+
+I made a mistake in having 4 hypercompute edge types (green blue redA redB) in wikibinator203. Instead, merge the 2 red edge types sine carcom can do both and more. Theres only hyperGreen/l hyperBlue/r hyperRed/evalsToWithSemanticPrefix.
+
+If second param is U/carcom, then next 6 params are various opcodes such as l r isleaf t f etc.
+If second param is not U/carcom then its a lambda of 6 params. Lets just say U to mean a func of 7 params, and the "carcom param before that" is just a place to put what kind of carcom it is, and maybe carcom should be a second param in wikibintor203's hyperGreen hyperBlue hyperRed opcodes so (hyperRed aCarcom lambda) (hyperBlue aCarcom lambda) etc, so its a func of 7 params. Or go back to 8 params and have the first param choose if its a lambda of 6 params or not?
+
+A universal func of 8 params, that does 3-way calls of: cardinality, func, param. All 3 of those are made of binary-forest where all paths lead to the shared leaf, and theres at most 8 curries on l before getting back to that leaf, but the last param is never stored since its only stored as lazyevals. First bit (being leaf vs any nonleaf, aka an opbit) chooses between lambdaOf6Params (funcBody is at second param) vs next 3-4 bits choose between approx 16 opcodes, but one of the opcodes (threewaycall/tricall) takes 4 params. I'll write out the opcode tree next...
+
+
+//prefix these by number of params it takes. If sum pow(2,numParams) for each of those, and that sum is at most 256, the opcodes fit.
+
+8: carcom
+	7: fnbodNU	a		b		c		x		y		z //if fnBody is not U/carcom. If it is U/carcom then it forks the other way to the opcodes below...
+	7:
+		6:
+			4:
+				3:
+					2:
+						1: gcarcom //get carcom aka the current cardinality comparator, whats in first of 8 params, BUT l and r can only reach to second param as if that was the leaf.
+						1: reservedForFutureExpansionA
+					2: reservedForFutureExpansionB
+				3: s
+			4:
+				3: vugen //viewAs in general. (vugen vufnbod viewme param)->(vufnbod (pair (vugen vufnbod viewme) param)). Or maybe this should be a subset of "7: fnbodNU	a		b		c		x		y		z"? Not specific like vulist is for [...] and vuvarg is a kind of vararg view of [nonvararg (max 8 params)].
+				3: negf //(negf a b c)->a. negf, t, and 
+			4: tri //(tri a b c z)->(z a b c) is like tri/pair of 3 things (used with negf, t, and f), similar to (pair a b z)->(z a b) is for pair of 2 things (used with (t u) and (f u), or just call those t and f, and the 3 param versions of t and f is just having 1 less param already filled in.
+			4:
+				1: l //uses second param as if its the leaf, since in abstract math a carcom is stored in first param but is more of a global carcom for an infinite size sub-directed-graph. see gcarcom.
+				1: r //uses second param as if its the leaf, since in abstract math a carcom is stored in first param but is more of a global carcom for an infinite size sub-directed-graph. see gcarcom.
+				1: isleaf //uses second param as if its the leaf, since in abstract math a carcom is stored in first param but is more of a global carcom for an infinite size sub-directed-graph. see gcarcom.
+				1: getcard	ignore //get cardinality running at right now, which is found in (tricall cardinality func param u) --red--> (didred val), or if (todo what was i going to write?). gcarcom gets cardinality comparator. getcard gets a cardinality that it would compare any 2 of. all lambdas are valid cardinalities, but not all carcoms are valid, since a carcom has to define a sorting of all lambdas with U/leaf being the lowest sorted, and has to
+				1: rededge	from	//ask whats across a red edge, normally from a tricall but can be from anything. if not from tricall then red edge goes to leaf.
+				1: cantred	ignore //a semantic meaning caller does not have enough cardinality
+				1: cantcar ignore //a semantic similar to cantred, except means cardinality comparator (returned by (gcarcom u)) is invalid, BUT careful when designing things like this not to make something that would imply halting oracles exist (which are impossible) cuz that would disproveByContradiction that design.
+				1: nohalt ignore //a semantic similar to cantred, except it did red but red said it didnt halt. (rededge (tricall card func param)) --> nohalt, (didred retval), or cantred.
+			
+		6:
+			5:
+				4:
+					2: didred	retval		ignore	//didred is the semantic, and retval is what rededge returned. caller doesnt have enuf cardinality then --red--> (cantred val) but its stored as to a didred.
+
+					2: treelt //tree lessthan. (treelt U (U U))->T. (treelt (U (U U)) U)->F. This can be used as a carcom.
+
+					2: vulist	viewme	param //TODO "view as [] list", makes something display like "infcur/[] in wikibinator203 which is vararg" but is actually not vararg.
+					2: vuvarg	viewme	param //TODO view as some kind of vararg, even though at the data layer its not vararg, might use a linkedlist of pairs or something.
+					
+				4: tricall	card	func	param	ignore
+
+			//consider tri and negf for comparators such as what (gcarcom u) returns.
+			//4: tri //(tri a b c z)->(z a b c) is like tri/pair of 3 things (used with negf, t, and f), similar to (pair a b z)->(z a b) is for pair of 2 things (used with (t u) and (f u), or just call those t and f, and the 3 param versions of t and f is just having 1 less param already filled in.
+			//3: negf //(negf a b c)->a. negf, t, and 
+			5:
+				4:
+					3: t //(t a b c)->b
+					3: f //(f a b c)->c
+
+				4:
+					3: pair
+					3: typeval

@@ -1,0 +1,34 @@
+[[
+https://discord.com/channels/@me/1083833628443811880
+
+madscientist — Today at 6:58 AM
+(havent read the above yet). The
+'The "some guy who is making a decentralized alternative to twitter" is at https://discord.com/channels/1048019417994383420/1048027183811133501 where you'll find my recent questions and his answers. it might be him or 2 different guys but either way.
+madscientist — Today at 7:09 AM
+Wikibinator is meant to be a whole-internet level "universal constructor" more than any other system. But there might be some systems that do it better that I havent heard of yet
+Also I could quickly make simple 3d games that run in desktop and android browser (maybe other browsers too) using cannonjs with threejs like at https://schteppe.github.io/cannon.js/
+schteppe/cannon.js @ GitHub
+A lightweight and simple 3D physics engine for the web.
+Due to wikibinator having a bottleneck on branching, systems like that would be faster at 3d games with alot of objects, but wikibinator should be ok for 3d games with very few objects or normal 2d games or 3d fractals etc
+wikibinator could also in theory be used to generate javascript code that uses cannonjs and threejs or other systems, but i still recommend keeping it sandboxed instead of doing that, for a while
+Such generated code could compete with the best of games
+madscientist — Today at 7:17 AM
+Speed stats of some parts im gonna use on linux and windows https://twitter.com/wikibinator/status/1634259096235827200
+"#wikibinator works in Linux and Windows at least. Heres how it will be optimized using javascript eval and GPU.js and maybe much later native OpenCL. Use Firefox in Linux. Chrome how dare you ask to be the default browser after a pathetic performance like that."
+(see pic gpuSpeedStatsAndLinuxVsWindows1.jpg)
+
+🎮wikibinator🎮🎮 64k-players🎮?? (@wikibinator)
+#wikibinator works in Linux and Windows at least. Heres how it will be optimized using javascript eval and GPU.js and maybe much later native OpenCL. Use Firefox in Linux. Chrome how dare you ask to be the default browser after a pathetic performance like that.
+Image
+
+Twitter•Yesterday at 1:25 PM
+GPU and graphics above. Branching speed stats: https://twitter.com/wikibinator/status/1609239828679344130
+"Basic speed test on #wikibinator, with no GPU.js or javascript-eval optimizations, on an Intel i9 5ghz CPU single threaded, is about 400k lambdas created/called and deduped per second. Each lambda can be tiny or contain a big array, so should be enough for 3d fractals, games, etc"
+(see pic cpuSpeedStats1.png)
+
+🎮wikibinator🎮🎮 64k-players🎮?? (@wikibinator)
+Basic speed test on #wikibinator, with no GPU.js or javascript-eval optimizations, on an Intel i9 5ghz CPU single threaded, is about 400k lambdas created/called and deduped per second. Each lambda can be tiny or contain a big array, so should be enough for 3d fractals, games, etc
+Image
+
+Twitter•12/31/2022 12:27 PM
+]]

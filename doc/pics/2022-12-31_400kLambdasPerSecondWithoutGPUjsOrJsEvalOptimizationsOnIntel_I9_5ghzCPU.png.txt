@@ -1,0 +1,16 @@
+https://twitter.com/wikibinator/status/1609239828679344130/photo/1
+wikibinator
+@wikibinator
+Basic speed test on #wikibinator, with no GPU.js or javascript-eval optimizations, on an Intel i9 5ghz CPU single threaded, is about 400k lambdas created/called and deduped per second. Each lambda can be tiny or contain a big array, so should be enough for 3d fractals, games, etc
+12:27 PM · Dec 31, 2022
+View Tweet analytics
+
+
+wikibinator
+@wikibinator
+·
+2m
+Replying to 
+@wikibinator
+You can think of the speed as happening in 1/60 second blocks of time. Each paints the screen at normal HDMI screen speed. So you can make a few thousand lambdas, and call GPU once (chain a few kernels), per video frame. Similarly read/write maybe a block of 256 sound samples.
+Tip
