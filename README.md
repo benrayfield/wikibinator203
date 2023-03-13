@@ -4,7 +4,7 @@ U is a universal combinator, some combos (TODO) GPU optimizable. A node is U or 
 
 On browser console this returns 6.440155277631122: vm.eval('(Hypot#(λ [x y] [this is [a comment] with a function Sqr#{(T *) I#(F U) I} in it] {(T Sqrt) {(T +) {(T Sqr) (P x)} {(T Sqr) (P y)}}}) 6)')(2.34).n.d(); Still changing the syntax... TODO derive eval from universal lambda.
 
-<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-11-5-840aEST%20nearly%20first%20drag%20and%20drop%20of%20lambda%20onto%20lambda%20to%20create%20lambda%20(Hypot%206%202.34).png>
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pics/2022-11-5-840aEST%20nearly%20first%20drag%20and%20drop%20of%20lambda%20onto%20lambda%20to%20create%20lambda%20(Hypot%206%202.34).png>
 
 Planned schedule (now is 2022-11-5):
 <br><br>
@@ -18,7 +18,7 @@ Some time in 2024, multiplayer games and GPU optimizations. All the 128 opcodes 
 <br><br>
 Over next few years, scale up to 1 million simultaneous users, if its fun or useful enough to go-viral yet. Might take longer than expected, hard to predict.
 
-<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-9-28_treeUI.png><br>
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pics/2022-9-28_treeUI.png><br>
 
 A kind of number. Build anything by drag-and-drop of a universal combinator (lambda). GPU. Streaming. Massively multiplayer. Peer to peer. Experimenting, TODO..A fork-editable multiverse of all possible streaming of all possible combos of lambda functions with shareable function ids for every possible function or "multiverse state" etc. universal function to build and run music tools, science tools, AI research, game worlds, etc, inside itself like a self-hosting-compiler, in a massively multiplayer decentralized way. Some basic parts work, or use earlier wikibinator106. For making massively-multiplayer browser or desktop apps, games, musical instruments, science tools, number crunching, security research, etc, a universal lambda function (combinator), GPU optimizable, javascript eval optimizable, 256 bit ids of merkle forest, each lambda has 2 lambda childs and all paths lead to the universal lambda.
 
@@ -28,9 +28,9 @@ Made for everyone, but for now its hard to use... Programmers and mathematicians
 
 LICENSE SUMMARY: Its basically, do whatever you want but nobody owns the lambdas, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. DETAILS: <a href=https://github.com/benrayfield/wikibinator203/blob/main/LICENSE>LICENSE</a>
 
-<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/2022-7-22_unicodeAlmostWorking.png>
-<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/wikibinator203_2022-6-24-305p_mouseDraggedToLookBetter.png>
-<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/pics/TestWikibinator203VM.html.png>
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pics/2022-7-22_unicodeAlmostWorking.png>
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pics/wikibinator203_2022-6-24-305p_mouseDraggedToLookBetter.png>
+<img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pics/TestWikibinator203VM.html.png>
 
 To see it working, look at this browser console output (from the html file) <a href=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt>https://raw.githubusercontent.com/benrayfield/wikibinator203/main/BrowserConsoleLogOutput.txt</a>
 
