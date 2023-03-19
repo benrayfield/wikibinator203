@@ -11833,8 +11833,23 @@ const Wikibinator203 = (()=>{
 		vm.xt('/a/b called on a map gets c', ()=>(vm.eval('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
 		
 		vm.xt('/a/b/a called on a map gets d', ()=>(vm.eval('(/a/b/a (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan))))')), ()=>vm.eval('d'));
+
+		vm.xt('(D a (Put (D a) 5 (EmptyTreemap GodelLessThan))) -> 5', ()=>vm.eval('(D a (Put (D a) 5 (EmptyTreemap GodelLessThan)))'), ()=>vm.eval('5'));
+
+		vm.xt('/a/b/a$ called on a map gets 4.5', ()=>(vm.eval('(/a/b/a$ (Put (D d) 4.5 (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('4.5'));
+
+		vm.xt('FIXME GoD vs D, similar to GoO vs OO. The Go part means get from the map instead of use as literal. (/a$ (Put (O a) b (Put (D b) 5 (EmptyTreemap GodelLessThan)))) etc', ()=>true, ()=>false);
+		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... do i want a xyz$ syntax available, not just /xyz$ ? Or at least some way to not need to put 2 keys and 2 vals in the map just to put 1 number var.', ()=>true, ()=>false);
+		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... Should the first thing b, in /b/c/d, always be a literal, the fn b instead of what (O b) maps to or what (OO b c) maps to?', ()=>true, ()=>false);
+		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... What should happen if theres (OO b c) as key in map, but you ask for /b$ ? /b is (O b).', ()=>true, ()=>false);
+		vm.xt('TODO tree UI should display /a/b/sum$ as /a/b/sum$ using the dom nodes in dom nodes and with / and $ going at the left/top middle andOr right/bottom dom nodes, but wait til get (D ...) worked out', ()=>true, ()=>false);
+		vm.xt('TODO simple 2d game with destructible 2d voxel terrain and fun kinds of monsters and vehicles etc, see pics of some of the ideas (todo)', ()=>true, ()=>false);
+
+		//vm.xt('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan))) -> c', ()=>(vm.eval('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
 		
-		vm.xt('/a/b/numberHolder$ called on a map gets 3.5', ()=>(vm.eval('(/a/b/numberHolder$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>3.5);
+		vm.xt('/a/b/sum$ called on a map gets 3.5',
+			()=>(vm.eval('(/a/b/sum$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('3.5'));
+			//()=>(vm.eval('(/a/b/numberHolder$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('3.5'));
 		
 		vm.xt('(GoO (GoO (OO a b) c) d) displays as /a/b/c/d', ()=>(vm.eval('(GoO (GoO (OO a b) c) d)')+''), ()=>'/a/b/c/d');
 		vm.xt('(D (GoO (GoO (OO a b) c) d)) displays as /a/b/c/d$', ()=>(vm.eval('(D (GoO (GoO (OO a b) c) d))')+''), ()=>'/a/b/c/d$');
