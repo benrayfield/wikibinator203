@@ -11937,6 +11937,20 @@ const Wikibinator203 = (()=>{
 			vm.xt('treemap test j='+j+' 4keys treemapCode='+treemapCode+' ww -> xx', ()=>(vm.eval(treemapCode)('ww')+''), ()=>'xx');
 		}
 
+		vm.xt('treemap with lambdas as keys, (Pair S T)', ()=>vm.eval('(Put (Pair S T) itsIota (Put hello world (Put (S T T) itsSTT (EmptyTreemap GodelLessThan))) (Pair S T))'), ()=>vm.eval('itsIota'));
+		vm.xt('treemap with lambdas as keys, hello', ()=>vm.eval('(Put (Pair S T) itsIota (Put hello world (Put (S T T) itsSTT (EmptyTreemap GodelLessThan))) hello)'), ()=>vm.eval('world'));
+		vm.xt('treemap with lambdas as keys, (S T T)', ()=>vm.eval('(Put (Pair S T) itsIota (Put hello world (Put (S T T) itsSTT (EmptyTreemap GodelLessThan))) (S T T))'), ()=>vm.eval('itsSTT'));
+		vm.xt('treemap with lambdas as keys, notThere', ()=>vm.eval('(Put (Pair S T) itsIota (Put hello world (Put (S T T) itsSTT (EmptyTreemap GodelLessThan))) notThere)'), ()=>U);
+
+		vm.xt('wrongly sorted treemap with lambdas as keys, (Pair S T) not found despite being there but in wrong place',
+			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) (Pair S T))'), ()=>U);
+		vm.xt('wrongly sorted treemap with lambdas as keys, {T T} is found cuz dont use the wrongly sorted parts to find it',
+			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) {T T})'), ()=>vm.eval('itsSTT'));
+		vm.xt('wrongly sorted treemap with lambdas as keys, hello is found cuz dont use the wrongly sorted parts to find it',
+			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) hello)'), ()=>vm.eval('world'));
+		vm.xt('wrongly sorted treemap with lambdas as keys, notThere is not found cuz its not there',
+			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) notThere)'), ()=>U);
+
 		
 		//if(Math.random() < .5) throw 'TODO Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO';
 		
