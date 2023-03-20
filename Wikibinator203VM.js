@@ -11966,6 +11966,35 @@ const Wikibinator203 = (()=>{
 		vm.xt('wrongly sorted treemap with lambdas as keys, notThere is not found cuz its not there',
 			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) notThere)'), ()=>U);
 
+		let Ev = vm.eval; //eval of that wikibinator code
+		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
+		vm.xt('Parse a', Evv('a'), Evv('a'));
+		vm.xt('Parse a$', Evv('a$'), Evv('(D a)'));
+		vm.xt('Parse a^', Evv('a$'), Evv('(Du a)'));
+		vm.xt('Parse a/b', Evv('a/b'), Evv('(OO a b)'));
+		vm.xt('Parse a/a', Evv('a/a'), Evv('(OO a a)'));
+		vm.xt('Parse a/b$', Evv('a/b$'), Evv('(DGo (OO a b))'));
+		vm.xt('Parse a/b^', Evv('a/b$'), Evv('(DuGo (OO a b))'));
+		vm.xt('Parse a/b$', Evv('a/b$'), Evv('(DGo (OO a b)'));
+		vm.xt('(a/b []) -> [(OO a b)] as if [] was a map but its just a list', Evv('(a/b [])'), Evv('[(OO a b)]'));
+		vm.xt('(a$ []) -> [(D a)] as if [] was a map but its just a list', Evv('(a$ [])'), Evv('[(D a)]'));
+		vm.xt('(a^ []) -> [(Du a)] as if [] was a map but its just a list', Evv('(a^ [])'), Evv('[(Du a)]'));
+		vm.xt('Parse a/b/c/b/b/a', Evv('a/b/c/b/b/a'), Evv('(GoO (GoO (GoO (GoO (OO a b) c) b) b) a)'));
+		vm.xt('Parse a/b/c/b/b/a^', Evv('a/b/c/b/b/a'), Evv('GoDu (GoO (GoO (GoO (GoO (OO a b) c) b) b) a))'));
+		vm.xt('Parse a/b/c$', Evv('a/b/c$'), Evv('(DGo (GoO (OO a b) c)'));
+		vm.xt('Parse a/b/c^', Evv('a/b/c^'), Evv('(DuGo (GoO (OO a b) c)'));
+		vm.xt('Parse yes/no', Evv('yes/no'), Evv('(OO yes no)'));
+
+
+		//a/b/c$ is (DGo (GoO (OO a b) c)).
+		//In treemap, it will map key (D y) to 5.5 if it maps (OO a b) to x and maps (OO x c) to y.
+		//(a/b/c$ ThatTreemap) -> 5.5. So (<+ a/b/c$ ,100> ThatTreemap) -> 105.5.
+		vm.xt('(<+ a/b/c$ ,100> ThatTreemap) -> 105.5', Evv('(<+ a/b/c$ ,100> ThatTreemap#(Put (D y) 5.5 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan)))))'), Evv('105.5'));
+
+		//FIXME since what goes after OtherTreemap# is not halted, does OtherTreemap# get attached to what it evals to? Same question for ThatTreemap# above.
+		vm.xt('(<+ a/b/c$ a$> OtherTreemap) -> 210', Evv('(<+ a/b/c$ ,100> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('210'));
+		vm.xt('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap) -> 40010', Evv('(<+ a/b/c$ ,100> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('40010'));
+
 		
 		//if(Math.random() < .5) throw 'TODO Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO';
 		
