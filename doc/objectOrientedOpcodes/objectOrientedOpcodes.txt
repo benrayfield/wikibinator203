@@ -1,0 +1,96 @@
+Solution[
+a/b/c$ is (DGo (GoO (OO a b) c)).
+In treemap, it will map key (D y) to 5.5 if it maps (OO a b) to x and maps (OO x c) to y.
+(a/b/c$ ThatTreemap) -> 5.5. So (<+ a/b/c$ ,100> ThatTreemap) -> 105.5.
+a/b$ is (DGo (OO a b)). (DGo (OO a b) map) -> (map (OO a b map)). (DGo x map) -> (map (x map)).
+a$ is (D a). (D a map) -> (map (D a)).
+x is x. a is a. String literals.
+a/b/c^ is (DuGo (GoO (OO a b) c)).
+^ is another field in vm.Mut thats for dupFn, like $ is for the double/float64 field in Mut.
+]
+
+
+The vm.Mut optimization is for loops, if/else, * + / sine exp += *= reading and writing vars, etc.
+It will be javascriptEval and GLSL optimized using pushEvaler, and can run in interpreted mode too.
+In any case its transforms from Treemap to Treemap. When optimized, it uses vm.Mut objects or GPU etc
+in the middle calculations between snapshot of such state as Treemap.
+
+If its javascriptEval optimized, lets call the root Mut M.
+js code M.λa.λb.λc.λD means this in wikib code: /a/b/c$, where λa is an id of the string "a".
+/a/b/c$ means (DGo (GoO (OO a b) c))
+
+//the map param is always a root vm.Mut, such as named M in generated js code:
+(OO a b map) -> (map (OO a b)) //M.λa.λb
+(GoO a b map) -> (map (OO (a map) b)) //a(M).λb or something like that.
+(DGo a map) -> (D (a map) map) //a(M).λD
+(D a map) -> (map (D a)) //M.λa.λD
+
+Is there a conflict between O (use as literal) vs Go (get from map) in...
+(O a map) -> (map (O a)) //M.λa
+(OO a b map) -> (map (OO a b)) //M.λa.λb
+//and maybe also this?.. (Go a map) -> (map (O (map (O a)))) //aka -> (O a map (O a map))???
+
+
+/a$ is (DGo (O a))
+Should a$ be (D a)? Or how about $a means that?
+
+
+Have I confused between O and Go?
+/a should mean M.λa
+$a or maybe a$ should mean M.λa.λD ???
+/a$ or maybe $/a should mean M.λa.λD ???
+Those few things seem to have a conflict about how many of the first 0, 1, or 2 strings are literals vs Gos.
+Maybe the problem is that the O op shouldnt exist.
+You wouldnt map (O x) to anything where x is a var used in loop/if/else/etc.
+The x mut is simply M.λx. As a fn its vm.eval('x') aka the string "x". Its not something x points to.
+At the first hop M.λx M.λy M.λ2xsdfasdf3234w2_SOME_ID_sdfasdfasdf etc, those are the literal fns and vm.Muts whose primaryKey is that lambda combined with a whichOpMut number
+(in case a mut calls a lambda that recurses into another mut namespace, which cant see eachothers vars except fns).
+
+You wouldnt use (O x) or x as a key to mean the x fn. But for other uses, you might use x as a val, in treemap.
+
+/a/b/sum$ should be what in map?
+(DGo (GoO (OO a b) sum))
+
+/a/b$ should be what in map?
+(DGo (OO a b))
+
+/a$ should be what in map?
+(D a)
+
+$a should be what in map?
+(D a)
+
+First string is literal. If theres 2 or more, then first 2 are literal.
+
+I will use (D a) often, for various var names not just "a".
+I want to type less chars.
+The first / seems unnecessary. Maybe the second / should be replaced by something else
+cuz it doesnt mean the same thing as later /'s. If I wasnt using _ to mean vm.ops.Seq,
+i might write /a/b/sum$ as a_b/sum$.
+a/b/sum$ seems to overlap common text patterns such as "yes/no" questions.
+If its just x, thats the string literal x.
+If its x/y thats what (OO x y) maps to in a treemap. (x/y map) -> (map (OO x y)).
+(x/y$ map) aka (DGo (OO x y) map) aka (DGo x/y map).
+(x$ map) aka (D x map) -> (map (D x)). (D x) is a key in the map, with value normally being a number.
+
+Id still like a different char to show which things are literal vs Go. a_b/c/d/e/f$ a_b/c/d/e/f^.
+But im already using _ for Seq aka (_[list of loops and ifelses etc] map)
+and _ is already a unary operator name with built in parsing rules.
+Its faster to type a/b/c than a_b/c, and its easier to read, but a little more confusing.
+Ill keep it as a/b/c at least for now.
+I was considering doing it as a.b.c but that conflicts with number literals like 2.34e-19. / is ok char for it.
+
+Should it be $a/b/c or a/b/c$ ?
+If I have alot of vars that look like $x $sum then ppl might confuse small parts of it with php.
+It means something different than it means in php.
+Putting $ and ^ at the end is the same order it happens.
+a/b/c$ is (DGo (GoO (OO a b) c)).
+a/b$ is (DGo (OO a b)). (DGo (OO a b) map) -> (map (OO a b map)). (DGo x map) -> (map (x map)).
+a$ is (D a). (D a map) -> (map (D a)).
+x is x. a is a. String literals.
+(x map) would not normally be called but to know what that would return,
+x is (TypevalB U 0x7880) where 0x78 is the utf8 byte of "x" and 80 is padding.
+You could technically also use (TypevalC U 0x78) since TypevalC is like TypevalB but viewing the whole powOf2 size cbt as the content bits without padding, but (TypevalB U) is the standard utf8 prefix in wikibinator203 so (TypevalB U 0x7880) is the normed form of x.
+(TypevalB U 0x7880 ignoreThisParam), todo what should that return?
+
+
