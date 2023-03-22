@@ -3994,7 +3994,7 @@ const Wikibinator203 = (()=>{
 				if(!this.isCbt()) return 0;
 				let siz = this.cbtSize(); //is a powOf2 num of bits from 1 to 2**vm.log2OfMaxBits. aka 2**this.cbtHeight()
 				if(bitIndex < 0 || siz <= bitIndex) return 0; //outside cbt range
-				if(siz == 1) return (this == vm.ops.Bit1) ? 1 : 0; //is Bit0 or Bit1
+				if(siz == 1) return (this.lam == vm.ops.Bit1) ? 1 : 0; //is Bit0 or Bit1
 				if(bitIndex < siz/2){
 					return this.l.n.bitAt(bitIndex);
 				}else{
@@ -6997,8 +6997,17 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map');
+		//vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map');
+		vm.o8OfD = vm.addOp('D',null,false,2,'(D x map) -> (map (D x)). Get (whats normally a) double value from map. (D key Map) -> val of (D key) in that map. The $ in a/b/sum$.');
+		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du x map) -> (map (Du x)). Get general fn (often not deduped) from map. (Du key Map) -> val of (Du key) in that map. The ^ in a/b/fnVar^.');
+		//(DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)).
+						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
 		vm.addOp('DE',null,false,3,'Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.');
+		
+		vm.o8OfDGo = vm.addOp('DGo',null,false,2,'Like D except with pointer jumping for first param. (DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)). Call that on a Treemap and it recurses a/b/sum$ in it to get a val.');
+		
+		vm.o8OfDuGo = vm.addOp('DuGo',null,false,2,'Like Du except with pointer jumping for first param. (DuGo x map) -> (map (Du (x map))). Example: a/b/sum^ is (DuGo a/b/fnVar) is (DGo (GoO (OO a b) fnVar)). Call that on a Treemap and it recurses a/b/sum^ in it to get a val.');
+
 		
 		
 		/*
@@ -7152,7 +7161,7 @@ const Wikibinator203 = (()=>{
 		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du a SomeMap) -> (SomeMap (Du a)). Get potentially dup (not yet deduped) fn, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.');
 		vm.o8OfBl = vm.addOp('Bl',null,false,2,'(Bl a SomeMap) -> (SomeMap (Bl a)). Get potentially dup typed blob such a TypevalB or TypevalC of a uint8 short int float32 or float64 etc primitive array, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.');
 		vm.o8OfD = vm.addOp('D',null,false,2,'(D a SomeMap) -> (SomeMap (D a)). Normally used with typed double/float64 and often vm.Mut optimization.');
-		vm.o8OfO = vm.addOp('O',null,false,2,'(O a SomeMap) -> (SomeMap (O a)). /varName 1 level deep. Normally used with vm.Mut optimization.');
+		//Remove ops.O. Use OO or DGo or D or DuGo or Du etc, but if its just 1 param then its a literal, not Go/pointer: vm.o8OfO = vm.addOp('O',null,false,2,'(O a SomeMap) -> (SomeMap (O a)). /varName 1 level deep. Normally used with vm.Mut optimization.');
 		vm.o8OfOO = vm.addOp('OO',null,false,3,'(O varName secondVarName SomeMap) -> (SomeMap (O a)). /varName/secondVarName 2 levels deep. Normally used with vm.Mut optimization.');
 		vm.o8OfGoO = vm.addOp('GoO',null,false,3,'(O getVarName secondVarName SomeMap) -> (SomeMap (OO (getVarName SomeMap) secondVarName)). /varName/secondVarName 2 levels deep but used when its deeper than 2 such as /varName/secondVarName/thirdVarName. Normally used with vm.Mut optimization.');
 		
@@ -7402,13 +7411,14 @@ const Wikibinator203 = (()=>{
 		//vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.');
 		vm.addOp('Mi',null,false,2,'double minus double. See + for details on doubles in general.');
 		vm.addOp('%',null,false,2,'double mod double. See + for details on doubles in general.');
-		vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.');
+		//vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.');
+		vm.addOp('Div',null,false,2,'double divide double. See + for details on doubles in general.');
 		vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.');
 		vm.addOp('Mii',null,false,2,'Minus minus. Mii(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.');
 		vm.addOp('**',null,false,2,'[** 2 10]->1024. See + for details on doubles in general.');
 		vm.addOp('&',null,false,2,'double & double (cast both to int32 first, &, then back to double). See + for details on doubles in general.');
 		vm.addOp('|',null,false,2,'double | double (cast both to int32 first, |, then back to double). See + for details on doubles in general.');
-		vm.addOp('^',null,false,2,'double & double (cast both to int32 first, ^, then back to double). See + for details on doubles in general.');
+		vm.addOp('Xor',null,false,2,'double xor double (cast both to int32 first, ^, then back to double). See + for details on doubles in general.');
 		vm.addOp('~',null,false,1,'~double (cast to int32 first, ~, then back to double). See + for details on doubles in general.');
 		vm.addOp('Shll',null,false,2,'double << double (cast both to int32 first, <<, then back to double). See + for details on doubles in general.');
 		vm.addOp('Shrr',null,false,2,'double >> double (cast both to int32 first, >>, then back to double). See + for details on doubles in general.');
@@ -8064,7 +8074,7 @@ const Wikibinator203 = (()=>{
 						let map = z;
 						let Bl_then_key = l;
 						ret = map(Bl_then_key);
-					}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:
+					}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:{
 						ret = z(l); //map(allParamsExceptLast)
 						
 						/*Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
@@ -8073,7 +8083,7 @@ const Wikibinator203 = (()=>{
 						Opcode: (O a SomeMap) -> (SomeMap (O a))
 						Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
 						*/
-					break;case o.GoO:
+					}break;case o.GoO:{
 						//Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
 						//Like OO except the first key is a getter, not a literal first key.
 						//Any number of keys can be chained in that getter, like /a/b/c/a/xyz in /a/b/c/a/xyz/sum.
@@ -8081,7 +8091,20 @@ const Wikibinator203 = (()=>{
 						let secondKey = y;
 						let getFirstKey = x;
 						ret = map(vm.ops.OO(getFirstKey(map))(secondKey));
-					break;case o['K?']:{
+					}break;case o.DGo:{
+						//(DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)).
+						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
+						let map = z;
+						let varGetter = y;
+						ret = map(ops.D(varGetter(map)));
+					}break;case o.DuGo:{
+						//(DuGo x map) -> (map (Du (x map))). Example: a/b/fnVar^ is (DuGo a/b/sum) is (DuGo (GoO (OO a b) fnVar)).
+						//Call that on a Treemap and it recurses a/b/fnVar^ in it to get a val.
+						let map = z;
+						let varGetter = y;
+						ret = map(ops.Du(varGetter(map)));
+					}break;case o['K?']:{
+						//FIXME remove K? KK? KE KKE, and use O GoO D Du DGo etc instead.
 						
 						//vm.addOp('K?',null,false,2,'(K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).');
 						let key = vm.ops.KE(y);
@@ -8138,13 +8161,19 @@ const Wikibinator203 = (()=>{
 					break;case o['KEC']:
 						//vm.addOp('KEC',null,false,3,'(KEC Key C [...]) -> [... (KEC Key C)], just appends a key and its val as cbt (C) to the end of the list, separately from KE and K? vals');
 						throw 'TODO';
-					break;case o['K?C']:
+					break;case o['K?C']:{
 						//vm.addOp('K?C',null,false,2,'(K?C Key [... (KEC Key Cbt)]) -> Cbt, whichever is the last Cbt of that Key');
 						throw 'TODO';
-					break;case o.D:{ //get Double value, as value of (DE key). counterpart of DE. Similar to vm.ops['K?'] which im thinking of renaming to just K.
+					/*break;case o.D:{ //get Double value, as value of (DE key). counterpart of DE. Similar to vm.ops['K?'] which im thinking of renaming to just K.
 						let key = vm.ops.DE(y);
 						let map = z;
 						ret = map(key).n.d(); //get double
+					*
+					break;case o.D:{ //get Double value. Often used with DGo in Treemap.
+						//(D y map) -> (map (D y));
+						let map = z;
+						ret = map(l);
+					*/
 					}break;case o.DE:{ //set Double Equal to a val. Similar to KE.
 						let key = l.n.L(); //(DE Key)
 						let val = l.n.R().n.d(); //Val. d() gets double.
@@ -8573,7 +8602,8 @@ const Wikibinator203 = (()=>{
 					}break;case o['-']:
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(y.n.d()-z.n.d());
-					break;case o['/']:
+					//break;case o['/']:
+					break;case o['Div']:
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(y.n.d()/z.n.d());
 					break;case o['&']:
@@ -8983,12 +9013,18 @@ const Wikibinator203 = (()=>{
 		};
 
 		vm.hexDigits = '0123456789abcdef';
+		
+		vm.mapOfHexDigitToInt = {}; //vals are 0 to 15
+		vm.mapOfDoubleHexDigitsToInt = {}; //vals are 0 to 255
 
 		//256 pairs of hex digits
 		vm.doubleHexDigits = [];
 		for(let i=0; i<16; i++){
+			vm.mapOfHexDigitToInt[vm.hexDigits[i]] = i;
 			for(let j=0; j<16; j++){
-				vm.doubleHexDigits.push(vm.hexDigits[i]+vm.hexDigits[j]);
+				let hh = vm.hexDigits[i]+vm.hexDigits[j];
+				vm.doubleHexDigits.push(hh);
+				vm.mapOfDoubleHexDigitsToInt[hh] = ((i<<4)|j);
 			}
 		}
 
@@ -9232,28 +9268,44 @@ const Wikibinator203 = (()=>{
 				//Should that be syntaxtype 'S' or '(S' etc?
 				
 				let syty = view.syty();
+				
+				//FIXME since im changing /a/b/sum$ to a/b/sum, and /a$ to a$, there could be parsing problem with Name#a/b/sum$. I want Name# to attach to a/b/sum$, not to a.
 									
 				let isLastCur = FN.curriesLeft()==1;
 				//These next few if/else do ops: O OO GoO D Du Bl. TODO Bl aka typed blob getter. They will often be used in vm.Mut optimization.
-				if(isLastCur && fnOp==vm.o8OfO){ //Example: /a in /a$ aka (D (O a))
-					viewing.tokens.push('/');
-					this.viewToStringRecurse(view.r(), viewing, syty, true); //a in (O a)
-				}else if(isLastCur && fnOp==vm.o8OfOO){ //Example: /a/b in /a/b/sum$
+				//removed ops.O cuz first param is literal in a/b/c.
+				//if(isLastCur && fnOp==vm.o8OfO){ //Example: /a in /a$ aka (D (O a))
+				//	viewing.tokens.push('/');
+				//	this.viewToStringRecurse(view.r(), viewing, syty, true); //a in (O a)
+				//}else
+				if(isLastCur && fnOp==vm.o8OfOO){ //Example: /a/b in /a/b/sum$
 					//vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
-					viewing.tokens.push('/');
+					//remove first / so its a/b/c instead of /a/b/c: viewing.tokens.push('/');
 					this.viewToStringRecurse(view.l().r(), viewing, syty, true); //a in (OO a b). view.l() is (OO a). view.l().r() is a.
 					viewing.tokens.push('/');
 					this.viewToStringRecurse(view.r(), viewing, syty, true); //b in (OO a b). view.r() is b.
-				}else if(isLastCur && fnOp==vm.o8OfGoO){ //Example: (GoO /a/b sum) in /a/b/sum$
+				}else if(isLastCur && fnOp==vm.o8OfGoO){ //Example: (GoO a/b sum) in a/b/sum$
 					this.viewToStringRecurse(view.l().r(), viewing, syty, false); //output /a/b in /a/b/sum
 					//This makes vm.eval('(GoO (OO a b) c)')+'' do 'GoO /a/b/c' but dont want the GoO displayed: this.viewToStringRecurse(view.l(), viewing, syty, false); //output /a/b in /a/b/sum
 					viewing.tokens.push('/');
 					this.viewToStringRecurse(view.r(), viewing, syty, true); //output sum in /a/b/sum
 				}else if(isLastCur && fnOp==vm.o8OfD){ //Example: (D /a/b/sum) is displayed as /a/b/sum$
-					this.viewToStringRecurse(view.r(), viewing, syty, true); //output /a/b in /a/b/sum
+					//FIXME display (D a) as a$ if its 1 stringLiteral (the kind without quotes or whitespace),
+					//but display as (D /a/b/sum) if its not, cuz a/b/sum$ means (DGo a/b/sum).
+					//And do similar for Du vs DuGo in a/b/fnVar^.
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //output a/b/sum in a/b/sum$
 					viewing.tokens.push('$');
 				}else if(isLastCur && fnOp==vm.o8OfDu){ //Example: (Du /a/b/sum) is displayed as /a/b/sum^
-					this.viewToStringRecurse(view.r(), viewing, syty, true); //output /a/b in /a/b/sum
+					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
+					this.viewToStringRecurse(view.r(), viewing, syty, true); //output a/b/fnVar in a/b/fnVar^
+					viewing.tokens.push('^');
+				}else if(isLastCur && fnOp==vm.o8OfDGo){
+					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
+					this.viewToStringRecurse(view.r(), viewing, syty, true);
+					viewing.tokens.push('$');
+				}else if(isLastCur && fnOp==vm.o8OfDuGo){
+					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
+					this.viewToStringRecurse(view.r(), viewing, syty, true);
 					viewing.tokens.push('^');
 				}else{
 					switch(syty){
@@ -10588,6 +10640,16 @@ const Wikibinator203 = (()=>{
 
 		vm.maxCharsInWordLiteral = 50; //FIXME how much?
 		
+		vm.isGetterToken = function(literalToken){
+			//ends with ^ is ops.Du
+			//ends with $ is ops.D
+			//starts and ends with ' or " (todo choose one or both?) is string literal.
+			//Small string with no whitespace that starts with lowercase letter is also string literal,
+			//but theres other rules for that too, todo define those.
+			return literalToken.endsWith('^') || literalToken.endsWith('$') ||
+				(literalToken[0] != "'" && literalToken[0] != '"' && literalToken.includes('/'));
+		};
+		
 		vm.ParseTree.prototype.literalTokenToFn = function(literalToken){
 			//if(literalToken[0] == literalToken[0].toUpperCase()){ //if first char is capital
 			if(vm.isCapitalLetter(literalToken[0])){
@@ -10597,9 +10659,31 @@ const Wikibinator203 = (()=>{
 			//FIXME check for whitespace. Throw if there is any.
 			//TODO optimize
 			if(literalToken.startsWith('0x')){ //cbt literal as hex like 0xab44ff09, always a powOf2 size.
-				throw 'TODO parse 0x literals';
+				let hex = literalToken.substring(2);
+				return vm.hexToCbt(hex);
+				//if(!vm.isPowOfTwo(hex)){
+				//	throw 'Not a powOf2 number of hex digits in: '+literalToken;
+				//}
+				//throw 'TODO parse 0x literals';
 			}else if(literalToken.startsWith('0b')){ //cbt literal as bits, normally only used up to 2 bits since after that use 0x for hex, always a powOf2 size.
-				throw 'TODO parse 0b literals';
+				let bits = literalToken.substring(2);
+				if(bits.length == 0){
+					throw 'No bits like 0b1 0b1101, just a lone 0b: '+literalToken;
+				}else if(bits.length == 1){
+					return bits=='1' ? ops.Bit1 : ops.Bit0;
+				}else if(bits.length == 2){
+					return vm.cbt2[Number.parseInt(bits,2)];
+				}else if(bits.length == 4){
+					return vm.cbt4[Number.parseInt(bits,2)];
+				}else if(bits.length == 8){
+					return vm.cbt8[Number.parseInt(bits,2)];
+				}else if(bits.length == 16){
+					return vm.cbt16(Number.parseInt(bits,2));
+				}else if(bits.length == 32){
+					return vm.cbt32(Number.parseInt(bits,2));
+				}else{
+					throw 'When 4 bits or bigger, use hex 0x3345.. instead of 0b11101010... (but am parsing it anyways up to 32 bits for now), token='+literalToken;
+				}
 			}else if(literalToken.startsWith('"')){
 				throw 'TODO quoted string literals';
 			}else if(literalToken.startsWith('\'')){
@@ -10626,8 +10710,13 @@ const Wikibinator203 = (()=>{
 				*/
 				let num = parseFloat(literalToken);
 				return vm.wrapDouble(num); //vm.wrap would do same thing but with extra steps to check if its a double.
-			}else if(literalToken.startsWith('/')){
-				//like /a/b/sum$ means (D (GoO (OO a b) sum))
+			}else if(vm.isGetterToken(literalToken)){ //Examples: a/b/sum$ or a$ or a^
+				if(literalToken.startsWith('/')){
+					throw 'Cant start with /: '+literalToken;
+				}
+				//was: literalToken.containsliteralToken.startsWith('/'), but changing it to exclude the first /, like a/b/sum$ or a$ or a^
+				//OLD: like /a/b/sum$ means (D (GoO (OO a b) sum))
+				//NEW: like a/b/sum$ means (D (GoO (OO a b) sum))
 				let ret = null;
 				let end = '';
 				if(literalToken.endsWith('$') || literalToken.endsWith('^')){ //$ does vm.ops.D, and ^ does vm.ops.Du
@@ -10637,24 +10726,33 @@ const Wikibinator203 = (()=>{
 				let partStrings = literalToken.split('/');
 				console.log('literalTokenToFn partStrings='+JSON.stringify(partStrings));
 				//skip i==0 the empty string since we know it starts with / and was split by / theres '' before it.
-				if(partStrings.length == 1){
-					throw 'No parts, something like /$ or / maybe, literalToken='+literalToken;
-				}else if(partStrings.length == 2){ //is only 1 part, like /a
-					console.log('literalTokenToFn partStrings1='+partStrings[1]+' literalToken='+literalToken);
-					ret = ops.O(this.literalTokenToFn(partStrings[1]));
-				}else{ //is at least 2 parts like /a/b or /a/b/c/a/a
-					console.log('literalTokenToFn partStrings1='+partStrings[1]+' partStrings2='+partStrings[2]+' literalToken='+literalToken);
-					ret = ops.OO(this.literalTokenToFn(partStrings[1]))(this.literalTokenToFn(partStrings[2]));
-					for(let i=3; i<partStrings.length; i++){
+				//if(partStrings.length == 1){
+				if(partStrings.length == 0){
+					throw 'No parts, something like $ or emptyString(how would that happen?) maybe, literalToken='+literalToken;
+				//}else if(partStrings.length == 2){ //is only 1 part, like /a
+				}else if(partStrings.length == 1){ //is only 1 part, like a$ or a^
+					console.log('literalTokenToFn partStrings0='+partStrings[0]+' Leaving it as literal. literalToken='+literalToken);
+					//ret = ops.O(this.literalTokenToFn(partStrings[0]));
+					ret = vm.wrap(partStrings[0]);
+					//FIXMEFIXME get rid of ops.O cuz the first part of x/y/z (the x) is just literal string x.
+				//}else{ //is at least 2 parts like /a/b or /a/b/c/a/a
+				}else{ //is at least 2 parts like a/b or a/b/c/a/a
+					console.log('literalTokenToFn partStrings0='+partStrings[0]+' partStrings1='+partStrings[1]+' literalToken='+literalToken);
+					ret = ops.OO(this.literalTokenToFn(partStrings[0]))(this.literalTokenToFn(partStrings[1]));
+					for(let i=2; i<partStrings.length; i++){
 						console.log('literalTokenToFn partStrings'+i+'='+partStrings[i]+' literalToken='+literalToken);
-						ret = ops.GoO(ret)(this.literalTokenToFn(partStrings[i])); //the cde then a then a in /a/b/cde/a/a
+						ret = ops.GoO(ret)(this.literalTokenToFn(partStrings[i])); //the cde then a then a in a/b/cde/a/a
 					}
 				}
 				if(end){
+					let isGo = partStrings.length > 1; // a/b$ is (DGo (OO a b)). a/b/c$ is (DGo (GoO (OO a b) c)). a$ is (D a).
+					//FIXME what about a$$$ (more than 1 $ or ^ suffix)? Or $ or ^ in middle like a/b$/c ?
 					if(end == '$'){
-						ret = ops.D(ret); //double/float64
+						let op = isGo ? ops.DGo : ops.D;
+						ret = op(ret); //double/float64
 					}else if(end == '^'){
-						ret = ops.Du(ret); //the dup fn of vm.Mut optimization (or interpreted form)
+						let op = isGo ? ops.DuGo : ops.Du;
+						ret = op(ret); //the dup fn of vm.Mut optimization (or interpreted form)
 					}else{
 						throw 'end='+end;
 					}
@@ -11340,6 +11438,26 @@ const Wikibinator203 = (()=>{
 		vm.Cbt16 = i=>(vm.cbt16[i] || (vm.cbt16[i] = vm.cbt8[(i>>8)&255](vm.cbt8[i&255])));
 		vm.Cbt32 = i=>(vm.Cbt16((i>>16)&0xffff)(vm.Cbt16(i&0xffff))); //uses funcall caching as usual, which is slower than the caching in vm.cbt1 .. vm.cbt16.
 		
+		//index is in units of hex digits so 4 bits each
+		vm.hexToCbtII = (hex,from,toExcl)=>{
+			let len = toExcl-from;
+			if(len == 1){
+				return vm.cbt4[vm.mapOfHexDigitToInt[hex[from]]];
+			}else if(len == 2){
+				return vm.cbt8[vm.mapOfDoubleHexDigitsToInt[hex.substring(from,toExcl)]];
+			}else{
+				let mid = (from+toExcl)>>1;
+				return vm.hexToCbtII(hex,from,mid)(vm.hexToCbtII(hex,mid,toExcl)); //Example: 512 bits called on 512 bits is 1024 bits.
+			}
+		}
+		
+		vm.hexToCbt = hex=>{
+			if(!vm.isPowOfTwo(hex.length)){
+				throw 'Not a powOf2 number of hex digits in: '+hex;
+			}
+			return vm.hexToCbtII(hex,0,hex.length);
+		};
+		
 		//wraps in a Typeval.
 		vm.wrapDouble = d=>vm.typeDouble(vm.wrapDoubleRaw(d));
 		
@@ -11795,7 +11913,7 @@ const Wikibinator203 = (()=>{
 		//vm.extraTests.push(()=>vm.test('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', vm.eval('[,,_[a b c]d Pair:x]')+'', '[,,_[a b c d] (Pair x)]'));
 		vm.xt('After naming it Abc: eval of [,,_[a b c]d Pair:x] tostring is [,,_[a b c d] (Pair x)]', ()=>vm.eval(('[,,_[a b c]d Pair:x]')+''), ()=>'[,,_[a b c d] (Pair x)]');
 		//vm.extraTests.push(()=>vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
-		vm.xt("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
+		vm.xt("A Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
 		
 		//vm.extraTests.push(()=>vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
@@ -11825,35 +11943,35 @@ const Wikibinator203 = (()=>{
 		vm.xt('Treemap Put, get c returns d', ()=>vm.mapABCD('c'), ()=>vm.eval('d'));
 		vm.xt('Treemap Put, z not found so returns U', ()=>vm.mapABCD('z'), ()=>U);
 		
-		vm.xt('/a/b/sum$ evaled then tostringed looks like itself, but it could still be a single string which it shouldnt be', ()=>(vm.eval('/a/b/sum$')+''), ()=>'/a/b/sum$');
-		vm.xt('/a/b/sum$ evaled', ()=>(vm.eval('/a/b/sum$')+''), ()=>vm.eval('(D (GoO (OO a b) sum))'));
+		vm.xt('a/b/sum$ evaled then tostringed looks like itself, but it could still be a single string which it shouldnt be', ()=>(vm.eval('a/b/sum$')+''), ()=>'a/b/sum$');
+		vm.xt('a/b/sum$ evaled', ()=>(vm.eval('a/b/sum$')+''), ()=>vm.eval('(D (GoO (OO a b) sum))'));
 		
-		vm.xt('/a called on a map gets b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('b'));
+		//First param is literal, not pointer. vm.xt('/a called on a map gets b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('b'));
 		
-		vm.xt('/a/b called on a map gets c', ()=>(vm.eval('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
+		vm.xt('a/b called on a map gets c', ()=>(vm.eval('(a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
 		
-		vm.xt('/a/b/a called on a map gets d', ()=>(vm.eval('(/a/b/a (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan))))')), ()=>vm.eval('d'));
+		vm.xt('a/b/a called on a map gets d', ()=>(vm.eval('(a/b/a (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan))))')), ()=>vm.eval('d'));
 
 		vm.xt('(D a (Put (D a) 5 (EmptyTreemap GodelLessThan))) -> 5', ()=>vm.eval('(D a (Put (D a) 5 (EmptyTreemap GodelLessThan)))'), ()=>vm.eval('5'));
 
-		vm.xt('/a/b/a$ called on a map gets 4.5', ()=>(vm.eval('(/a/b/a$ (Put (D d) 4.5 (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('4.5'));
+		vm.xt('a/b/a$ called on a map gets 4.5', ()=>(vm.eval('(a/b/a$ (Put (D d) 4.5 (Put (OO c a) d (Put (OO a b) c (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('4.5'));
 
-		vm.xt('FIXME GoD vs D, similar to GoO vs OO. The Go part means get from the map instead of use as literal. (/a$ (Put (O a) b (Put (D b) 5 (EmptyTreemap GodelLessThan)))) etc', ()=>true, ()=>false);
-		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... do i want a xyz$ syntax available, not just /xyz$ ? Or at least some way to not need to put 2 keys and 2 vals in the map just to put 1 number var.', ()=>true, ()=>false);
-		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... Should the first thing b, in /b/c/d, always be a literal, the fn b instead of what (O b) maps to or what (OO b c) maps to?', ()=>true, ()=>false);
-		vm.xt('FIXME GoD vs D, similar to GoO vs OO.... What should happen if theres (OO b c) as key in map, but you ask for /b$ ? /b is (O b).', ()=>true, ()=>false);
-		vm.xt('TODO tree UI should display /a/b/sum$ as /a/b/sum$ using the dom nodes in dom nodes and with / and $ going at the left/top middle andOr right/bottom dom nodes, but wait til get (D ...) worked out', ()=>true, ()=>false);
+		vm.xt('FIXME DGo vs D, similar to GoO vs OO. The Go part means get from the map instead of use as literal. (a$ (Put (O a) b (Put (D b) 5 (EmptyTreemap GodelLessThan)))) etc', ()=>true, ()=>false);
+		//vm.xt('FIXME DGo vs D, similar to GoO vs OO.... do i want a xyz$ syntax available, not just xyz$ ? Or at least some way to not need to put 2 keys and 2 vals in the map just to put 1 number var.', ()=>true, ()=>false);
+		//vm.xt('Removed op O. FIXME DGo vs D, similar to GoO vs OO.... Should the first thing b, in b/c/d, always be a literal, the fn b instead of what (O b) maps to or what (OO b c) maps to?', ()=>true, ()=>false);
+		//vm.xt('Removed op O. FIXME GoD vs D, similar to GoO vs OO.... What should happen if theres (OO b c) as key in map, but you ask for /b$ ? /b is (O b).', ()=>true, ()=>false);
+		vm.xt('TODO tree UI should display a/b/sum$ as a/b/sum$ using the dom nodes in dom nodes and with / and $ going at the left/top middle andOr right/bottom dom nodes, but wait til get (D ...) worked out', ()=>true, ()=>false);
 		vm.xt('TODO simple 2d game with destructible 2d voxel terrain and fun kinds of monsters and vehicles etc, see pics of some of the ideas (todo)', ()=>true, ()=>false);
 
 		//vm.xt('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan))) -> c', ()=>(vm.eval('(/a/b (Put (OO a b) c (EmptyTreemap GodelLessThan)))')), ()=>vm.eval('c'));
 		
-		vm.xt('/a/b/sum$ called on a map gets 3.5',
-			()=>(vm.eval('(/a/b/sum$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('3.5'));
+		vm.xt('a/b/sum$ called on a map gets 3.5',
+			()=>(vm.eval('(a/b/sum$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('3.5'));
 			//()=>(vm.eval('(/a/b/numberHolder$ (Put (OO a b) c (Put (D numberHolder) 3.5 (Put (OO c sum) numberHolder (EmptyTreemap GodelLessThan)))))')), ()=>vm.eval('3.5'));
 		
-		vm.xt('(GoO (GoO (OO a b) c) d) displays as /a/b/c/d', ()=>(vm.eval('(GoO (GoO (OO a b) c) d)')+''), ()=>'/a/b/c/d');
-		vm.xt('(D (GoO (GoO (OO a b) c) d)) displays as /a/b/c/d$', ()=>(vm.eval('(D (GoO (GoO (OO a b) c) d))')+''), ()=>'/a/b/c/d$');
-		vm.xt('(D (D (D (GoO (GoO (OO a b) c) d)))) displays as /a/b/c/d$$$', ()=>(vm.eval('(D (D (D (GoO (GoO (OO a b) c) d))))')+''), ()=>'/a/b/c/d$$$');
+		vm.xt('(GoO (GoO (OO a b) c) d) displays as a/b/c/d', ()=>(vm.eval('(GoO (GoO (OO a b) c) d)')+''), ()=>'a/b/c/d');
+		vm.xt('(D (GoO (GoO (OO a b) c) d)) displays as a/b/c/d$', ()=>(vm.eval('(D (GoO (GoO (OO a b) c) d))')+''), ()=>'a/b/c/d$');
+		vm.xt('(D (D (D (GoO (GoO (OO a b) c) d)))) displays as a/b/c/d$$$', ()=>(vm.eval('(D (D (D (GoO (GoO (OO a b) c) d))))')+''), ()=>'a/b/c/d$$$');
 		//FIXME should it allow or not, the syntax  /a/b$/c/d to mean (GoO (GoO /a/b$ c) d)?
 		//Probably should throw cuz /a/b/c is only for strings that could be literals, not for evaling between 2 / /.
 		//If you want to do /a/b$/c/d write it out the long way: (GoO (GoO /a/b$ c) d).
@@ -11861,13 +11979,13 @@ const Wikibinator203 = (()=>{
 		//and vm.eval('/a/b$/c')+'' returns '/a/b$/c', which is parsing it correctly, it opens the door to /a/(Pair S T)/c etc
 		//and that syntax is harder to read and harder to display in tree UI html, so just make it do it the longer way, at least for now.
 		//If you dont like the syntax, you can derive a new one as a lambda at runtime eventually.
-		vm.xt('verify /a/b$/c throws cuz cant eval stuff between 2 / /, just string literals between them',
-			()=>{ try{ return vm.eval('/a/b$/c'); }catch(e){ return 'threw'; } }, ()=>'threw');
-		vm.xt('(Du (GoO (GoO (OO a b) c) d)) displays as /a/b/c/d^', ()=>(vm.eval('(Du (GoO (GoO (OO a b) c) d))')+''), ()=>'/a/b/c/d^');
-		vm.xt('(D (O a)) displays as /a$', ()=>(vm.eval('(D (O a))')+''), ()=>'/a$');
-		vm.xt('(L /a) is O', ()=>vm.eval('(L /a)'), ()=>ops.O);
-		vm.xt('(L /a$) is D', ()=>vm.eval('(L /a$)'), ()=>ops.D);
-		vm.xt('(R /a$) is /a', ()=>(vm.eval('(R /a$)')+''), ()=>'/a');
+		vm.xt('verify a/b$/c throws cuz cant eval stuff between 2 / /, just string literals between them',
+			()=>{ try{ return vm.eval('a/b$/c'); }catch(e){ return 'threw'; } }, ()=>'threw');
+		vm.xt('(Du (GoO (GoO (OO a b) c) d)) displays as a/b/c/d^', ()=>(vm.eval('(Du (GoO (GoO (OO a b) c) d))')+''), ()=>'a/b/c/d^');
+		//Removed ops.O cuz first param is literal. vm.xt('(D (O a)) displays as a$', ()=>(vm.eval('(D (O a))')+''), ()=>'a$');
+		//vm.xt('(L /a) is O', ()=>vm.eval('(L /a)'), ()=>ops.O);
+		vm.xt('(L a$) is D', ()=>vm.eval('(L a$)'), ()=>ops.D);
+		vm.xt('(R a$) is a', ()=>(vm.eval('(R a$)')+''), ()=>'a');
 		
 		/*
 		//FIXME this tree is deeper on one side than the other, which is expected since 2023-3-13 vm.put uses vm.putNoBal (no avl balancing)
@@ -11877,7 +11995,10 @@ const Wikibinator203 = (()=>{
 			()=>(vm.eval(tmCode)+''), ()=>'[Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) aa bb (Tm Em cc dd (Tm Em ee ff Em)))]');
 		*/
 		
-		vm.xt('(/a (Put (O a) b (EmptyTreemap GodelLessThan))) -> b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')+''), ()=>'b');
+		let Ev = vm.eval; //eval of that wikibinator code
+		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
+		
+		//vm.xt('(/a (Put (O a) b (EmptyTreemap GodelLessThan))) -> b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')+''), ()=>'b');
 			
 		let tmReverse = '(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) ee ff Em) cc dd (Tm Em aa bb Em))';
 		let tmForward = '(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) aa bb Em) cc dd (Tm Em ee ff Em))';
@@ -11914,6 +12035,28 @@ const Wikibinator203 = (()=>{
 			()=>/aaaaa.*bbbbb.*ccccc.*ddddd.*eeeee.*fffff/.test(vm.eval(cccccaaaaaeeeee)+''),
 			()=>true
 		);*/
+		
+		vm.xt('Parse 0x65658000', ()=>(vm.eval("0x25658000")+''), ()=>'0x25658000');
+		vm.xt('L 0x65658000', Evv('(L 0x25658000)'), Evv('0x2565'));
+		vm.xt('R 0x65658000', Evv('(R 0x25658000)'), Evv('0x8000'));
+		vm.xt('(GodelLessThan 0x23638000 0x25658000) -> T', Evv("(GodelLessThan 0x23638000 0x25658000)"), Evv('T'));
+		vm.xt('(GodelLessThan 0x25658000 0x23638000) -> F', Evv("(GodelLessThan 0x25658000 0x23638000)"), Evv('F'));
+		vm.xt('(GodelLessThan 0x25658000 0x25658000) -> F', Evv("(GodelLessThan 0x25658000 0x25658000)"), Evv('F'));
+		
+		vm.xt('0b0011 does not equal 0b0101', ()=>(vm.eval('0b0011').n.eq(vm.eval('0b0101'))), ()=>false);
+		vm.xt('0b0101 does equal 0b0101, a', ()=>(vm.eval('0b0101').n.eq(vm.eval('0b0101'))), ()=>true);
+		vm.xt('0b0101 does equal 0b0101, b', Evv('0b0101'), Evv('0b0101'));
+		//ret[31] = (fn.n.bitAt(0)<<3)|(fn.n.bitAt(1)<<2)|(fn.n.bitAt(2)<<1)|fn.n.bitAt(3); //TODO optimize
+		vm.xt('Bit1 0th bit -> 1', ()=>vm.ops.Bit1.n.bitAt(0), ()=>1);
+		vm.xt('Bit0 0th bit -> 0', ()=>vm.ops.Bit0.n.bitAt(0), ()=>0);
+		vm.xt('0b0101 0th bit -> 0', ()=>(vm.eval('0b0101').n.bitAt(0)), ()=>0);
+		vm.xt('0b0101 1th bit -> 1', ()=>(vm.eval('0b0101').n.bitAt(1)), ()=>1);
+		vm.xt('0b0101 2th bit -> 0', ()=>(vm.eval('0b0101').n.bitAt(2)), ()=>0);
+		vm.xt('0b0101 3th bit -> 1', ()=>(vm.eval('0b0101').n.bitAt(3)), ()=>1);
+		//TODO optimize by not computing 32 byte id just to compare 4 bits to 4 bits. Compare the bits directly.
+		//vm.eval('0b0011') != vm.eval('0b0101') are both giving same marklar203bId cuz the literal data is not in there as of 2023-3-22-1p.
+		//y.n.eq(z)
+		//vm.arraysEqual(vm.marklar203bId(this.lam),vm.marklar203bId(node.lam))
 		
 		let j = 0;
 		for(let treemapCode of [
@@ -11966,23 +12109,21 @@ const Wikibinator203 = (()=>{
 		vm.xt('wrongly sorted treemap with lambdas as keys, notThere is not found cuz its not there',
 			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) notThere)'), ()=>U);
 
-		let Ev = vm.eval; //eval of that wikibinator code
-		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
+
 		vm.xt('Parse a', Evv('a'), Evv('a'));
 		vm.xt('Parse a$', Evv('a$'), Evv('(D a)'));
-		vm.xt('Parse a^', Evv('a$'), Evv('(Du a)'));
+		vm.xt('Parse a^', Evv('a^'), Evv('(Du a)'));
 		vm.xt('Parse a/b', Evv('a/b'), Evv('(OO a b)'));
 		vm.xt('Parse a/a', Evv('a/a'), Evv('(OO a a)'));
 		vm.xt('Parse a/b$', Evv('a/b$'), Evv('(DGo (OO a b))'));
-		vm.xt('Parse a/b^', Evv('a/b$'), Evv('(DuGo (OO a b))'));
-		vm.xt('Parse a/b$', Evv('a/b$'), Evv('(DGo (OO a b)'));
+		vm.xt('Parse a/b^', Evv('a/b^'), Evv('(DuGo (OO a b))'));
 		vm.xt('(a/b []) -> [(OO a b)] as if [] was a map but its just a list', Evv('(a/b [])'), Evv('[(OO a b)]'));
 		vm.xt('(a$ []) -> [(D a)] as if [] was a map but its just a list', Evv('(a$ [])'), Evv('[(D a)]'));
 		vm.xt('(a^ []) -> [(Du a)] as if [] was a map but its just a list', Evv('(a^ [])'), Evv('[(Du a)]'));
 		vm.xt('Parse a/b/c/b/b/a', Evv('a/b/c/b/b/a'), Evv('(GoO (GoO (GoO (GoO (OO a b) c) b) b) a)'));
-		vm.xt('Parse a/b/c/b/b/a^', Evv('a/b/c/b/b/a'), Evv('GoDu (GoO (GoO (GoO (GoO (OO a b) c) b) b) a))'));
-		vm.xt('Parse a/b/c$', Evv('a/b/c$'), Evv('(DGo (GoO (OO a b) c)'));
-		vm.xt('Parse a/b/c^', Evv('a/b/c^'), Evv('(DuGo (GoO (OO a b) c)'));
+		vm.xt('Parse a/b/c/b/b/a^', Evv('a/b/c/b/b/a^'), Evv('DuGo (GoO (GoO (GoO (GoO (OO a b) c) b) b) a))'));
+		vm.xt('Parse a/b/c$', Evv('a/b/c$'), Evv('(DGo (GoO (OO a b) c))'));
+		vm.xt('Parse a/b/c^', Evv('a/b/c^'), Evv('(DuGo (GoO (OO a b) c))'));
 		vm.xt('Parse yes/no', Evv('yes/no'), Evv('(OO yes no)'));
 
 
@@ -11992,8 +12133,14 @@ const Wikibinator203 = (()=>{
 		vm.xt('(<+ a/b/c$ ,100> ThatTreemap) -> 105.5', Evv('(<+ a/b/c$ ,100> ThatTreemap#(Put (D y) 5.5 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan)))))'), Evv('105.5'));
 
 		//FIXME since what goes after OtherTreemap# is not halted, does OtherTreemap# get attached to what it evals to? Same question for ThatTreemap# above.
-		vm.xt('(<+ a/b/c$ a$> OtherTreemap) -> 210', Evv('(<+ a/b/c$ ,100> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('210'));
-		vm.xt('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap) -> 40010', Evv('(<+ a/b/c$ ,100> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('40010'));
+		vm.xt('(<+ a/b/c$ a$> OtherTreemap) -> 210', Evv('(<+ a/b/c$ a$> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('210'));
+		vm.xt('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap) -> 40010', Evv('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap#(Put (D a) 10 (Put (D y) 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('40010'));
+		vm.xt('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap2) -> 40011 but written using y$ instead of (D y)', Evv('(<+ <* a/b/c$ a/b/c$> a$> OtherTreemap2#(Put a$ 11 (Put y$ 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))'), Evv('40011'));
+		//https://twitter.com/wikibinator/status/1638600965535285256
+		//New syntax is mostly working. (<+ <* a/b/c$ a/b/c$> a$> OtherTreemap#(Put a$ 10 (Put y$ 200 (Put (OO a b) x (Put (OO x c) y (EmptyTreemap GodelLessThan))))))
+		//returns 40010 cuz as you'd write in javascript a.b.c.D*a.b.c.D+a.D is 200*200+10. The treemap is a fork-editable state.
+		
+		vm.xt("B Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 
 		
 		//if(Math.random() < .5) throw 'TODO Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO';
@@ -12005,13 +12152,15 @@ const Wikibinator203 = (()=>{
 			if(!vm || !vm.extraTests) throw 'Couldnt find vm or vm.extraTests';
 			let html = '<div id=vmExtraTests>';
 			let idPrefix = 'extraTestBtn_'+randIntSize(1e9)+randIntSize(1e9)+'_';
-			html += '<input type=button onclick="for(let i=0; i<vm.extraTests.length; i++) try{ document.getElementById(\''+idPrefix+'\'+i).click(); }catch(e){}" value="Test ALL"></input>&nbsp;&nbsp;&nbsp;';
+			let testAllBtn = '<input type=button onclick="for(let i=0; i<vm.extraTests.length; i++) try{ document.getElementById(\''+idPrefix+'\'+i).click(); }catch(e){}" value="Test ALL"></input>&nbsp;&nbsp;&nbsp;';
+			html += testAllBtn;
 			html += '<input type=button onclick="if(!vm) throw \'No vm. TODO get it from Wikibinator203.n.vm or U.n.vm?\'; vm.clearCache()" value="Clear cache (warning, may cause dedup problems)"></input><br>';
 			for(let i=0; i<vm.extraTests.length; i++){
 				let x = vm.extraTests[i];
 				let name = vm.extraTests[i].name;
 				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+'].run(); // '+name+'"></input><br>';
 			}
+			html += testAllBtn;
 			html += '<div id=vmExtraTests>';
 			return html;
 		};
@@ -12021,7 +12170,7 @@ const Wikibinator203 = (()=>{
 		
 		if(1<=vm.loglev)console.log('Passed very basic vm.eval tests');
 		
-		vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
+		//vm.test("B Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF)));
 		
 		console.log('Passed more tests, this time that can use vm.eval');
 		
