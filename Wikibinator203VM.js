@@ -5346,14 +5346,16 @@ const Wikibinator203 = (()=>{
 							//since removing a key/val tends to reduce height, so on average theres less balancing to do.
 							//TODO optimize: this could be done all at once instead of separately getting lastKey, getting its val, and deleting last key.
 							if(lt.n.treemapHeight() >= rt.n.treemapHeight()){
+								//move rightmost/last key in left child to center
 								let lastKey = lt.n.treeLastKeyOrNull();
-								if(!lastKey) throw 'No lastKey in '+lt;
+								if(!lastKey) throw 'No lastKey in lt='+lt;
 								let lastVal = lt(lastKey);
-								let newLt = vm.del(lastKey,rt);
+								let newLt = vm.del(lastKey,lt);
 								return vm.tree(comparator,newLt,lastKey,lastVal,rt); //FIXME spec requires vm.ops.DoAvlBal either here or as an optimization all at once
 							}else{
+								//move leftmost/first key in right child to center
 								let firstKey = rt.n.treeFirstKeyOrNull();
-								if(!firstKey) throw 'No firstKey in '+rt;
+								if(!firstKey) throw 'No firstKey in rt='+rt;
 								let firstVal = rt(firstKey);
 								let newRt = vm.del(firstKey,rt);
 								return vm.tree(comparator,lt,firstKey,firstVal,newRt); //FIXME spec requires vm.ops.DoAvlBal either here or as an optimization all at once
@@ -6488,6 +6490,10 @@ const Wikibinator203 = (()=>{
 			const VM = this;
 			//let lambda = function(param){
 			let lambda = function(param){
+
+				//FIXME should this happen only in (vm,func,param)=>{...} evalers (such as vm.rootEvaler and those added by pushEvaler?
+				//This could slow it down since it happens in every call, even though its just a few double ops.
+				vm.prepay1Time();
 				
 				//TODO test the code NODE.evaler(NODE.lam,param) which should do this.
 				//TODO evaler, so can put various optimizations per node. chain of evalers with evaler.on defining which in the chain is used.
@@ -6497,7 +6503,16 @@ const Wikibinator203 = (()=>{
 				//or aLambda().vm.FuncallCache or aLambda().header or aLambdas().bize or aLambda().idA or aLambda().blob.
 				//TODO optimize: maybe it should be aLambda.n to get the Node?
 				//TODO optimize: can lambdize and Node be merged? Would it interfere with vm.Node.prototype?
-				if(param === undefined) return NODE;
+				if(param === undefined) return NODE; //FIXME remove this line after replace all someLambda() with someLambda.n. This is how to get the vm.Node that lambdize wraps.
+				//FIXME if this param = vm.wrap(param); slows things down, figure out some other way to do it, like making the (vm,func,param)=>{...}'s used in pushEvaler do it to param?
+				
+				
+				//If the speed stats go down from 400k lambda calls per second on cpu on a "Intel(R) Core(TM) i9-9900K CPU running at 4.7ghz (liquid cooled)" single threaded,
+				//then this might be the cause. Also, it could be multithreaded if sync on the cached hashtable for func param return caching and dedup,
+				//but it might only be worth it to multithread in GPU and across multiple computers at once cuz of being RAM cache-miss bottlenecked by heavy use of hashtables.
+				param = vm.wrap(param); //in case !vm.isLambda(param), will wrap it in one. Maybe its a string or Float64Array or float64 or Uint8Array etc.
+
+
 				try{
 					if(--VM.stackDeep <= 0){
 						console.log('stackDeep ran out. TODO remove this message since its not an error exactly, is something that opSpend should try/else.');
@@ -6582,8 +6597,8 @@ const Wikibinator203 = (()=>{
 		
 		vm.o8OfS = vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)');
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.');
-		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas.');
-		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
+		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas. UPDATE: doubles is d* and floats is f*, both of which could use TypevalB or TypevalC. double is d, and float is f, which normally use typevalC but could use a typevalB with padding.');
+		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example [replaced application/x-IEEE754-double with just d and replaced doubles with d*] (TypevalC d 0x0000000000000000) OLD:(TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding');
 		if((vm.o8OfTypevalB&1)) throw 'vm.o8OfTypevalB must be even but is '+vm.o8OfTypevalB;
 		if(vm.o8OfTypevalB+1 != vm.o8OfTypevalC) throw 'vm.o8OfTypevalB='+vm.o8OfTypevalB+' must be 1 less than vm.o8OfTypevalC='+vm.o8OfTypevalC;
 		//TypevalB or TypevalC
@@ -6651,7 +6666,7 @@ const Wikibinator203 = (()=>{
 		vm.o8OfEmptyTreemap = vm.addOp('EmptyTreemap',null,false,2,'(EmptyTreemap (IdThenGodelLessThan IdMaker) key)->U. Avl treemap.');
 		vm.o8OfTreemap = vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
 		vm.addOp('DoAvlBal',null,false,1,'(DoAvlBal (Treemap ...)) -> forkEdited treemap with max difference of AvlHeight between any 2 avl childs (of same Treemap parent) being 1. Avl balance is supposed to be -1, 0, or 1 at each node. Each node is a Treemap or EmptyTreemap. An EmptyTreemap is always balanced.');
-		vm.addOp('AvlHeightD',null,false,1,'(AvlHeightD (Treemap_or_EmptyTreemap ...)) -> a double, such as (TypevalC application/x-IEEE754-double 0x0000000000000000) aka 0. Since double only does integers up to pow(2,53), this must infinite loop ({I I}{I I}) if avlHeight >= pow(2,53).');
+		vm.addOp('AvlHeightD',null,false,1,'(AvlHeightD (Treemap_or_EmptyTreemap ...)) -> a double, such as (TypevalC d 0x0000000000000000) aka 0. Since double only does integers up to pow(2,53), this must infinite loop ({I I}{I I}) if avlHeight >= pow(2,53).');
 		vm.addOp('PutNoBal',null,false,3,'TreemapPutNoBal renamed to PutNoBal. (PutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.');
 		
 		//renaming TreemapPut to Put.
@@ -7000,9 +7015,10 @@ const Wikibinator203 = (()=>{
 		//vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map');
 		vm.o8OfD = vm.addOp('D',null,false,2,'(D x map) -> (map (D x)). Get (whats normally a) double value from map. (D key Map) -> val of (D key) in that map. The $ in a/b/sum$.');
 		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du x map) -> (map (Du x)). Get general fn (often not deduped) from map. (Du key Map) -> val of (Du key) in that map. The ^ in a/b/fnVar^.');
+		vm.o8OfDuE = vm.addOp('DuE',null,false,3,'(DuE GetObKey GetVal map) -> map forkEdited to have key (Du (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (DuE ,x ,y TheMap) which maps (Du x) to y.');
 		//(DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)).
 						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
-		vm.addOp('DE',null,false,3,'Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.');
+		vm.o8OfDE = vm.addOp('DE',null,false,3,'(DE GetObKey GetVal map) -> map forkEdited to have key (D (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (DE ,x ,y TheMap) which maps (D x) to y. ... OLD: Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.');
 		
 		vm.o8OfDGo = vm.addOp('DGo',null,false,2,'Like D except with pointer jumping for first param. (DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)). Call that on a Treemap and it recurses a/b/sum$ in it to get a val.');
 		
@@ -7086,7 +7102,7 @@ const Wikibinator203 = (()=>{
 		//TODO get and put doubles, floats, ints, bytes, etc (and is it signed or unsigned bytes>), and whole typedblobs, and maybe cbts by themself?
 		//Also length funcs of such blobs, (Do these parts later...) and maybe concat, subrange, newemptyblob, etc.
 		//Or... a single typed put, that takes int param and where it puts it depends on sizeof(type).
-		vm.addOp('PrimSize',null,false,1,'(PrimSize (TypevalC ...)) -> 8..64 etc. (PrimSize of a TypevalB or TypevalC of doubles ints floats uint8s etc) in bits, such as 64 for a double array, 32 for an int array or float array, etc. TODO shorten and decide on which contentTypes will be used for such arrays, such as application/x-IEEE754-doubles for double array.');
+		vm.addOp('PrimSize',null,false,1,'(PrimSize (TypevalC ...)) -> 8..64 etc. (PrimSize of a TypevalB or TypevalC of doubles ints floats uint8s etc) in bits, such as 64 for a double array, 32 for an int array or float array, etc. TODO shorten and decide on which contentTypes will be used for such arrays, such as d for double or d* for doubles... OLD: application/x-IEEE754-doubles for double array.');
 		
 		vm.addOp('TGet',null,false,2,'Typed primitive array gET. (TGet array index) -> val at that index in the array.');
 		vm.addOp('TPut',null,false,3,'Typed primitive array pUT. (TPut array index val) -> forkEdited array. Check (PrimSize array) for the size put in it. If its not a typed array, returns it as is. This will work with vm.Mut optimization without checking which size of array it is.');
@@ -7441,10 +7457,10 @@ const Wikibinator203 = (()=>{
 	
 
 
-		vm.addOp('While',null,false,3,'stream: (While condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream)) stream = loopBody(stream); return stream;');
+		vm.addOp('While',null,false,3,'stream: (While condition loopBody stream) is like, if you wrote it in javascript: while(condition(stream).n.z()) stream = loopBody(stream); return stream;');
 		vm.addOp('DoWhile',null,false,3,'stream: (DoWhile loopBody condition stream) is like, if you wrote it in javascript: do{ stream = loopBody(stream); }while(condition(stream)); return stream; ');
 		vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
-		vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
+		vm.addOp('Fo',null,false,4,'(Fo varName GetUpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
 		vm.addOp('Foo',null,false,2,'[update: renaming this from Fo To Foo cuz its vararg and harder to optimize with multiple loopbodyparts]. A simple kind of loop that starts by computing its number of cycles (doesnt check it again after each call of loopBody). (Fo [varName_orShouldThisBeGetVarName getUpTo ...loopBodyParts...] map) -> forkEdits map to have varName_orShouldThisBeGetVarName->0 ->1 ->2 up to (getUpTo whatMapStartsAs)-1 then map becomes loopBody(map) where loopBody is _[...loopBodyParts...] aka chain them. See example code in lambda/AugmentedBalls.wikib that uses Fo... Fo[,y .height Fo[,x .width =[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]] =[,pix +[.i .green] &[,255 +[.x *[.y .age]]]] =[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]] +=[,i ,4] ]]');
 		vm.addOp('IfElse',null,false,4,'(ifElse condition ifTrue ifFalse state) is like, if you wrote it in javascript: ((condition(state) ? ifTrue : ifFalse)(state)).');
 		vm.addOp('If',null,false,3,'(if condition ifTrue state) is like, if you wrote it in javascript: (condition(state) ? ifTrue(state) : state).');
@@ -8054,16 +8070,16 @@ const Wikibinator203 = (()=>{
 						ret = z(x)(y); //the church-pair lambda. Pair and Typeval do the same thing but have a different o8/opcode so Typeval is used as a semantic like (Typeval image/jpeg JpgBytes).
 					break;case o.Lte:
 						//lessThanOrEqual
-						ret = vm.bit(x.n.d()<=y.n.d());
+						ret = vm.bit(y.n.d()<=z.n.d());
 					break;case o.Lt:
 						//lessThan
-						ret = vm.bit(x.n.d()<y.n.d());
+						ret = vm.bit(y.n.d()<z.n.d());
 					break;case o.Gt:
 						//greaterThan
-						ret = vm.bit(x.n.d()>y.n.d());
+						ret = vm.bit(y.n.d()>z.n.d());
 					break;case o.Gte:
 						//greaterThanOrEqual
-						ret = vm.bit(x.n.d()>=y.n.d());
+						ret = vm.bit(y.n.d()>=z.n.d());
 					break;case o.Du:{
 						//(Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
 						let map = z;
@@ -8174,16 +8190,51 @@ const Wikibinator203 = (()=>{
 						let map = z;
 						ret = map(l);
 					*/
-					}break;case o.DE:{ //set Double Equal to a val. Similar to KE.
+					/*}break;case o.DE:{ //set Double Equal to a val. Similar to KE.
 						let key = l.n.L(); //(DE Key)
 						let val = l.n.R().n.d(); //Val. d() gets double.
 						let map = z;
 						ret = vm.put(key,val,map);
+					*/
+					}break;case o.DE:{ //set Double Equal to a val. Counterpart of D. Similar to DuE is counterpart of Du. TODO K and KE are being removed.
+						/*OLD...
+
+						//TODO fix comment in addop about DE which has diff params.
+						//FIXMEFIXME lookup order of ops, should it be <DE I GetKey GetVal> where I gets 
+						//In a _[] i found (Dput /numBytes *[/height /width ,4]) in a .wikib File, and renaming Dput to DE, or Dput might mean in an array.
+
+
+						//(DE GetKey GetVal map) -> map forkEdited to have key (map (GetKey map)) mapped to val (GetVal map). FIXME as long as its getting the key,
+						//why does DE need to be specific to double? Why not use some variant of put?
+						//(Sput a/b/sum$ GetVal map). No, thats not right a/b/sum$ would get the double from the map. I just want to eval (a/b/sum map)
+						//and leave the $ (syntax for using D) as it is.
+						//(DE GetObKey GetVal map) -> map forkEdited to have key (D (GetObKey map)) mapped to (GetVal map).
+						*/
+
+						//(DE GetObKey GetVal map) -> map forkEdited to have key (D (GetObKey map)) mapped to (GetVal map).
+						//Example: (DE ,x ,y (EmptyTreemap GodelLessThan)) -> (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) x$ y Em),
+						//but names Tm and Em may differ or have no names.
+						let getObKey = l.n.L().n.R(); //,x
+						let getVal = l.n.R(); //,y
+						let map = z; //Example: (EmptyTreemap GodelLessThan)
+						let obKey = getObKey(map);
+						let val = getVal(map);
+						let wrappedKey = vm.ops.D(obKey); //(D x)
+						ret = vm.put(wrappedKey,val,map); //map (D x) to y. Later you can call (D x map) to get y.
+					}break;case o.DuE:{ //DE is to D as DuE is to Du.
+						//TODO merge duplicate code between DE and DuE?
+						let getObKey = l.n.L().n.R(); //,x
+						let getVal = l.n.R(); //,y
+						let map = z; //Example: (EmptyTreemap GodelLessThan)
+						let obKey = getObKey(map);
+						let val = getVal(map);
+						let wrappedKey = vm.ops.Du(obKey); //(Du x)
+						ret = vm.put(wrappedKey,val,map); //map (Du x) to y. Later you can call (Du x map) to get y.
 					}break;case o.While:{
 						let condition = x;
 						let loopBody = y;
 						let state = z;
-						while(condition(state) !== U){
+						while(condition(state).n.z()){ //.n.z() compares it to ops.T
 							vm.prepay1Time();
 							state = loopBody(state);
 						}
@@ -8219,37 +8270,66 @@ const Wikibinator203 = (()=>{
 							throw 'TODO';
 						}
 						
-						
+					}break;case o.For:{
+						//vm.addOp('For',null,false,5,'(For start condition afterLoopBody loopBody stream) is like, if you wrote it in javascript: for(stream = start(stream); condition(stream); stream = afterLoopBody(stream)) stream = loopBody(stream); return stream;');
+						let start = b;
+						let condition = c;
+						let afterLoopBody = x;
+						let loopBody = y;
+						let state = z;
+						//.n.z() compares it to ops.T aka the church-true lambda.
+						for(state = start(state); condition(state).n.z(); state = afterLoopBody(state)){
+							state = loopBody(state);
+						}
+						return state;
 					}break;case o.Fo:{
-						
+
+
+						//vm.addOp('Fo',null,false,4,'(Fo varName GetUpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
+
+
+						//OLD:
 						//vm.addOp('Fo',null,false,4,'(Fo varName UpTo loopBody map), is like For except starts with varName being 0 and counts up to whatever (UpTo map) returns.');
 						
 						//FIXME using Treemap/EmptyTreemap opcodes instead of btfl...
 						
+						//OLD:
 						//(Fo varName LoopSize LoopBody State)
 						// Fo c       x        y        z
-						
-						//loops varName from (double)0 to (double)LoopSize-1
-						//adjusting that in State (a btfl) then loopBody becomes loopBody(State),
-						//and at end, restores varName to whatever it was before (in State) and returns last State.
-						let varName = c; //var names are normally utf8 strings but can be any lambda
-						//let varName_asKey = vm.ops.FIXME FIXME;
-						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
-						//let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
-						
-						//KE means Key Equal, set that key equal to a given value in a given treemap. Similar to KKE which has 2 keys.
-						//K? and KK? gets what that puts. Maybe should just call those K and KK.
-						let varName_asKey = vm.ops.KE(varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
-						
-						//let start = 0;
-						let endExcl = x.n.d(); //UpTo as double/float64
-						let loopBody = y;
-						
+
 						//state is normally an AVL treemap, a vm.ops.Treemap of all but the last param filled,
 						//sorted first by 256 or 512 bit id (of lambda) and breaking ties (hash collisions) by GodelLessThan.
 						//In that treemap are normally things like (? hello world), (?? object key value),
 						//or (?C catPic463 (TypevalB application/jpeg <...bytes of jpg pic of a cat...>)).
 						let state = z; //Example: (EmptyTreemap GodelLessThan), but you probably want to use an idMaker where GodelLessThan only breaks ties.
+						
+						//loops varName from (double)0 to (double)LoopSize-1
+						//adjusting that in State (a btfl) then loopBody becomes loopBody(State),
+						//and at end, restores varName to whatever it was before (in State) and returns last State.
+						let varName = c; //var names are normally utf8 strings but can be any lambda
+						//let varNameGetter = c; //var names are normally utf8 strings but can be any lambda
+						//let varName_asKey = vm.ops.FIXME FIXME;
+						//let varName_asKey = vm.ops['?'](varName); //Example: (? i) being set to (double)0 or 1 or 2 or 3...
+						//let varName_asKey = vm.ops['KE'](varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
+
+						//Example: (Fo ,i ,4 {...loopBody...} map). (,i map) -> i.
+						//Example: (Fo a/b/xyz ,4 {...loopBody...} map). (a/b/xyz map) -> (map (OO (map (OO a b)) xyz)). See doc/objectOrientedOpcodes/objectOrientedOpcodes.txt
+						//Similarly, (,4 map) -> 4, but could have been something that depends on contents of map like to get length of some array.
+						//varName = varNameGetter(state);
+
+						//No, just (Fo i ,4 LoopBody Map). Dont do dynamic var name. Use <...> if want that.
+
+						
+						//KE means Key Equal, set that key equal to a given value in a given treemap. Similar to KKE which has 2 keys.
+						//K? and KK? gets what that puts. Maybe should just call those K and KK.
+						//let varName_asKey = vm.ops.KE(varName); //Example: (KE i) being set to (double)0 or 1 or 2 or 3...
+						let varName_asKey = vm.ops.D(varName); //Example: (D i) if (Fo ,i ,4 ...)
+						
+						//let start = 0;
+						let getUpTo = x; //upTo aka endExcl.
+						let endExcl = getUpTo(state).n.d(); //double
+						//let endExcl = x.n.d(); //UpTo as double/float64
+						let loopBody = y;
 						
 						//let prevVarVal = vm.btflGet(state, varName_asKey);
 						let prevVarVal = state(varName_asKey); //returns U if its mapped to U or if it has no such key/val.
@@ -8264,7 +8344,8 @@ const Wikibinator203 = (()=>{
 							
 							//(KE key val map) -> forkEdited map with (KE key) mapped to val. varName_asKey is (KE key).
 							//(KE x) is a putter of x.
-							state = varName_asKey(val)(state);
+							//state = varName_asKey(val)(state);
+							state = vm.put(varName_asKey,val,state); //same as vm.ops.DE(vm.ops.T(varName))... WAIT, i havent decided on what S-level DE will be.
 							
 							
 							state = loopBody(state);
@@ -8272,7 +8353,8 @@ const Wikibinator203 = (()=>{
 						//restore val of varName to what it was before this loop, even if loop changed it.
 						if(hadPrevVal){
 							//state = putThatVar(prevVarVal)(state); //FIXME what if val was 0
-							state = varName_asKey(prevVarVal)(state); //FIXME what if val was 0
+							//state = varName_asKey(prevVarVal)(state); //FIXME what if val was 0
+							state = vm.put(varName,prevVarVal,state); //FIXME what if val was 0
 						}else{
 							state = vm.del(varName_asKey,state); //remove key/val.
 						}
@@ -8593,13 +8675,15 @@ const Wikibinator203 = (()=>{
 						//++(a)State -> State with val of a incremented.
 						throw 'TODO need to use ? op, = op, andOr variants of it, andOr vm.something like vm.stateGet and vm.statePut but those arent vararg, find or make a vararg one.';
 						//ret = vm.wrapDouble(z.n.d()+1); //double->double
-					}break;case o['--']:{
+					//}break;case o['--']:{ //FIXME rename to Mii cuz -= is Rucfni list (like in lisp), opposite order of Infcur list.
+					}break;case o['Mii']:{ //FIXME rename to Mii cuz -= is Rucfni list (like in lisp), opposite order of Infcur list.
 						throw 'See TODO in ++.';
 						//ret = vm.wrapDouble(z.n.d()-1); //double->double
 					}break;case o['**']:{ //means exponent in javascript and here, of doubles.
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(Math.pow( y.n.d(),z.n.d())); //(double,double)->double
-					}break;case o['-']:
+					//}break;case o['-']:
+					}break;case o['Mi']:
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(y.n.d()-z.n.d());
 					//break;case o['/']:
@@ -8611,7 +8695,7 @@ const Wikibinator203 = (()=>{
 						ret = vm.wrapDouble(y.n.d()&z.n.d());
 					break;case o['|']:
 						ret = vm.wrapDouble(y.n.d()|z.n.d()); //(double,double)->double
-					break;case o['^']:
+					break;case o['Xor']:
 						ret = vm.wrapDouble(y.n.d()^z.n.d()); //(double,double)->double
 					break;case o['~']:
 						ret = vm.wrapDouble(~z.n.d()); //double->double
@@ -11613,7 +11697,7 @@ const Wikibinator203 = (()=>{
 
 		vm.contentTypeCbt = ct=>vm.ops.TypevalC(ct);
 		
-		console.log('FIXME type application/x-IEEE754-double vs type application/x-IEEE754-doubles has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
+		console.log('FIXME type application/x-IEEE754-double (UPDATE: its just d now) vs type application/x-IEEE754-doubles (UPDATE: its just d* now) has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
 		
 		//a cbt64 of the double bits, without padding.
 		//The -cbt64 ending means its only the bits before the padding,
@@ -11625,14 +11709,15 @@ const Wikibinator203 = (()=>{
 		//FIXME it might be breaking when type doesnt fit in a literal (has to callpair it),
 		//since stringLiterals arent fully working yet 2022-8-18.
 		//vm.typeDouble = vm.contentType('application/x-IEEE754-double-cbt64');
-		vm.typeDouble = vm.contentTypeCbt('application/x-IEEE754-double'); //TypevalC
+		//vm.typeDouble = vm.contentTypeCbt('application/x-IEEE754-double'); //TypevalC
+		vm.typeDouble = vm.contentTypeCbt('d'); //TypevalC
 		//vm.typeFloat = vm.contentType('application/x-IEEE754-float-cbt64');
-		vm.typeFloat = vm.contentTypeCbt('application/x-IEEE754-float'); //TypevalC
-
+		vm.typeFloat = vm.contentTypeCbt('f'); //TypevalC
 
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
-		vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles'); //TypevalB
-		vm.typeFloats = vm.contentTypeBitstring('application/x-IEEE754-floats'); //typevalB
+		//vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles'); //TypevalB
+		vm.typeDoubles = vm.contentTypeBitstring('d*'); //TypevalB
+		vm.typeFloats = vm.contentTypeBitstring('f*'); //typevalB
 		
 		/* just use cbt by itself.
 		//FIXME if its a powOf2 number of bytes, especially 2**22 bytes for 1024x1024 graphics and 4 bytes per pixel,
@@ -11812,6 +11897,8 @@ const Wikibinator203 = (()=>{
 		vm.test('ABCDEF a -> b', ABCDEF('a'), vm.eval('b'));
 		vm.test('ABCDEF c -> d', ABCDEF('c'), vm.eval('d'));
 		vm.test('ABCDEF e -> f', ABCDEF('e'), vm.eval('f'));
+
+		vm.test('content-type of double is d and goes in a TypevalC', vm.ops.L(3), vm.ops.TypevalC('d'));
 		
 		let AABB = vm.eval('AA#,BB#(* *)');
 		vm.test('namingWithUnarySyntax 1tf', AABB+'', 'AA#,BB#(* *)');
@@ -11890,6 +11977,9 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		vm.extraTests = [];
+
+		let Ev = vm.eval; //eval of that wikibinator code
+		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
 		
 		vm.Test = function(name, getX, getY){
 			this.name = name;
@@ -11924,8 +12014,27 @@ const Wikibinator203 = (()=>{
 
 		//vm.extraTests.push(()=>vm.test('Fo loop with Treemap state', vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+'', '[the number of unique binary trees at most height 4 is 677]'));
 		vm.xt('Fo loop with Treemap state',
-			()=>(vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+''),
+			()=>(vm.eval('[the number of unique binary trees at most height 4 is (Fo y ,4 (DE ,x <+ <* x$ x$> ,1>) (DE ,x ,1 (EmptyTreemap GodelLessThan)) x$)]')+''),
+			//()=>(vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+''),
 			()=>'[the number of unique binary trees at most height 4 is 677]');
+		//(DE ,x <+ <* x$ x$> ,1> (DE ,x ,1 (EmptyTreemap GodelLessThan)))
+
+		vm.xt('a map test simpler than loop but with 2 DE updates',
+			Evv('(DE ,x <+ x$ ,1000000> (DE ,x <+ <* x$ x$> ,1> (DE ,x ,10 (EmptyTreemap GodelLessThan))))'),
+			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) x$ 1000101 Em)'));
+
+
+		vm.xt('_[] sets 2 vars in treemap using DE', Evv('(_[(DE ,x ,2) (DE ,ret ,1)] (EmptyTreemap GodelLessThan))'),
+			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) x$ 2 (Tm Em ret$ 1 Em))'));
+		
+		vm.xt('while loop with treemap state',
+			()=>(vm.eval('[the number of unique binary trees at most height 4 is (_[(DE ,x ,0) (DE ,ret ,1) (While <Lt x$ ,4> _[(DE ,x <+ x$ ,1>) (DE ,ret <+ <* ret$ ret$> ,1>)])] (EmptyTreemap GodelLessThan) ret$)]')+''),
+			//()=>(vm.eval('[the number of unique binary trees at most height 4 is (Fo y 4 <DE ,x <+ <* (D x) (D x)> ,1> I#(F U)> (DE x 1 (EmptyTreemap GodelLessThan)) (DE x))]')+''),
+			()=>'[the number of unique binary trees at most height 4 is 677]');
+
+		vm.xt('for loop with treemap state',
+			()=>vm.eval('[the number of unique binary trees at most height 4 is (For _[(DE ,x ,0) (DE ,ret ,1)] <Lt x$ ,4> (DE ,x <+ x$ ,1>) (DE ,ret <+ <* ret$ ret$> ,1>) (EmptyTreemap GodelLessThan) ret$)]'),
+			()=>vm.eval('[the number of unique binary trees at most height 4 is 677]'));
 		
 		//vm.extraTests.push(()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'});
 		vm.xt('this is a TODO about /a/b/sum$ syntax etc', ()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'}, ()=>'ignore');
@@ -11995,8 +12104,7 @@ const Wikibinator203 = (()=>{
 			()=>(vm.eval(tmCode)+''), ()=>'[Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) aa bb (Tm Em cc dd (Tm Em ee ff Em)))]');
 		*/
 		
-		let Ev = vm.eval; //eval of that wikibinator code
-		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
+		
 		
 		//vm.xt('(/a (Put (O a) b (EmptyTreemap GodelLessThan))) -> b', ()=>(vm.eval('(/a (Put (O a) b (EmptyTreemap GodelLessThan)))')+''), ()=>'b');
 			

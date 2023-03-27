@@ -15,13 +15,13 @@
 				V_[ F[the NewVarsIf opcode does it just 1 level deep unlike NewPtrs[a b c] makes .a.b.c useable]
 					NewVarsIf[numBytes pix red green blue i]
 					(F "//*[vararg... eval each] or (* 2 3) with 2 params or of course <* ,2 ,3>.")
-					(Dput /numBytes *[/height /width ,4])
-					(BarrayPut /pix <NewBytes /numBytes>)
-					(DPut /red ,0)
-					(DPut /green ,0)
-					(DPut /blue ,0)
-					(DPut /blue ,0)
-					(DPut /i ,0)
+					(DE numBytes *[/height /width ,4])
+					(BarrayE ,pix <NewBytes /numBytes>)
+					(DE ,red ,0)
+					(DE ,green ,0)
+					(DE ,blue ,0)
+					(DE ,blue ,0)
+					(DE i ,0)
 					(Fo y /height
 						(Fo x .width
 							_[	(Dput /pix +[/i /red$] <& ,255 +[/x *[/age$ ,35]]>)
