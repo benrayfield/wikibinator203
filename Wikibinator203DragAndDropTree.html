@@ -1021,9 +1021,38 @@ var sytyToPushChar_ = {
 	//when to use <> inside <> vs when to use () and <> together to avoid an extra T/,.
 	//'T1<>': 'T', //Change ',' to 'T', in ',<...at least 2 things...>'.
 	'T1<>': ',', //Change ',' to 'T', in ',<...at least 2 things...>'.
+	'_1': '',
 };
 
-var sytyToPushChar = syty=>(sytyToPushChar_[syty] || 'FIXME_WHAT_PUSH_CHAR_FOR_SYTY='+syty);
+/*
+//is it an (OO a b)
+vm.isFullOO = fn=>vm.isSameOpAndNumParams(vm.ops.OO,fn,1);
+
+//is it a (GoO a b)
+vm.isFullGoO = fn=>vm.isSameOpAndNumParams(vm.ops.GoO,fn,1);
+
+//is it a (Du a)
+vm.isFullDu = fn=>vm.isSameOpAndNumParams(vm.ops.Du,fn,1);
+
+//is it a (DuGo a)
+vm.isFullDuGo = fn=>vm.isSameOpAndNumParams(vm.ops.DuGo,fn,1);
+
+//is it a (D a)
+vm.isFullD = fn=>vm.isSameOpAndNumParams(vm.ops.D,fn,1);
+
+//is it a (DGo a)
+vm.isFullDGo = fn=>vm.isSameOpAndNumParams(vm.ops.DGo,fn,1);
+*/
+
+var sytyToPushChar = (syty,optionalFn)=>{
+	if(optionalFn){
+		//(DGo (GoO (OO a b) sum)) appears as a/b/sum$
+		if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullDu(optionalFn) || vm.isFullDuGo(optionalFn) || vm.isFullOOOrGoO(optionalFn))){
+			return ''; //(D x) appears as x$. Drop the (, and pop char will be $ if D. ^ if Du. "" if OO or GoO.
+		}
+	}
+	return (sytyToPushChar_[syty]!==undefined ? sytyToPushChar_[syty] : 'FIXME_WHAT_PUSH_CHAR_FOR_SYTY='+syty);
+};
 
 var sytyToPopChar_ = {
 	'0CI': '=', //vm.ops.Rucfni uses - = and displays opposite order as Infcur/[]
@@ -1044,14 +1073,33 @@ var sytyToPopChar_ = {
 	//Appears as <b>T<b>stuff...NOTHING, where that NOTHING is this empty string. Similar to {STUFF} or [STUFF] but its T instead of { or [ or (.
 	T1: '',
 	'T1<>': '',
+	
+	'_1': '', //_ means vm.ops.Seq. Its normally used like _[lineOfCode forLoop ifElse etc] as a sequence of things to do, like in (For _[(DE ,x ,0) (DE ,ret ,1)] <Lt x$ ,4> (DE ,x <+ x$ ,1>) (DE ,ret <+ <* ret$ ret$> ,1>))
 };
 
 //FIXME why does https://stackoverflow.com/questions/6234773/can-i-escape-html-special-chars-in-javascript say
 //to also do  .replace(/"/g, "&quot;") and .replace(/'/g, "&#039;"); ? Is that just in case its used in a string literal?
 var weakHtmlEscape = str=>str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+//This puts "/" between a/b and sum in /a/b/sum. Its "" for most stuff.
+var sytyToMidChar = (syty,optionalFn)=>{
+	if(!optionalFn) return '';
+	if(options.foldOO && vm.isFullOOOrGoO(optionalFn)) return '/';
+	return '';
+};
+
 //check !==undefined cuz pop char for T1 is '' aka empty string cuz its just ',' (its push char) on the left.
-var sytyToPopChar = syty=>(sytyToPopChar_[syty]!==undefined ? sytyToPopChar_[syty] : 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
+var sytyToPopChar = (syty,optionalFn)=>{
+	if(optionalFn){
+		if(options.foldOO){
+			//(DGo (GoO (OO a b) sum)) appears as a/b/sum$
+			if(vm.isFullDOrDGo(optionalFn)) return '$'; //(D x) appears as x$
+			if(vm.isFullDuOrDuGo(optionalFn)) return '^'; //(Du x) appears as x^
+			if(vm.isFullOOOrGoO(optionalFn)) return ''; //dont display ")" as usual cuz is joined by "/" in midfix (of prefix midfix suffix).
+		}
+	}
+	return (sytyToPopChar_[syty]!==undefined ? sytyToPopChar_[syty] : 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
+};
 
 /*
 Splat.prototype.updateSelfDivStyle = function(){
@@ -1119,6 +1167,7 @@ Splat.prototype.createDobsIfNotExist = function(){
 	prefix dropleft
 	       left
 	       dropmid
+		   midfix (where "/" goes in "a/b/sum$")
 	       literal
 	       right
 	       dropright
@@ -1127,13 +1176,14 @@ Splat.prototype.createDobsIfNotExist = function(){
 	prefix dropleft
 	       left
 	       dropmid
+		   midfix (where "/" goes in "a/b/sum$")
 	       literal
 	       right
 	suffix dropright
 	
-	prefix dropleft left dropmid literal right dropright suffix
+	prefix dropleft left dropmid midfix literal right dropright suffix
 	
-	prefix dropleft left dropmid literal right dropright bigSuffixWithName
+	prefix dropleft left dropmid midfix literal right dropright bigSuffixWithName
 	
 	//dont do this one cuz #Name should always be on same line as suffix.
 	//prefix dropleft
@@ -1252,6 +1302,8 @@ Splat.prototype.createDobsIfNotExist = function(){
 		d.left = Pob('div', d.upright);
 		d.dropmid = Pob('div', d.upright);
 		
+		d.midfix = Pob('div', d.upright);
+		
 		d.literal = Pob('div', d.upright);
 		if(options.preventSelectOfTextCanvasEtc){
 			d.literal.style.userSelect = 'none'; //dont allow text or canvas etc to be selected by mouse, especially while dragging across it
@@ -1274,6 +1326,15 @@ Splat.prototype.createDobsIfNotExist = function(){
 };
 
 var options = {};
+
+//Do or dont fold things like (D (GoO (OO a b) sum)) to display as a/b/sum$, else leave it as (D (GoO (OO a b) sum)).
+//This is similar to (S a b) aka ((S a) b) being displayed as {a b} by folding/hiding the S and the inner ( and )
+//and displaying the outer ( ) as { } instead.
+//This OO stuff, which includes vm.ops.OO GoO DuGo DGo, will put "/" (OO and GoO) and "$" (D) and "^" (Du).
+//FIXME this should not display that way if the childs are too big.
+//FIXME as of 2023-3-27-2p this doesnt do anything, but i'm about to code it.
+//options.foldOO = false;
+options.foldOO = true;
 
 //between 0 and 1, probably best for this to always be .5. Its the horizontal fraction that the left vs right
 //side is dropped onto for metaInsert (metaInsertButton, which as of 2023-1-15 is the left mouse button)
@@ -1718,7 +1779,7 @@ dragStep is 'no' (not dragging, not displaying the icon where it would drag if m
 'to' (the from and to splats and icons are decided, ready to do the drag, which causes lambda called on lambda finds/creates lambda, then all dragSteps become 'no' again).
 */
 var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds,
-		isFoldL, isUnary, isShowDropDobs, isSelected, red, green, blue,
+		isFoldL, isFoldLL, isUnary, isShowDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep){
 
 	
@@ -1767,6 +1828,14 @@ var Splate = function(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isD
 	this.isFoldL = !!isFoldL;
 	if(isFoldL && !isDisplayChilds) throw 'can only isFoldL if isDisplayChilds';
 	
+	//isFoldLL means that left child should isFoldL.
+	//Used with the a/b/c/sum$ (for example) syntax which means (DGo (GoO (GoO (OO a b) c) sum)).
+	//Without isFoldLL, it would display the GoO and OO, instead of just a b c and sum and $/DGo.
+	//(OO a b) aka ((OO a) b) displays as a/b. ((OO a) b) should have isFoldLL of true. (OO a) should have isFoldL of true.
+	//FIXME maybe should commentout code like this a few places, cuz dont want to regenerate the isFoldL if forkEdit the isDisplayChilds.
+	//... if(isFoldL && !isDisplayChilds) throw 'can only isFoldL if isDisplayChilds';
+	this.isFoldLL = !!isFoldLL;
+	
 	this.isUnary = !!isUnary;
 	if(isUnary && !isDisplayChilds) throw 'can only isUnary if isDisplayChilds';
 	
@@ -1806,7 +1875,7 @@ var getSplit = (splate, leftSplit, rightSplit, optionalAction)=>{
 //caches it the first time. Returns a text view of the contents, but not deeper into fn than its 128 bit localId.
 Splate.prototype.bigHash = function(){
 	return '[Splate_'+this.fn.n.locid()+'_'+this.syty+'_'+(this.isOpen?'O':'o')+(this.isOneLine?'L':'l')+(this.isLiteral?'I':'i')+
-		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isDisplayChilds?'C':'c')+(this.isFoldL?'S':'s')+
+		(this.isDisplayName?'N':'n')+(this.isDisplayPushAndPopChars?'P':'p')+(this.isDisplayChilds?'C':'c')+(this.isFoldL?'S':'s')+(this.isFoldLL?'S':'s')+
 		(this.isUnary?'T':'t')+(this.isSelected?'S':'s')+'_R'+this.red+'_G'+this.green+'_B'+this.blue+
 		(this.isDisplayIcon?'I':'i')+('Iy'+this.looseIconYFraction)+('Ix'+this.looseIconXFraction)+('Path'+this.linePath)+('Ds'+this.dragStep)+']';
 };
@@ -1897,6 +1966,15 @@ Splate.prototype.setIsFoldL = function(isFoldL){
 	let ret = this.copy();
 	ret.isFoldL = !!isFoldL;
 	if(ret.isFoldL && !ret.isDisplayChilds) throw 'can only isFoldL if isDisplayChilds, splate='+ret;
+	delete ret.bigHash_;
+	return ret;
+};
+
+//forkEdit
+Splate.prototype.setIsFoldLL = function(isFoldLL){
+	if(this.isFoldLL === isFoldLL) return this;
+	let ret = this.copy();
+	ret.isFoldLL = !!isFoldLL;
 	delete ret.bigHash_;
 	return ret;
 };
@@ -2072,7 +2150,7 @@ var fnMeta = fn=>{
 //but in this early prototype of the UI I'm modifying vars in it cuz forkEditing it isnt working yet.
 Splate.prototype.copy = function(){
 	return new Splate(this.fn, this.syty, this.isOpen, this.isOneLine, this.isLiteral, this.isDisplayName, this.isDisplayPushAndPopChars,
-		this.isDisplayChilds, this.isFoldL, this.isUnary, this.isShowDropDobs, this.isSelected, this.red, this.green, this.blue,
+		this.isDisplayChilds, this.isFoldL, this.isFoldLL, this.isUnary, this.isShowDropDobs, this.isSelected, this.red, this.green, this.blue,
 		this.isDisplayIcon, this.looseIconYFraction, this.looseIconXFraction, this.linePath, this.dragStep);
 };
 
@@ -3223,10 +3301,15 @@ Splat.prototype.setSplit = function(split){
 			this.dobs.right.innerHTML = '';
 		//}else if(splate.isDisplayPushAndPopChars && !splate.isFoldL){ //FIXME isFoldL shouldnt be checked here
 		}else if(splate.isDisplayPushAndPopChars){ //FIXME isFoldL shouldnt be checked here
-			let prefix = '<b>'+weakHtmlEscape(sytyToPushChar(syty))+'</b>';
+			let prefix = weakHtmlEscape(sytyToPushChar(syty,fn));
+			if(prefix != '') prefix = '<b>'+prefix+'</b>';
+			//prefix midfix suffix
+			let midfix = sytyToMidChar(syty,fn);
+			if(midfix != '') midfix = '<b>'+midfix+'</b>';
 			let suffixfarright = '';
 			for(let i=tabSizeInSpaces-prefix.length; i>0; i--) prefix += '&nbsp;'; //TODO optimize all one string, not loop
-			let suffix = '<b>'+weakHtmlEscape(sytyToPopChar(syty))+'</b>';
+			let suffix = weakHtmlEscape(sytyToPopChar(syty,fn));
+			if(suffix != '') suffix = '<b>'+suffix+'</b>';
 			for(let i=tabSizeInSpaces-suffix.length; i>0; i--) suffix += '&nbsp;'; //TODO optimize all one string, not loop
 			if(splate.isDisplayName){
 				//suffix += '#TODONAMEHERE';
@@ -3265,6 +3348,33 @@ Splat.prototype.setSplit = function(split){
 				}
 			}
 			
+			//trying this 2023-4-4 to fix that theres &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; in dom nodes of class wikib_prefix
+			//when (in parent Split?) isFoldLL makes it display '' as prefix, cuz of  a/b/sum$ syntax (for example). [(a/b/c) d/e/f$]
+			//Yes that fixed the empty space on the left of a/b/c etc, but theres still DGo displayed from [(a/b/c) d/e/f$] in dom node of class wikib_literal.
+			//FIXED: b$ wrongly displays as D b $ (should be: b $). a/b$ wrongly displays as DGo a / b $ (should be: a / b $). Also DuGo and Du if use ^ instead of $.
+			/*
+			//Fixed in this code by changing isFoldL to true 2 places...
+			if(options.foldOO && (vm.isFullD(fn) || vm.isFullDGo(fn))){ //fn is (D x), display as x$
+				//isFoldL = false; //FIXME?
+				//FIXME will need to display it as (...) instead of a/b/sum$ syntax if a b or c isnt certain kinds of small strings that can be literaled like that.
+				isFoldL = true; //so [a/b^ hello/world/yo$] doesnt display any D or DGo
+				isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '$'
+				//pop char is $ cuz D or DGo
+				//FIXMEFIXME display $ at end
+			}else if(options.foldOO && (vm.isFullDu(fn) || vm.isFullDuGo(fn))){ //fn is (Du x), display as x^
+				//isFoldL = false; //FIXME
+				//FIXME will need to display it as (...) instead of a/b/sum$ syntax if a b or c isnt certain kinds of small strings that can be literaled like that.
+				isFoldL = true; //so [a/b^ hello/world/yo$] doesnt display any Du or DuGo.
+				isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '^'
+				//pop char is ^ cuz Du or DuGo
+				//FIXMEFIXME display $ at end
+			}else if(options.foldOO && vm.isFullOOOrGoO(fn)){ //fn is (GoO a b) or (OO a b)
+			*/
+			if(isAllNbsp.test(prefix)){
+				prefix = '';
+			}
+			
+			//This has been here for a long time, as of 2023-4-4, for the suffixfarright, but I'm about to try it for prefix above too.
 			// /^(\&nbsp\;)*$/.test('&nbsp;&nbsp;&nbsp;') returns true
 			if(isAllNbsp.test(suffixfarright)){
 				//Is all nobreakspaces, so dont put that in dobs.upfarright so it wastes less screen space.
@@ -3273,6 +3383,9 @@ Splat.prototype.setSplit = function(split){
 				suffixfarright = '';
 				
 			}
+			
+			//TODO optimize. dont change it if its already equal to that.
+			this.dobs.midfix.innerHTML = midfix;
 			
 			this.dobs.prefix.innerHTML = prefix;
 			this.dobs.suffixfarright.innerHTML = suffixfarright;
@@ -3405,7 +3518,7 @@ Splat.prototype.setSplit = function(split){
 		//UPDATE 2022-10-21 planning to not display Action (third child) and instead use d.looseIcon etc during dragging.
 		//
 		//Action stuff goes in dropleft dropmid or dropright. Action hasnt acted yet, is just here to say action should be done as a forkEdit of this Split...
-		let a = this.split.action;
+		let a = this.split.action; //FIXME 2023-4-4 remove Action. hasnt been used in a long time.
 		//this.dobs.dropleft.innerHTML = ''; //FIXME should child Splats do that instead?
 		//this.dobs.dropmid.innerHTML = ''; //FIXME should child Splats do that instead?
 		//this.dobs.dropright.innerHTML = ''; //FIXME should child Splats do that instead?
@@ -3713,7 +3826,7 @@ var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
 //	vm.Viewer.prototype.viewToStringRecurse = function(view, viewing, callerSyty, isRightRecursion)
 //
 //var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalIsRightRecursion){
-var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCallerCallerSyty, optionalIsRightRecursion){
+var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCallerCallerSyty, optionalIsRightRecursion, optionalForceFoldL){
 	let callerSyty = optionalCallerSyty || 'C';
 	
 	//optionalCallerCallerSyty was added 2023-1-2 so ,x in (S ,x y) knows to not display the T/,
@@ -3743,10 +3856,32 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 	let isDisplayPushAndPopChars = isOpen && !isLiteral;
 	let isDisplayChilds = isDisplayPushAndPopChars; //FIXME
 	let isFoldL = false;
+	if(optionalForceFoldL) isFoldL = true;
+	let isFoldLL = false;
 	let isUnary = false; //if true, display (T abc) as ,abc
 	//if(options.displayVarargLists && (syty=='IC+' || syty=='IC0') && syty == 'IC+' && !isRightRecursion){
 	//if(options.displayVarargLists && syty == 'IC+' && !isRightRecursion){
-	if(options.displayVarargLists && (callerSyty=='IC+' || callerSyty=='IC0') && syty == 'IC+' && !isRightRecursion){
+	if(options.foldOO && (vm.isFullD(fn) || vm.isFullDGo(fn))){ //fn is (D x), display as x$
+		//isFoldL = false; //FIXME?
+		//FIXME will need to display it as (...) instead of a/b/sum$ syntax if a b or c isnt certain kinds of small strings that can be literaled like that.
+		isFoldL = true; //so [a/b^ hello/world/yo$] doesnt display any D or DGo
+		isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '$'
+		//pop char is $ cuz D or DGo
+		//FIXMEFIXME display $ at end
+	}else if(options.foldOO && (vm.isFullDu(fn) || vm.isFullDuGo(fn))){ //fn is (Du x), display as x^
+		//isFoldL = false; //FIXME
+		//FIXME will need to display it as (...) instead of a/b/sum$ syntax if a b or c isnt certain kinds of small strings that can be literaled like that.
+		isFoldL = true; //so [a/b^ hello/world/yo$] doesnt display any Du or DuGo.
+		isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '^'
+		//pop char is ^ cuz Du or DuGo
+		//FIXMEFIXME display $ at end
+	}else if(options.foldOO && vm.isFullOOOrGoO(fn)){ //fn is (GoO a b) or (OO a b)
+		isFoldL = false; //FIXME?
+		isFoldLL = true;
+		isDisplayPushAndPopChars = true; //pushChar '' midChar '/' popChar ''
+		//FIXME need to fold the OO or GoO, but isFoldL here would wrongly fold (GoO a) or (OO a).
+		//sytyToMidChar puts the '/'
+	}else if(options.displayVarargLists && (callerSyty=='IC+' || callerSyty=='IC0') && syty == 'IC+' && !isRightRecursion){
 		isDisplayPushAndPopChars = false;
 		/*
 		switch(syty){
@@ -3844,6 +3979,10 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 		isUnary = true;
 	}
 	
+	if(isFoldL && isFoldLL){
+		throw 'Cant be both isFoldL and isFoldLL. fn='+fn;
+	}
+	
 	//let isShowDropDobs = isOpen;
 	//let isShowDropDobs = false;
 	let isShowDropDobs = options.alwaysShowDropDobs;
@@ -3860,7 +3999,7 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 	let looseIconXFraction = .5;
 	let linePath = ''; //FIXME
 	let dragStep = 'no'; //no, wouldFrom, from, wouldTo, to, dropCircMenu. also adding 'clickcirc' 2022-12-18+.
-	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isUnary, isShowDropDobs, isSelected, red, green, blue,
+	let splate = new Splate(fn, syty, isOpen, isOneLine, isLiteral, isDisplayName, isDisplayPushAndPopChars, isDisplayChilds, isFoldL, isFoldLL, isUnary, isShowDropDobs, isSelected, red, green, blue,
 		isDisplayIcon, looseIconYFraction, looseIconXFraction, linePath, dragStep);
 	let leftSplit = null;
 	let rightSplit = null;
@@ -3868,8 +4007,9 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 	if(isDisplayChilds){
 		//leftSplit = newSplitForFn_experimental(fn.n.L(),syty,false); //callerSyty
 		//rightSplit = newSplitForFn_experimental(fn.n.R(),syty,true); //callerSyty
-		leftSplit = newSplitForFn_experimental(fn.n.L(),syty,callerSyty,false); //fn,callerSyty,callerCallerSyty,left
-		rightSplit = newSplitForFn_experimental(fn.n.R(),syty,callerSyty,true); //fn,callerSyty,callerCallerSyty,right
+		//transfer isFoldLL to isFoldL in left child.
+		leftSplit = newSplitForFn_experimental(fn.n.L(),syty,callerSyty,false,isFoldLL); //fn,callerSyty,callerCallerSyty,left,forceFoldL
+		rightSplit = newSplitForFn_experimental(fn.n.R(),syty,callerSyty,true,false); //fn,callerSyty,callerCallerSyty,right,forceFoldL
 	}
 	return getSplit(splate,leftSplit,rightSplit);
 };
@@ -6886,6 +7026,19 @@ var updateDisplayToWrap = ()=>{
 	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
 };
 
+var transpileAndDisplayIf = fn=>{
+	if(Dob('chk_codeTranspiledOut').checked){
+		let lang = 'js';
+		//TODO put this in try/catch and display the error
+		try{
+			let code = fn.n.transpile(lang);
+			Dob('codeTranspiledOut').value = code;
+		}catch(e){
+			Dob('codeTranspiledOut').value = 'ERROR TRANSPILING: '+e;
+		}
+	}
+};
+
 //-1 for none (do popup menu to ask user for it), or 0..(dropCircMenu.length-1) to do it automatically without popping it up.
 var preChoosePopupIcon = -1;
 
@@ -6927,7 +7080,7 @@ window.onload = ()=>{
 		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('rootDob_mousemove');
 		globalOnMouseMove(event);
 	});
-	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
+	Dob('extraTests').innerHTML = '<input type=button value="Put test buttons here - vm.htmlForExtraTests()" onclick="Dob(\'extraTests\').innerHTML = vm.htmlForExtraTests();">';
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
@@ -6971,265 +7124,9 @@ window.onload = ()=>{
 	
 </script>
 </head><body>
-	Wikibinator203 widget (todo all as 1 js file, clean it up and isolate it): drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
-	<br><br>
-	<div id=extraTests></div>
-	<br><br>
-	
-	<div id=globalDobs>
-		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
-		<div id=globalToOverlay style="pointer-events:none;position:absolute;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001"></div>
-		
-		<div id=mouseOverSelect_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#fff"></div>
-		<div id=mouseOverSelect_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#fff"></div>
-		<div id=mouseOverSelect_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#ddd"></div>
-		<div id=mouseOverSelect_bottom style
-		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#ddd"></div>
-		
-		<div id=mouseOverSelect2_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#1d2"></div>
-		<div id=mouseOverSelect2_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#1d2"></div>
-		<div id=mouseOverSelect2_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#0c1"></div>
-		<div id=mouseOverSelect2_bottom style
-		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#0c1"></div>
-		
-		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85;pointer-events:none"></div>
-		
-		<div id=displayThisOnWhatWasLastDropped style="position:absolute;z-index:10000005;background-color:white;top:0px;left:0px;opacity:.85;width=20px;height:3px;pointer-events:none"></div>
-		
-		<img id="fromIcon" src="pic/from_transparent.png" style="position:absolute;z-index:10000006;pointer-events:none"></div>
-		
-		<img id="toIcon" src="pic/to_transparent.png" style="position:absolute;z-index:10000007;pointer-events:none"></div>
-		
-		<div id=dragLineDob style="position:absolute;z-index:10000008;background-color:#0ff;top:0px;left:0px;width:50px;height:50px;pointer-events:none"></div>
-		
-		<div id=popupMenuDob style="position:absolute;z-index:10000009;background-color:gray;top:0px;left:0px"></div>
-	</div>
-	
-	<center>
-		<table border=3><tr><td width=30% valign=top>
-			TODO the mutableWrapperLambda system... (this doesnt work yet)...<br><br>
-			<nobr><b>Password creates publickey:</b><input id=passwordInput type=password cols=40 placeholder="password creates publicKey"></input></nobr>
-			<div id=publickeyDob>TODO a specific YourPublicKey appears here<div>
-			<div id=lambdamailDob>
-				<div style="background-color:#4b0">✕ (YourPublicKey [hello YourPublicKey]) -> <nobr>???drag and drop to here???</nobr></div>
-				<div style="background-color:#4bf">✕ (YourPublicKey [some game quicksave is... [the thing...]]) -> <nobr>???drag and drop to here???</nobr></div>
-			</div>
-			<br>
-			About the above^... You can use wikibinator anonymously with no user account/publickey at all, or with a publickey, and you can hook that to an identity in external systems if you want, or not.
-			This is for incoming messages. When anyone in the peer to peer network (TODO) calls (YourPublicKey IncomingMessage),
-			its checked against your local filter (any Lambda you choose, TODO) and if it passes, it appears here,
-			and you can drag a lambda as the response to it or click X on it to not respond.
-			So YourPublicKey acts like a lambda when others call it, including that multiple calls for the same param
-			are cached potentially forever and shouldnt repeat here (but may if not deduped yet?, TODO).
-			(YourPublicKey IncomingMessage) -> OutgoingResponse.
-			To get a publickey, type any password here, which gets hashed to make an ed25519 publickey, that will appear below (TODO).
-			The lambdas can do any algorithm, so doesnt have to be ed25519 but thats what the prototype will start with.
-			This password is not (TODO verify security) copied outside this browser window, unless your browser or its plugins or OS etc is spying on it.
-			Only digital signatures of it are normally shared.
-			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
-		</td><td valign=top>
-			<div id=controlsAboveRootDob>
-				QuickSave and QuickLoad use cookies. In future versions, it will have the option to save/download generated file and drag files in, and to drag just parts into and out of those files or cookies and to share and stream online.<br>
-				
-				<nobr><input type=button value="QuickSave 1" onclick="quickSave(1);"></input><input type=button value="QuickLoad 1" onclick="quickLoad(1);"></input></nobr>
-				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 2" onclick="quickSave(2);"></input><input type=button value="QuickLoad 2" onclick="quickLoad(2);"></input></nobr>
-				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 3" onclick="quickSave(3);"></input><input type=button value="QuickLoad 3" onclick="quickLoad(3);"></input></nobr>
-				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 4" onclick="quickSave(4);"></input><input type=button value="QuickLoad 4" onclick="quickLoad(4);"></input></nobr>
-				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 5" onclick="quickSave(5);"></input><input type=button value="QuickLoad 5" onclick="quickLoad(5);"></input></nobr>
-				<br><br>
-				<input type=button value="goToUrlOfCurrentFn()" onclick="goToUrlOfCurrentFn();"></input>
-				<input type=button value="Reload page" onclick="location.reload();"></input>
-				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
-				<nobr>
-					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox></input>
-					<label for=alwaysForceUpdateDisplayAfterDrop>Always force update display after drag (FIXME shouldnt need this, and leaving this on makes it slower.</label>
-				</nobr>
-			</div><br>
-			<div id=copyOfPopupMenuToPreChoose></div><br>
-			<div id=vmStats></div><br>
-			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
-			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
-			<div id=logOut></div><br>
-			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
-			
-			<div style="display:inline-block">
-				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
-				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
-			</div><br>
-			<input type=button onclick="vm.eval(Dob('codeIn').value);" value="eval code without try/catch, so can see stacktrace on console"></input><br>
-			
-			<textarea rows=5 cols=90 readonly id=codeErr></textarea>
-			
-			<div>
-			wikib treeui fix the cant drop at same place to and from, by 2 dragsteps per splate. no, do in uistate 2 splats.
-no, instead... xllrlr_xpos_ypos is coordinate. put 2 of those and some button stuff and highlight stuff in uistate, and onsolete those parts of splate.
-<br><br>
-Do all of these as vm.ops.Treemap etc, including wrappers of byte[].<br>
-* small circle icon for FROM or wouldFroim.<br>
-* small circle icon for TO or wouldTo.<br>
-* dragLine.<br>
-* outer border rect drag FROM.<br>
-* inner border rect drag TO.<br>
-* border of rect just BEFORE the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
-* border of rect just dropped, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
-* border of rect just AFTER the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
-* treemap of gamepads, keyboard buttons, mouse position, etc, but only those parts whose value is nonzero at the time. Values are double.<br>
-* treemap of sound channels in, in blocks of time or func of time to amplitude or something like that.<br>
-* treemap of video in (webcams)<br>
-* treemap of video out (canvases) as func that returns pixel bytes when called on something (or just the literal bytes?)<br>
-* todo should the password and mutableWrapperLambda incoming stuff be part of this? Might need a private area (make sure not to share these parts accidentally as cache etc)? Incoming and outgoing messages are not private (cuz its WIKIbinator), but password is, so if u want privacy u have to derive an encryption lambda.<br>
-* listweb-like treemap, for PrilistStacks (see those in the java version of listweb), but fns are the names.<br>
-..<br>
-**** Do I want a syntax andOr treeUI thing for treemaps? Maybe later, but im gonna get some or all of the aboive stuff working first. Treemap is already designed to be human readable, just not human editable directly. Its keys are in sorted order, and key/val always go together. But it doesnt yet display or maybe not even allow big blobs yet. ive been using them only up to how big an id can be but past that, it seems to have some bugs if I remember correctly.
-<br><br>
-XLLRLRL (to select which rect) and y and x fractions (where in it, or negative or above 1 for outside it but in its same coords), for each of FROM and TO and any other 2d points in tree coordinates. Borders dont need the x and y, or the x and y are always 0 or 1.
-<br><br>
-Hook in gamepads, mouse, and keyboard too. But is now a good time for that? Its part of input, and seems to fit well with this design, so YES. Also, byte arrays for microphone and webcam, and maybe also outputs for speakers and a separate canvas (not in the tree)? These could all go in either uiState or a new useAsImmutable datastruct of jsMaps. Just make {}s that have __bigHash var in them? {bigHash_: null, vars: {}, ...} or something like that? Or I could use a vm.ops.Treemap which can wrap byte arrays etc. Why not use that? Is it fast enuf? YES.
-			</div>
-			<h1>
-				TODO [] is Infcur. -= is Rucfni (infcur spelled backward). Make lisp-like syntax like -car -cons a b== or maybe it should be .car .cons .a .b or maybe the .thing aka get var thing from Treemap (stateless) state (second param, first is linkedlist of params).<br>
-				FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.
-			</h1>
-			
-		</td></tr></table>
-	</center>
-	
-	
-	<hr><hr><hr>
-	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
-	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
-	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?</font>
-	<br><br>
-	<font color=gray>DONE ENOUGH FOR NOW, its ok to call that many times since its updating many times per second, but i turned off some options (see options = {... map) to make it fast enuf (is still slow while browser debugger is open): figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
-	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
-	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.</font>
-	<br><br>
-	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
-	<br><br>
-	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
-	<br><br>
-	<div style="background-color:blue">TODO...<br>
-		TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including &lt;a b c&gt; meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
-		<br><br>
-		TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
-		<br><br>
-		SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
-		<br><br>
-		V means to copy the vars from λ into State then get a certain return value out of it.
-		<br><br>
-		SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
-		FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
-		_[<br>
-			=[,mul ,1]<br>
-			Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
-			//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
-			//<a b c> means {,a b c}.<br>
-			//Fo takes var size [] and does _[] with all params at end.<br>
-		]<br>
-		<br><br>
-		In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
-		if it would be (a b).
-		<br><br>
-		For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
-		<br><br>
-		Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
-		<br><br>
-		What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
-		Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
-		<br><br>
-		Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
-	</div>
-	<hr><hr><hr>
-	
-	
-	<br><font color=gray>
-	DONE/FIXED: [[[]]] etc is only showing 1 []. options.displayVarargLists is probably buggy.<br>
-	DONE ENOUGH: make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
-	DONE, it was conflict between flex layout and rowspan andOr colspan: dobs.suffixb is displaying too low. rowspan and colspan used in same table might be confusing it??<br>
-	DONE enough, but still some vertical padding to get rid of: do_forkTryMaxWidth_experimentOnWindowLoad make some be isOneLine and some not depending on estimateWidth(true) recursively, to make good use of screen space.<br>
-	DONE: forkTryMaxWidth, add estimateWidth and estimateHeight funcs to Split.prototype (added those already but theres throw todo in it), for use with isOneLine, so it doesnt get too long, and use it recursively.<br>
-	CANCELLED cuz dont need to reparent dobs when using flex layout: addDolayoutFuncToWikibTreeUINodesAndSeparateLayoutDobsFromSelfDobsWhichGetReparentedInLayoutNodesAndOnlyCreateLayoutNodesIfNotAlreadyExist<br>
-	DONE: eachFirstLineCanHaveMultiThingsInIt, an isOneLine syntax/layout for the first n params in a {} [] () but after that each thing is on its own line,
-	cuz it has to be that way to be 2 child rectangles in each rectangle, (but later can do it without "2 child rectangles in each rectangle" and vararg number of childs per rectangle).
-	This will need to at least estimate the horizontal size of the first n things, to choose n to display that way to not be wider than the window, considering how far its already tabbed over.<br>
-	</font>
-	<br><br>
-	TODO findFastestWayToSelectASplat
-	<br><br>
-	TODO [[[Could potentially swarm 1000 players onto 1 shared screen, seen remotely (very compressed, just sharing their gamepad movements among eachother for speed, mostly)
-Tip
-wikibinator
-@wikibinator
-·
-2m
-thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
-	<br>
-	TODO redesignWikibDroppingToDoFewSimpleThingsRecursivelyCuzCantBeLocalToTheNodeItsDroppedIn<br>
-	<code>
-		<br>TODO write out examples of the transforms that could happen, including ambiguously having multiple things it could -> return...
-		<br>
-		<br>dl means drop left. rl means drop right.
-		<br>
-		<br>dl (a b c) -> (dl (a b c))   //DUP
-		<br>dl (a b c) -> (dl a b c)      //DUP
-		<br>
-		<br>dl (T a) -> just do this the same way as "dl (a b c)" etc.
-		<br>
-		<br>(T a) dr -> (T a dr)
-		<br>
-		<br>(a b c) dr -> (a b c dr)
-		<br>
-		<br>dl (S a b) -> (dl (S a b))      //DUP
-		<br>dl (S a b) -> (S (S dl a) b)  //DUP
-		<br>
-		<br>dl (S (S a b) c) -> (dl (S (S a b) c))      //DUP
-		<br>dl (S (S a b) c) -> (S (S (S dl a) b) c)   //DUP
-		<br>
-		<br>(S (S a b) c) dr -> (S (S a b) c dr)         //DUP
-		<br>(S (S a b) c) dr -> (S (S (S a b) c) dr)   //DUP
-		<br>
-		<br>dl (Infcur a b c) -> (dl (Infcur a b c))    //DUP
-		<br>dl (Infcur a b c) -> (Infcur dl a b c)       //DUP
-		<br>
-		<br>(Infcur a b c) dr -> (Infcur a b c dr)
-	</code>
-	<br><br>
-	<b>TODO at end of drag, pop up a circle of allowed actions, including metaL metaR directL directR copyHere deleteHere cancel. No extra clicks, just move mouse that direction and the drag finishes. It will go into actionChooserAtEndOfDrag mode. Add that to overlays. Similar to the circular menu in insanelyTwistedShadowPlanet.</b>
-	<br><br>
-	<b>TODO allow it to drag from and to same splat/rect, by moving the looseY and looseX (and having 2 of each, FROM and TO) to some globalVars {} and the "overlays", and moving that out of splate.</b>
-	<br><br>
-	DONE, solution is options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent, and end of drag doesnt do actions yet. UPDATE: the right side being self and left side being parent, seems to work but there should be a minimum width of rectangle, and I'm undecided if should use 4 corners for metaL metaR directL directR vs if should pop up a menu of actions to do right after the drag. TODO either do just parentOfSelfRect as left half and selfRect as right half (similar to options.fractionRecurse), OR do more angles/possibleActions in selfRect (cuz maybe only need 1 metaL and 1 metaR among both of those?, while still needing parentDirectL and directL and parentDirectR and directR, so it might just be 6 actions needed or something like that), OR use right mouse button or mousewheel etc to choose self vs parent. The meta* actions only need to know where to insert, so in {a b c} theres 4 possible places {|a b c} {a|b c} {a b|c} {a b c|}, and similar of its [a b c]. Theres more direct* actions.
-	<br><br>
-	DONE, its in options.fractionRecurse (set it to 1 to not use it), BUT it feels hard to use. Make the 1/2 1/4 1/8... (but maybe with .4 or 1/3 recursively instead of 1/2) way to refer to self rect or parent of self or parent of parent of self..., and within that an angle (such as snap to 1 of 4 corners for 4 possible actions: directL directR metaL/{}/[] metaR/{}/[]). Make the dragLine that mouse creats when dragging do this on both ends, and have splat.dobs.hardIcon be snapped to those 4 corners or center depending if its those 4 things vs center being drag FROM.<br>
-	TODO get setDragStuff working.<br>
-	TODO display (dropleft) (dropmid) and (dropright) in every node and find some way to make it unambiguous which (y,x) on screen would drop into which of those (3 of them in every node). Then use a copy of selSplat, that has some parts closed so its small enuf to see while dragging, to put in Action of where dragging near, and do the drop when release button, but show if its going to cause an eval vs waiting on more params.<br>
-	TODO add a dragdrop field to Split thats a dragged split, and it chooses 1 of 3 drag places.<br>
-	TODO hook in gamepad mouse keyboard etc, in a certain mode, to do this https://twitter.com/wikibinator/status/1575486566587170818 but very basic lambdas to get started, just update a sum of whatever numbers come in to verify it sees and is forkEdited by the params.<br>
-	TODO keyboard left right down buttons navigate split tree, and show which is selected.<br>
-	TODO Whichever split/splat is selected, have a few fast ways to insert, remove, etc from it, as code editor, but only allow changes that leave splat.fn.n.curriesLeft() (is that the right func?) being at least 1 aka CAN ONLY EDIT THE CODE IN WAYS THAT DONT CAUSE IT TO EVAL YET. Cuz there will be a separate way in UI to eval things so you dont do it by accident.<br>
-	TODO given that the code editor (by selection in the tree) wont let you cause eval, make a separate way of using UI to do evals, maybe similar to iotavm/iotadesktop (an experiment on my github) where you grab a lambda with mouse, drag it to another lambda, which calls it and you are then dragging (holding with mouse) what that lambda call returned and can keep dragging.<br>
-	TODO open/close branch<br>
-	TODO <> for canvas literals etc.<br>
-	TODO canvas or img src= changing the image each time (canvas literals in code)<br>
-	TODO webAudioAPI<br>
-	TODO gamepads<br>
-	TODO drag and drop to call lambda on lambda to find/create lambdas, including between multiple widgets and across different webpages using the 256 bit ids to copy all reachable lambdas not copied so far<br>
-	TODO checkboxes to change displayVarargS etc so users can see what is being hidden to make it more intuitive, even though whats hidden can be derived from contents of the prefix and suffix dobs, other than isLiteral displaying as canvas or webAudioAPI etc cuz that could be hard to see exact pixel brightness etc, or splate.isOpen being false.<br>
-	<br>
-	TODO the "some kind of simple game" mentioned in other TODO, start with just canvas/pic literals, not moving, made by drag and drop lambda onto lambda to find/create lambda that is or contains such graphics. When it starts to look like a screenshot of a game, then mark this as done and move on to the other TODO which is to make it move and playable by gamepad etc.<br>
-	<br>
-	TODO some kind of simple game, pacman-like or tetris-like etc, make that game by using the tree UI then play it with gamepad. Record a video of the whole thing and put up website where ppl can do that same thing or variants of it, with lambdas in general, but website wont store what they make yet as the p2p network isnt built yet.<br>
-	<br>
-	In theory, #wikibinator will be the first system to allow fork-editing of multiplayer games while they're being played, like if half the players kick out the other half, 
- would seamlessly fork into 2 games. AIs could be made to automatically fork and merge as way of negotiating -- https://twitter.com/wikibinator/status/1575500016558690308<br>
-	<br>
-	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
-	<br>
-	
-	<input type=button onclick="rootSplat.putThisStringInAllEmptyDobsDeep('.');" value="show all dobs put . in them if empty":></input>
-	
-	
-	<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+	<font size=30>Wikibinator203 widget</font> (todo all as 1 js file, clean it up and isolate it): drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...<br>
+	<nobr><input type=checkbox id=licenseDetails_chk oninput="Dob('licenseDetails').style.display=(this.checked?'inline':'none');"><label for=licenseDetails_chk>display opensource <b>license</b> below (its 1 paragraph then GNU AGPL 3 then classpath exception.)</label></nobr>
+<div id=licenseDetails style="display:none"><br>
 	LICENSE AT TIME 2023-2-9:[[[
 Wikibinator203 license: The whole turing-complete and hypercomputing space derived from
 this universal combinator/lambda or forks of it and other software (prototype by Ben F Rayfield Y2023),
@@ -7920,4 +7817,271 @@ this library, you may extend this exception to your version of the library,
 but you are not obligated to do so. If you do not wish to do so, delete this 
 exception statement from your version.
 ]]]
+</div>
+	<br><br>
+	<div id=extraTests></div>
+	<br><br>
+	
+	<div id=globalDobs>
+		<div id=globalFromOverlay style="pointer-events:none;position:absolute;background-image:url('pic/fromBackground_transparent.png');background-size:12px;z-index:10000000"></div>
+		<div id=globalToOverlay style="pointer-events:none;position:absolute;background-image:url('pic/toBackground_transparent.png');background-size:12px;z-index:10000001"></div>
+		
+		<div id=mouseOverSelect_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#fff"></div>
+		<div id=mouseOverSelect_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#fff"></div>
+		<div id=mouseOverSelect_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#ddd"></div>
+		<div id=mouseOverSelect_bottom style
+		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#ddd"></div>
+		
+		<div id=mouseOverSelect2_top style="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#1d2"></div>
+		<div id=mouseOverSelect2_left style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#1d2"></div>
+		<div id=mouseOverSelect2_right style="pointer-events:none;position:absolute;z-index:10000003;width:3px;height:20px;background-color:#0c1"></div>
+		<div id=mouseOverSelect2_bottom style
+		="pointer-events:none;position:absolute;z-index:10000003;width:20px;height:3px;background-color:#0c1"></div>
+		
+		<div id=simpleDragUimode_cursor style="position:absolute;z-index:10000004;background-color:white;top:0px;left:0px;opacity:.85;pointer-events:none"></div>
+		
+		<div id=displayThisOnWhatWasLastDropped style="position:absolute;z-index:10000005;background-color:white;top:0px;left:0px;opacity:.85;width=20px;height:3px;pointer-events:none"></div>
+		
+		<img id="fromIcon" src="pic/from_transparent.png" style="position:absolute;z-index:10000006;pointer-events:none"></div>
+		
+		<img id="toIcon" src="pic/to_transparent.png" style="position:absolute;z-index:10000007;pointer-events:none"></div>
+		
+		<div id=dragLineDob style="position:absolute;z-index:10000008;background-color:#0ff;top:0px;left:0px;width:50px;height:50px;pointer-events:none"></div>
+		
+		<div id=popupMenuDob style="position:absolute;z-index:10000009;background-color:gray;top:0px;left:0px"></div>
+	</div>
+	
+	<center>
+		<table border=3><tr><td width=30% valign=top>
+			TODO the mutableWrapperLambda system... (this doesnt work yet)...<br><br>
+			<nobr><b>Password creates publickey:</b><input id=passwordInput type=password cols=40 placeholder="password creates publicKey"></input></nobr>
+			<div id=publickeyDob>TODO a specific YourPublicKey appears here<div>
+			<div id=lambdamailDob>
+				<div style="background-color:#4b0">✕ (YourPublicKey [hello YourPublicKey]) -> <nobr>???drag and drop to here???</nobr></div>
+				<div style="background-color:#4bf">✕ (YourPublicKey [some game quicksave is... [the thing...]]) -> <nobr>???drag and drop to here???</nobr></div>
+			</div>
+			<br>
+			About the above^... You can use wikibinator anonymously with no user account/publickey at all, or with a publickey, and you can hook that to an identity in external systems if you want, or not.
+			This is for incoming messages. When anyone in the peer to peer network (TODO) calls (YourPublicKey IncomingMessage),
+			its checked against your local filter (any Lambda you choose, TODO) and if it passes, it appears here,
+			and you can drag a lambda as the response to it or click X on it to not respond.
+			So YourPublicKey acts like a lambda when others call it, including that multiple calls for the same param
+			are cached potentially forever and shouldnt repeat here (but may if not deduped yet?, TODO).
+			(YourPublicKey IncomingMessage) -> OutgoingResponse.
+			To get a publickey, type any password here, which gets hashed to make an ed25519 publickey, that will appear below (TODO).
+			The lambdas can do any algorithm, so doesnt have to be ed25519 but thats what the prototype will start with.
+			This password is not (TODO verify security) copied outside this browser window, unless your browser or its plugins or OS etc is spying on it.
+			Only digital signatures of it are normally shared.
+			All lambdas (including passwords, digital signatures, words, game quicksaves, etc) ever shared to other computers may be seen by anyone in the world. As a "wiki"-like system its a shared space, so dont share your password or things you dont want everyone to see. No take backs. Its like IPFS in that once it goes up its not coming down until computers and people stop downloading it for some time. (TODO peer to peer network)
+		</td><td valign=top>
+			<div id=controlsAboveRootDob>
+				QuickSave and QuickLoad use cookies. In future versions, it will have the option to save/download generated file and drag files in, and to drag just parts into and out of those files or cookies and to share and stream online.<br>
+				
+				<input type=button onclick="rootSplat.putThisStringInAllEmptyDobsDeep('.');" value="show all dobs put . in them if empty":></input><br>
+				<nobr><input type=button value="QuickSave 1" onclick="quickSave(1);"></input><input type=button value="QuickLoad 1" onclick="quickLoad(1);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 2" onclick="quickSave(2);"></input><input type=button value="QuickLoad 2" onclick="quickLoad(2);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 3" onclick="quickSave(3);"></input><input type=button value="QuickLoad 3" onclick="quickLoad(3);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 4" onclick="quickSave(4);"></input><input type=button value="QuickLoad 4" onclick="quickLoad(4);"></input></nobr>
+				&nbsp;&nbsp;<nobr><input type=button value="QuickSave 5" onclick="quickSave(5);"></input><input type=button value="QuickLoad 5" onclick="quickLoad(5);"></input></nobr>
+				<br><br>
+				<input type=button value="goToUrlOfCurrentFn()" onclick="goToUrlOfCurrentFn();"></input>
+				<input type=button value="Reload page" onclick="location.reload();"></input>
+				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
+				<nobr>
+					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox></input>
+					<label for=alwaysForceUpdateDisplayAfterDrop>Always force update display after drag (FIXME shouldnt need this, and leaving this on makes it slower.</label>
+				</nobr>
+			</div><br>
+			<div id=copyOfPopupMenuToPreChoose></div><br>
+			<div id=vmStats></div><br>
+			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
+			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
+			<div id=logOut></div><br>
+			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; transpileAndDisplayIf(fn); }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
+			
+			<div style="display:inline-block">
+				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
+				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
+			</div><br>
+			<input type=button onclick="vm.eval(Dob('codeIn').value);" value="eval code without try/catch, so can see stacktrace on console"></input><br>
+			
+			<textarea rows=5 cols=90 readonly id=codeErr></textarea><br>
+			
+			<nobr><input type=checkbox id=chk_codeTranspiledOut checked></input><label for=chk_codeTranspiledOut>transpile.</label></nobr> --
+			Transpiled code out (to convert some lambdas to javascript for speed, but only works on some patterns of lambdas. Also todo gpujs and glsl and maybe python and java etc)...<br>
+			<textarea rows=5 cols=90 readonly id=codeTranspiledOut></textarea>
+		</td></tr></table>
+	</center>
+
+<nobr><input type=checkbox id=todosAndDisorganizedWritingDiv_chk oninput="Dob('todosAndDisorganizedWritingDiv').style.display=(this.checked?'inline':'none');"><label for=todosAndDisorganizedWritingDiv_chk>display old todos and disorganized writing below</label></nobr>
+<div id=todosAndDisorganizedWritingDiv style="display:none">
+<div>
+wikib treeui fix the cant drop at same place to and from, by 2 dragsteps per splate. no, do in uistate 2 splats.
+no, instead... xllrlr_xpos_ypos is coordinate. put 2 of those and some button stuff and highlight stuff in uistate, and onsolete those parts of splate.
+<br><br>
+Do all of these as vm.ops.Treemap etc, including wrappers of byte[].<br>
+* small circle icon for FROM or wouldFroim.<br>
+* small circle icon for TO or wouldTo.<br>
+* dragLine.<br>
+* outer border rect drag FROM.<br>
+* inner border rect drag TO.<br>
+* border of rect just BEFORE the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* border of rect just dropped, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* border of rect just AFTER the last drop, if it still exists cuz calls might have replaced it, or maybe select ALL rects that have the same fn by localId128.<br>
+* treemap of gamepads, keyboard buttons, mouse position, etc, but only those parts whose value is nonzero at the time. Values are double.<br>
+* treemap of sound channels in, in blocks of time or func of time to amplitude or something like that.<br>
+* treemap of video in (webcams)<br>
+* treemap of video out (canvases) as func that returns pixel bytes when called on something (or just the literal bytes?)<br>
+* todo should the password and mutableWrapperLambda incoming stuff be part of this? Might need a private area (make sure not to share these parts accidentally as cache etc)? Incoming and outgoing messages are not private (cuz its WIKIbinator), but password is, so if u want privacy u have to derive an encryption lambda.<br>
+* listweb-like treemap, for PrilistStacks (see those in the java version of listweb), but fns are the names.<br>
+..<br>
+**** Do I want a syntax andOr treeUI thing for treemaps? Maybe later, but im gonna get some or all of the aboive stuff working first. Treemap is already designed to be human readable, just not human editable directly. Its keys are in sorted order, and key/val always go together. But it doesnt yet display or maybe not even allow big blobs yet. ive been using them only up to how big an id can be but past that, it seems to have some bugs if I remember correctly.
+<br><br>
+XLLRLRL (to select which rect) and y and x fractions (where in it, or negative or above 1 for outside it but in its same coords), for each of FROM and TO and any other 2d points in tree coordinates. Borders dont need the x and y, or the x and y are always 0 or 1.
+<br><br>
+Hook in gamepads, mouse, and keyboard too. But is now a good time for that? Its part of input, and seems to fit well with this design, so YES. Also, byte arrays for microphone and webcam, and maybe also outputs for speakers and a separate canvas (not in the tree)? These could all go in either uiState or a new useAsImmutable datastruct of jsMaps. Just make {}s that have __bigHash var in them? {bigHash_: null, vars: {}, ...} or something like that? Or I could use a vm.ops.Treemap which can wrap byte arrays etc. Why not use that? Is it fast enuf? YES.
+			</div>
+			<h1>
+				TODO [] is Infcur. -= is Rucfni (infcur spelled backward). Make lisp-like syntax like -car -cons a b== or maybe it should be .car .cons .a .b or maybe the .thing aka get var thing from Treemap (stateless) state (second param, first is linkedlist of params).<br>
+				FIX THIS: make delete and COPY, both in right mouse button drag, work with &lt;...&gt; syntax, and test it with earlier syntaxes too.
+			</h1>
+	
+	<hr><hr><hr>
+	<font color=gray>DONE ENOUGH FOR NOW, but could be more efficient by not calling setSplit twice (do only once), the second call happening in updateDisplayToWrap at end of each dragAndDrop: in setSplit, which happens at end of a dragAndDrop, make it rebuild the visual tree if isOneLine and maybe other times,
+	cuz its not considering the different width after the draw. Is the max width part of splate (in split), or is it some func param?
+	It seems likely to be function param, and if so, maybe I should move it into splate or into split (probably into splate is better)?</font>
+	<br><br>
+	<font color=gray>DONE ENOUGH FOR NOW, its ok to call that many times since its updating many times per second, but i turned off some options (see options = {... map) to make it fast enuf (is still slow while browser debugger is open): figure out why setSplit is being called 3000 times per second just for mouse to move over it, and about 10-50 times per call of doBeforeDrag,
+	as you can on browser console type test_rememberDobsIn_setSplit and look at the last n of them,
+	with mouse over them in browser console, to see which rectangles on the page setSplit is called on.</font>
+	<br><br>
+	FIXME the pushEvaler optimization of vm.identityFunc() does not wrap its param: F(U)(2)==2 returns true, but should return a wrapper of 2, in case its called on another param and throws cuz 2 is not a fn.
+	<br><br>
+	FIXME isDisplayPushAndPopChars is true when drag 2.34 to {abc def} and click metaL. Then I selected the {2.34 abc def} in {{2.34 abc def} ghi} and did selSplat.transformSplate(splate=>splate.setIsDisplayPushAndPopChars(false)) then selected it and verified its splate has isDisplayPushAndPopChars false (which was true in prev splat). But while thats false, its still displaying 2 { and 2 } instead of 1 of each. So theres 2 problems: when drop it that way (with metaL (and maybe other ways of dropping?)) it doesnt set isDisplayPushAndPopChars to false, AND when that is false, it displays the inner { and } anyways.
+	<br><br>
+	<div style="background-color:blue">TODO...<br>
+		TODO in the lambda dir theres some pseudocode for small parts of AugmentedBalls. Update it with the new syntax, including &lt;a b c&gt; meaning {,a b c} and Fo[x y z] meaning (Fo [x y z]) and anything of at most 3 chars (such as Fo += T _ etc) can use prefix syntax. Test it without optimizations, on a very small canvas. Then CPU optimize with vm.Mut objects and use a 512x512 or 1024x1024 canvas etc.
+		<br><br>
+		TODO also fix the tostringer in vm.Node.prototype.toString, cuz its not displaying all the code that goes in, things like "{ abc}" so theres a space between something displayed as 0 chars {? abc} and the abc. This will only be useful for small code. Bigger code will have to use the tree/rectangles UI cuz it can display sparsely.
+		<br><br>
+		SOLUTION: get rid of Mutlam. Only have λ and Stream/Treemap (aka State) loops/ifelse/etc, and add an opcode (V) to make it easy to copy all λ params to a State and to get a return value out of it. The λ will have U as its last param name to put a State in, but not all λ have to be like that.
+		<br><br>
+		V means to copy the vars from λ into State then get a certain return value out of it.
+		<br><br>
+		SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))<br>
+		FivePlusAMutVar#(SumOfAParamAndAMutVar 5)<br>
+		_[<br>
+			=[,mul ,1]<br>
+			Fo[,y ,10 *=[,mul <SumOfAParamAndAMutVar ,5>]]<br>
+			//10 times, multiplies mul by 5+y, for y from 0 to 9. Then returns x+y.<br>
+			//<a b c> means {,a b c}.<br>
+			//Fo takes var size [] and does _[] with all params at end.<br>
+		]<br>
+		<br><br>
+		In tree/rectangle UI, anything thats 3 chars or shorter, put it as a prefix, such as T _ Fo If Ife Whi += * *= etc,
+		if it would be (a b).
+		<br><br>
+		For all the math ops of 2 params that are opcodes, such as * + /, make them also have a +[,5 .b {...} .xyz] form that takes 1 more param, a Treemap/EmptyTreemap, AND if the first param is not a [] then just add them normally.
+		<br><br>
+		Any cbt64 thats a normed IEEE754 double, display it as such a double, else display it as 0x...., so dont need TypevalC prefix??? Might make it easier to optimize + * += etc???
+		<br><br>
+		What does V do in "SumOfAParamAndAMutVar#(λ [x U] comment (V +[.x .y]))"?
+		Does it convert it all to Treemap? Or should there be another kind of State like (LambdaAndMapState allLambdaParamsExceptLast lastLambdaParam Treemap GetVar) -> val of the GetVar key in allLambdaParamsExceptLast or lastLambdaParam or Treemap? If the latter, then TreemapPut etc will have to be modified to work with LambdaAndMapState or Treemap directly.
+		<br><br>
+		Get the float64 math well defined. Any ops that cant be done deterministicly in CPU at least, they'll have to run slower in deterministic mode (can be done higher on stack and nondeterministic lower on stack, anywhere on stack chosen to tighten constraints, see vm.mask_*). Every math op, such as Sine, Plus, Exp, Imul, etc, must have exact bits defined in terms of math on int32s. see those opcodes that when asked about other opcodes derives them using int16s etc. That would take a param of cbt128 and return cbt64. Its expected that float32 ops in GLSL (gpu optimized in browser using GPU.js) and float32 and float64 in opencl may be nondeterministic in some computers so those optimizations would only be available in nondeterministic roundoff mode. But its also expected that int math of various sizes, such as int8 int16 int32 int64 etc can be done exactly everywhere, and since GLSL only has 24 bits of ints available for adding masking etc, and doesnt intmul the same as ints cuz of variable exponent, might have to use only up to int12 for multiplying there, and derive more from that, or maybe uint8 or something. Various derived code will be done. So using that, at a cost of extra flops (but not extra IO, which is the usual bottleneck), GPU in browser should be able to compute Sine Exp etc deterministicly faster than CPU (if very parallel calculation) or much much faster than CPU if allow nondeterministic roundoff.
+	</div>
+	<hr><hr><hr>
+	
+	
+	<br><font color=gray>
+	DONE/FIXED: [[[]]] etc is only showing 1 []. options.displayVarargLists is probably buggy.<br>
+	DONE ENOUGH: make estimateWidth more accurate by checking for isFoldL isFoldT etc, since those cause not all childs to be displayed or not displayed the normal way.<br>
+	DONE, it was conflict between flex layout and rowspan andOr colspan: dobs.suffixb is displaying too low. rowspan and colspan used in same table might be confusing it??<br>
+	DONE enough, but still some vertical padding to get rid of: do_forkTryMaxWidth_experimentOnWindowLoad make some be isOneLine and some not depending on estimateWidth(true) recursively, to make good use of screen space.<br>
+	DONE: forkTryMaxWidth, add estimateWidth and estimateHeight funcs to Split.prototype (added those already but theres throw todo in it), for use with isOneLine, so it doesnt get too long, and use it recursively.<br>
+	CANCELLED cuz dont need to reparent dobs when using flex layout: addDolayoutFuncToWikibTreeUINodesAndSeparateLayoutDobsFromSelfDobsWhichGetReparentedInLayoutNodesAndOnlyCreateLayoutNodesIfNotAlreadyExist<br>
+	DONE: eachFirstLineCanHaveMultiThingsInIt, an isOneLine syntax/layout for the first n params in a {} [] () but after that each thing is on its own line,
+	cuz it has to be that way to be 2 child rectangles in each rectangle, (but later can do it without "2 child rectangles in each rectangle" and vararg number of childs per rectangle).
+	This will need to at least estimate the horizontal size of the first n things, to choose n to display that way to not be wider than the window, considering how far its already tabbed over.<br>
+	</font>
+	<br><br>
+	TODO findFastestWayToSelectASplat
+	<br><br>
+	TODO [[[Could potentially swarm 1000 players onto 1 shared screen, seen remotely (very compressed, just sharing their gamepad movements among eachother for speed, mostly)
+Tip
+wikibinator
+@wikibinator
+·
+2m
+thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
+	<br>
+	TODO redesignWikibDroppingToDoFewSimpleThingsRecursivelyCuzCantBeLocalToTheNodeItsDroppedIn<br>
+	<code>
+		<br>TODO write out examples of the transforms that could happen, including ambiguously having multiple things it could -> return...
+		<br>
+		<br>dl means drop left. rl means drop right.
+		<br>
+		<br>dl (a b c) -> (dl (a b c))   //DUP
+		<br>dl (a b c) -> (dl a b c)      //DUP
+		<br>
+		<br>dl (T a) -> just do this the same way as "dl (a b c)" etc.
+		<br>
+		<br>(T a) dr -> (T a dr)
+		<br>
+		<br>(a b c) dr -> (a b c dr)
+		<br>
+		<br>dl (S a b) -> (dl (S a b))      //DUP
+		<br>dl (S a b) -> (S (S dl a) b)  //DUP
+		<br>
+		<br>dl (S (S a b) c) -> (dl (S (S a b) c))      //DUP
+		<br>dl (S (S a b) c) -> (S (S (S dl a) b) c)   //DUP
+		<br>
+		<br>(S (S a b) c) dr -> (S (S a b) c dr)         //DUP
+		<br>(S (S a b) c) dr -> (S (S (S a b) c) dr)   //DUP
+		<br>
+		<br>dl (Infcur a b c) -> (dl (Infcur a b c))    //DUP
+		<br>dl (Infcur a b c) -> (Infcur dl a b c)       //DUP
+		<br>
+		<br>(Infcur a b c) dr -> (Infcur a b c dr)
+	</code>
+	<br><br>
+	<b>TODO at end of drag, pop up a circle of allowed actions, including metaL metaR directL directR copyHere deleteHere cancel. No extra clicks, just move mouse that direction and the drag finishes. It will go into actionChooserAtEndOfDrag mode. Add that to overlays. Similar to the circular menu in insanelyTwistedShadowPlanet.</b>
+	<br><br>
+	<b>TODO allow it to drag from and to same splat/rect, by moving the looseY and looseX (and having 2 of each, FROM and TO) to some globalVars {} and the "overlays", and moving that out of splate.</b>
+	<br><br>
+	DONE, solution is options.screenYXToSplatfyfx_topIsSelfAndIfRightThenBottomIsParent, and end of drag doesnt do actions yet. UPDATE: the right side being self and left side being parent, seems to work but there should be a minimum width of rectangle, and I'm undecided if should use 4 corners for metaL metaR directL directR vs if should pop up a menu of actions to do right after the drag. TODO either do just parentOfSelfRect as left half and selfRect as right half (similar to options.fractionRecurse), OR do more angles/possibleActions in selfRect (cuz maybe only need 1 metaL and 1 metaR among both of those?, while still needing parentDirectL and directL and parentDirectR and directR, so it might just be 6 actions needed or something like that), OR use right mouse button or mousewheel etc to choose self vs parent. The meta* actions only need to know where to insert, so in {a b c} theres 4 possible places {|a b c} {a|b c} {a b|c} {a b c|}, and similar of its [a b c]. Theres more direct* actions.
+	<br><br>
+	DONE, its in options.fractionRecurse (set it to 1 to not use it), BUT it feels hard to use. Make the 1/2 1/4 1/8... (but maybe with .4 or 1/3 recursively instead of 1/2) way to refer to self rect or parent of self or parent of parent of self..., and within that an angle (such as snap to 1 of 4 corners for 4 possible actions: directL directR metaL/{}/[] metaR/{}/[]). Make the dragLine that mouse creats when dragging do this on both ends, and have splat.dobs.hardIcon be snapped to those 4 corners or center depending if its those 4 things vs center being drag FROM.<br>
+	TODO get setDragStuff working.<br>
+	TODO display (dropleft) (dropmid) and (dropright) in every node and find some way to make it unambiguous which (y,x) on screen would drop into which of those (3 of them in every node). Then use a copy of selSplat, that has some parts closed so its small enuf to see while dragging, to put in Action of where dragging near, and do the drop when release button, but show if its going to cause an eval vs waiting on more params.<br>
+	TODO add a dragdrop field to Split thats a dragged split, and it chooses 1 of 3 drag places.<br>
+	TODO hook in gamepad mouse keyboard etc, in a certain mode, to do this https://twitter.com/wikibinator/status/1575486566587170818 but very basic lambdas to get started, just update a sum of whatever numbers come in to verify it sees and is forkEdited by the params.<br>
+	TODO keyboard left right down buttons navigate split tree, and show which is selected.<br>
+	TODO Whichever split/splat is selected, have a few fast ways to insert, remove, etc from it, as code editor, but only allow changes that leave splat.fn.n.curriesLeft() (is that the right func?) being at least 1 aka CAN ONLY EDIT THE CODE IN WAYS THAT DONT CAUSE IT TO EVAL YET. Cuz there will be a separate way in UI to eval things so you dont do it by accident.<br>
+	TODO given that the code editor (by selection in the tree) wont let you cause eval, make a separate way of using UI to do evals, maybe similar to iotavm/iotadesktop (an experiment on my github) where you grab a lambda with mouse, drag it to another lambda, which calls it and you are then dragging (holding with mouse) what that lambda call returned and can keep dragging.<br>
+	TODO open/close branch<br>
+	TODO <> for canvas literals etc.<br>
+	TODO canvas or img src= changing the image each time (canvas literals in code)<br>
+	TODO webAudioAPI<br>
+	TODO gamepads<br>
+	TODO drag and drop to call lambda on lambda to find/create lambdas, including between multiple widgets and across different webpages using the 256 bit ids to copy all reachable lambdas not copied so far<br>
+	TODO checkboxes to change displayVarargS etc so users can see what is being hidden to make it more intuitive, even though whats hidden can be derived from contents of the prefix and suffix dobs, other than isLiteral displaying as canvas or webAudioAPI etc cuz that could be hard to see exact pixel brightness etc, or splate.isOpen being false.<br>
+	<br>
+	TODO the "some kind of simple game" mentioned in other TODO, start with just canvas/pic literals, not moving, made by drag and drop lambda onto lambda to find/create lambda that is or contains such graphics. When it starts to look like a screenshot of a game, then mark this as done and move on to the other TODO which is to make it move and playable by gamepad etc.<br>
+	<br>
+	TODO some kind of simple game, pacman-like or tetris-like etc, make that game by using the tree UI then play it with gamepad. Record a video of the whole thing and put up website where ppl can do that same thing or variants of it, with lambdas in general, but website wont store what they make yet as the p2p network isnt built yet.<br>
+	<br>
+	In theory, #wikibinator will be the first system to allow fork-editing of multiplayer games while they're being played, like if half the players kick out the other half, 
+ would seamlessly fork into 2 games. AIs could be made to automatically fork and merge as way of negotiating -- https://twitter.com/wikibinator/status/1575500016558690308<br>
+	<br>
+	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
+	<br>
+
+	
+	
+	
+</div>
+	
+<br><br><br>
+
 </body></html>
