@@ -3146,6 +3146,12 @@ const Wikibinator203 = (()=>{
 	//vm.loglev is 0 for no logging, and higher numbers for more logging.
 	vm.loglev = 1;
 	if(vm.loglev>0) console.log('Wikibinator203VM loglev='+vm.loglev);
+
+	//TODO vm.logEveryLambdaCallAsFullToString = false;
+	vm.logEveryLambdaCallAsFullToString = true;
+
+	//vm.logDetailedStateDuringFoLoop = false;
+	vm.logDetailedStateDuringFoLoop = true;
 		
 	vm.ops = {}; //map of opName to lambda
 	vm.opAbbrevs = {}; //similar to vm.ops except its , instead of T, and _ instead of Seq
@@ -3538,7 +3544,14 @@ const Wikibinator203 = (()=>{
 		//You can have more lambda params but the lambda will become like Infcur,
 		//and in that case its curriesLeft will be 255. 254-8=246 so maxLambdaParams is 246.
 		//vm.maxLambdaParams = 246;
-		vm.maxLambdaParams = 245;
+		//vm.maxLambdaParams = 245;
+		//
+		//maxLambdaParams includes the extra (EmptyTreemap GodelLessThan) param of Mutlambda, so lambda can have 1 more normal param than mutlambda.
+		//Since 2023-4-12+ I'm moving the FuncBody param to the end of the params list, and removing the comment param (can use (CC comment FuncBody) in place of FuncBody),
+		//im increasing from "vm.maxLambdaParams = 245;" to 247. The first 7 params (at which o8/opcode is known) + 247 is 254.
+		//255 is infinity params and used in Infcur/[]/Rucfni/-=. If its more than that, it will keep taking more params, and its param getters x% y% etc wont work as expected
+		//but do need to be well defined (TODO). Maybe such getters should always return U meaning doesnt have such a param?
+		vm.maxLambdaParams = 247;
 		
 		vm.overlappingBufferInts = new Int32Array(2);
 		vm.overlappingBufferDouble = new Float64Array(vm.overlappingBufferInts.buffer);
@@ -3753,7 +3766,9 @@ const Wikibinator203 = (()=>{
 					}*/
 					console.log('about to set curriesLeft. op='+op);
 					switch(op){
-						case vm.o8OfLambdo: //Lambdo has 7 params. Lambda has 6.
+						case vm.o8OfLambdo:case vm.o8OfMutlambdo:{ //Lambdo has 7 params. Lambda has 6.
+
+							/*the old design before 2023-4-11
 							//(Lambda [...paramNames...] FuncBody ...params...).
 							//Lambda is 6th param (an opcode despite those normally are at param 7,
 							//cuz list size of [...paramNames...]
@@ -3778,11 +3793,44 @@ const Wikibinator203 = (()=>{
 								//Lambda similar to Infcur, takes infinity params, never evals.
 								curriesLeft = 255; //infinity. 1..254 params are a specific number of params. 0 is evaling.
 							}
-						break;case vm.o8OfMutLam:
-							console.log('fixmefixme Returning 1 for now, which is wrong, just so all the ops can be created without crashing, but dont use this op yet. similar to Lambda but with an extra param for [...(ObKeyVal key val)...] stateless state');
-							curriesLeft = 1; //fixme
-						break;default:
+							*/
+
+							//(λ [...paramNames... FuncBody] ...params...), and FuncBody may be (CC [a comment] FuncBody) if u want a comment.
+							//Lambda is 6th param (an opcode despite those normally are at param 7,
+							//cuz list size of [...paramNames...]
+							//affects how many params (Lambda [...paramNames...] FuncBody) takes.
+
+							//Mutlambda/Λ (6 params) and Mutlambdo (7 params) is similar to Lambda/λ (6 params) and Lambdo (7 params).
+							//The differences are Mutlambda takes an extra param thats for example (EmptyTreemap GodelLessThan) AND that it uses a (Ns (LamNs...) thatTreemap)
+							//which is a recursive namespace, compared to Lambda just uses the (LamNs...).
+							
+							//(Λ [...paramNames... FuncBody] ...params... (EmptyTreemap GodelLessThan)), and FuncBody may be (CC [a comment] FuncBody) if u want a comment.
+						
+							/*let listSize; //in new design 2023-4-12+ FuncBody goes at end of params list so its 1 bigger.
+							let numExtraParams = op==vm.o8OfMutlambdo ? 1 : 0; //the extra (EmptyTreemap GodelLessThan) param or not.
+							let numLessParams = 1; //cuz FuncBody, in (λ_or_Λ [a b c... FuncBody]), is not 1 of the params.
+							let paramsAlready = 7; //cuz o8/opcode is known at 7 params, and here is in the "}else if(isNowGettingIts7thParam){".
+							if(rNode.o8() === vm.o8OfInfcur && ((listSize=rNode.cur())-numLessParams+numExtraParams-paramsAlready) <= vm.maxLambdaParams){ //FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params
+							*/
+
+							if(rNode.o8() != vm.o8OfInfcur){
+								//Lambda similar to Infcur, takes infinity params, never evals. FIXME should this infloop? No, it cant, cuz must always be halted at 7 params of U.
+								curriesLeft = 255; //infinity. 1..254 params are a specific number of params. 0 is evaling.
+							}else{
+								let listSize = rNode.cur()-7;
+								let numNormalParams = listSize-1; //exclude FuncBody at end of list.
+								let numExtraParams = op==vm.o8OfMutlambdo ? 1 : 0; //the extra (EmptyTreemap GodelLessThan) param or not.
+								curriesLeft = numNormalParams+numExtraParams;
+								if(curriesLeft > vm.maxLambdaParams){
+									//If curriesLeft is 255 then it will never call FuncBody, just keep taking more params / currying.
+									//This is allowed for math completeness but is not useful as a lambda/mutlambda.
+									curriesLeft = 255;
+								}
+								console.log('Lambda (case vm.o8OfLambdo:case vm.o8OfMutlambdo:) getting its 7th param a [], curriesLeft='+curriesLeft+' isTooManyParamsWillNeverCallFuncBodyJustKeepTakingParams='+(curriesLeft==255)+' hasExtraNamespaceParam='+( op==vm.o8OfMutlambdo)+' vm.maxLambdaParams='+vm.maxLambdaParams);
+							}
+						}break;default:{
 							curriesLeft = vm.opInfo[op].curriesLeft;
+						}
 					}
 					
 
@@ -4146,7 +4194,8 @@ const Wikibinator203 = (()=>{
 			return this.lam===T;
 		};
 
-		//Example: a Lambda with [...paramNames...] at param 7 and FuncBody at param 8, downToCur(8) gives (Lambda [...] FuncBody),
+		//Example: a Lambda with [...paramNames...] at param 7 and FuncBody at param 8,
+		//downToCur(8) gives (Lambda [...] FuncBody) (UPDATE: FuncBody moved to end of the [...] so after that is param),
 		//and downToCur(7) would give (Lambda [...]). If cur is already less than that, throws.
 		vm.Node.prototype.downToCur = function(cur){
 			let observeCur = this.cur();
@@ -4159,6 +4208,9 @@ const Wikibinator203 = (()=>{
 			return ret;
 		};
 		
+		//as of 2023-4 this should also do LamNs and Ns (TODO), not just Lambdo (the 7 param form of Lambda which is 6 params of U)
+		//and MutLamdo (the 7 param form of Mutlambda which is 6 params of U). ??? Or maybe it shouldnt do LamNs or Ns, cuz its not getting a param,
+		//its getting L of L of L so less params on it.
 		vm.Node.prototype.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things = function(curN){
 			if(curN < 7) throw 'curN='+curN;
 			let o8 = this.o8();
@@ -4178,19 +4230,29 @@ const Wikibinator203 = (()=>{
 				...
 				*/
 				
-				case vm.o8OfInfcur:
-					if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
+				case vm.o8OfInfcur:{
+					throw 'Infcur/[] isnt used as namespace anymore. Use LamNs instead (the other kinds of namespace are Ns, Treemap, and EmptyTreemap, and maybe Lambdo and Mutlambdo but those get wrapped in LamNs). So todo rename this getAtCurNOfLambdaOrMutLamOrInfcurOf2Things to not say Infcurof2things.';
+					/*if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
 					let shouldBeLambdaOrMutLam = this.l.n.r;
 					return this.downToCur(curN);
 					//this.cacheFuncBody = shouldBeLambdaOrMutLam.funcBody();
-				break;case vm.o8OfLambdo:
-					if(this.cur() < curN) throw 'There is no 8th param so cant get FuncBody. If this is called in paramNames then FIXME that should call this.downToCur(7) instead but FIXME need to handle [AllParamsExceptLast LastParam].';
+					*/
+				}break;case vm.o8OfLambdo:{
+					//if(this.cur() < curN) throw 'There is no 8th param so cant get FuncBody. If this is called in paramNames then FIXME that should call this.downToCur(7) instead but FIXME need to handle [AllParamsExceptLast LastParam].';
 					//this.cacheFuncBody = this.downToCur(8).n.r;
 					//return this.downToCur(8);
 					return this.downToCur(curN);
 					//while(find.n.curriesLeft() != 2) find = find.n.l; //lambda.n is the same as lambda()
-				break;case vm.o8OfMutLam:
-					throw 'TODO';
+				}break;case vm.o8OfMutlambdo:{
+					return this.downToCur(curN);
+					//throw 'TODO';
+				}break;case vm.o8OfNs:{
+					throw 'Dont do Ns here.';
+				}break;case vm.o8OfLamNs:{
+					//let lastParamName = this.paramNamesWithoutFuncBody().n.R(); //FIXME what if theres 0 param names? Should ops.Lambda do the same thinga as if params list is not a list at all if so? Cuz every possible combo of at most 7 params of U (recursively no more than 7 in childs either) must be halted.
+					//if()
+					throw 'Dont do LamNs here.';
+
 				/*case vm.o8OfVarargAx:case o8OfLambda:
 					let find = this.lam; //starts as (varargAx funcBodyAndVarargChooser a b c d) or (opOneMoreParam aVarName aLambda ...params...)
 					let prevFind = find;
@@ -4203,9 +4265,9 @@ const Wikibinator203 = (()=>{
 				//break;case vm.o8OfOpOneMoreParam:
 					//this.cacheFuncBody = TODO;
 				//	throw 'TODO find aLambda in (opOneMoreParam aVarName aLambda ...params...) and call node.funcBody() on it recursively.';
-				break;default:
+				}break;default:
 					//this.cacheFuncBody = U;
-					throw 'Unknown o8 for getAtCur8OfLambdaOrMutLamOrInfcurOf2Things: '+o8;
+					throw 'Unknown o8 for getAtCurNOfLambdaOrMutLamOrInfcurOf2Things: '+o8;
 			}
 			//return this.cacheFuncBody;
 		};
@@ -4264,30 +4326,59 @@ const Wikibinator203 = (()=>{
 		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...) etc, returns FuncBody.
 		vm.Node.prototype.funcBody = function(){
 			if(!this.cacheFuncBody){
-				//let at8Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8);
-				//this.cacheFuncBody = at8Params.n.r;
-				//FIXME, this might break things: 2022-8-27 adding a comment param before funcBody in vm.ops.Lambdo, so FuncBody is now param 9 (was 8).
-				let at9Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(9);
-				this.cacheFuncBody = at9Params.n.r;
+				if(vm.isFullLamNs(this.lam)){
+					//(LamNs (ops.Lambda_or_ops.MutLambdo ...) lastParam)
+					let lambdoOrMutlambdo = this.L().n.R();
+					this.cacheFuncBody = lambdoOrMutlambdo.n.funcBody();
+				}else if(this.o8() == vm.o8OfLambdo || this.o8() == vm.o8OfMutlambdo){
+
+					//let at8Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(8);
+					//this.cacheFuncBody = at8Params.n.r;
+					//FIXME, this might break things: 2022-8-27 adding a comment param before funcBody in vm.ops.Lambdo, so FuncBody is now param 9 (was 8).
+					
+					//This was correct 2023-4-11, but redesigning Lambdo and Mutlambdo ops to put funcBody at end of params list,
+					//and remove comment param which is right after param list, so its 2 params shorter... (// aka comment op can be around funcbody or not)
+					//let at9Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(9);				
+					//this.cacheFuncBody = at9Params.n.r;
+					let at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+					let paramListWithFuncBodyAtEnd = at7Params.n.R(); //For (λ [x y (P x)] valX) its [x y (P x)]
+					this.cacheFuncBody = paramListWithFuncBodyAtEnd.n.R(); //For (λ [x y (P x)] valX) its (P x)
+				}else{
+					throw 'TODO are there other cases where a funcbody is defined? op='+this.opName();
+				}
 			}
 			return this.cacheFuncBody;
 		};
 		
+		//TODO rename this to paramNamesWithFuncBody.
+		//gets the 7th param which is, as of 2023-4, [a b c FuncBody] if the params are a b c.
+		//
 		//In a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam)],
 		//or in (Lambda_or_MutLam [..paramNames..] FuncBody ...firstNParams...), returns the [..paramNames..].
 		vm.Node.prototype.paramNames = function(){
 			if(!this.cacheParamNames){
-				let at7Params;
 				if(this.o8() === vm.o8OfInfcur){
-					if(this.cur() != 9) throw 'Is not an Infcur/[] of 2 things';
+					if(this.cur() != 9){
+						throw 'Is not an Infcur/[] of 2 things: '+this.lam;
+					}
 					let normallyIsALambdaOrMutlam = this.l.n.r;
-					at7Params = normallyIsALambdaOrMutlam.n.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+					let at7Params = normallyIsALambdaOrMutlam.n.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+					this.cacheParamNames = at7Params.n.R();
+				}else if(vm.isFullLamNs(this.lam)){ //o8 is vm.o8OfLamNs and curriesLeft is 1.
+					//FIXME what to do if its not a lambdoOrMutlambdo?
+					let lambdoOrMutlambdo = this.L().n.R();
+					this.cacheParamNames = lambdoOrMutlambdo.n.paramNames(); //Example: [a b c FuncBody] if params are a b c. TODO rename paramNames to paramNamesWithFuncBody.
 				}else{
-					at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+					let at7Params = this.getAtCurNOfLambdaOrMutLamOrInfcurOf2Things(7);
+					this.cacheParamNames = at7Params.n.R();
 				}
-				this.cacheParamNames = at7Params.n.r;
+				
 			}
 			return this.cacheParamNames;
+		};
+
+		vm.Node.prototype.paramNamesWithoutFuncBody = function(){
+			return this.paramNames().n.L();
 		};
 		
 		
@@ -4304,53 +4395,282 @@ const Wikibinator203 = (()=>{
 					return U;
 			}
 		};
-		
-		//name is a fn.
-		//get Param whose name is any fn, normally a (Typeval U Utf8bytes) aka the simplest kind of string but could be any fn/lambda.
-		//If there is no such param, returns U.
-		//If theres more than 1 param of the same name, returns the rightmost one. I didnt mean to design it to allow
-		//multiple params of the same name, but its for efficiency that Lambda op does not check the list of param names for duplicates.
-		vm.Node.prototype.p = function(name){
-			let pNames = this.paramNames(); //[..paramNames..]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+
+		//TODO rename .p and .pOrNull to .get and .getOrNull, cuz its not ops.P.
+		//
+		//null if not found. Same as Node.p except the null part.
+		//
+		/*
+		2023-5-30:
+		Here's the planned solution: (Lambda[x y z funcbody] valX valY) is viewed as having keys x% (aka (P x)) and y%, not x and y. (P x ns) will get the value of key (P x), not the value of key x. So use x% and y% and z% in funcbody. x% in Ns, LamNs, Treemap, EmptyTreemap, Lambda, and Mutlambda works the same way for READ. For WRITE (by forkedit) Im still undecided if (Put x% ns) should work for LamNs, Lambda, and Mutlambda, to forkedit the valX valY etc, vs if it should in Ns skip LamNs that doesnt have x% and go to the next ns in it.
+		-- x$ gets from non-Lam, normally float64. (D x)
+		-- x% gets from any namespace. (P x). //maybe merge (Du x) into this?
+		-- x@ gets from non-Lam, normally typed cbt.
+		*/
+		//
+		vm.Node.prototype.pOrNull = function(name){
+			if(!vm.isLambda(name)){
+				throw 'Not isLambda: '+name+' typeof='+typeof(name);
+			}
+			name = vm.wrap(name); //in case call it on string
+			//FIXME verify FuncBody is not viewed as a param name even though it goes at end of same list like [..paramNames.. FuncBody].
+			let pNames = null;
 			//let funcBody = this.funcBody();
-			switch(this.o8()){
-				case vm.o8OfInfcur:
+			//FIXME adjust for new design of Lambdo and Mutlambdo ops to put funcBody at end of params list,
+			let o8 = this.o8();
+			switch(o8){
+				/*[]/Infcur isnt used as a namespace anymore: case vm.o8OfInfcur:{
+					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					throw 'TODO remove this?';
+					//2023-4-20 this should be removed cuz []/Infcur isnt used for key val key val anymore in lambda/mutlambda. Use LamNs Ns etc.
 					if(this.o8() === vm.o8OfInfcur){ //should be [(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on.
 						if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
-						if(name.n.eq(pNames.n.r)){
-							let ret  = this.r; //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
+						//FIXME its not 9 anymore. its 7 cuz Lambdo and Mutlambdo ops to put funcBody at end of params list,
+						if(name.n.eq(pNames.n.R())){
+							let ret  = this.R(); //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
 							console.log('node.p [] name='+name+' val='+ret);
 							return ret;
 						}
 						let lambdaOrMutLam = this.l.n.r;
 						return lambdaOrMutLam.n.p(name); //uses cached this.paramNames()
 					}
-				break;case vm.o8OfLambdo:
+				}break;*/
+				case vm.o8OfLambdo: case vm.o8OfMutlambdo:{
+					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					let curLeft = this.curriesLeft();
+					if(o8 === vm.o8OfMutlambdo){
+						//console.log('FIXME Node.p Mutlambdo curLeft='+curLeft+' name='+name+' Should this add or subtract 1 from curLeft? TODO test with (Λ [a b x I#(F U)] valA valB valX)');
+						curLeft--; //this works
+						//curLeft++;
+					}
+
+
+					//remove newest curLeft params, so the Lambda params (in this.r and this.l.n.r and this.l.n.l.n.r etc) are aligned to pNames.
+					for(let i=0; i<curLeft; i++) pNames = pNames.n.L();
+
+					let lambdaOrMutLamCall = this.lam;
+					if(vm.isFullP(name)){ //name is (P NameWithoutP). Do this cuz "x% gets from any namespace. (P x)" but [x y z funcbody] in Lambda/Mutlambda params list instead of (P x).
+						let NameWithoutP = name.n.R();
+						while(lambdaOrMutLamCall.n.cur() > 7){ //7th param is [..paramNames.. FuncBody]. Then are the normal params.
+							//if(name.n.eq(pNames.n.R())){
+							if(NameWithoutP.n.eq(pNames.n.R())){
+								let ret = lambdaOrMutLamCall.n.R(); //return the param with that name.
+								console.log('node.p Lambda NameWithoutP='+NameWithoutP+' val='+ret);
+								return ret;
+							}
+							pNames = pNames.n.L(); //remove newest name
+							lambdaOrMutLamCall = lambdaOrMutLamCall.n.L(); //remove newest val
+						}
+					}
+					//return U; //not found (A value in a LamNs/Treemap/EmptyTreemap/Ns may be U, but in this case its cuz its not found. Check the Has op to know the difference)
+					return null; //not found
 					
+					/* Old, before moved FuncBody to end of params list and removed comment (use ops.CC instead).
 					//if 1, then it got its second last param and has not "[(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on" yet.
 					//If 2, its the param just before that (if any).
 					let curLeft = this.curriesLeft();
 
 
 					//remove newest curLeft params, so the Lambda params (in this.r and this.l.n.r and this.l.n.l.n.r etc) are aligned to pNames.
-					for(let i=0; i<curLeft; i++) pNames = pNames.n.l;
+					for(let i=0; i<curLeft; i++) pNames = pNames.n.L();
 
 					let lambdaOrMutLamCall = this.lam;
 					while(lambdaOrMutLamCall.n.cur() > 8){ //7th param is [..paramNames..]. 8th parm is FuncBody. Then are the normal params.
-						if(name.n.eq(pNames.n.r)){
-							let ret = lambdaOrMutLamCall.n.r; //return the param with that name.
+						if(name.n.eq(pNames.n.R())){
+							let ret = lambdaOrMutLamCall.n.R(); //return the param with that name.
 							console.log('node.p Lambda name='+name+' val='+ret);
 							return ret;
 						}
-						pNames = pNames.n.l; //remove newest name
-						lambdaOrMutLamCall = lambdaOrMutLamCall.n.l; //remove newest val
+						pNames = pNames.n.L(); //remove newest name
+						lambdaOrMutLamCall = lambdaOrMutLamCall.n.L(); //remove newest val
 					}
-				break;case vm.o8OfMutLam:
-					throw 'TODO';
-				break;default:
-					return U;	
+					*/
+				//}break;case vm.o8OfMutlambdo:{
+					//similar to Lambda but with an extra (EmptyTreemap GodelLessThan) param at end or similar namespace param. Namespace ops are Ns, LamNs, Treemap, and EmptyTreemap.
+				//	throw 'TODO';
+				}break;case vm.o8OfTreemap: case vm.o8OfEmptyTreemap:{
+					let ret = this.lam(name);
+					if(ret === U){
+						if(vm.treemapOrEmptytreemapHas(this.lam,name)){
+							return ret; //has it, and val happens to be U
+						}else{
+							return null; //does not have it
+						}
+					}else{
+						return ret; //has it, and val is not U
+					}
+				}break;case vm.o8OfNs:{
+					//throw 'FIXME must get null from these, not U, if not found, so cant just call them this way since they return U if not found';
+					//return this.lam(name); //added this case/case/case and line of code 2023-5-24. Hope it doesnt cause infinite loops in Ns (in Treemap and EmptyTreemap it wont).
+
+					if(vm.isFullNs(this.lam)){
+						let innerNs = this.L().n.R();
+						let outerNs = this.R();
+						//Namespace types are: Ns, LamNs, Treemap, EmptyTreemap,
+						//and maybe Lambdo and Mutlambdo but those are normally wrapped in LamNs though .p and .pOrNull should work on them too so maybe should count them.
+						return innerNs.n.pOrNull(name) || outerNs.n.pOrNull(name); //Ns chains 2 namespaces.
+					}else{
+						return null; //FIXME should Ns without enough params have any p(paramName)?
+					}
+
+				}break;case vm.o8OfLamNs:{
+					if(this.curriesLeft()==1){ //same as vm.isFullLamNs(this.lam)
+						let paramNames = this.paramNamesWithoutFuncBody();
+						let lastParamName = paramNames.n.R();
+						if(vm.isFullP(name)){
+							let nameWithoutP = name.n.R(); //cuz "-- x% gets from any namespace."
+							//if(lastParamName.n.eq(name)){
+							if(lastParamName.n.eq(nameWithoutP)){
+								return this.R(); //get lastParam from (LamNs (Lambdo_or_MutLambdo ...) lastParam)
+							}else{
+								//it might not actually be a lambdoOrMutlambdo. FIXME what to do then?
+								let lambdoOrMutlambdo = this.L().n.R();
+								//return lambdoOrMutlambdo.n.p(name);
+								return lambdoOrMutlambdo.n.p(name); //name --> removes the P and compute nameWithoutP recursively.
+							}
+
+							/*
+							//FIXME if this.L() is not a full (curriesleft of 1) lambda (or how to do mutlambda?) then return U for not found?
+							//or what if for some reason the lambda in the LamNs isnt full, is waiting on 2 or more params?
+							//If so, must have got there some way other than the lambda or mutlambda opcode,
+							//maybe FuncBody put together arbitrary lambdas or something. Just choose a consistent design and stick with it.
+							if(this.R().n.eq(name)){
+							*/
+						}else{
+							console.log('WARNING: .pOrNull(name) returning null cuz name isnt a call of P. name='+name);
+							//not found. If Lambda has a [x y z funcbody] then x% and y% and z% are its param names, not x y and z. Aka (P x) (P y) (P z). But only up to the number of params that have values.
+							return null;
+						}
+					}else{
+						//return U; //not found
+						return null; //not found
+					}
+				}break;default:
+					//return U;
+					return null; //not found
 			}
 		};
+
+		//U if not found.
+		//name is a fn.
+		//get Param whose name is any fn, normally a (Typeval U Utf8bytes) aka the simplest kind of string but could be any fn/lambda.
+		//If there is no such param, returns U.
+		//If theres more than 1 param of the same name, returns the rightmost one. I didnt mean to design it to allow
+		//multiple params of the same name, but its for efficiency that Lambda op does not check the list of param names for duplicates.
+		vm.Node.prototype.p = function(name){
+			return this.pOrNull(name) || U;
+		};
+		
+		/* This worked 2023-5-24 for alot of cases, though some testcases failed. I'm forking this into pOrNull and p, so dont have to implement it again in vm.has.
+		//name is a fn.
+		//get Param whose name is any fn, normally a (Typeval U Utf8bytes) aka the simplest kind of string but could be any fn/lambda.
+		//If there is no such param, returns U.
+		//If theres more than 1 param of the same name, returns the rightmost one. I didnt mean to design it to allow
+		//multiple params of the same name, but its for efficiency that Lambda op does not check the list of param names for duplicates.
+		vm.Node.prototype.p = function(name){
+			name = vm.wrap(name); //in case call it on string
+			//FIXME verify FuncBody is not viewed as a param name even though it goes at end of same list like [..paramNames.. FuncBody].
+			let pNames = null;
+			//let funcBody = this.funcBody();
+			//FIXME adjust for new design of Lambdo and Mutlambdo ops to put funcBody at end of params list,
+			let o8 = this.o8();
+			switch(o8){
+				case vm.o8OfInfcur:{
+					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					throw 'TODO remove this?';
+					//2023-4-20 this should be removed cuz []/Infcur isnt used for key val key val anymore in lambda/mutlambda. Use LamNs Ns etc.
+					if(this.o8() === vm.o8OfInfcur){ //should be [(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on.
+						if(this.cur() != 9) throw 'Is not a [(Lambda_or_MutLam [..paramNames..] FuncBody ...allParamsExceptLast...) LastParam] cuz this.cur()=='+this.cur();
+						//FIXME its not 9 anymore. its 7 cuz Lambdo and Mutlambdo ops to put funcBody at end of params list,
+						if(name.n.eq(pNames.n.R())){
+							let ret  = this.R(); //return LastParam in [(Lambda FuncBody ...allParamsExceptLast...) LastParam] which FuncBody is called on.
+							console.log('node.p [] name='+name+' val='+ret);
+							return ret;
+						}
+						let lambdaOrMutLam = this.l.n.r;
+						return lambdaOrMutLam.n.p(name); //uses cached this.paramNames()
+					}
+				}break;case vm.o8OfLambdo: case vm.o8OfMutlambdo:{
+					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
+					let curLeft = this.curriesLeft();
+					if(o8 === vm.o8OfMutlambdo){
+						//console.log('FIXME Node.p Mutlambdo curLeft='+curLeft+' name='+name+' Should this add or subtract 1 from curLeft? TODO test with (Λ [a b x I#(F U)] valA valB valX)');
+						curLeft--; //this works
+						//curLeft++;
+					}
+
+
+					//remove newest curLeft params, so the Lambda params (in this.r and this.l.n.r and this.l.n.l.n.r etc) are aligned to pNames.
+					for(let i=0; i<curLeft; i++) pNames = pNames.n.L();
+
+					let lambdaOrMutLamCall = this.lam;
+					while(lambdaOrMutLamCall.n.cur() > 7){ //7th param is [..paramNames.. FuncBody]. Then are the normal params.
+						if(name.n.eq(pNames.n.R())){
+							let ret = lambdaOrMutLamCall.n.R(); //return the param with that name.
+							console.log('node.p Lambda name='+name+' val='+ret);
+							return ret;
+						}
+						pNames = pNames.n.L(); //remove newest name
+						lambdaOrMutLamCall = lambdaOrMutLamCall.n.L(); //remove newest val
+					}
+					return U; //not found (A value in a LamNs/Treemap/EmptyTreemap/Ns may be U, but in this case its cuz its not found. Check the Has op to know the difference)
+					
+					/* Old, before moved FuncBody to end of params list and removed comment (use ops.CC instead).
+					//if 1, then it got its second last param and has not "[(Lambda FuncBody ...allParamsExceptLast...) lastParam] which FuncBody is called on" yet.
+					//If 2, its the param just before that (if any).
+					let curLeft = this.curriesLeft();
+
+
+					//remove newest curLeft params, so the Lambda params (in this.r and this.l.n.r and this.l.n.l.n.r etc) are aligned to pNames.
+					for(let i=0; i<curLeft; i++) pNames = pNames.n.L();
+
+					let lambdaOrMutLamCall = this.lam;
+					while(lambdaOrMutLamCall.n.cur() > 8){ //7th param is [..paramNames..]. 8th parm is FuncBody. Then are the normal params.
+						if(name.n.eq(pNames.n.R())){
+							let ret = lambdaOrMutLamCall.n.R(); //return the param with that name.
+							console.log('node.p Lambda name='+name+' val='+ret);
+							return ret;
+						}
+						pNames = pNames.n.L(); //remove newest name
+						lambdaOrMutLamCall = lambdaOrMutLamCall.n.L(); //remove newest val
+					}
+					*
+				//}break;case vm.o8OfMutlambdo:{
+					//similar to Lambda but with an extra (EmptyTreemap GodelLessThan) param at end or similar namespace param. Namespace ops are Ns, LamNs, Treemap, and EmptyTreemap.
+				//	throw 'TODO';
+				}break;case vm.o8OfTreemap: case vm.o8OfEmptyTreemap: case vm.o8OfNs:{
+					return this.lam(name); //added this case/case/case and line of code 2023-5-24. Hope it doesnt cause infinite loops in Ns (in Treemap and EmptyTreemap it wont).
+				}break;case vm.o8OfLamNs:{
+					if(this.curriesLeft()==1){ //same as vm.isFullLamNs(this.lam)
+						let paramNames = this.paramNamesWithoutFuncBody();
+						let lastParamName = paramNames.n.R();
+						if(lastParamName.n.eq(name)){
+							return this.R(); //get lastParam from (LamNs (Lambdo_or_MutLambdo ...) lastParam)
+						}else{
+							//it might not actually be a lambdoOrMutlambdo. FIXME what to do then?
+							let lambdoOrMutlambdo = this.L().n.R();
+							return lambdoOrMutlambdo.n.p(name);
+						}
+
+						/*
+						//FIXME if this.L() is not a full (curriesleft of 1) lambda (or how to do mutlambda?) then return U for not found?
+						//or what if for some reason the lambda in the LamNs isnt full, is waiting on 2 or more params?
+						//If so, must have got there some way other than the lambda or mutlambda opcode,
+						//maybe FuncBody put together arbitrary lambdas or something. Just choose a consistent design and stick with it.
+						if(this.R().n.eq(name)){
+						*
+
+					}else{
+						return U; //not found
+					}
+				}break;default:
+					return U;	
+			}
+		};*/
 
 		//number of curries so far. Different than curriesLeft which is a byte stored in int header and is 0 to mean evaling,
 		//1-254 to mean waiting on that many more params before eval, or 255 to mean never eval such as Infcur.
@@ -5379,6 +5699,8 @@ const Wikibinator203 = (()=>{
 			}
 			
 		};
+
+		vm.isTreemapOrEmptyTreemap = fn=>(fn.n.isTree());
 		
 		//is a Treemap of 5 params or EmptyTreemap of 1 param?
 		vm.Node.prototype.isTree = function(){
@@ -5394,28 +5716,49 @@ const Wikibinator203 = (()=>{
 		vm.tree = (comparator, leftTree, key, val, rightTree)=>vm.ops.Treemap(comparator)(leftTree)(key)(val)(rightTree);
 		//vm.tree = vm.ops.Treemap;
 		
+		//TODO: map can be any namespace: Ns, LamNs, Treemap, EmptyTreemap, Lambda, Mutlambda.
 		vm.putNoBal = (putKey,putVal,map)=>{
-			let comparator = map.n.treeComparator();
-			//FIXME update comments and opcode names cuz renaming TreemapPutNoBal to PutNoBal
-			//let TreemapPutNoBal_putKey_putVal = l; //(PutNoBal putKey putVal), without map aka the last param.
-			//FIXME what if map is an EmptyTreemap?
-			if(map.n.isEmptyTree()){ //(EmptyTreemap comparator).
-				return vm.tree(comparator,map,putKey,putVal,map); //use map as (EmptyTreemap comparator).
-			}else{
-				let foundKey = map.n.treeKey();
-				let compared = comparator(putKey)(foundKey);
-				if(compared===T){ //putKey < foundKey
-					let newLeftTree = vm.putNoBal(putKey,putVal,map.n.leftTree());
-					return map.n.replaceLeftTree(newLeftTree);
-				}else{ //foundKey <= putKey
-					if(foundKey.n.eq(putKey)){ //foundKey equals putKey
-						//return map.n.replaceTreeKeyAndVal(putKey,putVal);
-						return map.n.replaceTreeVal(putVal);
-					}else{ //foundKey < putKey
-						let newRightTree = vm.putNoBal(putKey,putVal,map.n.rightTree());
-						return map.n.replaceRightTree(newRightTree);
+			if(vm.isFullNs(map)){
+				//(Ns namespaceA namespaceB)
+				let nsNamespaceA = map.n.L();
+				let namespaceA = nsNamespaceA.n.R();
+				let namespaceB = map.n.R();
+				if(vm.has(putKey, namespaceA)){
+					let newNamespaceA = vm.putNoBal(putKey,putVal,namespaceA);
+					return ops.Ns(newNamespaceA)(namespaceB);
+				}else{
+					let newNamespaceB = vm.putNoBal(putKey,putVal,namespaceB);
+					return nsNamespaceA(newNamespaceB);
+				}
+			}else if(vm.isLambdoOrMutlambdo(map)){
+				throw 'TODO lambda or mutlambda';
+			}else if(vm.isFullLamNs(map)){
+				throw 'TODO LamNs';
+			}else if(vm.isTreemapOrEmptyTreemap(map)){
+				let comparator = map.n.treeComparator();
+				//FIXME update comments and opcode names cuz renaming TreemapPutNoBal to PutNoBal
+				//let TreemapPutNoBal_putKey_putVal = l; //(PutNoBal putKey putVal), without map aka the last param.
+				//FIXME what if map is an EmptyTreemap?
+				if(map.n.isEmptyTree()){ //(EmptyTreemap comparator).
+					return vm.tree(comparator,map,putKey,putVal,map); //use map as (EmptyTreemap comparator).
+				}else{
+					let foundKey = map.n.treeKey();
+					let compared = comparator(putKey)(foundKey);
+					if(compared===T){ //putKey < foundKey
+						let newLeftTree = vm.putNoBal(putKey,putVal,map.n.leftTree());
+						return map.n.replaceLeftTree(newLeftTree);
+					}else{ //foundKey <= putKey
+						if(foundKey.n.eq(putKey)){ //foundKey equals putKey
+							//return map.n.replaceTreeKeyAndVal(putKey,putVal);
+							return map.n.replaceTreeVal(putVal);
+						}else{ //foundKey < putKey
+							let newRightTree = vm.putNoBal(putKey,putVal,map.n.rightTree());
+							return map.n.replaceRightTree(newRightTree);
+						}
 					}
 				}
+			}else{
+				throw 'putNoBal not know what to do with namespace='+map;
 			}
 		}
 		
@@ -5523,9 +5866,9 @@ const Wikibinator203 = (()=>{
 				}
 			}
 		};
-		
-		//does a treemap have a given key? returns true/false (not T/F).
-		vm.has = (getKey,map)=>{
+
+		//returns true or false. Assumes map is a Treemap Or EmptyTreemap.
+		vm.treemapOrEmptytreemapHas = (getKey,map)=>{
 			if(!map.n.isNonemptyTree()) return false;
 			let comparator = map.n.treeComparator();
 			let key = map.n.treeKey(); //(Treemap comparator leftTree key val rightTree)
@@ -5542,6 +5885,50 @@ const Wikibinator203 = (()=>{
 					return vm.has(key, map.n.rightTree());
 				}
 			}
+		};
+		
+		//does a treemap have a given key? returns true/false (not T/F).
+		//map can be a Treemap, EmptyTreemap, LamNs, Ns, Lambdo, or MutLambdo.
+		vm.has = (getKey,namespace)=>{
+			return !!namespace.n.pOrNull(getKey);
+			/*
+			let map = namespace; //TODO rename them all to namespace. map is just a kind.
+			switch(map.n.o8()){
+				case vm.o8OfTreemap: case vm.o8OfEmptyTreemap:{
+					return vm.treemapOrEmptytreemapHas(getKey,map);
+					/*if(!map.n.isNonemptyTree()) return false;
+					let comparator = map.n.treeComparator();
+					let key = map.n.treeKey(); //(Treemap comparator leftTree key val rightTree)
+					let compared = comparator(getKey)(key); //FIXME should this be lessThan vs greaterThan? order of those 2 params? What do I mean by comparator?
+					if(compared===T){ //getKey < key
+						//ret = leftTreemap(getKey); //is normally another Treemap or EmptyTreemap
+						return vm.has(key, map.n.leftTree());
+					}else{ //key <= getKey
+						if(getKey.n.eq(key)){ //getKey equals key
+							//ret = val;
+							return true;
+						}else{ //key < getKey
+							//ret = rightTreemap(getKey); //is normally another Treemap or EmptyTreemap
+							return vm.has(key, map.n.rightTree());
+						}
+					}*
+				}break; case vm.o8OfLamNs:{
+					if(vm.isFullLamNs(map)){
+						//FIXME what if its a LamNs of a Lambdo/Mutlambdo that has some params missing (is waiting on 3 more params, for example) but got into a LamNs anyways?
+						throw 'TODO';
+					}else{
+						return U; //not found cuz LamNs doesnt have enuf params
+					}
+				}break; case vm.o8OfNs:{
+					throw 'TODO';
+				}break; case vm.o8OfLambdo:{
+					throw 'TODO';
+				}break; case vm.o8OfMutlambdo:{
+					throw 'TODO';
+				}break; default:{
+					throw 'TODO';
+				}
+			}*/
 			
 			/*break;case o.Treemap:{
 			//vm.addOp('Treemap',null,false,6,'(Treemap (IdThenGodelLessThan IdMaker) leftChild key val rightChild key)->val. Avl treemap. leftChild andOr rightChild can be (EmptyTreemap (IdThenGodelLessThan IdMaker)). (IdThenGodelLessThan IdMaker) returns T or F for < vs >=. Check equals func, or call that twice, to know if equal.');
@@ -5586,6 +5973,27 @@ const Wikibinator203 = (()=>{
 			if(!vm.isNonemptyTreeTree(map)) throw 'Not a tree';
 			vm.comparator(map)(
 		};*/
+
+		vm.Node.prototype.pushNsWithLoopVar = function(key, val){
+			key = vm.wrap(key); //in case not already a fn
+			val = vm.wrap(val);
+			let comparator = this.treeComparator(); //infloops if this doesnt have a comparator
+			let empty = ops.EmptyTreemap(comparator);
+			let namespaceOfOneKeyVal = vm.tree(comparator,empty,key,val,empty);
+			return ops.Ns(namespaceOfOneKeyVal)(this.lam);
+		};
+
+		//Get outerNs from (Ns innerNs outerNs) if it is such a Ns of 2 params, else infloops (run out of gas)
+		vm.Node.prototype.popNs = function(){
+			if(vm.isFullNs(this.lam)){
+				return this.R(); //Get outerNs from (Ns innerNs outerNs)
+			}else{
+				vm.infloop();
+			}
+		};
+
+
+		//TODO 2023-6-10 vm.ifElse vm.If vm.unless vm.While etc should probably be removed???
 		
 		vm.ifElse = (condition, ifTrue, ifFalse, map)=>(vm.bit(condition(map)) ? ifTrue(map) : ifFalse(map));
 		
@@ -6673,7 +7081,14 @@ const Wikibinator203 = (()=>{
 						console.log('stackDeep ran out. TODO remove this message since its not an error exactly, is something that opSpend should try/else.');
 						throw VM.gasErr;
 					}
-					return NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka
+					if(vm.logEveryLambdaCallAsFullToString){
+						console.log('vm.logEveryLambdaCallAsFullToString, START calling FUNC['+NODE.lam+'] on PARAM['+param+']');
+					}
+					let ret = NODE.getEvaler()(VM,NODE.lam,param); //eval lambda call, else throw if not enuf stackTime or stackMem aka
+					if(vm.logEveryLambdaCallAsFullToString){
+						console.log('vm.logEveryLambdaCallAsFullToString, END calling FUNC['+NODE.lam+'] on PARAM['+param+'] RETURN['+ret+']');
+					}
+					return ret;
 					//FIXME what is this here for?: prepay(number,number)
 				}finally{
 					++VM.stackDeep;
@@ -6736,19 +7151,13 @@ const Wikibinator203 = (()=>{
 		vm.o8OfL = vm.addOp('L',null,false,1,'get left/func child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.',{langs:{}});
 		vm.o8OfR = vm.addOp('R',null,1,'get right/param child. Forall x, (l x (r x)) equals x, including that (l u) is identityFunc and (r u) is u.',{langs:{}});
 		vm.addOp('Isleaf',null,false,1,'returns t or f of is its param u aka the universal lambda, same as does OpByte param equal 0x01.',{langs:{}});
+
+		//vm.addOp('ReservedForFutureExpansionJustSlidingSomeOtherOpcodesOver',null,false,1,'TODO',{langs:{}});
 		
 		//It is by design that a fn/lambda cant know evilbit==true vs evilbit==false about any fn/lambda,
 		//since thats only a bit in some kinds of ids, a thing to say about a lambda, not about the lambda itself.
 		
-		vm.addOp('OpByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params o8 opcode in its header. O8 of U is 1. O8 of (U U) is 2. O8 of (U (U U)) is 3. O8 of (U Anything_except_U) is 3. And so on up to 7 params. 6 params has O8 of 64 to 127. O8 of 7 params is 128 to 255.',{langs:{}});
 		
-		vm.addOp('CurleftByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params curriesLeft. 1 means it will eval on next param. 2 means it will eval when gets 2 more params. And so on up to 254. 255 means will never eval, just keeps adding more params. 255 is used in Infcur/[] aka a list that adds its param to the list, to forkEdit itself.',{langs:{}});
-		
-		//FIXME need about 5 opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .',{langs:{}});
-		vm.addOp('MaskByte',null,false,1,'returns a cbt8 whose bits are a mask of the 8 vm.mask_*, in params header. This means those wont be able to be reordered without breaking calls of MaskByte.',{langs:{}});
-		
-		vm.o8OfInfcur = vm.addOp('Infcur','[]',true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.',{langs:{}});
-		vm.o8OfRucfni = vm.addOp('Rucfni','-=',true,vm.maxCurriesLeft,'Rucfni aka -=. Does exact same thing as Infcur but is normally displayed in reverse. Example [a b c d -e f g h i=] is both together and is (Infcur a b c d (Rucfni i h g f e)). [] is infcur. -= is rucfni. TODO use this with the tape (fntape) opcodes. Tape should be made of this.',{langs:{}});
 		
 		vm.o8OfS = vm.addOp('S',null,false,3,'For control-flow. the S lambda of SKI-Calculus, aka λx.λy.λz.xz(yz)',
 			{langs:{
@@ -6756,6 +7165,7 @@ const Wikibinator203 = (()=>{
 					throw 'TODO <Lt x$ y$> etc. call the langs:js (tr,fn,ty) of the inner fn (Lt... in this case) but might need , vs S adjustment first.';
 				}
 			}});
+		vm.addOp('ReservedForFutureExpansionASDFASDFASDFJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.',{langs:{}});
 		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas. UPDATE: doubles is d* and floats is f*, both of which could use TypevalB or TypevalC. double is d, and float is f, which normally use typevalC but could use a typevalB with padding.',{langs:{}});
 		vm.o8OfTypevalC = vm.addOp('TypevalC',null,false,3,'TypevalC: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example [replaced application/x-IEEE754-double with just d and replaced doubles with d*] (TypevalC d 0x0000000000000000) OLD:(TypevalC application/x-IEEE754-double 0x0000000000000000), means use powOf2 number of bits in the cbt without viewing the last n bits as padding',{langs:{}});
@@ -6766,6 +7176,14 @@ const Wikibinator203 = (()=>{
 		
 		//vm.addOp('IsAllowSinTanhSqrtRoundoffEtc',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order?',{langs:{}});
 		
+		/*vm.addOp('ReservedForFutureExpansionZZZZZJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
+		vm.addOp('ReservedForFutureExpansionYYYYYJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
+		vm.addOp('ReservedForFutureExpansionXXXXJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
+		*/
+
+		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.',{langs:{}});
+		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.',{langs:{}});
+		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).',{langs:{}});
 		
 		/* I wrote code for this, "curriesLeft = 1+rCur; //FuncBody then paramVals." but todo test it.
 		//
@@ -6779,13 +7197,58 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))',{langs:{}});
-		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.',{langs:{}});
-		
-		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,1,'It works like this: {{L Lambdo} (x y) (todo add comment param here...) [+ [* x x] *[y y]] 6 8}->100. {L Lambdo} is written as λ and its opcode is vm.o8OfLambda. The (x y ...) can be any num of params up to around 250 (todo whats the exact number? check vm.max* vars). OLD... Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).',{langs:{}});
+		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'Incomplete.. (VarargAx FuncBody ..params... nextParam) is halted on itself if (FuncBody [(VarargAx FuncBody ...params...) nextParam]) -> U. If -> somethingElse, then returns (R somethingElse). It could form a parameter list can only contain prime numbers. Other calls dont halt. TODO replace [] in that with LamNs or if necessary make an AxNs but i want to keep it to just the 4 if can: Ns LamNs Treemap EmptyTreema, not add a fifth namespace type AxNs if can be avoided. https://twitter.com/wikibinator/status/1649574176238317569 ... OLD writing:.. For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] (UPDATE: should that be LamNs instead of []/Infcur (of 2 things)? or a fifth namespace type?) and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.',{langs:{}});
+
+		vm.addOp('IgnoreThisLambdaWithUParam',null,true,1,'Since Lambda takes 6 params, it needs 2 opcodes of space instead of 1, but this only happens if U is the 7th param param instead of [...].');
+		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,1,'Vararg (FIXME number of params said in addOp). See testcases in VM using λ which is the 6 param form of it. Vararg up to about 245 (whats the exact number?) params. (λ [x y z funcBody] valX valY valZ) -> (funcBody (LamNs (λ [x y z funcBody] valX valY) valZ)). funcBody normally contains x% y% z% or whatever the param names are. Can also call itself recursively. OLD: It works like this: {{L Lambdo} (x y) (todo add comment param here...) [+ [* x x] *[y y]] 6 8}->100. {L Lambdo} is written as λ and its opcode is vm.o8OfLambda. The (x y ...) can be any num of params up to around 250 (todo whats the exact number? check vm.max* vars). OLD... Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).',{langs:{}});
 		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
+		vm.addOp('IgnoreThisMutlambdaWithUParam',null,true,1,'Since Mutlambda takes 6 params, it needs 2 opcodes of space instead of 1, but this only happens if U is the 7th param param instead of [...].');
+		vm.o8OfMutlambdo = vm.addOp('Mutlambdo',null,true,1,'Vararg (FIXME number of params said in addOp). See testcases in VM using Λ which is the 6 param form of it. Similar to lambdo/lambda except theres an extra param of a namespace, and this pushes a LamNs onto that joining them with a Ns. See vm.inMutlambdaLamnsIsInner about which of the LamNs vs incoming namespace from last param, is the inner vs outer namespace in the Ns it makes when calling it on its last param and giving that to its FuncBody. I will end up picking true or false for that permanently but for now am leaving it undecided so have the var.',{langs:{}});
+		vm.o8OfMutlambda = vm.o8OfMutlambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
+		if((vm.o8OfMutlambdo&3) != 3){
+			throw '('+vm.o8OfMutlambdo+'==vm.o8OfMutlambdo)&3 != 3 but must equal 3, so 4 things are aligned on blocks of 4 ops, so the high 6 bits of o8 are the same between lambda and lambdo and mutlambda and mutlambdo, so it can be optimized with a mask to check if its any of those.';
+		}
+		if((vm.o8OfLambdo&0b11111100) != (vm.o8OfMutlambdo&0b11111100)){
+			//these are both 7 params even though they are used with [...] normally instead of (U U) which is the normed last param.
+			throw '(('+vm.o8OfLambdo+'==vm.o8OfLambdo)&0b11111100) != (('+vm.o8OfMutlambdo+'==vm.o8OfMutlambdo)&0b11111100)';
+		}
+		/*if((vm.o8OfMutlambda&0xff) != vm.o8OfLambda){
+			//Wrong... they are 7 params, so commentingout this.
+			//these are both 6 params, instead of the usual 7, cuz waiting for [varnamex y z funcbody] param after that.
+			throw '('+vm.o8OfMutlambda+'==vm.o8OfMutlambda)&0xff != vm.o8OfLambda == '+vm.o8OfLambda;
+		}*/
+		if((vm.o8OfLambdo&1) != 1){
+			throw 'vm.o8OfLambdo=='+vm.o8OfLambdo+' is not odd. It must be odd cuz [...] as 7th param is not U.';
+		}
+		if((vm.o8OfMutlambdo&1) != 1){
+			throw 'vm.o8OfMutlambdo=='+vm.o8OfMutlambdo+' is not odd. It must be odd cuz [...] as 7th param is not U.';
+		}
+
+		vm.o8OfInfcur = vm.addOp('Infcur','[]',true,vm.maxCurriesLeft,'Infcur aka []. (Infcur x) is [x]. (Infcur x y z) is [x y z]. Like a linkedlist but not made of pairs, so costs half as much nodes. just keep calling it on more params and it will be instantly halted.',{langs:{}});
+		vm.o8OfRucfni = vm.addOp('Rucfni','-=',true,vm.maxCurriesLeft,'Rucfni aka -=. Does exact same thing as Infcur but is normally displayed in reverse. Example [a b c d -e f g h i=] is both together and is (Infcur a b c d (Rucfni i h g f e)). [] is infcur. -= is rucfni. TODO use this with the tape (fntape) opcodes. Tape should be made of this.',{langs:{}});
+		if((vm.o8OfInfcur&0xfe) != (vm.o8OfRucfni&0xfe)){
+			 throw 'vm.o8OfInfcur=='+vm.o8OfInfcur+' and vm.o8OfRucfni='+vm.o8OfRucfni+' must start with the same 7 bits of o8.';
+		}
+
+
+		vm.addOp('OpByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params o8 opcode in its header. O8 of U is 1. O8 of (U U) is 2. O8 of (U (U U)) is 3. O8 of (U Anything_except_U) is 3. And so on up to 7 params. 6 params has O8 of 64 to 127. O8 of 7 params is 128 to 255.',{langs:{}});
+		
+		vm.addOp('CurleftByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params curriesLeft. 1 means it will eval on next param. 2 means it will eval when gets 2 more params. And so on up to 254. 255 means will never eval, just keeps adding more params. 255 is used in Infcur/[] aka a list that adds its param to the list, to forkEdit itself.',{langs:{}});
+		
+		//FIXME need about 5 opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .',{langs:{}});
+		vm.addOp('MaskByte',null,false,1,'returns a cbt8 whose bits are a mask of the 8 vm.mask_*, in params header. This means those wont be able to be reordered without breaking calls of MaskByte.',{langs:{}});
+
+
 		//vm.o8OfMutLam = vm.addOp('MutLam',null,true,2,'Same as Lambda op except for use during opmut/streamwhile/streamif/streamfor/etc, and takes an extra param of a [(ObVal ...) (ObKeyVal ...) ...variable size...]. FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?).',{langs:{}});
 		//Maybe its better to focus on optimizing Lambda and MutLam, which have named params. vm.addOp('Vararg',null,true,2,'(Vararg [a b c d] e) -> (a [a b c d e]), maybe viewed as (<a b c d> e) -> (a <a b c d e>)? So (Vararg [a b c d]) is displayed as <a b c d>? Used for deriving syntaxes like <M keyA valA keyB valB>.',{langs:{}});
-		vm.o8OfP = vm.addOp('P',null,false,2,'(P LambdaOrMutLamOrListOfObvalObkeyvalEtc ParamName) -> value of ParamName in (Lambda ...) etc, usually in [(Lambda ... all params except last) LastParam] since thats what FuncBody inside that Lambda call is called on [...] and FuncBody normally calls P to get specific params.',{langs:{}});
+		vm.o8OfP = vm.addOp('P',null,false,2,'FIXME P should be merged with Da? (Da x) is x%. The new way 2023-4+ is to use LamNs, Ns, Treemap, and EmptyTreemap as namespace. (P LambdaOrMutLamOrListOfObvalObkeyvalEtc ParamName) -> value of ParamName in (Lambda ...) etc, usually in [(Lambda ... all params except last) LastParam] since thats what FuncBody inside that Lambda call is called on [...] and FuncBody normally calls P to get specific params.',{langs:{}});
+		vm.o8OfPGo = vm.addOp('PGo',null,false,2,'(PGo varGetter ns) returns (P (varGetter ns) ns). Syntax: x/y/z% is (PGo (GoO (OO x y) z)).');
+
+		vm.o8OfGetcbt = vm.addOp('Getcbt',null,false,2,'Like P/% and $/D but is @/Getcbt Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]',{langs:{}});
+		vm.o8OfGetcbtGo = vm.addOp('GetcbtGo',null,false,2,'Like PGo/% and $/DGo but is @/GetcbtGo. Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]');
+		
+		vm.addOp('ReservedForFutureExpansionASDFAWERFGSDF',null,false,1,'FIXME');
+		
 		if(!(vm.o8OfLambdo&1)) throw 'o8 of Lambdo must be odd.';
 		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{langs:{}});
 		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{langs:{}});
@@ -6828,8 +7291,8 @@ const Wikibinator203 = (()=>{
 		//Ns, LamNs, PushNs, and PopNs are for optimizing generated javascript code and generated gpujs code and generated glsl code,
 		//that has local variables inside {...} blocks of code. The optimization is it doesnt have to get a vm.Mut object and generates code that uses js variables directly,
 		//but in other cases still uses vm.Mut etc.
-		vm.addOp('Ns',null,false,3,'(Ns namespaceA namespaceB key) -> val from namespaceA if exists else from namespaceB if exists else U if not exist in either. TODO update Put opcode to deal with Ns, LamNs, and Treemap the same way. Namespace with 2 childs, a local and other namespace. Either may be another such Ns, but the leafs of it are eventually Treemap or (LamNs (λ [a b c] comment funcBody valA valB) valC). Where (LamNs (λ [a b c] comment funcBody valA valB) valC a) -> valA, call it on b and get valB, call it on c and get valC, call it on anything else and get U. Put and Has ops will need to be updated to deal with Ns, LamNs, and Treemap all the same way.',{langs:{}});
-		vm.addOp('LamNs',null,false,3,'See Ns. TODO change from [] to LamNs in how funcBody in λ sees its own params.',{langs:{}});
+		vm.o8OfNs = vm.addOp('Ns',null,false,3,'(Ns namespaceA namespaceB key) -> val from namespaceA/innerNamespace if exists else from namespaceB/outerNamespace if exists else U if not exist in either. TODO update Put opcode to deal with Ns, LamNs, and Treemap the same way. Namespace with 2 childs, a local and other namespace. Either may be another such Ns, but the leafs of it are eventually Treemap or (LamNs (λ [a b c] comment funcBody valA valB) valC). Where (LamNs (λ [a b c] comment funcBody valA valB) valC a) -> valA, call it on b and get valB, call it on c and get valC, call it on anything else and get U. Put and Has ops will need to be updated to deal with Ns, LamNs, and Treemap all the same way.',{langs:{}});
+		vm.o8OfLamNs = vm.addOp('LamNs',null,false,3,'See Ns. TODO change from [] to LamNs in how funcBody in λ sees its own params.',{langs:{}});
 		vm.addOp('PushNs',null,false,2,'(PushNs funcBody map) -> (PopNs (funcBody (Ns (EmptyTreemap (getCompatatorFrom map)) map))). (Fo ,x (PushNs theFuncBody) map) would use (Ns (EmptyTreemap sameComparator) map) instead of map directly, in calling (theFuncBody theNamespace), where theNamespace can be a Treemap, EmptyTreemap, Ns, or LamNs (technically can be any fn but those are the useful kinds).');
 		vm.addOp('PopNs',null,false,1,'(PopNs (Ns x y)) -> y, but if its param is not a Ns, then returns its param directly (or FIXME should it infloop?). See PushNs. Called automatically by PushNs. You use PushNs like a {...} block of code in javascript. You dont normally call PopNs directly.');
 		vm.addOp('DoAvlBal',null,false,1,'(DoAvlBal (Treemap ...)) -> forkEdited treemap with max difference of AvlHeight between any 2 avl childs (of same Treemap parent) being 1. Avl balance is supposed to be -1, 0, or 1 at each node. Each node is a Treemap or EmptyTreemap. An EmptyTreemap is always balanced.',{langs:{}});
@@ -6849,6 +7312,11 @@ const Wikibinator203 = (()=>{
 		vm.addOp('??', null, false, 4, '(?? x y val map) -> map forkEdited to map key (?? x y) to val.',{langs:{}});
 		vm.addOp('TreemapNorm',null,false,1,'(TreemapNorm map) -> map forkEdited to be nearly completeBinaryTree (still an avl tree).',{langs:{}});
 		vm.addOp('TreemapVerify',null,false,1,'(TreemapVerify map) -> T or F depending if map is a valid Treemap datastruct. Its always a valid fn, but an example of invalid is if it contains more than 1 unique comparator or is in a wrong sorted order by that comparator. Does NOT verify comparator always halts or sorts consistently (TODO only optimize if comparator is known consistent, which can be proven by it being a forest of nands or forest of ops on int32s or on int16s etc, basically anything that could go in an opencl ndrange kernel or webgl shaders (GLSL) (excluding roundoff, use less bits to handle that) can be proven to halt for all possible pair of params, and ...',{langs:{}});
+		
+		
+		/* Need the opcode space back. These "tape" opcodes can be derived at runtime, and optimized with pushEvaler (TODO automatic optimization of many things).
+		They're still useful functions, but dont need to be at the core.
+		//
 		//
 		//vm.addOp = (name,prefix,isStrange,curriesLeft,description)
 		//
@@ -6870,6 +7338,9 @@ const Wikibinator203 = (()=>{
 		vm.addOp('TapeGetLR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetLR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetR (TapeGetL register)). Useful for getting x in [x y] aka (Infcur x y), or y in -x y= aka (Rucfni y x), especially such []s created by TapeInfcur and -=s created by TapeRucfni.',{langs:{}});
 		//vm.addOp('TapeGetRL',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetRL Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (TapeGetL (TapeGetR (TapeGetRegister Tape)). Useful for getting y in -x y= aka (Rucfni y x) such as created by TapeRucfni. No thats wrong, you use TapeGetLR for that too.',{langs:{}});
 		vm.addOp('TapeGetR',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. (TapeGetR Tape) -> forkEdited lambda-sparse-turing-tape with register replaced by (R register).',{langs:{}});
+		*/
+
+
 		//TODO vm.addOp('TapeDoTape',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. ',{langs:{}});
 		//TODO vm.addOp('TapeImport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 2 params, copies one param to the register in the tape, and returns forkEdited tape.',{langs:{}});
 		//TODO vm.addOp('TapeExport',null,false,1,'See fntape in occamsfuncer docs for dovetailing etc. 1 param, the tape, and gets whats in its register. TODO rename this to tapeReturn? or should there be both separate opcodes?',{langs:{}});
@@ -7181,16 +7652,24 @@ const Wikibinator203 = (()=>{
 		
 		//vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map',{langs:{}});
 		vm.o8OfD = vm.addOp('D',null,false,2,'(D x map) -> (map (D x)). Get (whats normally a) double value from map. (D key Map) -> val of (D key) in that map. The $ in a/b/sum$.',{langs:{}});
-		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du x map) -> (map (Du x)). Get general fn (often not deduped) from map. (Du key Map) -> val of (Du key) in that map. The ^ in a/b/fnVar^.',{langs:{}});
-		vm.o8OfDuE = vm.addOp('DuE',null,false,3,'(DuE GetObKey GetVal map) -> map forkEdited to have key (Du (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (DuE ,x ,y TheMap) which maps (Du x) to y.',{langs:{}});
+		//vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du x map) -> (map (Du x)). Get general fn (often not deduped) from map. (Du key Map) -> val of (Du key) in that map. The ^ in a/b/fnVar^.',{langs:{}});
+		//vm.o8OfDuE = vm.addOp('DuE',null,false,3,'(DuE GetObKey GetVal map) -> map forkEdited to have key (Du (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (DuE ,x ,y TheMap) which maps (Du x) to y.',{langs:{}});
 		//(DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)).
 						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
 		vm.o8OfDE = vm.addOp('DE',null,false,3,'(DE GetObKey GetVal map) -> map forkEdited to have key (D (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (DE ,x ,y TheMap) which maps (D x) to y. ... OLD: Put double value into map. (DE key val Map) -> forkEdited map, that maps (DE key) to val.',{langs:{}});
 		
 		vm.o8OfDGo = vm.addOp('DGo',null,false,2,'Like D except with pointer jumping for first param. (DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)). Call that on a Treemap and it recurses a/b/sum$ in it to get a val.',{langs:{}});
-		
-		vm.o8OfDuGo = vm.addOp('DuGo',null,false,2,'Like Du except with pointer jumping for first param. (DuGo x map) -> (map (Du (x map))). Example: a/b/sum^ is (DuGo a/b/fnVar) is (DGo (GoO (OO a b) fnVar)). Call that on a Treemap and it recurses a/b/sum^ in it to get a val.',{langs:{}});
 
+		vm.o8OfBlGo = vm.addOp('BlGo',null,false,2,'(BlGo a SomeMap) -> (SomeMap (Bl (SomeMap a))) or should it be (Bl (a SomeMap) SomeMap)',{langs:{}});
+
+		vm.o8OfDE = vm.addOp('PE',null,false,3,'PE is a setter. P is a getter. Similar to DE vs D. (PE GetObKey GetVal map) -> map forkEdited to have key (P (GetObKey map)) mapped to (GetVal map). To put literal key x and literal value y, use (PE ,x ,y TheMap) which maps (P x) to y.',{langs:{}});
+		
+		//vm.o8OfDuGo = vm.addOp('DuGo',null,false,2,'Like Du except with pointer jumping for first param. (DuGo x map) -> (map (Du (x map))). Example: a/b/sum^ is (DuGo a/b/fnVar) is (DGo (GoO (OO a b) fnVar)). Call that on a Treemap and it recurses a/b/sum^ in it to get a val.',{langs:{}});
+
+		/*(Da x) was replaced by (P x) aka x%, BUT 2023-5-25 theres still "mm:wikibChooseDesign_(P x) aka x%, in Treemap vs Lambdo/Mutlambdo" to solve, cuz might bring Da back depending on what way its solved.
+		//vm.xt("Redesigning lambdas 2023-4+ parse a%", Evv('a%'), Evv('(Da a)')); //Du/^ D/$ Da/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^
+		vm.o8OfDa = vm.addOp('Da',null,false,2,'(Da varName namespace), where namespace can be a LamNs (most direct way), Treemap, EmptyTreemap, or Ns (recursive namespace), gets that var value from readOnly lambda/mutlambda params, or U if not found. Theres no DaGo, like DuGo and DGo, cuz that only happens for object-oriented/cycles in Treemap (or Treemap in Ns), not in LamNs. Its only 1 var name deep in LamNs, but outside the Da (TODO?) you might still use recursion, like maybe varName%/x/y/sum$ (TODO fix parser/tostring/treeUI to allow that). The varName% syntax. Get a readonly lambda/mutlambda param. Du/^ D/$ Da/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^',{langs:{}});
+		*/
 		
 		
 		/*
@@ -7341,7 +7820,7 @@ const Wikibinator203 = (()=>{
 		Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
 		Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
 		*/
-		vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du a SomeMap) -> (SomeMap (Du a)). Get potentially dup (not yet deduped) fn, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.',{langs:{}});
+		//vm.o8OfDu = vm.addOp('Du',null,false,2,'(Du a SomeMap) -> (SomeMap (Du a)). Get potentially dup (not yet deduped) fn, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.',{langs:{}});
 		vm.o8OfBl = vm.addOp('Bl',null,false,2,'(Bl a SomeMap) -> (SomeMap (Bl a)). Get potentially dup typed blob such a TypevalB or TypevalC of a uint8 short int float32 or float64 etc primitive array, especially in a vm.Mut optimization but also works in interpreted mode using Treemap all the way through.',{langs:{}});
 		vm.o8OfD = vm.addOp('D',null,false,2,'(D a SomeMap) -> (SomeMap (D a)). Normally used with typed double/float64 and often vm.Mut optimization.',{langs:{}});
 		//Remove ops.O. Use OO or DGo or D or DuGo or Du etc, but if its just 1 param then its a literal, not Go/pointer: vm.o8OfO = vm.addOp('O',null,false,2,'(O a SomeMap) -> (SomeMap (O a)). /varName 1 level deep. Normally used with vm.Mut optimization.',{langs:{}});
@@ -7542,7 +8021,7 @@ const Wikibinator203 = (()=>{
 		
 		
 		
-		
+		//TODO remove 'K?' and 'KK?' ops.
 		vm.addOp('K?',null,false,2,'TODO rename K? to K, and rename KK? to KK. (K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).',{langs:{}});
 		vm.addOp('KK?',null,false,3,'TODO rename K? to K, and rename KK? to KK. (K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).',{langs:{}});
 		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map',{langs:{}});
@@ -7626,7 +8105,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('*',null,false,2,'(* 2 3)->6 (3*2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or *[X Y Z]State -> * of {Z State}, {Y State}, and {X State}, for vararg in (...)/infcurList. See + for details on doubles in general. (((new syntax: {} call. () infcur. [] sCurryListButTOfFirst. <> sCurryList)))',{langs:{}});
 		//vm.addOp('-',null,false,2,'double minus double. See + for details on doubles in general.',{langs:{}});
 		vm.addOp('Mi',null,false,2,'double minus double. See + for details on doubles in general.',{langs:{}});
-		vm.addOp('%',null,false,2,'double mod double. See + for details on doubles in general.',{langs:{}});
+		vm.addOp('Mod',null,false,2,'double mod double. See + for details on doubles in general.',{langs:{}});
 		//vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.',{langs:{}});
 		vm.addOp('Div',null,false,2,'double divide double. See + for details on doubles in general.',{langs:{}});
 		vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.',{langs:{}});
@@ -7820,9 +8299,7 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Lte',null,false,2,'less than or equal. (Lte 2 3) -> T, else F',{langs:{}});
 		vm.addOp('Gt',null,false,2,'greater than. (Gt 3 2) -> T, else F',{langs:{}});
 		vm.addOp('Gte',null,false,2,'greater than or equal. (Gte 3 2) -> T, else F',{langs:{}});
-		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.',{langs:{}});
-		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.',{langs:{}});
-		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).',{langs:{}});
+
 		/*SolveRecog goes for lower compute resources (time, memory, etc). Anything that solves it is allowed. SolveFloat64 is for goal functions,
 		scoring higher or lower (must be > 0 so can do hard constraints too). But it would have vagueness balancing between score and compute resources.
 		On the other hand, SolveRecog could be called multiple times to emulate any specific case of SolveFloat64. since it does function call caching,
@@ -7833,19 +8310,21 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Bize31',null,false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number... its in vm.maxBits TODO use that here and merge duplicate code in what generates these descriptions of bize* opcodes). 2**31 bits is 256mB.',{langs:{}});
 		vm.addOp('Bize53',null,false,1,'(bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general. Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256.',{langs:{}});
 		vm.addOp('Bize256',null,false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id. Max cbt size is 2**'+vm.log2OfMaxBits+'='+vm.maxBits+' and max bitstring size is 1 bit less (which is a number that wont fit in double, but maxBits itself fits in double cuz its a small enuf powOf2). Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. Bize256 always fits in a 256 bit id of literal 256 bits.',{langs:{}});
-		vm.addOp('LambdaParamsList',null,false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.',{langs:{}});
-		vm.addOp('LambdaParamsStream',null,false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.',{langs:{}});
+		//vm.addOp('LambdaParamsList',null,false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.',{langs:{}});
+		//vm.addOp('LambdaParamsStream',null,false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.',{langs:{}});
 		/*vm.addOp('lambdaParams',null,false,1,'Same as LambdaParamsReverse except is the same order they occur in the Lambda call, and is less efficient cuz has to reverse it. This is normally implemented by calling LambdaParamsReverse then reversing that []/stream.',{langs:{}});
 		vm.addOp('lambdaParamsReverse',null,false,1,'Used with (opLambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). (LambdaParamsReverse (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.',{langs:{}});
 		*/
 		vm.addOp('Seq','_',false,2,'The _ in (_[a b c] x) means ((Seq [a b c]) x) which does (c (b (a x))), for any vararg in the [].',{langs:{}});
+		vm.addOp('Has',null,false,2,'(Has key namespace) -> T or F',{langs:{}});
 		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.',{langs:{}});
 		vm.addOp('EmulateUsingInt32s',null,false,1,'There are some float32 and float64/double opcodes. These are well defined across multiple languages, at least what is most common for rounding behaviors etc (see IEEE754 but thats still a little vague), like a*b or a+b or 1/b or a/b or Math.sin(a) or Math.exp(a))... Use (EmulateUsingInt32s SomeOpcode) to get a definition of it (callable as a lambda the same way) that is always deterministic, made of int AND int, int XOR int, int shiftleft int, int multiply int, etc... the kinds of ops that are found in most hardware, though GPU.js compiling to GLSL shaders can only handle i think int16 or (nondeterministicly) float32, or it might be int24. EmulateUsingInt32s will be how to operate the strictest mode of wikibinator203, which must be completely deterministic so it syncs at the "cellular automata speed of light" in the real world. Even the int32 ops would be derived from S T Pair and other simple lambdas, but TODO should that be returned somewhere (could just derive it at runtime instead of making opcodes for it, since its mostly a math abstraction rarely used literally.',{langs:{}});
 		vm.addOp('EmulateUsingInt16s',null,false,1,'like EmulateUsingInt32s but using int16 ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32.',{langs:{}});
 		vm.addOp('EmulateUsingInt8s',null,false,1,'like EmulateUsingInt32s and EmulateUsingInt16s but using byte ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32, AND if you want those 16 (or it might go up to int24) bits to multiply or add 2 int8s in etc, or maybe that would work in int16s.',{langs:{}});
-		
-		vm.addOp('Car',null,false,2,'(LisplikeEval -,Car ,-,Cons .x .y== TreemapAsState). Should the inner -...= be prefixed by , ? OLD... -Car -Cons .x .y= TreemapAsState= returns (.x TreemapAsState) aka (TreemapAsState x). FIXME im not sure which should be dynamic and which should be quoted, such as should it be -.car -.cons .x .y= TreemapAsState= ? Or -car -cons x y= TreemapAsState= ? And should it need a separate LisplikeEval func (derive it using lambda opcode?)? FIXME the TreemapAsState must be called by (...). All lisplike funcs will take exactly 2 params: their params as a -...= linkedlist AND TreemapAsState. Could do it as everything is dynamic, so put T/, prefix to quote. (LisplikeEval -,Car -,Cons .x .y== TreemapAsState)',{langs:{}});
-		vm.addOp('Cdr',null,false,2,'See Car.',{langs:{}});
+		vm.addOp('CC','_',false,3,'Comment. (CC [this is a comment] x y) -> (x y). You could for example put this around funcBody in lambda or mutlambda, which goes at end of param [] list.',{langs:{}});
+
+		//vm.addOp('Car',null,false,2,'(LisplikeEval -,Car ,-,Cons .x .y== TreemapAsState). Should the inner -...= be prefixed by , ? OLD... -Car -Cons .x .y= TreemapAsState= returns (.x TreemapAsState) aka (TreemapAsState x). FIXME im not sure which should be dynamic and which should be quoted, such as should it be -.car -.cons .x .y= TreemapAsState= ? Or -car -cons x y= TreemapAsState= ? And should it need a separate LisplikeEval func (derive it using lambda opcode?)? FIXME the TreemapAsState must be called by (...). All lisplike funcs will take exactly 2 params: their params as a -...= linkedlist AND TreemapAsState. Could do it as everything is dynamic, so put T/, prefix to quote. (LisplikeEval -,Car -,Cons .x .y== TreemapAsState)',{langs:{}});
+		//vm.addOp('Cdr',null,false,2,'See Car.',{langs:{}});
 		
 
 		
@@ -8110,6 +8589,8 @@ const Wikibinator203 = (()=>{
 		
 		vm.saveLoadStack = [];
 		
+
+		vm.inMutlambdaLamnsIsInner = true;
 		
 		
 		/*
@@ -8452,6 +8933,24 @@ const Wikibinator203 = (()=>{
 					break;case o.Gte:
 						//greaterThanOrEqual
 						ret = vm.bit(y.n.d()>=z.n.d());
+					/*break;case o.Da:
+						TODO replace Da with P. (P varName) is already used in some code. TODO also more testcases for it.
+						//vm.xt("Redesigning lambdas 2023-4+ parse a%", Evv('a%'), Evv('(Da a)')); //Du/^ D/$ Da/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^
+						//vm.o8OfDuGo = vm.addOp('Da',null,false,2,'(Da varName namespace), where namespace can be a LamNs (most direct way), Treemap, EmptyTreemap, or Ns (recursive namespace), gets that var value from readOnly lambda/mutlambda params, or U if not found. Theres no DaGo, like DuGo and DGo, cuz that only happens for object-oriented/cycles in Treemap (or Treemap in Ns), not in LamNs. Its only 1 var name deep in LamNs, but outside the Da (TODO?) you might still use recursion, like maybe varName%/x/y/sum$ (TODO fix parser/tostring/treeUI to allow that). The varName% syntax. Get a readonly lambda/mutlambda param. Du/^ D/$ Da/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^',{langs:{}});
+						let namespace = r;
+						let namespaceOp = namespace.n.o8();
+						if(namespace.n.curriesLeft() == 1){
+							throw 'TODO implement Da and Ns and LamNs and Treemap and EmptyTreemap together.';
+							//if(namespaceOp == vm.o8OfLamNs){
+							//
+							//}else if(namespaceOp == vm.o8OfNs){
+							//	throw 'TODO';
+							//}else if(namespaceOp == vm.o8OfNs){
+							//}
+						}else{
+							ret = U; //incomplete namespace so theres no vars in it.
+						}
+						*/
 					break;case o.Du:{
 						//(Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
 						let map = z;
@@ -8463,6 +8962,13 @@ const Wikibinator203 = (()=>{
 						let Bl_then_key = l;
 						ret = map(Bl_then_key);
 					}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:{
+						//nevermind on Getcbt and GetcbtGo, theres already ops.Bl for that. Is there ops.BlGo? TODO
+
+						//vm.o8OfGetcbt = vm.addOp('Getcbt',null,false,2,'Like P/% and $/D but is @/Getcbt Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]',{langs:{}});
+						//vm.o8OfGetcbtGo = vm.addOp('GetcbtGo',null,false,2,'Like PGo/% and $/DGo but is @/GetcbtGo. Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]');
+
+				
+
 						ret = z(l); //map(allParamsExceptLast)
 						
 						/*Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
@@ -8484,13 +8990,39 @@ const Wikibinator203 = (()=>{
 						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
 						let map = z;
 						let varGetter = y;
-						ret = map(ops.D(varGetter(map)));
-					}break;case o.DuGo:{
+						ret = map(ops.D(varGetter(map))); //TODO ops.D(varGetter(map))(map)?
+					}break;case o.BlGo:{
+						let ns = z;
+						let varGetter = y;
+						ret = ops.Bl(varGetter(ns))(ns);
+						//vm.o8OfBlGo = vm.addOp('BlGo',null,false,2,'(BlGo a SomeMap) -> (SomeMap (Bl (SomeMap a))) or should it be (Bl (a SomeMap) SomeMap)',{langs:{}});
+					/*}break;case o.DuGo:{
+						
+						//2023-5-30 todo... replacing Du with P and replacing DuGo with PGo.
+						
 						//(DuGo x map) -> (map (Du (x map))). Example: a/b/fnVar^ is (DuGo a/b/sum) is (DuGo (GoO (OO a b) fnVar)).
 						//Call that on a Treemap and it recurses a/b/fnVar^ in it to get a val.
 						let map = z;
 						let varGetter = y;
 						ret = map(ops.Du(varGetter(map)));
+					*/
+					}break;case o.PGo:{
+						//2023-5-30 todo... replacing Du with P and replacing DuGo with PGo.
+						
+						//FIXME its not just map. its any ns. so call node.p instead (which should be renamed to node.get.
+						
+						//OLD: (DuGo x map) -> (map (Du (x map))). Example: a/b/fnVar^ is (DuGo a/b/sum) is (DuGo (GoO (OO a b) fnVar)).
+						//OLD: Call that on a Treemap and it recurses a/b/fnVar^ in it to get a val.
+						
+						//let map = z;
+						let ns = z;
+						let varGetter = y;
+						//ret = map(ops.P(varGetter(map)));
+						let val = varGetter(ns);
+						
+						//(PGo varGetter ns) should return same thing as (P val ns) aka (P (varGetter ns) ns).
+						//TODO But I want to optimize it by using node.p??? Do that later, cuz im still redesigning P.
+						ret = ops.P(val)(ns);
 					}break;case o['K?']:{
 						//FIXME remove K? KK? KE KKE, and use O GoO D Du DGo etc instead.
 						
@@ -8593,7 +9125,22 @@ const Wikibinator203 = (()=>{
 						let val = getVal(map);
 						let wrappedKey = vm.ops.D(obKey); //(D x)
 						ret = vm.put(wrappedKey,val,map); //map (D x) to y. Later you can call (D x map) to get y.
-					}break;case o.DuE:{ //DE is to D as DuE is to Du.
+					}break;case o.PE:{
+						//vm.o8OfDE = vm.addOp('PE',null,false,3,'PE is a setter. P is a getter. Similar to DE vs D.
+						//(PE GetObKey GetVal map) -> map forkEdited to have key (P (GetObKey map)) mapped to (GetVal map).
+						//To put literal key x and literal value y, use (PE ,x ,y TheMap) which maps (P x) to y.',{langs:{}});
+						
+						
+						let getObKey = l.n.L().n.R(); //,x
+						let getVal = l.n.R(); //,y
+						let map = z; //Example: (EmptyTreemap GodelLessThan)
+						let obKey = getObKey(map);
+						let val = getVal(map);
+						//let wrappedKey = vm.ops.Du(obKey); //(Du x)
+						let wrappedKey = ops.P(obKey); //(P x)
+						ret = vm.put(wrappedKey,val,map); //map (Du x) to y. Later you can call (Du x map) to get y.
+
+					/*Du and DuGo replaced by P and PGo: }break;case o.DuE:{ //DE is to D as DuE is to Du.
 						//TODO merge duplicate code between DE and DuE?
 						let getObKey = l.n.L().n.R(); //,x
 						let getVal = l.n.R(); //,y
@@ -8602,6 +9149,7 @@ const Wikibinator203 = (()=>{
 						let val = getVal(map);
 						let wrappedKey = vm.ops.Du(obKey); //(Du x)
 						ret = vm.put(wrappedKey,val,map); //map (Du x) to y. Later you can call (Du x map) to get y.
+					*/
 					}break;case o.While:{
 						let condition = x;
 						let loopBody = y;
@@ -8674,6 +9222,8 @@ const Wikibinator203 = (()=>{
 						//In that treemap are normally things like (? hello world), (?? object key value),
 						//or (?C catPic463 (TypevalB application/jpeg <...bytes of jpg pic of a cat...>)).
 						let state = z; //Example: (EmptyTreemap GodelLessThan), but you probably want to use an idMaker where GodelLessThan only breaks ties.
+
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop start state='+state);
 						
 						//loops varName from (double)0 to (double)LoopSize-1
 						//adjusting that in State (a btfl) then loopBody becomes loopBody(State),
@@ -8702,6 +9252,10 @@ const Wikibinator203 = (()=>{
 						let endExcl = getUpTo(state).n.d(); //double
 						//let endExcl = x.n.d(); //UpTo as double/float64
 						let loopBody = y;
+
+
+						/* Commentingout this 2023-6-10 cuz the ops.Ns redesign makes all loop opcodes push a namespace, and pop it at end,
+						so dont have to deal with prevVarVal.
 						
 						//let prevVarVal = vm.btflGet(state, varName_asKey);
 						let prevVarVal = state(varName_asKey); //returns U if its mapped to U or if it has no such key/val.
@@ -8718,9 +9272,13 @@ const Wikibinator203 = (()=>{
 							//(KE x) is a putter of x.
 							//state = varName_asKey(val)(state);
 							state = vm.put(varName_asKey,val,state); //same as vm.ops.DE(vm.ops.T(varName))... WAIT, i havent decided on what S-level DE will be.
+
+							if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop after write loop counter val='+val+' endExcl='+endExcl+' state='+state);
 							
 							
 							state = loopBody(state);
+
+							if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop after loopBody val='+val+' endExcl='+endExcl+' state='+state);
 						}
 						//restore val of varName to what it was before this loop, even if loop changed it.
 						if(hadPrevVal){
@@ -8730,12 +9288,38 @@ const Wikibinator203 = (()=>{
 						}else{
 							state = vm.del(varName_asKey,state); //remove key/val.
 						}
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop end state='+state);
+						//state = vm.btflPut(state, varName_asKey(prevVarVal));
+						ret = state;
+						*/
+
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop before pushNsWithLoopVar state='+state);
+						//FIXME what if there was no Comparator in the given namespace (such as a LamNs), or if its not a namespace at all.
+						state = state.n.pushNsWithLoopVar(varName_asKey, 0);
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop after pushNsWithLoopVar state='+state);
+						
+						for(let val=0; val<endExcl; val++){
+							//FIXME what if loopBody removed the loop var so this writes it into lowerOnStack/outer namespace?
+							state = vm.put(varName_asKey,val,state);
+							state = loopBody(state);
+							if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop after write loop counter val='+val+' endExcl='+endExcl+' state='+state);
+						}
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop before popNs state='+state);
+						state = state.n.popNs();
+						if(vm.logDetailedStateDuringFoLoop) console.log('vm.logDetailedStateDuringFoLoop end state='+state);
 						//state = vm.btflPut(state, varName_asKey(prevVarVal));
 						ret = state;
 						
 						
 						
-						
+
+
+
+
+
+
+
+
 						
 						
 						
@@ -8916,26 +9500,95 @@ const Wikibinator203 = (()=>{
 						//TODO 	throw 'TODO either compute the exact closest float64 (and what if 2 are equally close, and should it allow subnormals?) (try to do that, choose a design) or infloop (try not to)';
 						//TODO }
 					*/
-					break; case o.P: //the "get parameter from Lambda/MutLam/[...]/etc" opcode.
-						let paramName = y;
+					break; case o.P:{ //the "get parameter from Lambda/MutLam/[...]/etc" opcode.
+						//let paramName = y;
+						let POfParamName = l;
 						let lambdaEtc = z;
-						ret = lambdaEtc.n.p(paramName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.
+						//ret = lambdaEtc.n.p(paramName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.
+						ret = lambdaEtc.n.p(POfParamName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.	
 					//break; case o.Lambda:
-					break; case o.Lambdo:
+					}break; case o.Lambdo:{
+
 						//Lambdo is the 7 param form with (U U) as its last param.
-						//Lambda is the 6 param form waiting for a [...param names...] param as 7th param.
+						//λ/Lambda is the 6 param form waiting for a [...param names...] param as 7th param.
 						//TODO do same for MutLam at 6/7 params.
-						
+
+						/*OLD...
 						//(Lambda [ab bc aSize bSize cSize] FuncBody ValAB valBC ValASize ValBSize ValCSize)
 						// --> (FuncBody [(Lambda [ab bc aSize bSize cSize] FuncBody ValAB ValBC ValASize ValBSize) ValCSize]),
 						//and in that case, FuncBody normally contains (P aSize) which gets ValASize,
 						//and (P aSize) might be written as ?aSize or .aSize or something like that, and see <...> syntax.
+						*/
+
+
+						//(Lambda [ab bc aSize bSize cSize FuncBody] ValAB valBC ValASize ValBSize ValCSize)
+
 						let FuncBody = l.n.funcBody();
+						let namespace = vm.ops.LamNs(l)(r); //get from it using x% varName% etc.
 						
 						//FIXME maybe infcur/() shouldnt be used here, and should use Pair or some other op for it instead,
 						//so Get (whats it called?) aka the ? opcode, can easier tell the difference between [AllParamsExceptLast LastParam] vs [...state...].
-						ret = FuncBody(vm.ops.Infcur(l)(r)); //l contains FuncBody so it can call itself recursively if it wants to.
-					break; case o.LambdaParams:
+						//ret = FuncBody(vm.ops.Infcur(l)(r)); //l contains FuncBody so it can call itself recursively if it wants to.
+						ret = FuncBody(namespace); //l contains FuncBody (at end of params list) so it can call itself recursively if it wants to.
+					}break; case o.Mutlambdo:{
+
+						//(Λ/Mutlambda [ab bc aSize bSize cSize FuncBody] valAB valBC valASize valBSize valCSize (EmptyTreemap GodelLessThan))
+						//
+						//newLamNs: (LamNs (Λ/Mutlambda [ab bc aSize bSize cSize FuncBody] valAB valBC valASize valBSize) valCSize)
+						//incomingNs: (EmptyTreemap GodelLessThan)
+
+						let FuncBody = l.n.funcBody();
+						let newLamNs = ops.LamNs(l.n.L())(l.n.R()); //get from it using x% varName% etc.
+						let incomingNs = r; //normally a Treemap. //get from it using x$ varName$ otherVarName^ a/b/sum$ x/y/z etc.
+						//get from combined namespace the same wan you get from either namespace inside it. Use varName% or a/b/sum$ in funcBody for example.
+						let namespace = vm.inMutlambdaLamnsIsInner ? ops.Ns(newLamNs)(incomingNs) : ops.Ns(incomingNs)(newLamNs);
+						ret = FuncBody(namespace); //l contains FuncBody (at end of params list) so it can call itself recursively if it wants to.
+					}break; case o.Ns:{
+						/*vm.o8OfNs = vm.addOp('Ns',null,false,3,'(Ns namespaceA namespaceB key) -> val from namespaceA if exists else from namespaceB
+						if exists else U if not exist in either. TODO update Put opcode to deal with Ns, LamNs, and Treemap the same way. Namespace
+						with 2 childs, a local and other namespace. Either may be another such Ns, but the leafs of it are eventually Treemap or
+						(LamNs (λ [a b c] comment funcBody valA valB) valC). Where (LamNs (λ [a b c] comment funcBody valA valB) valC a) -> valA,
+						call it on b and get valB, call it on c and get valC, call it on anything else and get U. Put and Has ops will need to
+						be updated to deal with Ns, LamNs, and Treemap all the same way.',{langs:{}});
+						*/
+						let namespaceA = x;
+						let namespaceB = y;
+						let key = z;
+						/*let val = namespaceA(key);
+						if(val === U){
+							//returning U means val is U or doesnt have that key.
+							if(vm.has(key,namespaceA)){ //namespaceA has key, val is U
+								ret = val;
+							}else{ //namespaceA does not have key.
+								ret = namespaceB(key);
+							}
+						}else{
+							ret = val;
+						}
+						*/
+						ret = namespaceA.n.pOrNull(key) || namespaceB(key); //same as namespaceA.n.pOrNull(key) || namespaceB.n.pOrNull(key) || U.
+						//FIXME that broke: vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - C",
+						//	Evv('(Ns (LamNs (Λ [x I#(F U)]) 2) (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 Em) x%)'), Evv('2'));
+
+						//throw 'FIXME (Has z% (LamNs (Λ [x I#(F U)]) 2)) is giving T';
+					}break; case o.LamNs:{
+						//varName% is (P varName). (P varName (LamNs...)) -> (LamNs (P varName)).
+						//LamNs then gets varName out of it and gets the param named that in the lambda params list at 7th param of U.
+						let lamns = l;
+						let pKey = z;
+						if(vm.isFullP(pKey)){ //FIXME Da is being replaced by P. P existed first. Da was never fully working. I just wanted a varName% syntax but that should mean (P varName).
+							//let key = pKey.n.R(); //get varName from (P varName) aka from varName%. Can be any lambda, not just strings.
+							//ret = lamns.n.p(key);
+							ret = lamns.n.p(pKey); //.p will remove the P from (P key), cuz for example (LamNs (λ [a b I#(F U)] 10) 20 (P a)) gets the value of a aka 10. (P b) gets value of b aka 20.
+
+
+							//FIXME in case o.LamNs, add more than just (P a) aka a% here. Theres also a^ a$ a/b/c$, D, DGo, etc.
+						}else{
+							ret = U; //not found
+						}
+					}break; case o.LambdaParams:{
+						//FIXME was this removed from addOp? If so, remove it here too.
+
 						//FIXME remove this? cuz should use ObVal and ObKeyVal etc in a []?
 						ret = vm.lambdaParamsInfcurInReverseOrder(z);
 						//z is (LazyEval (Lambda FuncBody [x y z] valX valY) valZ) or (Lambda FuncBody [x y z] valX ...).
@@ -8949,8 +9602,10 @@ const Wikibinator203 = (()=>{
 					
 						//throw 'TODO';
 						//vm.addOp('lambdaParams',false,1,'Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)). (LambdaParams (LazyEval (Lambda FuncBody [x y z] valX valY) valZ)) -> [x valX y valY z valZ], but it can be a different number of params. Lambda takes up to (TODO find exact number) around 240-something or 250-something params.');
-					
-					break; case o.Qes: //opposite of Seq
+					}break; case o.CC:{
+						//(CC [the comment] a b) -> (a b).
+						ret = y(z);
+					}break; case o.Qes: //opposite of Seq
 						{
 							//TODO merge duplicate code between qes and seq
 							let reverseSeq = y;
@@ -8994,8 +9649,13 @@ const Wikibinator203 = (()=>{
 						}
 						ret = param;
 						*/
+					break;case o.Has:
+						//vm.addOp('Has',null,false,2,'(Has key namespace) -> T or F',{langs:{}});
+						let key = y;
+						let ns = z;
+						ret = vm.bit(vm.has(key,ns));
 					break;case o.HasMoreThan7Params:
-						ret = vm.Bit(z().hasMoreThan7Params());
+						ret = vm.bit(z().hasMoreThan7Params());
 					break;case o['+']:{
 						//FIXME see "FIXME" comment in case Sine.
 
@@ -9039,7 +9699,7 @@ const Wikibinator203 = (()=>{
 						}else{ //{+ 2 3}
 							ret = vm.wrapDouble(z.n.d()*y.n.d()); //secondParam*firstParam, reverse order to match the vararg order being reversed
 						}
-					}break;case o['%']: //mod. (-310)%100==(-10). (-310+1000)%100==90. -10 and 90 are 100 apart, so the mod works.
+					}break;case o.Mod: //mod. (-310)%100==(-10). (-310+1000)%100==90. -10 and 90 are 100 apart, so the mod works.
 						//FIXME see "FIXME" comment in case Sine.
 						ret = vm.wrapDouble(y.n.d()%z.n.d()); //(double,double)->double
 					break;case o['++']:{
@@ -9094,7 +9754,8 @@ const Wikibinator203 = (()=>{
 						ret = vm.wrapDouble(Math.sqrt(z.n.d()));
 						//FIXME see "FIXME" comment in case Sine.
 					break;default:
-						throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
+						throw 'o8='+o8+' opInfo='+JSON.stringify(vm.opInfo[o8])+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
+						//throw 'o8='+o8+' TODO theres nearly 128 opcodes. find the others in "todo these ops too..." Comment.';
 				}
 				return cache.ret = ret;
 			}
@@ -9158,15 +9819,48 @@ const Wikibinator203 = (()=>{
 		
 		//TODO those 2 opcodes should be adjacent that can be checked by anding it to drop the low bit of o8. Optimize that way instead of calling both funcs.
 		vm.isFullDOrDGo = fn=>(vm.isFullD(fn) || vm.isFullDGo(fn));
+
+		vm.isLambdo = fn=>(fn.n.o8()==vm.o8OfLambdo);
+
+		vm.isMutlambdo = fn=>(fn.n.o8()==vm.o8OfMutlambdo);
+
+		vm.isLambdoOrMutlambdo = fn=>(vm.isLambdo(fn)||vm.isMutlambdo(fn));
 		
 		//is it a (Du a)
-		vm.isFullDu = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Du,1);
+		//vm.isFullDu = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Du,1);
 		
 		//is it a (DuGo a)
-		vm.isFullDuGo = fn=>vm.isSameOpAndNumParams(fn,vm.ops.DuGo,1);
+		//vm.isFullDuGo = fn=>vm.isSameOpAndNumParams(fn,vm.ops.DuGo,1);
 		
 		//TODO those 2 opcodes should be adjacent that can be checked by anding it to drop the low bit of o8. Optimize that way instead of calling both funcs.
-		vm.isFullDuOrDuGo = fn=>(vm.isFullDu(fn) || vm.isFullDuGo(fn));
+		//replaced by P and PGo: vm.isFullDuOrDuGo = fn=>(vm.isFullDu(fn) || vm.isFullDuGo(fn));
+
+		/* Replacing Getcbt and GetcbtGo with Bl and BlGo cuz Bl already existed. blob.
+		vm.isFullGetcbt = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Getcbt,1); //@ suffix
+
+		vm.isFullGetcbtGo = fn=>vm.isSameOpAndNumParams(fn,vm.ops.GetcbtGo,1); //@ suffix
+
+		vm.isFullGetcbtOrGetcbtgo = fn=>(vm.isFullGetcbt(fn) || vm.isFullGetcbtGo(fn));
+		*/
+
+		vm.isFullBl = fn=>vm.isSameOpAndNumParams(fn,ops.Bl,1); //@ suffix
+
+		vm.isFullBlGo = fn=>vm.isSameOpAndNumParams(fn,ops.BlGo,1); //@ suffix
+
+		vm.isFullBlOrBlGo = fn=>(vm.isFullBl(fn) || vm.isFullBlGo(fn));
+
+		//varName% gets lambda or mutlambda params which are readonly in LamNs.
+		//vm.isFullDa = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Da,1);
+		vm.isFullP = fn=>vm.isSameOpAndNumParams(fn,vm.ops.P,1);
+
+		vm.isFullPGo = fn=>vm.isSameOpAndNumParams(fn,vm.ops.PGo,1);
+
+		vm.isFullPOrPGo = fn=>(vm.isFullP(fn) || vm.isFullPGo(fn));
+
+
+		vm.isFullLamNs = fn=>vm.isSameOpAndNumParams(fn,vm.ops.LamNs,2);
+
+		vm.isFullNs = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Ns,2);
 
 		
 		//7 less than number of params of U, so can be as low as -7. Opcode is known at 7 params of U.
@@ -9777,23 +10471,38 @@ const Wikibinator203 = (()=>{
 					viewing.tokens.push('/');
 					this.viewToStringRecurse(view.r(), viewing, syty, true); //output sum in /a/b/sum
 				}else if(isLastCur && fnOp==vm.o8OfD){ //Example: (D /a/b/sum) is displayed as /a/b/sum$
+					//TODO merge duplicate code between D and DGo
+
 					//FIXME display (D a) as a$ if its 1 stringLiteral (the kind without quotes or whitespace),
 					//but display as (D /a/b/sum) if its not, cuz a/b/sum$ means (DGo a/b/sum).
 					//And do similar for Du vs DuGo in a/b/fnVar^.
 					this.viewToStringRecurse(view.r(), viewing, syty, true); //output a/b/sum in a/b/sum$
 					viewing.tokens.push('$');
-				}else if(isLastCur && fnOp==vm.o8OfDu){ //Example: (Du /a/b/sum) is displayed as /a/b/sum^
+				/*}else if(isLastCur && fnOp==vm.o8OfDu){ //Example: (Du /a/b/sum) is displayed as /a/b/sum^
 					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
 					this.viewToStringRecurse(view.r(), viewing, syty, true); //output a/b/fnVar in a/b/fnVar^
 					viewing.tokens.push('^');
+				*/
 				}else if(isLastCur && fnOp==vm.o8OfDGo){
+					//TODO merge duplicate code between D and DGo
+
 					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
 					this.viewToStringRecurse(view.r(), viewing, syty, true);
 					viewing.tokens.push('$');
-				}else if(isLastCur && fnOp==vm.o8OfDuGo){
+				/*}else if(isLastCur && fnOp==vm.o8OfDuGo){
 					//FIXME "//And do similar for Du vs DuGo in a/b/fnVar^."
 					this.viewToStringRecurse(view.r(), viewing, syty, true);
 					viewing.tokens.push('^');
+				}else if(isLastCur && fnOp==vm.o8OfDa){
+					this.viewToStringRecurse(view.r(), viewing, syty, true);
+					viewing.tokens.push('%'); //varName% is (Da varName).
+				*/
+				}else if(isLastCur && (fnOp==vm.o8OfP || fnOp==vm.o8OfPGo)){
+					this.viewToStringRecurse(view.r(), viewing, syty, true);
+					viewing.tokens.push('%');
+				}else if(isLastCur && (fnOp==vm.o8OfBl || fnOp==vm.o8OfBlGo)){
+					this.viewToStringRecurse(view.r(), viewing, syty, true);
+					viewing.tokens.push('@');
 				}else{
 					switch(syty){
 						case 'GV':{ //<...>
@@ -11133,7 +11842,8 @@ const Wikibinator203 = (()=>{
 			//starts and ends with ' or " (todo choose one or both?) is string literal.
 			//Small string with no whitespace that starts with lowercase letter is also string literal,
 			//but theres other rules for that too, todo define those.
-			return literalToken.endsWith('^') || literalToken.endsWith('$') ||
+			return /*literalToken.endsWith('^') ||*/ literalToken.endsWith('$') || literalToken.endsWith('%') || //Du/^ D/$ Da/% as in vm.ops.Du .D .Da and DuGo DGo (but not DaGo). UPDATE: merge Da with P?
+				literalToken.endsWith('@') ||
 				(literalToken[0] != "'" && literalToken[0] != '"' && literalToken.includes('/'));
 		};
 		
@@ -11206,7 +11916,9 @@ const Wikibinator203 = (()=>{
 				//NEW: like a/b/sum$ means (D (GoO (OO a b) sum))
 				let ret = null;
 				let end = '';
-				if(literalToken.endsWith('$') || literalToken.endsWith('^')){ //$ does vm.ops.D, and ^ does vm.ops.Du
+				//if(literalToken.endsWith('$') || literalToken.endsWith('^') || literalToken.endsWith('%')){ //$ does vm.ops.D, and ^ does vm.ops.Du. Da/%.
+				if(literalToken.endsWith('@') || literalToken.endsWith('$') || literalToken.endsWith('%')){ //$ does vm.ops.D, and ^ does vm.ops.Du. Da/%.
+					//TODO merge duplicate code between here and that other code that checks for % $ %.
 					end = literalToken[literalToken.length-1];
 					literalToken = literalToken.substring(0,literalToken.length-1);
 				}
@@ -11237,9 +11949,30 @@ const Wikibinator203 = (()=>{
 					if(end == '$'){
 						let op = isGo ? ops.DGo : ops.D;
 						ret = op(ret); //double/float64
-					}else if(end == '^'){
+					/*}else if(end == '^'){
+						throw '^/Du is replaced by P, and DuGo replaced by PGo';
 						let op = isGo ? ops.DuGo : ops.Du;
 						ret = op(ret); //the dup fn of vm.Mut optimization (or interpreted form)
+					*/
+					}else if(end == '%'){
+						let op = isGo ? ops.PGo : ops.P;
+						ret = op(ret); //a Lambda or Mutlambda param if varname%, or can have x/y/varname/z% in.... the dup fn of vm.Mut optimization (or interpreted form)
+
+						/*
+						if(!partStrings.length){
+							throw 'Empty partStrings before %';
+						//if(partStrings.length != 1){
+							//throw 'partStrings='+JSON.stringify(partStrings)+' but must be just 1 part before the Da/% cuz LamNs doesnt have a/b/sum recursion but maybe later TODO a%/b/sum later?';
+						//	throw 'partStrings='+JSON.stringify(partStrings)+' but must be just 1 part before the P/% cuz LamNs doesnt have a/b/sum recursion but maybe later TODO a%/b/sum later?';
+						}else if(partStrings.length == 1){
+							//ret = ops.Da(ret); //a lambda/mutlambda readOnly param for vm.Mut optimization (or interpreted form)
+							ret = ops.P(ret); //a lambda/mutlambda readOnly param for vm.Mut optimization (or interpreted form)
+						}else{
+							
+						}*/
+					}else if(end == '@'){ //blob. varname@, or can have x/y/varname/z@ in.... the dup fn of vm.Mut optimization (or interpreted form)
+						let op = isGo ? ops.BlGo : ops.Bl;
+						ret = op(ret);
 					}else{
 						throw 'end='+end;
 					}
@@ -11638,13 +12371,18 @@ const Wikibinator203 = (()=>{
 			//TODO Might use base58 or base64 later instead of hex.
 			//this.fnId = fn.n.id();
 			
+			//ops.D
 			//double val. mutable.
 			this.valNum = 0;
 			
+			//ops.Du
 			//A fn that doesnt have to be deduped, but isnt used as a key here (may be used as a key other places),
 			//so it can do fast things like 
 			this.valFn = U;
 			
+			/*
+			//UPDATE: 2023-5 this is supposed to be replaced by using the keys directly in mut. mutA[mutB][mutC].valNum for example, and can optimize as mutA.shortIdOfMutB.shortIdOfMutC.valNum
+			//
 			//map of Mut to Mut.
 			//this.map = {};
 			//
@@ -11660,10 +12398,13 @@ const Wikibinator203 = (()=>{
 			//
 			this.valMap = []; //map and list. careful about certain keys such as length and __prototype__ or those similarly named
 			Object.setPrototypeOf(this.map,null);
+			*/
 			
 			//list of Mut
 			//this.list = [];
 			
+			//TODO which op is this, for cbt or typevalC or typevalD of cbt, similar to ops.D or ops.Du but for cbt?
+			//
 			//Any primitive array, such as Uint8Array, Int32Array, Float32Array, Float64Array. Mutable if nonempty.
 			//Can be replaced after the mut is created.
 			//Depending on what type this is, values put in it will be truncated or dropped (TODO make it deterministic).
@@ -11855,8 +12596,13 @@ const Wikibinator203 = (()=>{
 		//cuz most ops start with 7 params but Lambda and MutLam start with 6.
 		//TODO also do this for MutLam when get that op working.
 		
+
+
+		let lamMsg = 'Updating vm.opInfo of ops that read more about their 7th param than Isleaf or not about it. Lambda and Mutlambda are both 6 params and use the list size of 7th param to choose their number of curries left.';
+		console.log('START: '+lamMsg);
+
 		//Lambda is 6 params waiting for a [...]. Lambdo has 7th param of (U U).
-		//TODO do same thing for MutLam but it has 1 more param that is a [...stateless state...]
+		//(Doing same thing for MutLam but it has 1 more param that is a namespace)
 		console.log('vm.o8OfLambda='+vm.o8OfLambda);
 		//let Lambda = vm.o8ToLambda(vm.o8OfLambda);
 		//Lambda.localName = Lambda.builtInName = 'Lambda';
@@ -11866,6 +12612,20 @@ const Wikibinator203 = (()=>{
 		//lamOpInfo.description = lamOpInfo.name+'/'+lamOpInfo.description;
 		updateOp(vm.o8OfLambda);
 		console.log('Updated Lambda op: '+JSON.stringify(vm.opInfo[vm.o8OfLambda]));
+
+
+		//Mutlambda is 6 params waiting for a [...]. Mutlambdo has 7th param of (U U).
+		console.log('vm.o8OfMutlambda='+vm.o8OfMutlambda);
+		let mutlamOpInfo = vm.opInfo[vm.o8OfMutlambda];
+		mutlamOpInfo.name = 'Λ'; //instead of Mutlambda
+		updateOp(vm.o8OfMutlambda);
+		console.log('Updated Mutlambda op: '+JSON.stringify(vm.opInfo[vm.o8OfMutlambda]));
+
+		console.log('END: '+lamMsg);
+
+
+
+
 		
 		//prefix of normal (utf8) text
 		vm.utf8Prefix = vm.ops.TypevalB(U);
@@ -12382,7 +13142,11 @@ const Wikibinator203 = (()=>{
 		vm.extraTests = [];
 
 		let Ev = vm.eval; //eval of that wikibinator code
-		let Evv = code=>(()=>Ev(code)); //lazyeval of that wikibinator codr
+		let Evv = code=>{
+			let ret = ()=>Ev(code); //lazyeval of that wikibinator codr
+			ret.toString = ()=>code;
+			return ret;
+		};
 		
 		vm.Test = function(name, getX, getY){
 			this.name = name;
@@ -12391,6 +13155,9 @@ const Wikibinator203 = (()=>{
 		};
 		vm.Test.prototype.run = function(){
 			vm.test(this.name, this.getX(), this.getY());
+		};
+		vm.Test.prototype.toString = function(){
+			return '[vm.Test name['+this.name+'] getX['+this.getX+'] getY['+this.getY+']]';
 		};
 		
 		//create a lazyevaled extraTest to be done later if user pushes button made by vm.htmlForExtraTests()
@@ -12408,6 +13175,8 @@ const Wikibinator203 = (()=>{
 		//vm.extraTests.push(()=>vm.test("Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em), vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 		vm.xt("A Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 		//TODO vm.eval('(Fo i 5 (EmptyTreemap GodelLessThan))')+''
+
+		vm.xt('(Abz#[a b z] Abz) displays that way instead of as [Abz#[a b z] Abz] which it did 2023-5-24', ()=>(vm.eval('(Abz#[a b z] Abz)')+''), ()=>'(Abz#[a b z] Abz)');
 		
 		//vm.extraTests.push(()=>vm.test('treemap in _[] with KE, basics. FIXME it shouldnt keep the Tm name from earlier tests.', vm.eval('(_[ (KE hello world) (KE whats up) (KE [this is some words] yo) (KE 2 3) ] (EmptyTreemap GodelLessThan))')+'',
 		//	'(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (KE hello) world (Tm Em (KE whats) up (Tm (Tm Em (KE 2) 3 Em) (KE [this is some words]) yo Em)))'));
@@ -12425,6 +13194,55 @@ const Wikibinator203 = (()=>{
 		vm.xt('a map test simpler than loop but with 2 DE updates',
 			Evv('(DE ,x <+ x$ ,1000000> (DE ,x <+ <* x$ x$> ,1> (DE ,x ,10 (EmptyTreemap GodelLessThan))))'),
 			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) x$ 1000101 Em)'));
+		
+		/*vm.xt('λ/lambda get param by P x, the old way before 2023-4', Evv('(λ [x y] comment (P x) valX valY)'), Evv('valX'));
+		vm.xt('λ/lambda get param by P y, the old way before 2023-4', Evv('(λ [x y] comment (P y) valX valY)'), Evv('valY'));
+		vm.xt('λ/lambda get param not found by P z, the old way before 2023-4', Evv('(λ [x y] comment (P z) valX valY)'), ()=>U);
+		*/
+
+		vm.xt('λ/lambda get param by P x, the new way after 2023-4 direct', Evv('(λ [x y (P x)] valX valY)'), Evv('valX'));
+		vm.xt('λ/lambda get param by P y, the new way after 2023-4 direct', Evv('(λ [x y (P y)] valX valY)'), Evv('valY'));
+		vm.xt('λ/lambda get param by P x, the new way after 2023-4 P LamNs', Evv('(P x (LamNs (λ [x y I#(F U)] valX) valY))'), Evv('valX'));
+		vm.xt('λ/lambda get param by P x, the new way after 2023-4 P LamNs', Evv('(P y (LamNs (λ [x y I#(F U)] valX) valY))'), Evv('valY'));
+		vm.xt('λ/lambda get param not found by P z, the new way after 2023-4 direct', Evv('(λ [x y (P z)] valX valY)'), ()=>U);
+		vm.xt('λ/lambda get param by P x, the new way after 2023-4 P LamNs', Evv('(P z (LamNs (λ [x y I#(F U)] valX) valY))'), ()=>U);
+		
+		//vm.xt('Du aka ^ as in (Du x) is x^, should not exist, cuz replace it with P aka x%.', ()=>!!vm.ops.Du, ()=>false);
+		//Du replaced by P: vm.xt('DuGo as in ^ (DuGo (OO x y) is x/y^, should not exist, cuz replace it with PGo aka x/y%.', ()=>!!vm.ops.DuGo, ()=>false);
+	
+		vm.xt('P as in x%', Evv('x%'), Evv('(P x)'));
+		vm.xt('PGo as in x/y%', Evv('x/y%'), Evv('(PGo (OO x y))'));
+		vm.xt('PGo as in x/y/z%', Evv('x/y/z%'), Evv('(PGo (GoO (OO x y) z))'));
+		vm.xt('PGo as in x/y/z/x/x%', Evv('x/y/z/x/x%'), Evv('(PGo (GoO (GoO (GoO (OO x y) z) x) x))'));
+		
+		vm.xt('TODO NGo or N, for getting stuff in namespace in namespace such as Treemap in Treemap in Treemap by syntax a;b;c but maybe combinable with syntaxes like a;b;c;x/y/z/x/x%', ()=>false, ()=>true);
+
+		vm.xt('λ/lambda HAS j NOT FOUND', Evv('(Has j% (λ [x y z (P z)] valX valY))'), Evv('F'));
+		vm.xt('λ/lambda HAS x FOUND', Evv('(Has x% (λ [x y z (P z)] valX valY))'), Evv('T'));
+		vm.xt('λ/lambda HAS y FOUND', Evv('(Has y% (λ [x y z (P z)] valX valY))'), Evv('T'));
+		vm.xt('EmptyTreemap HAS y NOT FOUND', Evv('(Has y% (EmptyTreemap GodelLessThan))'), Evv('F'));
+		vm.xt('EmptyTreemap HAS hundred$ FOUND', Evv('(Has hundred$ (DE ,hundred ,100 (EmptyTreemap GodelLessThan)))'), Evv('T'));
+		vm.xt('EmptyTreemap HAS hundred NOT FOUND cuz thats different than hundred$ aka (D hundred)', Evv('(Has hundred (DE ,hundred ,100 (EmptyTreemap GodelLessThan)))'), Evv('F'));
+		//TODO test Has for other kinds of ns, including Ns and Treemap and EmptyTreemap
+
+		/*2023-5-30
+		Here's the planned solution: (Lambda[x y z funcbody] valX valY) is viewed as having keys x% (aka (P x)) and y%, not x and y. (P x ns) will get the value of key (P x), not the value of key x. So use x% and y% and z% in funcbody. x% in Ns, LamNs, Treemap, EmptyTreemap, Lambda, and Mutlambda works the same way for READ. For WRITE (by forkedit) Im still undecided if (Put x% ns) should work for LamNs, Lambda, and Mutlambda, to forkedit the valX valY etc, vs if it should in Ns skip LamNs that doesnt have x% and go to the next ns in it.
+		-- x$ gets from non-Lam, normally float64. (D x)
+		-- x% gets from any namespace. (P x). //maybe merge (Du x) into this?
+		-- x@ gets from non-Lam, normally typed cbt.
+		*/
+		//throw 'FIXME should (Has x% (LamNs (Λ [x I#(F U)]) 2)) be T or F? x% is (P x) which looks for x as key. But in Treemap, (P x) puts (P x) as key instead of x as key. See mm:wikibChooseDesign_(P x) aka x%, in Treemap vs Lambdo/Mutlambdo';
+		//vm.xt('EmptyTreemap HAS z% NOT FOUND', Evv('(Has z% (LamNs (Λ [x I#(F U)]) 2))'), Evv('F'));
+
+		vm.xt('λ/lambda get param by P x, the new way after 2023-4 with comment', Evv('(λ [x y (CC comment (P x))] valX valY)'), Evv('valX'));
+		vm.xt('λ/lambda get param by P y, the new way after 2023-4 with comment', Evv('(λ [x y (CC comment (P y))] valX valY)'), Evv('valY'));
+		vm.xt('λ/lambda get param not found by P z, the new way after 2023-4 with comment', Evv('(λ [x y (CC comment (P z))] valX valY)'), ()=>U);
+
+		vm.xt('Λ/mutlambda get param by P x, the new way after 2023-4', Evv('(Λ [x y (P x)] valX valY (EmptyTreemap GodelLessThan))'), Evv('valX'));
+		vm.xt('Λ/mutlambda get param by P y, the new way after 2023-4', Evv('(Λ [x y (P y)] valX valY (EmptyTreemap GodelLessThan))'), Evv('valY'));
+		vm.xt('Λ/mutlambda get param not found by P z, the new way after 2023-4', Evv('(Λ [x y (P z)] valX valY (EmptyTreemap GodelLessThan))'), ()=>U);
+
+		vm.xt('FIXME verify FuncBody is not viewed as a param name even though it goes at end of same list like [..paramNames.. FuncBody].', ()=>false, ()=>true);
 
 
 		vm.xt('_[] sets 2 vars in treemap using DE', Evv('(_[(DE ,x ,2) (DE ,ret ,1)] (EmptyTreemap GodelLessThan))'),
@@ -12493,7 +13311,7 @@ const Wikibinator203 = (()=>{
 		//If you dont like the syntax, you can derive a new one as a lambda at runtime eventually.
 		vm.xt('verify a/b$/c throws cuz cant eval stuff between 2 / /, just string literals between them',
 			()=>{ try{ return vm.eval('a/b$/c'); }catch(e){ return 'threw'; } }, ()=>'threw');
-		vm.xt('(Du (GoO (GoO (OO a b) c) d)) displays as a/b/c/d^', ()=>(vm.eval('(Du (GoO (GoO (OO a b) c) d))')+''), ()=>'a/b/c/d^');
+		//Du/^ replaced by P/%. vm.xt('(Du (GoO (GoO (OO a b) c) d)) displays as a/b/c/d^', ()=>(vm.eval('(Du (GoO (GoO (OO a b) c) d))')+''), ()=>'a/b/c/d^');
 		//Removed ops.O cuz first param is literal. vm.xt('(D (O a)) displays as a$', ()=>(vm.eval('(D (O a))')+''), ()=>'a$');
 		//vm.xt('(L /a) is O', ()=>vm.eval('(L /a)'), ()=>ops.O);
 		vm.xt('(L a$) is D', ()=>vm.eval('(L a$)'), ()=>ops.D);
@@ -12620,22 +13438,46 @@ const Wikibinator203 = (()=>{
 		vm.xt('wrongly sorted treemap with lambdas as keys, notThere is not found cuz its not there',
 			()=>vm.eval('(Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (Pair S T) itsIota Em) {T T} itsSTT (Tm Em hello world Em) notThere)'), ()=>U);
 
+		//WARNING: make sure its not a string literal such as a/b$ should be (DGo (OO a b)) not "a/b$".
+		vm.xt_testToString = code=>{
+			vm.xt('xt_testToString '+code, ()=>(vm.eval(code)+''), ()=>code);
+		};
 
 		vm.xt('Parse a', Evv('a'), Evv('a'));
+		vm.xt_testToString('a');
 		vm.xt('Parse a$', Evv('a$'), Evv('(D a)'));
-		vm.xt('Parse a^', Evv('a^'), Evv('(Du a)'));
+		vm.xt_testToString('a$');
+		//Du replaced by P. vm.xt('Parse a^', Evv('a^'), Evv('(Du a)'));
 		vm.xt('Parse a/b', Evv('a/b'), Evv('(OO a b)'));
+		vm.xt_testToString('a/b');
 		vm.xt('Parse a/a', Evv('a/a'), Evv('(OO a a)'));
+		vm.xt_testToString('a/a');
 		vm.xt('Parse a/b$', Evv('a/b$'), Evv('(DGo (OO a b))'));
-		vm.xt('Parse a/b^', Evv('a/b^'), Evv('(DuGo (OO a b))'));
+		//vm.xt('Tostring a/b$', ()=>(vm.eval('a/b$')+''), ()=>'a/b$');
+		vm.xt_testToString('a/b$');
+		//Du/^ replaced by P/%. and PGo. vm.xt('Parse a/b^', Evv('a/b^'), Evv('(DuGo (OO a b))'));
+		vm.xt('Parse a/b/c@', Evv('a/b/c@'), Evv('(BlGo (GoO (OO a b) c))'));
+		//vm.xt('Tostring a/b/c@', ()=>(vm.eval('a/b/c@')+''), ()=>'a/b/c@');
+		vm.xt_testToString('a/b/c@');
+		vm.xt('Parse a/b@', Evv('a/b@'), Evv('(BlGo (OO a b))'));
+		//vm.xt('Tostring a@', ()=>(vm.eval('a@')+''), ()=>'a@');
+		vm.xt_testToString('a/b@');
+		vm.xt_testToString('a@');
 		vm.xt('(a/b []) -> [(OO a b)] as if [] was a map but its just a list', Evv('(a/b [])'), Evv('[(OO a b)]'));
 		vm.xt('(a$ []) -> [(D a)] as if [] was a map but its just a list', Evv('(a$ [])'), Evv('[(D a)]'));
-		vm.xt('(a^ []) -> [(Du a)] as if [] was a map but its just a list', Evv('(a^ [])'), Evv('[(Du a)]'));
+		//Du replaced by P vm.xt('(a^ []) -> [(Du a)] as if [] was a map but its just a list', Evv('(a^ [])'), Evv('[(Du a)]'));
+		//vm.xt('(a% []) -> [(P a)] as if [] was a map but its just a list', Evv('(a% [])'), Evv('[(P a)]'));
+		vm.xt('(a% []) -> U cuz [] is not a namespace type so doesnt contain key a%', Evv('(a% [])'), ()=>U);
 		vm.xt('Parse a/b/c/b/b/a', Evv('a/b/c/b/b/a'), Evv('(GoO (GoO (GoO (GoO (OO a b) c) b) b) a)'));
-		vm.xt('Parse a/b/c/b/b/a^', Evv('a/b/c/b/b/a^'), Evv('DuGo (GoO (GoO (GoO (GoO (OO a b) c) b) b) a))'));
+		vm.xt_testToString('a/b/c/b/b/a');
+		//^/Du replaced by P and PGo: vm.xt('Parse a/b/c/b/b/a^', Evv('a/b/c/b/b/a^'), Evv('DuGo (GoO (GoO (GoO (GoO (OO a b) c) b) b) a))'));
+		//^/Du replaced by P and PGo: vm.xt_testToString('a/b/c/b/b/a^');
 		vm.xt('Parse a/b/c$', Evv('a/b/c$'), Evv('(DGo (GoO (OO a b) c))'));
-		vm.xt('Parse a/b/c^', Evv('a/b/c^'), Evv('(DuGo (GoO (OO a b) c))'));
+		vm.xt_testToString('a/b/c$');
+		//^/Du replaced by P and PGo: vm.xt('Parse a/b/c^', Evv('a/b/c^'), Evv('(DuGo (GoO (OO a b) c))'));
+		//^/Du replaced by P and PGo: vm.xt_testToString('a/b/c^');
 		vm.xt('Parse yes/no', Evv('yes/no'), Evv('(OO yes no)'));
+		vm.xt_testToString('yes/no');
 
 
 		//a/b/c$ is (DGo (GoO (OO a b) c)).
@@ -12653,10 +13495,252 @@ const Wikibinator203 = (()=>{
 		
 		vm.xt("B Del('e')(Del('c')(ABCDEF)) leaves a treemap of a->b", ()=>(vm.ops.Treemap(vm.ops.GodelLessThan)(Em)('a')('b')(Em)), ()=>(vm.ops.Del('e')(vm.ops.Del('c')(ABCDEF))));
 
+		vm.xt("comment a CC", Evv('(CC [the comment] Pair S T)'), Evv('(Pair S T)'));
+
+		//vm.xt("TODO rename // cuz / is used for a/b/sum$ syntax", ()=>true, ()=>false);
+
+		//vm.xt("Redesigning lambdas 2023-4+ parse a%", Evv('a%'), Evv('(Da a)')); //Du/^ D/$ Da/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^
+		//TODO replace Da with P. They are duplicates. P existed first.
+		vm.xt("Redesigning lambdas 2023-4+ parse a%", Evv('a%'), Evv('(P a)')); //Du/^ D/$ P/% a/b/sum$ a/b/possiblyNotDedupedFuncVar^
+
+
+		//FIXME is (P a) and a% the same?
+		//"//varName% is (P varName). (P varName (LamNs...)) -> (LamNs (P varName))."
+		//It is.
+		vm.xt("(P a) is a%", Evv('(P a)'), Evv('a%'));
+		vm.xt("Redesigning lambdas 2023-4+ normlam a 1 param ... but done as (P a) instead of a%", Evv('(P a (LamNs (λ [a (P a)]) valA))'), Evv('valA'));
+		vm.xt("Redesigning lambdas 2023-4+ normlam a 1 param ... done as a%", Evv('(a% (LamNs (λ [a a%]) valA))'), Evv('valA'));
+
+		vm.xt("Redesigning lambdas 2023-4+ normlam a 3 params", Evv('(λ [a b c a%] valA valB valC)'), Evv('valA'));
+		vm.xt("Redesigning lambdas 2023-4+ normlam b", Evv('(λ [a b c b%] valA valB valC)'), Evv('valB'));
+		vm.xt("Redesigning lambdas 2023-4+ normlam c", Evv('(λ [a b c c%] valA valB valC)'), Evv('valC'));
+		vm.xt("Redesigning lambdas 2023-4+ normlam d not found", Evv('(λ [a b c d%] valA valB valC)'), ()=>U);
+
+		vm.xt("vm.inMutlambdaLamnsIsInner is true", ()=>(vm.inMutlambdaLamnsIsInner), ()=>true);
+		vm.xt("Redesigning lambdas 2023-4+ mutlam a - test Ns first, depends on vm.inMutlambdaLamnsIsInner is true",
+			Evv('(Ns (LamNs (Λ [a b x I#(F U)] valA valB) valC) Em#(EmptyTreemap GodelLessThan) a%)'), Evv('valA'));
+
+		vm.xt("(Λ [a b a%] valA valB (EmptyTreemap GodelLessThan))", Evv('(Λ [a b a%] valA valB (EmptyTreemap GodelLessThan))'), Evv('valA'));
+		vm.xt("(Λ [a b b%] valA valB (EmptyTreemap GodelLessThan))", Evv('(Λ [a b b%] valA valB (EmptyTreemap GodelLessThan))'), Evv('valB'));
+		vm.xt("(Λ [a b j%] valA valB (EmptyTreemap GodelLessThan)) not found so U", Evv('(Λ [a b j%] valA valB (EmptyTreemap GodelLessThan))'), ()=>U);
+		//vm.xt("Mutlambdo get param a from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p('a'), Evv('valA'));
+		vm.xt("Mutlambdo get param a% from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p(vm.eval('a%')), Evv('valA'));
+		//vm.xt("Mutlambdo get param b from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p('b'), Evv('valB'));
+		vm.xt("Mutlambdo get param b% from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p(vm.eval('b%')), Evv('valB'));
+		vm.xt("Mutlambdo get param j (not found) from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p(vm.eval('j')), ()=>U);
+		vm.xt("Mutlambdo get param j% (not found) from 2 params", ()=>vm.eval('(Λ [a b ignore] valA valB)').n.p(vm.eval('j%')), ()=>U);
+
+		let E = code=>vm.eval(code);
+
+		//vm.xt("Mutlambdo get param a from 3 params", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p('a'), Evv('valA'));
+		vm.xt("Mutlambdo get param a% from 3 params 1", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p(E('a%')), Evv('valA'));
+		vm.xt("Mutlambdo get param a% from 3 params 2", Evv('(a% (Λ [a b x ignore] valA valB valX))'), Evv('valA'));
+		//vm.xt("Mutlambdo get param b from 3 params", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p('b'), Evv('valB'));
+		vm.xt("Mutlambdo get param b% from 3 params 1", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p(E('b%')), Evv('valB'));
+		vm.xt("Mutlambdo get param b% from 3 params 2 ", Evv('(b% (Λ [a b x ignore] valA valB valX))'), Evv('valB'));
+		//vm.xt("Mutlambdo get param x from 3 params", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p('x'), Evv('valX'));
+		vm.xt("Mutlambdo get param x% from 3 params 1", ()=>vm.eval('(Λ [a b x ignore] valA valB valX)').n.p(E('x%')), Evv('valX'));
+		vm.xt("Mutlambdo get param x% from 3 params 2", Evv('(x% (Λ [a b x ignore] valA valB valX))'), Evv('valX'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam a - direct", Evv('(Λ [a b c a%] valA valB valC (EmptyTreemap GodelLessThan))'), Evv('valA'));
+		vm.xt("Redesigning lambdas 2023-4+ mutlam b", Evv('(Λ [a b c b%] valA valB valC (EmptyTreemap GodelLessThan))'), Evv('valB'));
+		vm.xt("Redesigning lambdas 2023-4+ mutlam c", Evv('(Λ [a b c c%] valA valB valC (EmptyTreemap GodelLessThan))'), Evv('valC'));
+		vm.xt("Redesigning lambdas 2023-4+ mutlam d not found", Evv('(Λ [a b c d%] valA valB valC (EmptyTreemap GodelLessThan))'), ()=>U);
+
+		vm.xt("Λ comment b CC", Evv('(Λ [a b c (CC [the comment] b%)] valA valB valC (EmptyTreemap GodelLessThan))'), Evv('valB'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - A",
+			Evv('(Ns (T U) (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 Em) e$)'), Evv('10'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - B",
+			Evv('(Ns (LamNs (Λ [x I#(F U)]) 2) (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 Em) e$)'), Evv('10'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - C",
+			Evv('(Ns (LamNs (Λ [x I#(F U)]) 2) (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 Em) x%)'), Evv('2'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - D",
+			Evv('(Λ [x <+ x% e$>] 2 (DE ,e ,10 (EmptyTreemap GodelLessThan)))'), Evv('12'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam adding lambda param and var from treemap - E",
+			Evv('(Λ [x <+ e$ x%>] 3 (DE ,e ,9 (EmptyTreemap GodelLessThan)))'), Evv('12'));
+
+		//bad syntax, the vm.xt("Redesigning lambdas 2023-4+ Fo loop of mutlam 4 times then get e$ sum out of treemap A (FIXME this one might have wrong number of parens)",
+		//	Evv('(e$ (Fo y ,4 _[ (Λ [hundred (DE ,e <+ hundred% e$>)] 100) ]) (DE ,e ,10 (EmptyTreemap GodelLessThan)))'), Evv('410'));
+
+		vm.xt("Redesigning lambdas 2023-4+ Fo loop of mutlam 4 times then get e$ sum out of treemap B (FIXME this one might have wrong number of parens)",
+			Evv('(e$ (Fo y ,4 _[ (Λ [hundred (DE ,e <+ hundred% e$>)] 100) ] (DE ,e ,10 (EmptyTreemap GodelLessThan))))'), Evv('410'));
+
+		vm.xt("Redesigning lambdas 2023-4+ Fo loop of mutlam 4 times then get e$ sum out of treemap C - this tests vm.putNoBal (FIXME should that be with balance?) of Ns of LamNs and Treemap",
+			Evv('(e$ (Fo y ,4 (Λ [hundred (DE ,e <+ hundred% e$>)] 100) (DE ,e ,10 (EmptyTreemap GodelLessThan))))'), Evv('410'));
+		
+		vm.xt("add 100 to a 10 in a treemap with a 10 and a 3 treemap with 2 numbers in it",
+			Evv('(<+ ,100 e$> (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 (Tm Em y$ 3 Em)))'), Evv('110'));
+
+		vm.xt("add 1000 in <+ ,1000 e$> and a Treemap",
+			Evv('((DE ,e <+ ,1000 e$>) (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 (Tm Em y$ 0 Em)))'),
+			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 1010 (Tm Em y$ 0 Em))'));
+
+		vm.xt("get 100 thru Λ in Treemap",
+			Evv('(Λ [hundred hundred%] 100 (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) e$ 10 (Tm Em y$ 0 Em)))'), Evv('100'));
+
+		vm.xt("Redesigning lambdas 2023-4+ normlam test what funcBody sees", Evv('(λ [a b (F U)] 10 20)'), Evv('(LamNs (λ [a b (F U)] 10) 20)'));
+
+		vm.xt("Redesigning lambdas 2023-4+ mutlam test what funcBody sees",
+			Evv('(Λ [a b (F U)] 10 20 (EmptyTreemap GodelLessThan))'), Evv('(Ns (LamNs (Λ [a b (F U)] 10) 20) (EmptyTreemap GodelLessThan))'));
+
+		vm.xt("Ns with overlapping vars takes it from inner namespace as $",
+			Evv('(x$ (Ns (DE ,x ,2 (EmptyTreemap GodelLessThan)) (DE ,x ,3 (EmptyTreemap GodelLessThan))))'), Evv('2'));
+		vm.xt("Ns with overlapping vars takes it from inner namespace as %",
+			Evv('(x% (Ns (PE ,x ,innerVal (EmptyTreemap GodelLessThan)) (PE ,x ,outerVal (EmptyTreemap GodelLessThan))))'), Evv('innerVal'));
+		vm.xt("Ns with non-overlapping ($ inner, % outer) but similarl vars gets from outer",
+			Evv('(x% (Ns (DE ,x ,100 (EmptyTreemap GodelLessThan)) (PE ,x ,outerVal (EmptyTreemap GodelLessThan))))'), Evv('outerVal'));
+		vm.xt("Ns with non-overlapping ($/D inner, %/P outer) but similarl vars gets from inner",
+			Evv('(x$ (Ns (DE ,x ,innerVal (EmptyTreemap GodelLessThan)) (PE ,x ,outerVal (EmptyTreemap GodelLessThan))))'), Evv('innerVal'));
+		
+		vm.xt("TODO test deeper Ns in Ns in Ns", ()=>true, ()=>false);
+
+		vm.xt("LamNs a%", Evv('(LamNs (λ [a b (F U)] 10) 20 a%)'), Evv('10'));
+		vm.xt("LamNs b% suffix", Evv('(LamNs (λ [a b (F U)] 10) 20 b%)'), Evv('20'));
+		vm.xt("LamNs b% prefix", Evv('(b% (LamNs (λ [a b (F U)] 10) 20))'), Evv('20'));
+		vm.xt("LamNs c% not found", Evv('(LamNs (λ [a b (F U)] 10) 20 c%)'), ()=>U);
+
+		vm.xt("Λ Ns get hundred$ from outer treemap", Evv('(hundred$ (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), Evv('100'));
+		vm.xt("Λ Ns get a% from inner LamNs", Evv('(a% (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), Evv('10'));
+		vm.xt("Λ Ns get b% from inner LamNs", Evv('(b% (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), Evv('20'));
+		vm.xt("Λ Ns add things from 2 namespaces a", Evv('(<+ a% hundred$> (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), Evv('110'));
+		vm.xt("Λ Ns add things from 2 namespaces b", Evv('(<+ b% hundred$> (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), Evv('120'));
+		vm.xt("Λ Ns c% not found", Evv('(c% (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), ()=>U);
+		vm.xt("Λ Ns c$ not found", Evv('(c$ (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), ()=>U);
+		vm.xt("Λ Ns a$ not found", Evv('(a$ (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), ()=>U);
+		vm.xt("Λ Ns b$ not found", Evv('(b$ (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), ()=>U);
+		vm.xt("Λ Ns hundred% not found", Evv('(b$ (Ns (LamNs (Λ [a b (F U)] 10) 20) (DE ,hundred ,100 (EmptyTreemap GodelLessThan))))'), ()=>U);
+
+		//vm.xt("Test old kind of λ before 2023-4-11",
+		//	Evv('(Hypot#(λ [x y] [this is [a comment] with a function Sqr#<* I#(F U) I> in it] <Sqrt <+ <Sqr (P x)> <Sqr (P y)>>>) 6 8)'), Evv('10'));
+
+		vm.xt("Test new kind of λ after 2023-4-11, that it has less params 1", ()=>vm.eval('(λ [x (F U)])').n.curriesLeft(), ()=>1);
+		vm.xt("Test new kind of λ after 2023-4-11, that it has less params 3", ()=>vm.eval('(λ [x y z (F U)])').n.curriesLeft(), ()=>3);
+		vm.xt("Test new kind of λ after 2023-4-11, that it has less params 3-2", ()=>vm.eval('(λ [x y z (F U)] 10 20)').n.curriesLeft(), ()=>1);
+
+		vm.xt("Test new kind of λ after 2023-4-11, basic call of derived Hypot function",
+			Evv('(λ [x y (CC [this is [a comment] with a function Sqr#<* I#(F U) I> in it] <Sqrt <+ <Sqr (P x)> <Sqr (P y)>>>)] 6 8)'), Evv('10'));
+
+
+		vm.xt("Test new kind of Λ before 2023-4-11. TODO write this test.", ()=>true, ()=>false);
+
+		vm.xt("TODO test all these suffixs: $/double ^/dupFn %/readOnlyNormlamOrMutlamParam", ()=>true, ()=>false);
+
+		vm.xt("TODO test PushNs and PopNs and the opcodes that will define vars in inner namespace (of Ns (inner outer)) and which opcodes, such as Fo For automatically define their looping vars in a new innermost namespace (for better js optimize)", ()=>true, ()=>false);
+
+		vm.xt("Choose infcur/[] vs rucfni/-= list for lambda and mutlambda 7th param, considering might want to cache the first or last n things in the list at each next param deeper.", ()=>true, ()=>false);
+
+		vm.xt("optimization for local vars in js loops, Fo For PushNs etc.", ()=>true, ()=>false);
+
+		vm.xt("TODO search for comment in VM '//FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params'", ()=>true, ()=>false);
+
+		vm.xt('TODO some basic test cases for the second one in (cuz the first one requires running 2 browser tabs and messaging between, which u cant test from here)... Planning 2 kinds experimental turing-complete-challenge-response.. Call lambdaX on lambdaY returns lambdaZ, do that at various combos of peers in p2p net. The other is each (funcId,paramId,returnId) 3 lambdas are like 2d pixel here. But which energy func? The rule110 convolutional scalar field experiments. Read more at https://twitter.com/wikibinator/status/1649564981065646087');
+		/*
+		https://www.youtube.com/watch?v=ROF6ZtF3zVk
+		"Painting Rule110 with the mouse as convolutional scalar field forming turing complete quasicrystal
+		Its a realtime 4-SAT solver, but doesnt find exact local min of energy so forms crystal-defects. Rule110 as 4-SAT is left,self,right,down at each pixel, allowing 8 of the 16 combos of 4 bits. ConvfieldDemo4/ Painting rule110 with mouse. Turned up the speed. Now 128x128 pixels. 1 dimension per pixel. Convfield math. Gonna make some kind of neural painting or minecraftlike game with it. Try it at https://memecombinator.io/experiments... Paint white with left mouse button, black with right mouse button. On browser console you can adjust options.speed. Its just that 1 html file. Also some versions of it are at https://github.com/benrayfield/jsutil..."
+		https://github.com/benrayfield/jsutils/tree/master/src
+
+		2023-4-21 https://twitter.com/wikibinator/status/1649564981065646087
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		26m
+		Planning 2 kinds experimental turing-complete-challenge-response.. Call lambdaX on lambdaY returns lambdaZ, do that at various combos of peers in p2p net. The other is each (funcId,paramId,returnId) 3 lambdas are like 2d pixel here. But which energy func?
+		Quote Tweet
+		Lambda Rick /acc
+		@benrayfield
+		·
+		Apr 17
+		Painting rule110 with mouse. Turned up the speed. Now 128x128 pixels. 1 dimension per pixel. Convfield math. Gonna make some kind of neural painting or minecraftlike game with it
+		Show this thread
+		Tip
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		Not that its made of rule110. Thats a high dimensional scalar field of as many dimensions as 2d pixels, converges to rule110 however you paint it with mouse. Expand that to 3d, in dimensions of which integer means each possible function, 3 of those. Nonhalting is 0. Halted is 1.
+		8:05 PM · Apr 21, 2023
+		·
+		6
+		Views
+		View Tweet analytics
+
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		18m
+		Theres a statement you can make using the VarargAx opcode (might still make small adjustments to opcodes TODO), that lambdaX called on lambdaY returns LambdaZ, which can be derived by IsLeaf L R and basic logic and recursion. That lambda halts on itself if (x y)->z, else infloops
+
+		
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		33s
+		Incomplete.. (VarargAx FuncBody ..params... nextParam) is halted on itself if (FuncBody [(VarargAx FuncBody ...params...) nextParam]) -> U. If -> somethingElse, then returns (R somethingElse). It could form a parameter list can only contain prime numbers. Other calls dont halt
+		
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		48s
+		VarargAx is a turing-complete-type-system and will in theory be fast enuf for per-pixel canvas graphics, but when crossing an untrusted border like to/from other computers in the p2p net, takes finite time to repeat the calculation to verify, but infinite time to disprove a lie.
+
+		-----
+
+		https://twitter.com/wikibinator/status/1649584775085142019
+		
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		1h
+		Planning 2 kinds experimental turing-complete-challenge-response.. Call lambdaX on lambdaY returns lambdaZ, do that at various combos of peers in p2p net. The other is each (funcId,paramId,returnId) 3 lambdas are like 2d pixel here. But which energy func?
+		Quote Tweet
+		Lambda Rick /acc
+		@benrayfield
+		·
+		Apr 17
+		Painting rule110 with mouse. Turned up the speed. Now 128x128 pixels. 1 dimension per pixel. Convfield math. Gonna make some kind of neural painting or minecraftlike game with it
+		Show this thread
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		1h
+		Not that its made of rule110. Thats a high dimensional scalar field of as many dimensions as 2d pixels, converges to rule110 however you paint it with mouse. Expand that to 3d, in dimensions of which integer means each possible function, 3 of those. Nonhalting is 0. Halted is 1.
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		11m
+		This theoretical data structure could be a bunch of partially overlapping 3d tensors that overlap on some dimensions and not others. It might create canvas bytes in realtime of "the matrix" but a matrix is a 2d tensor.
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		·
+		5m
+		I want to turn the space of all possible lambdas (of this kind) into a size infinity*infinity*infinity 3d tensor (viewed as many partially overlapping sparse 3d tensors), that converges to the constant correct infinity^3 tensor in a p2p network and swarms GPUs at low lag.
+		wikibinator swarm (a kind of number)
+		@wikibinator
+		In this tensor the binary forest nodes map 1-to-1 with the integers at approx 1.5^(2^h) unique nodes up to lambda call pair height h. Exactly, start with 1 node at height 0, 2 nodes up to height 1, 5 up to height 2, then 26, 677, 458330... (practically, 256 bit ids) h => h*h+1
+		*/
+
+
+
+		/*FIXME its not evaling
+		(λ [x y (CC [this is [a comment] with a function Sqr#<* I#(F U) I> in it] <Sqrt <+ <Sqr (P x)> <Sqr (P y)>>>)] 6 8 9 6 6 6 6 6 6 6)
+		*/
+
 		
 		//if(Math.random() < .5) throw 'TODO Ok, now is 2023-3-8 and Im about to code these opcodes: Du Bl D O OO GoO';
 		
-		
+		vm.xt('TODO when evaler (as in .pushEvaler) generates js code (which may be plain js or also use GPU.js), make it appear in debugger console sources tab like it does in AvmLambda, using # sourceURL= or something like that.', ()=>true, ()=>false);
+
+		vm.xt('search comments for //FIXME in case o.LamNs, add more than just (P a) aka a% here. Theres also a^ a$ a/b/c$, D, DGo, etc.', ()=>true, ()=>false);
+
+		vm.xt("TODO consider using js Proxy object to avoid the need for lambda.n.stuff and just do lambda.stuff. I want it to do that if it doesnt slow it down much.", ()=>true, ()=>false);
+
+		vm.xt("TODO search for comment in VM '//FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params'", ()=>true, ()=>false);
+
+		vm.xt("TODO update vm.opInfo descriptions, created by vm.addOp, of all 128 opcodes", ()=>true, ()=>false);
 		
 		
 		vm.htmlForExtraTests = ()=>{
@@ -12664,14 +13748,33 @@ const Wikibinator203 = (()=>{
 			let html = '<div id=vmExtraTests>';
 			let idPrefix = 'extraTestBtn_'+randIntSize(1e9)+randIntSize(1e9)+'_';
 			let testAllBtn = '<input type=button onclick="for(let i=0; i<vm.extraTests.length; i++) try{ document.getElementById(\''+idPrefix+'\'+i).click(); }catch(e){}" value="Test ALL"></input>&nbsp;&nbsp;&nbsp;';
+			//background-color: red
+			let countFails = '<input type=button onclick="let countFails = 0; let countPasses = 0; for(let i=0; i<vm.extraTests.length; i++){ let btn = document.getElementById(\''+idPrefix+'\'+i); if(btn.style[\'background-color\'] == \'red\') countFails++; if(btn.style[\'background-color\'] == \'green\') countPasses++; } alert(\'countFails=\'+countFails+\' countPasses=\'+countPasses+\' total=\'+(countFails+countPasses)+\' but u have to click Test ALL or click individual tests first. It counts red buttons.\');" value="Count fails (2023-6-10 it was 23/301)"></input>&nbsp;&nbsp;&nbsp;';
 			html += testAllBtn;
+			html += countFails;
 			html += '<input type=button onclick="if(!vm) throw \'No vm. TODO get it from Wikibinator203.n.vm or U.n.vm?\'; vm.clearCache()" value="Clear cache (warning, may cause dedup problems)"></input><br>';
 			for(let i=0; i<vm.extraTests.length; i++){
 				let x = vm.extraTests[i];
 				let name = vm.extraTests[i].name;
-				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+'].run(); // '+name+'"></input><br>';
+				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ console.log(\'Testing vm.extraTests['+i+'] = \'+vm.extraTests['+i+']); vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+'].run(); // '+name+'"></input>';
+				html += '<input type=button onclick="console.log(\'vm.extraTests['+i+'] = \'+vm.extraTests['+i+']);" value="get code" title="display code of this on browser console without evaling it"></input>';
+				html += '<br>\n';
 			}
 			html += testAllBtn;
+			html += `TODO Wikib this fixes Ns stuff do asap
+Fix what foes KE Dput etc do in Ns (recursive namespace)?
+Alloc of var name or (OO ob key) etc, would need to specify deepest ns or innermost ns.
+If x$ is optimized as a js let var at innerns, and x/y exists at outerns...
+x is literal either way.
+All ns stuff has 2 keys x$ or OO ob key, etc. Nomatter the ns level.
+So every write op needs a bit for does it create at innermost possible vs outermost ns, if not exist.
+Default all writes to outermost if they dont find key. Have jsletlikeop to define a var at inner ns. Fo and PushNs auto create next inner ns.
+Float32Array etc does its own memory fencing. Convert from undefined or to NAN or something.
+Gpujs will be used with mask per array of powof2 size or try min and max ints. Start with just cpu vm.Mut optimization.
+Make simple games, rule110 puzzle, musicinstruments, and other mm:wikibisecases stuff.
+Remember the wikib graphics un wikib graphics, vms in vms or something like that, sharing gamequicksaves, etc... I want to do everything from inside there incl working with other humans on AI.
+But first get rootwormswithcobraboat working... And throw in some rule110convfield.
+Listweb as left column, incl incoming mutablewrapperlambda calls. Bottom right as treeUI. Topright as canvas.`;
 			html += '<div id=vmExtraTests>';
 			return html;
 		};

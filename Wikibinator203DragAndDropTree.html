@@ -322,7 +322,7 @@ var lm = (key,val)=>{
 
 
 
-const firstCode =
+/*const firstCode =
 `[((Pair [L R]) [[[
 I#(F U)
 Sqr#{(T *) I I}
@@ -337,6 +337,39 @@ Hypot#(
 			{(T Sqr) (P y)}
 		}
 	}
+)
+[the hypotenuse of [a right triangle of sides 6 and 8] is (Hypot 6 8) and [that func is Hypot] and [as a 1 param func is (Hypot 6)]]
+{[hello world] {abc def ghi jkl}}
+(U Pair L U U S U)
+(Pair L R)
+(T (Pair (T L) R))
+2.34
+Em#(EmptyTreemap GodelLessThan)
+[L R S T Isleaf PutNoBal Del Fo DoAvlBal VarargAx]
+[a b c d e f g h i j k l m n o p]
+]]])]`;
+*/
+
+
+
+const firstCode =
+`[((Pair [L R]) [[[
+I#(F U)
+Sqr#{(T *) I I}
+Hypot#(
+	λ [
+		x y
+		(CC [this is [a comment] with a function Sqr in it]
+			{
+				(T Sqrt)
+				{
+					(T +)
+					{(T Sqr) (P x)}
+					{(T Sqr) (P y)}
+				}
+			}
+		)
+	]
 )
 [the hypotenuse of [a right triangle of sides 6 and 8] is (Hypot 6 8) and [that func is Hypot] and [as a 1 param func is (Hypot 6)]]
 {[hello world] {abc def ghi jkl}}
@@ -1047,7 +1080,8 @@ vm.isFullDGo = fn=>vm.isSameOpAndNumParams(vm.ops.DGo,fn,1);
 var sytyToPushChar = (syty,optionalFn)=>{
 	if(optionalFn){
 		//(DGo (GoO (OO a b) sum)) appears as a/b/sum$
-		if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullDu(optionalFn) || vm.isFullDuGo(optionalFn) || vm.isFullOOOrGoO(optionalFn))){
+		//if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullDu(optionalFn) || vm.isFullDuGo(optionalFn) || vm.isFullOOOrGoO(optionalFn))){
+		if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullOOOrGoO(optionalFn) || vm.isFullPOrPGo(optionalFn) || vm.isFullBlOrBlGo(optionalFn))){
 			return ''; //(D x) appears as x$. Drop the (, and pop char will be $ if D. ^ if Du. "" if OO or GoO.
 		}
 	}
@@ -1094,7 +1128,10 @@ var sytyToPopChar = (syty,optionalFn)=>{
 		if(options.foldOO){
 			//(DGo (GoO (OO a b) sum)) appears as a/b/sum$
 			if(vm.isFullDOrDGo(optionalFn)) return '$'; //(D x) appears as x$
-			if(vm.isFullDuOrDuGo(optionalFn)) return '^'; //(Du x) appears as x^
+			//removing ^. Use P and PGo instead as %. if(vm.isFullDuOrDuGo(optionalFn)) return '^'; //(Du x) appears as x^
+			if(vm.isFullPOrPGo(optionalFn)) return '%'; //(P x) appears as x^. (PGo (GoO (OO x y) z)) appears as x/y/z%
+			//if(vm.isFullGetcbtOrGetcbtgo(optionalFn)) return '@';
+			if(vm.isFullBlOrBlGo(optionalFn)) return '@';
 			if(vm.isFullOOOrGoO(optionalFn)) return ''; //dont display ")" as usual cuz is joined by "/" in midfix (of prefix midfix suffix).
 		}
 	}
@@ -3868,13 +3905,20 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 		isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '$'
 		//pop char is $ cuz D or DGo
 		//FIXMEFIXME display $ at end
-	}else if(options.foldOO && (vm.isFullDu(fn) || vm.isFullDuGo(fn))){ //fn is (Du x), display as x^
+	/*Du and DuGo replaced by P and PGo }else if(options.foldOO && (vm.isFullDu(fn) || vm.isFullDuGo(fn))){ //fn is (Du x), display as x^
 		//isFoldL = false; //FIXME
 		//FIXME will need to display it as (...) instead of a/b/sum$ syntax if a b or c isnt certain kinds of small strings that can be literaled like that.
 		isFoldL = true; //so [a/b^ hello/world/yo$] doesnt display any Du or DuGo.
 		isDisplayPushAndPopChars = true; //those will be push '' mid '' and pop '^'
 		//pop char is ^ cuz Du or DuGo
 		//FIXMEFIXME display $ at end
+	*/
+	}else if(options.foldOO && vm.isFullPOrPGo(fn)){ //fn is (P x), display as x% or (PGo (GoO (OO x y) z)) display as x/y/z% etc.
+		isFoldL = true;
+		isDisplayPushAndPopChars = true;
+	}else if(options.foldOO && vm.isFullBlOrBlGo(fn)){ //fn is (Bl x), display as x@ or (BlGo (GoO (OO x y) z)) display as x/y/z@ etc.
+		isFoldL = true;
+		isDisplayPushAndPopChars = true;
 	}else if(options.foldOO && vm.isFullOOOrGoO(fn)){ //fn is (GoO a b) or (OO a b)
 		isFoldL = false; //FIXME?
 		isFoldLL = true;

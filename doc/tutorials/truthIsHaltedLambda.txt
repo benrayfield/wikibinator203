@@ -1,0 +1,1 @@
+In wikibinator203, a positive integer is true if the lambda it represents (about 1.5^(2^h) of them up to call pair height h) is halted. It can make turing complete self referencing statements that way through recursion.

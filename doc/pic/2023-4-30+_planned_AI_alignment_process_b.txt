@@ -1,0 +1,30 @@
+https://twitter.com/benrayfield/status/1652687656478814208
+
+Thread
+See new Tweets
+Conversation
+Lambda Rick swarmAIAlign/acc
+@benrayfield
+Chess is alot easier to win if you can take back unlimited moves, explore the game-tree however you like. My strategy on AI safety is give the world a game-tree of all possible software and AIs, in a certain kind of lambdas. Dont allow regulators to block parts of the game-tree.
+10:53 AM · Apr 30, 2023
+·
+167
+ Views
+View Tweet analytics
+1
+ Quote
+5
+ Likes
+Tip
+
+Lambda Rick swarmAIAlign/acc
+@benrayfield
+·
+11h
+The newest release of the universal game-tree (which has about 1.5^(2^h) nodes up to lambda call pair height h, is Wikibinator203.2 in this zip file which runs local in a browser (GPU optimizations and peer to peer network are planned). https://github.com/benrayfield/wikibinator203/releases/download/203.2/wikibinator203.2_release.zip
+Tip
+Lambda Rick swarmAIAlign/acc
+@benrayfield
+·
+6h
+I am proceeding to deploy this combined AI alignment process and games system asap (but first some simpler lambdas with tennis balls for #augmentedreality)...
