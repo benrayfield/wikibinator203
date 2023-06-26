@@ -26,7 +26,7 @@ A kind of number. Build anything by drag-and-drop of a universal combinator (lam
 
 Made for everyone, but for now its hard to use... Programmers and mathematicians, try Wikibinator203 at https://humanai.net/wikibinator/ The universal function works. Over the next few years I plan to turn this into an endless infinite dimensional space where many people build and play together, sharing lambdas by 256 bit ID or QRCode.
 
-LICENSE SUMMARY: Its basically, do whatever you want but nobody owns the lambdas, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. DETAILS: <a href=https://github.com/benrayfield/wikibinator203/blob/main/LICENSE>LICENSE</a>
+LICENSE SUMMARY: Its basically, do whatever you want but nobody owns the lambdas, and since nobody owns the lambdas you cant mod the VM in a way that others have to go through you (or any proprietary system) to use it, and that in the evilbit=true namespace all possible bits are allowed, including evil bits (even if its virus, ransomware, etc), as its an antivirus quarantine, and in the evilbit=false namespace it works like the normal internet. DETAILS: <a href=https://github.com/benrayfield/wikibinator203/blob/main/LICENSE>LICENSE</a>
 
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pic/2022-7-22_unicodeAlmostWorking.png>
 <img src=https://raw.githubusercontent.com/benrayfield/wikibinator203/main/doc/pic/wikibinator203_2022-6-24-305p_mouseDraggedToLookBetter.png>
