@@ -1,0 +1,5 @@
+https://twitter.com/wikibinator/status/1677081170943569922
+wikibinator swarm (a kind of number)
+@wikibinator
+JIT compiler worked for the first time (Jit (DE ,x <* x$ x$>) (DE ,x ,30 (EmptyTreemap GodelLessThan))) and ((DE ,x <* x$ x$>) (DE ,x ,30 (EmptyTreemap GodelLessThan))) both return (Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) x$ 900 Em). Works with browser debugger
+6:24 PM · Jul 6, 2023

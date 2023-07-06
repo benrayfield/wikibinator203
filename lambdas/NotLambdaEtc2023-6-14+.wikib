@@ -1,0 +1,10 @@
+[
+
+[trying some of the simple lambdas in "https://medium.com/@maiavictor/solving-the-mystery-behind-abstract-algorithms-magical-optimizations-144225164b07" which appears to be comma at least in part comma the churchEncodingOfLambdas]
+
+Not#λ[b {b% ,F ,T}] --
+Not T is (Not T) and Not F is  (Not F) --
+Nil is F.
+Cons#λ[h t c n {c% h% {t% c% n%}}] --
+MapA#λ[f l {l% ,<λ[f h t <Cons {f% h%} t%>] f%> ,F}]
+]

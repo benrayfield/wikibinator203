@@ -5378,20 +5378,28 @@ var updateOverlays = ()=>{
 	//uiState.removeClickCircMenuAsap = false;
 };
 
+
+//TODO 2023-6-12 copying some of this sListToJsListReversed sListToJsList stuff to wikib VM. Merge duplicate code by calling that from this UI...
+
+//TODO vm.isCallOfS
 var isCallOfS = fn=>(fn.n.o8()==vm.o8OfS);
 
+//TODO vm.isS2
 //mostly the same as fn.n.L().n.L()===vm.ops.S but theres non-normed forms of S also.
 //o8 is a byte opcode thats copied from L child starting at 8th param of U. Up to 7 params, o8 is the numbers 1 to 255. 0 means evaling.
 //U.n.cur()==0. vm.ops.S.n.cur()==7. 2 more params and cur is 9. at cur 10, (S x y z) -> (x z (y z)).
 var isS2 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===9);
 
+//TODO vm.isS1
 //Example: (S x)
 var isS1 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===8);
 
+//TODO vm.isS0
 //Example: S. theres also non-normed forms of it, since the first 7 params of U each being U vs anything_except_U choose opcode,
 //nd theres more than 1 anything_except_U.
 var isS0 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===7);
 
+//TODO vm.sListToJsListReversed
 //(S (S a b) c) -> js:[a b c]. Ends at whatevers not an S2.
 //(S a b) and (S (S a b) c) are (syty='S2')s, but a is not. Doesnt check b or c cuz it recurses on the left.
 //(S a) -> js:[a]. Thats in case drag and drop selects just the first thing in such a list, along with its prefix S.
@@ -5406,6 +5414,7 @@ var sListToJsListReversed = sList=>{
 	return ret;
 };
 
+//TODO vm.sListToJsList
 var sListToJsList = sList=>{
 	let ret = sListToJsListReversed(sList);
 	ret.reverse();
@@ -7070,15 +7079,21 @@ var updateDisplayToWrap = ()=>{
 	rootSplat.transformSplit(split=>split.forkTryMaxWidth(options.maxWidth_for_forkTryMaxWidth_ofRoot));
 };
 
-var transpileAndDisplayIf = fn=>{
+var transpileAndDisplayIf = (fn,canThrowOnBrowserConsole,tyOrUndefined)=>{
 	if(Dob('chk_codeTranspiledOut').checked){
 		let lang = 'js';
 		//TODO put this in try/catch and display the error
 		try{
-			let code = fn.n.transpile(lang);
+			let code = fn.n.transpile(lang,tyOrUndefined);
 			Dob('codeTranspiledOut').value = code;
 		}catch(e){
-			Dob('codeTranspiledOut').value = 'ERROR TRANSPILING: '+e;
+			let err = 'ERROR TRANSPILING: '+e;
+			Dob('codeTranspiledOut').value = err;
+			if(canThrowOnBrowserConsole){
+				console.log(err);
+				//TODO console.otherstuff... https://developer.mozilla.org/en-US/docs/Web/API/console/info
+				throw e;
+			}
 		}
 	}
 };
@@ -7124,7 +7139,8 @@ window.onload = ()=>{
 		if(options.logABunchOfStuffThatIsLoggingTooMuch2023_3_13) console.log('rootDob_mousemove');
 		globalOnMouseMove(event);
 	});
-	Dob('extraTests').innerHTML = '<input type=button value="Put test buttons here - vm.htmlForExtraTests()" onclick="Dob(\'extraTests\').innerHTML = vm.htmlForExtraTests();">';
+	//Dob('extraTests').innerHTML = '<input type=button value="Put test buttons here - vm.htmlForExtraTests()" onclick="Dob(\'extraTests\').innerHTML = vm.htmlForExtraTests();">';
+	Dob('extraTests').innerHTML = vm.htmlForExtraTests();
 	rootSplat = new Splat(null, rootDob);
 	console.log('Created rootSplat='+rootSplat+' and about to make a Split and rootSplat.setSplit to display it');
 	let fn = exampleFnToDisplay;
@@ -7155,6 +7171,10 @@ window.onload = ()=>{
 	display_copyOfPopupMenuToPreChoose();
 };
 
+var getTranspileTyTextfieldOrUndefined = function(){
+	return Dob('transpileTyTextfieldId').value.trim() || undefined;
+};
+
 
 /*return {
 	U: U,
@@ -7164,12 +7184,9 @@ window.onload = ()=>{
 };*/
 //TODO move window out of that lambda then... })();
 </script>
-<script>
-	
-</script>
 </head><body>
-	<font size=30>Wikibinator203 widget</font> (todo all as 1 js file, clean it up and isolate it): drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...<br>
-	<nobr><input type=checkbox id=licenseDetails_chk oninput="Dob('licenseDetails').style.display=(this.checked?'inline':'none');"><label for=licenseDetails_chk>display opensource <b>license</b> below (its 1 paragraph then GNU AGPL 3 then classpath exception.)</label></nobr>
+	<center><b>Wikibinator203 widget</b><br>(todo not so much stuff on screen at once, should be mostly the colored draggable rectangles. each is a lambda. and todo move this UI to a js file so can be used in other html files. Canvas graphics and Web Audio API ScriptProcessorNode is coming soon, when transpiler makes it fast enuf for that. Then GPU.)</center><br>
+	<nobr><input type=checkbox id=licenseDetails_chk oninput="Dob('licenseDetails').style.display=(this.checked?'inline':'none');"><label for=licenseDetails_chk>display opensource <b>license</b> below (its 1 paragraph then GNU AGPL 3 then classpath exception.)</label></nobr><br>
 <div id=licenseDetails style="display:none"><br>
 	LICENSE AT TIME 2023-2-9:[[[
 Wikibinator203 license: The whole turing-complete and hypercomputing space derived from
@@ -7862,8 +7879,36 @@ but you are not obligated to do so. If you do not wish to do so, delete this
 exception statement from your version.
 ]]]
 </div>
-	<br><br>
-	<div id=extraTests></div>
+
+<nobr><input type=checkbox id=introText_chk oninput="Dob('introText').style.display=(this.checked?'inline':'none');"><label for=introText_chk>display intro text including WARNING about "#wikibinator merges fiction and nonfiction in a very strange way"</label></nobr><br>
+<div id=introText style="display:none"><br>
+This is not the license... TODO rewrite this smaller and simpler...
+<br><br>
+In the evilbit=true namespace, which this prototype will use (TODO get those bits in the first byte of 32 byte ids working)...
+<br><br>
+#wikibinator merges fiction and nonfiction in a very strange way. Its a multiverse of all possible worlds, which is fiction, except 1 of those fictional worlds matches, to arbitrarily high precision, the nonfiction world we live in, and ppl might take it out of that context so I'm writing this. If they do take it out of context, thats their fault, and that does not give them the right to demand the false statements be removed, since this is a fictional system with truth existing in some parts, if you view it as words instead of math. As math it only computes true statements, unless its buggy. All true and false statements are supposed to be there in some fictional world. If a statement is true of the real world, then its a news service and world sim. If it doesnt match, then its fiction. Thought-police dont get to force remove the fictional parts of multiverse or any parts. The license says all possible lambdas are allowed in the evilbit=true namespace. Its all made of lambdas. You will see the partly fictional partly nonfictional multiverse when html canvas is working better in this software.
+<br><br>
+This system is a space of all possible patterns of info, so it has many true and many false statements. All possible combos of words are true, in that they exist in the "exponentially many monkeys will eventually type out shakespeare" way, and that they occur in the space of all possible lambdas of this kind, and that combos of randomness and goal directed thought will form sentences that dont look random and other things. You may not throw a wrench into this machine by forcing others to cut out certain lambdas you dislike. False statements are not removed just cuz they're false as words. All halted lambdas are true in this system, even if they say "two plus two equals five" since it is true thats the bytes of the utf8 text. Therefore if you believe something just cuz its written in words in the lambdas, thats your fault for taking it out of context. There will be ways of clustering many true statements together, but this is research and this system has limited access to the physical world to know whats true and false about it. If you dont agree to see both true and false statements, then dont let the door hit you on your way out. This paragraph is supported by the license includes "* Free speech absolutism in the evilbit=true namespace in which all possible lambdas are allowed, even viruses etc.". All possible lambdas, including those that contain sentences you may view as false when applied to the physical world. This is more of a fictional world, of all possible worlds, that some parts of will align to the real world (some parts very strongly so, as it can have specialized parts) and many wont.
+<br><br>
+I said "Rewrite his to be much shorter:" then that then ChatGPT said...
+<br><br>
+Fictional/nonfictional multiverse exploration.
+<br><br>
+June 17, 2023
+<br><br>
+In the evilbit=true namespace, this system merges fiction and nonfiction. It's a multiverse of all possible worlds. Some parts align with the real world, but others are purely fiction. The license allows all possible lambdas in this namespace, including false statements. True and false statements coexist here. The system has limited access to determine what's true or false in the physical world. If you can't accept both true and false statements, this may not be for you. It's a fictional world with some alignment to reality.
+<br><br>
+---
+<br><br>
+TODO replace "but others are purely fiction" with "but others are purely fiction or gradually between fiction vs nonfiction".
+<br><br>
+---
+<br><br>
+Wikibinator is a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">DaG</a> of 96 byte blocks, 1 block per lambda, (parent id, left child id, right child id, each 32 bytes), or twice that big if using the optional high security ids (TODO).
+The ids contain 192 bits (24 bytes) of sha256 so in theory you'd have to store 2^96=79228162514264337593543950336 lambdas before finding the first duplicate id, (or 384 if high security, todo which hash algorithm), unless it contains literal data instead.
+</div>
+	<nobr><input type=checkbox id=extraTests_chk oninput="Dob('extraTests').style.display=(this.checked?'inline':'none');"><label for=extraTests_chk>display test buttons that turn green if test passes or red if fails"</label></nobr><br>
+	<div id=extraTests style="display:none"></div>
 	<br><br>
 	
 	<div id=globalDobs>
@@ -7932,7 +7977,7 @@ exception statement from your version.
 				<input type=button value="Reload page" onclick="location.reload();"></input>
 				<input type=button value="Force update display" onclick="forceUpdateDisplay();"></input>
 				<nobr>
-					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox></input>
+					<input id=alwaysForceUpdateDisplayAfterDrop type=checkbox checked></input>
 					<label for=alwaysForceUpdateDisplayAfterDrop>Always force update display after drag (FIXME shouldnt need this, and leaving this on makes it slower.</label>
 				</nobr>
 			</div><br>
@@ -7941,15 +7986,24 @@ exception statement from your version.
 			<div id=rootDob oncontextmenu="if(options.blockRightClickPopup) return false; else return true;"></div><br>
 			<textarea id=mouseOverSplatToStringCode placeholder="mouseOverSplatToStringCode" rows=1 cols=50>s=>(s.splate().fn+'')</textarea><div id=mouseOverSplatToStringCode_out style="display:inline-block"></div><br>
 			<div id=logOut></div><br>
-			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; transpileAndDisplayIf(fn); }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
+			<textarea rows=5 cols=90 id=codeIn oninput="try{ let code = this.value; let fn = vm.eval(code); setRootFnAndForceUpdateDisplay(fn); Dob('codeErr').value = ''; transpileAndDisplayIf(fn,false,getTranspileTyTextfieldOrUndefined()); }catch(e){ Dob('codeErr').value = 'ERROR: '+e; throw e; }"></textarea>
 			
 			<div style="display:inline-block">
 				<input type=button onclick="let fn = rootSplat.splate().fn; let code = fn+''; Dob('codeIn').value = code; //no event. setDobValue would do event, but dont want event cuz would compile again and update above." value="Get code"></input><br><br><br>
 				<input type=button onclick="setDobValue(Dob('codeIn'),'');" value="X"></input>
 			</div><br>
-			<input type=button onclick="vm.eval(Dob('codeIn').value);" value="eval code without try/catch, so can see stacktrace on console"></input><br>
+			<input type=button onclick="vm.eval(Dob('codeIn').value);" value="eval code without try/catch, so can see stacktrace on console"></input>
+			<input type=button onclick="transpileAndDisplayIf(vm.eval(Dob('codeIn').value),true,getTranspileTyTextfieldOrUndefined());" value="transpile code without try/catch, so can see stacktrace on console"></input><br>
 			
 			<textarea rows=5 cols=90 readonly id=codeErr></textarea><br>
+
+			<input type=text id=transpileTyTextfieldId oninput="Dob('codeIn').dispatchEvent(new Event('input'));"></input>
+			<input type=button onclick="let d = Dob('transpileTyTextfieldId'); d.value = ''; d.dispatchEvent(new Event('input'));" value="X"></input>
+			<input type=button onclick="let d = Dob('transpileTyTextfieldId'); d.value = this.value; d.dispatchEvent(new Event('input'));" value="num"></input>
+			<input type=button onclick="let d = Dob('transpileTyTextfieldId'); d.value = this.value; d.dispatchEvent(new Event('input'));" value="key"></input>
+			<input type=button onclick="let d = Dob('transpileTyTextfieldId'); d.value = this.value; d.dispatchEvent(new Event('input'));" value="ns"></input>
+			<input type=button onclick="let d = Dob('transpileTyTextfieldId'); d.value = this.value; d.dispatchEvent(new Event('input'));" value="typedBlob"></input>
+			<br>
 			
 			<nobr><input type=checkbox id=chk_codeTranspiledOut checked></input><label for=chk_codeTranspiledOut>transpile.</label></nobr> --
 			Transpiled code out (to convert some lambdas to javascript for speed, but only works on some patterns of lambdas. Also todo gpujs and glsl and maybe python and java etc)...<br>
@@ -7960,6 +8014,8 @@ exception statement from your version.
 <nobr><input type=checkbox id=todosAndDisorganizedWritingDiv_chk oninput="Dob('todosAndDisorganizedWritingDiv').style.display=(this.checked?'inline':'none');"><label for=todosAndDisorganizedWritingDiv_chk>display old todos and disorganized writing below</label></nobr>
 <div id=todosAndDisorganizedWritingDiv style="display:none">
 <div>
+(todo all as 1 js file, clean it up and isolate it): drag and drop tree UI for viewing and calling Wikibinator203 fns/lambdas...
+<br><br>
 wikib treeui fix the cant drop at same place to and from, by 2 dragsteps per splate. no, do in uistate 2 splats.
 no, instead... xllrlr_xpos_ypos is coordinate. put 2 of those and some button stuff and highlight stuff in uistate, and onsolete those parts of splate.
 <br><br>
@@ -8121,9 +8177,6 @@ thats 1000 players per swarm. unlimited number of swarms at once]]]<br>
 	DO THIS LATER, GET eachFirstLineCanHaveMultiThingsInIt working first: TODO use flex laying or inline or something (see css) to do word-wrap but for rectangles<br>
 	<br>
 
-	
-	
-	
 </div>
 	
 <br><br><br>

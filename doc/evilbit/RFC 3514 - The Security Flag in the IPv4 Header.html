@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<!-- saved from url=(0045)https://datatracker.ietf.org/doc/html/rfc3514 -->
+<html lang="en" style="--doc-ptsize-max: 12pt;"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>
+            
+                RFC 3514 - The Security Flag in the IPv4 Header
+            
+        </title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="./RFC 3514 - The Security Flag in the IPv4 Header_files/import.css" rel="stylesheet">
+        <link href="./RFC 3514 - The Security Flag in the IPv4 Header_files/import(1).css" rel="stylesheet">
+        
+            <link rel="stylesheet" href="./RFC 3514 - The Security Flag in the IPv4 Header_files/document_html_referenced.css">
+            
+            <script type="text/javascript" async="" defer="" src="./RFC 3514 - The Security Flag in the IPv4 Header_files/matomo.js.download"></script><script src="./RFC 3514 - The Security Flag in the IPv4 Header_files/document_html.js.download"></script>
+        
+        <link rel="alternate" type="application/atom+xml" href="https://datatracker.ietf.org/feed/document-changes/rfc3514/" aria-label="Document changes" data-bs-original-title="Document changes">
+        <meta name="description" content="The Security Flag in the IPv4 Header (RFC 3514, April 2003)">
+        
+
+<link rel="apple-touch-icon" sizes="180x180" href="https://www.ietf.org/lib/dt/11.2.0/ietf/images/ietf-logo-nor-180.png">
+<link rel="icon" sizes="32x32" href="https://www.ietf.org/lib/dt/11.2.0/ietf/images/ietf-logo-nor-32.png">
+<link rel="icon" sizes="16x16" href="https://www.ietf.org/lib/dt/11.2.0/ietf/images/ietf-logo-nor-16.png">
+<link rel="manifest" href="https://datatracker.ietf.org/site.webmanifest">
+<link rel="mask-icon" href="https://www.ietf.org/lib/dt/11.2.0/ietf/images/ietf-logo-nor-mask.svg" color="#ffffff">
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="theme-color" content="#ffffff">
+        
+
+
+
+
+<meta property="og:title" content="RFC 3514: The Security Flag in the IPv4 Header">
+<meta property="og:url" content="https://datatracker.ietf.org/doc/html/rfc3514">
+<link rel="canonical" href="https://datatracker.ietf.org/doc/html/rfc3514">
+<meta property="og:site_name" content="IETF Datatracker">
+<meta property="og:description" content="Firewalls, packet filters, intrusion detection systems, and the like often have difficulty distinguishing between packets that have malicious intent and those that are merely unusual. We define a security flag in the IPv4 header as a means of distinguishing the two cases. This memo provides information for the Internet community.">
+<meta property="og:type" content="article">
+
+<meta property="article:section" content="Individual Internet-Draft">
+
+<meta property="article:author" content="Steven Bellovin">
+
+<meta property="article:published_time" content="2003-04-01">
+
+        
+        <style>
+            
+            .diff-form .select2-selection__rendered {
+                direction: rtl;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        
+        <button class="btn btn-outline-secondary position-fixed top-0 end-0 m-2 sidebar-toggle" type="button" id="sidebar-on" data-bs-toggle="collapse" data-bs-target="#sidebar" aria-expanded="true" aria-controls="sidebar" aria-label="Show metadata sidebar" data-bs-original-title="Show metadata sidebar">
+        <i class="bi bi-layout-sidebar-reverse"></i>
+        </button>
+        <nav class="navbar navbar-light bg-light px-1 fixed-top d-print-none d-md-none">
+            <a class="nav-link ps-1" href="https://datatracker.ietf.org/doc/rfc3514/">
+                
+                    RFC 3514
+                
+                <br class="d-sm-none">
+                <span class="ms-sm-3 badge rounded-pill badge-inf">
+                    
+                        Informational
+                    
+                </span>
+            </a>
+            <button class="navbar-toggler p-1" type="button" data-bs-toggle="collapse" data-bs-target="#docinfo-collapse" aria-controls="docinfo-collapse" aria-expanded="false" aria-label="Show document information">
+                <span class="navbar-toggler-icon small"></span>
+            </button>
+            <div class="navbar-nav navbar-nav-scroll overscroll-none collapse pt-1" id="docinfo-collapse">
+                <div class="bg-light p-0">
+                    <table class="table table-sm table-borderless small">
+                        <tbody class="meta align-top">
+                            <tr>
+                                <th scope="row"></th>
+                                <th scope="row">Title</th>
+                                <td class="edit"></td>
+                                <td>The Security Flag in the IPv4 Header</td>
+                            </tr>
+                        </tbody>
+                        
+
+
+
+
+
+
+<tbody class="meta align-top ">
+    <tr>
+        <th scope="row">Document</th>
+        <th scope="row">Document type</th>
+        <td class="edit"></td>
+        <td>
+            
+                <span class="text-success">RFC
+                    
+                    <span class="badge rounded-pill badge-inf">Informational</span>
+                
+                </span>
+                
+                    <br>April 2003
+                
+                <br>
+                
+                    <a class="btn btn-primary btn-sm my-1" href="https://www.rfc-editor.org/errata_search.php?rfc=3514" rel="nofollow" data-bs-original-title="Click to view errata.">
+                        View errata
+                    </a>
+                
+                
+                    <a class="btn btn-sm btn-warning" href="https://www.rfc-editor.org/errata.php#reportnew" target="_blank" data-bs-original-title="Click to report an error in the document.">
+                        Report errata
+                    </a>
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+            
+            
+        </td>
+    </tr>
+    
+        <tr>
+            <td></td>
+            <th scope="row">Select version</th>
+            <td class="edit"></td>
+            <td>
+                
+
+
+
+    <ul class="revision-list pagination pagination-sm text-center flex-wrap my-0">
+        
+            
+        
+        
+            <li class="page-item rfc active">
+                <a class="page-link" href="https://datatracker.ietf.org/doc/html/rfc3514">
+                    RFC 3514
+                </a>
+            </li>
+        
+    </ul>
+
+            </td>
+        </tr>
+        
+    
+    <tr>
+        <td></td>
+        <th scope="row">Author</th>
+        <td class="edit">
+            
+        </td>
+        <td>
+            
+            
+                <span><a href="https://datatracker.ietf.org/person/bellovin@acm.org" data-bs-original-title="Datatracker profile of Steven Bellovin.">Steven Bellovin</a> <a href="mailto:bellovin%40acm.org" aria-label="Compose email to bellovin@acm.org." data-bs-original-title="Compose email to bellovin@acm.org.">
+                <i class="bi bi-envelope"></i></a></span>
+            
+            
+                <br>
+                <a class="btn btn-primary btn-sm mt-1" href="mailto:rfc3514@ietf.org?subject=rfc3514" data-bs-original-title="Send email to the document authors">Email authors</a>
+            
+        </td>
+    </tr>
+    
+    
+    
+    
+    <tr>
+        <td></td>
+        <th scope="row">
+            RFC stream
+        </th>
+        <td class="edit">
+            
+        </td>
+        <td>
+            
+                
+                
+                    
+                        Legacy stream
+                    
+                
+                
+            
+        </td>
+    </tr>
+    
+    <tr>
+        <td></td>
+        <th scope="row">
+            Other formats
+        </th>
+        <td class="edit">
+        </td>
+        <td>
+            
+                
+    <div class="buttonlist">
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/rfc3514.txt">
+            
+                <i class="bi bi-file-text"></i> txt
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/rfc3514.html">
+            
+                <i class="bi bi-file-code"></i> html
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" download="rfc3514.pdf" target="_blank" href="https://www.rfc-editor.org/rfc/pdfrfc/rfc3514.txt.pdf">
+            
+                <i class="bi bi-file-pdf"></i> pdf
+            
+        </a>
+        
+    
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/inline-errata/rfc3514.html">
+            
+                <i class="bi bi-file-diff"></i> w/errata
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://datatracker.ietf.org/doc/rfc3514/bibtex/">
+            
+                <i class="bi bi-file-ruled"></i> bibtex
+            
+        </a>
+        
+    
+</div>
+
+            
+        </td>
+    </tr>
+    
+    
+        
+    
+</tbody>
+                        <tbody><tr>
+                            <th scope="row"></th>
+                            <th scope="row"></th>
+                            <td class="edit"></td>
+                            <td>
+                                <a class="btn btn-sm btn-warning mb-3" target="_blank" href="https://github.com/ietf-tools/datatracker/issues/new/choose">
+                                    Report a bug
+                                    <i class="bi bi-bug"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody></table>
+                </div>
+            </div>
+        </nav>
+        <div class="row g-0">
+            <div class="col-md-9 d-flex justify-content-center lh-sm" data-bs-spy="scroll" data-bs-target="#toc-nav" data-bs-smooth-scroll="true" tabindex="0" id="content">
+                
+                    <div class="rfcmarkup">
+                        <br class="noprint">
+                        <!-- [html-validate-disable-block attr-quotes, void-style, element-permitted-content, heading-level -- FIXME: rfcmarkup/rfc2html generates HTML with issues] -->
+                        <div class="rfcmarkup"><pre>Network Working Group                                        S. Bellovin
+Request for Comments: 3514                            AT&amp;T Labs Research
+Category: Informational                                     1 April 2003
+
+
+                  <span class="h1">The Security Flag in the IPv4 Header</span>
+
+Status of this Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2003).  All Rights Reserved.
+
+Abstract
+
+   Firewalls, packet filters, intrusion detection systems, and the like
+   often have difficulty distinguishing between packets that have
+   malicious intent and those that are merely unusual.  We define a
+   security flag in the IPv4 header as a means of distinguishing the two
+   cases.
+
+<span class="h2" id="autoid-1"><a class="selflink" id="section-1" href="https://datatracker.ietf.org/doc/html/rfc3514#section-1">1</a>. Introduction</span>
+
+   Firewalls [<a href="https://datatracker.ietf.org/doc/html/rfc3514#ref-CBR03" data-bs-original-title="&quot;Firewalls and Internet Security: Repelling the Wily Hacker&quot;">CBR03</a>], packet filters, intrusion detection systems, and
+   the like often have difficulty distinguishing between packets that
+   have malicious intent and those that are merely unusual.  The problem
+   is that making such determinations is hard.  To solve this problem,
+   we define a security flag, known as the "evil" bit, in the IPv4
+   [<a href="https://datatracker.ietf.org/doc/html/rfc791" data-bs-original-title="&quot;Internet Protocol&quot;">RFC791</a>] header.  Benign packets have this bit set to 0; those that
+   are used for an attack will have the bit set to 1.
+
+<span class="h3" id="autoid-2"><a class="selflink" id="section-1.1" href="https://datatracker.ietf.org/doc/html/rfc3514#section-1.1">1.1</a>. Terminology</span>
+
+   The keywords MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD,
+   SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL, when they appear in this
+   document, are to be interpreted as described in [<a href="https://datatracker.ietf.org/doc/html/rfc2119" data-bs-original-title="&quot;Key words for use in RFCs to Indicate Requirement Levels&quot;">RFC2119</a>].
+
+<span class="h2" id="autoid-3"><a class="selflink" id="section-2" href="https://datatracker.ietf.org/doc/html/rfc3514#section-2">2</a>. Syntax</span>
+
+   The high-order bit of the IP fragment offset field is the only unused
+   bit in the IP header.  Accordingly, the selection of the bit position
+   is not left to IANA.
+
+
+
+
+
+<span class="grey">Bellovin                     Informational                      [Page 1]</span></pre>
+<hr class="noprint"><!--NewPage--><pre class="newpage"><span id="page-2"></span>
+<span class="grey"><a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a>          The Security Flag in the IPv4 Header      1 April 2003</span>
+
+
+   The bit field is laid out as follows:
+
+             0
+            +-+
+            |E|
+            +-+
+
+   Currently-assigned values are defined as follows:
+
+   0x0  If the bit is set to 0, the packet has no evil intent.  Hosts,
+        network elements, etc., SHOULD assume that the packet is
+        harmless, and SHOULD NOT take any defensive measures.  (We note
+        that this part of the spec is already implemented by many common
+        desktop operating systems.)
+
+   0x1  If the bit is set to 1, the packet has evil intent.  Secure
+        systems SHOULD try to defend themselves against such packets.
+        Insecure systems MAY chose to crash, be penetrated, etc.
+
+<span class="h2" id="autoid-4"><a class="selflink" id="section-3" href="https://datatracker.ietf.org/doc/html/rfc3514#section-3">3</a>. Setting the Evil Bit</span>
+
+   There are a number of ways in which the evil bit may be set.  Attack
+   applications may use a suitable API to request that it be set.
+   Systems that do not have other mechanisms MUST provide such an API;
+   attack programs MUST use it.
+
+   Multi-level insecure operating systems may have special levels for
+   attack programs; the evil bit MUST be set by default on packets
+   emanating from programs running at such levels.  However, the system
+   MAY provide an API to allow it to be cleared for non-malicious
+   activity by users who normally engage in attack behavior.
+
+   Fragments that by themselves are dangerous MUST have the evil bit
+   set.  If a packet with the evil bit set is fragmented by an
+   intermediate router and the fragments themselves are not dangerous,
+   the evil bit MUST be cleared in the fragments, and MUST be turned
+   back on in the reassembled packet.
+
+   Intermediate systems are sometimes used to launder attack
+   connections.  Packets to such systems that are intended to be relayed
+   to a target SHOULD have the evil bit set.
+
+   Some applications hand-craft their own packets.  If these packets are
+   part of an attack, the application MUST set the evil bit by itself.
+
+   In networks protected by firewalls, it is axiomatic that all
+   attackers are on the outside of the firewall.  Therefore, hosts
+   inside the firewall MUST NOT set the evil bit on any packets.
+
+
+
+<span class="grey">Bellovin                     Informational                      [Page 2]</span></pre>
+<hr class="noprint"><!--NewPage--><pre class="newpage"><span id="page-3"></span>
+<span class="grey"><a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a>          The Security Flag in the IPv4 Header      1 April 2003</span>
+
+
+   Because NAT [<a href="https://datatracker.ietf.org/doc/html/rfc3022" data-bs-original-title="&quot;Traditional IP Network Address Translator (Traditional NAT)&quot;">RFC3022</a>] boxes modify packets, they SHOULD set the evil
+   bit on such packets.  "Transparent" http and email proxies SHOULD set
+   the evil bit on their reply packets to the innocent client host.
+
+   Some hosts scan other hosts in a fashion that can alert intrusion
+   detection systems.  If the scanning is part of a benign research
+   project, the evil bit MUST NOT be set.  If the scanning per se is
+   innocent, but the ultimate intent is evil and the destination site
+   has such an intrusion detection system, the evil bit SHOULD be set.
+
+<span class="h2" id="autoid-5"><a class="selflink" id="section-4" href="https://datatracker.ietf.org/doc/html/rfc3514#section-4">4</a>. Processing of the Evil Bit</span>
+
+   Devices such as firewalls MUST drop all inbound packets that have the
+   evil bit set.  Packets with the evil bit off MUST NOT be dropped.
+   Dropped packets SHOULD be noted in the appropriate MIB variable.
+
+   Intrusion detection systems (IDSs) have a harder problem.  Because of
+   their known propensity for false negatives and false positives, IDSs
+   MUST apply a probabilistic correction factor when evaluating the evil
+   bit.  If the evil bit is set, a suitable random number generator
+   [<a href="https://datatracker.ietf.org/doc/html/rfc1750" data-bs-original-title="&quot;Randomness Recommendations for Security&quot;">RFC1750</a>] must be consulted to determine if the attempt should be
+   logged.  Similarly, if the bit is off, another random number
+   generator must be consulted to determine if it should be logged
+   despite the setting.
+
+   The default probabilities for these tests depends on the type of IDS.
+   Thus, a signature-based IDS would have a low false positive value but
+   a high false negative value.  A suitable administrative interface
+   MUST be provided to permit operators to reset these values.
+
+   Routers that are not intended as as security devices SHOULD NOT
+   examine this bit.  This will allow them to pass packets at higher
+   speeds.
+
+   As outlined earlier, host processing of evil packets is operating-
+   system dependent; however, all hosts MUST react appropriately
+   according to their nature.
+
+<span class="h2" id="autoid-6"><a class="selflink" id="section-5" href="https://datatracker.ietf.org/doc/html/rfc3514#section-5">5</a>. Related Work</span>
+
+   Although this document only defines the IPv4 evil bit, there are
+   complementary mechanisms for other forms of evil.  We sketch some of
+   those here.
+
+   For IPv6 [<a href="https://datatracker.ietf.org/doc/html/rfc2460" data-bs-original-title="&quot;Internet Protocol, Version 6 (IPv6) Specification&quot;">RFC2460</a>], evilness is conveyed by two options.  The first,
+   a hop-by-hop option, is used for packets that damage the network,
+   such as DDoS packets.  The second, an end-to-end option, is for
+   packets intended to damage destination hosts.  In either case, the
+
+
+
+<span class="grey">Bellovin                     Informational                      [Page 3]</span></pre>
+<hr class="noprint"><!--NewPage--><pre class="newpage"><span id="page-4"></span>
+<span class="grey"><a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a>          The Security Flag in the IPv4 Header      1 April 2003</span>
+
+
+   option contains a 128-bit strength indicator, which says how evil the
+   packet is, and a 128-bit type code that describes the particular type
+   of attack intended.
+
+   Some link layers, notably those based on optical switching, may
+   bypass routers (and hence firewalls) entirely.  Accordingly, some
+   link-layer scheme MUST be used to denote evil.  This may involve evil
+   lambdas, evil polarizations, etc.
+
+   DDoS attack packets are denoted by a special diffserv code point.
+
+   An application/evil MIME type is defined for Web- or email-carried
+   mischief.  Other MIME types can be embedded inside of evil sections;
+   this permit easy encoding of word processing documents with macro
+   viruses, etc.
+
+<span class="h2" id="autoid-7"><a class="selflink" id="section-6" href="https://datatracker.ietf.org/doc/html/rfc3514#section-6">6</a>. IANA Considerations</span>
+
+   This document defines the behavior of security elements for the 0x0
+   and 0x1 values of this bit.  Behavior for other values of the bit may
+   be defined only by IETF consensus [<a href="https://datatracker.ietf.org/doc/html/rfc2434" title="">RFC2434</a>].
+
+<span class="h2" id="autoid-8"><a class="selflink" id="section-7" href="https://datatracker.ietf.org/doc/html/rfc3514#section-7">7</a>. Security Considerations</span>
+
+   Correct functioning of security mechanisms depend critically on the
+   evil bit being set properly.  If faulty components do not set the
+   evil bit to 1 when appropriate, firewalls will not be able to do
+   their jobs properly.  Similarly, if the bit is set to 1 when it
+   shouldn't be, a denial of service condition may occur.
+
+<span class="h2" id="autoid-9"><a class="selflink" id="section-8" href="https://datatracker.ietf.org/doc/html/rfc3514#section-8">8</a>. References</span>
+
+   [<a id="ref-CBR03">CBR03</a>]   W.R. Cheswick, S.M. Bellovin, and A.D. Rubin, "Firewalls
+             and Internet Security: Repelling the Wily Hacker", Second
+             Edition, Addison-Wesley, 2003.
+
+   [<a id="ref-RFC791">RFC791</a>]  Postel, J., "Internet Protocol", STD 5, <a href="https://datatracker.ietf.org/doc/html/rfc791">RFC 791</a>, September
+             1981.
+
+   [<a id="ref-RFC1750">RFC1750</a>] Eastlake, D., 3rd, Crocker, S. and J. Schiller, "Randomness
+             Recommendations for Security", <a href="https://datatracker.ietf.org/doc/html/rfc1750">RFC 1750</a>, December 1994.
+
+   [<a id="ref-RFC2119">RFC2119</a>] Bradner, S., "Key words for use in RFCs to Indicate
+             Requirement Levels", <a href="https://datatracker.ietf.org/doc/html/bcp14">BCP 14</a>, <a href="https://datatracker.ietf.org/doc/html/rfc2119">RFC 2119</a>, March 1997.
+
+   [<a id="ref-RFC2434">RFC2434</a>] Narten, T. and H. Alvestrand, "Guidelines for Writing an
+             IANA Considerations Section in RFCs", <a href="https://datatracker.ietf.org/doc/html/bcp26">BCP 26</a>, <a href="https://datatracker.ietf.org/doc/html/rfc2434">RFC 2434</a>,
+             October 1998.
+
+
+
+<span class="grey">Bellovin                     Informational                      [Page 4]</span></pre>
+<hr class="noprint"><!--NewPage--><pre class="newpage"><span id="page-5"></span>
+<span class="grey"><a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a>          The Security Flag in the IPv4 Header      1 April 2003</span>
+
+
+   [<a id="ref-RFC2460">RFC2460</a>] Deering, S. and R. Hinden, "Internet Protocol, Version 6
+             (IPv6) Specification", <a href="https://datatracker.ietf.org/doc/html/rfc2460">RFC 2460</a>, December 1998.
+
+   [<a id="ref-RFC3022">RFC3022</a>] Srisuresh, P. and K. Egevang, "Traditional IP Network
+             Address Translator (Traditional NAT)", <a href="https://datatracker.ietf.org/doc/html/rfc3022">RFC 3022</a>, January
+             2001.
+
+<span class="h2" id="autoid-10"><a class="selflink" id="section-9" href="https://datatracker.ietf.org/doc/html/rfc3514#section-9">9</a>. Author's Address</span>
+
+   Steven M. Bellovin
+   AT&amp;T Labs Research
+   Shannon Laboratory
+   180 Park Avenue
+   Florham Park, NJ 07932
+
+   Phone: +1 973-360-8656
+   EMail: bellovin@acm.org
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<span class="grey">Bellovin                     Informational                      [Page 5]</span></pre>
+<hr class="noprint"><!--NewPage--><pre class="newpage"><span id="page-6"></span>
+<span class="grey"><a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a>          The Security Flag in the IPv4 Header      1 April 2003</span>
+
+
+<span class="h2" id="autoid-11"><a class="selflink" id="section-10" href="https://datatracker.ietf.org/doc/html/rfc3514#section-10">10</a>. Full Copyright Statement</span>
+
+   Copyright (C) The Internet Society (2003).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bellovin                     Informational                      [Page 6]
+</pre></div>
+                    </div>
+                
+            </div>
+            <div class="d-print-none col-md-3 bg-light collapse show" id="sidebar">
+                <div class="position-fixed border-start sidebar overflow-scroll overscroll-none no-scrollbar">
+                    <button class="btn btn-outline-secondary float-end m-2" type="button" id="sidebar-off" data-bs-toggle="collapse" data-bs-target="#sidebar" aria-expanded="true" aria-controls="sidebar" aria-label="Hide metadata sidebar" data-bs-original-title="Hide metadata sidebar">
+                            <i class="bi bi-arrow-bar-up"></i>
+                    </button>
+                    <div class="pt-2 pt-lg-3 px-md-2 px-lg-3">
+                        <a class="btn btn-primary btn-sm" href="https://datatracker.ietf.org/doc/rfc3514/">Datatracker</a>
+                        <p class="fw-bold pt-2">
+                                
+                                    RFC 3514
+                                
+                                <br>
+                                <span class="badge rounded-pill badge-inf">
+                                    
+                                        Informational
+                                    
+                                </span>
+
+                        </p>
+                        
+                        <ul class="nav nav-tabs nav-fill small" role="tablist">
+                            <li class="nav-item" role="presentation" data-bs-original-title="Document information">
+                                <button class="nav-link px-2 active" id="docinfo-tab" data-bs-toggle="tab" data-bs-target="#docinfo-tab-pane" type="button" role="tab" aria-controls="docinfo-tab-pane" aria-selected="true">
+                                    <i class="bi bi-info-circle"></i><span class="d-none d-md-block d-xl-inline ms-xl-1">Info</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation" data-bs-original-title="Table of contents">
+                                <button class="nav-link px-2" id="toc-tab" data-bs-toggle="tab" data-bs-target="#toc-tab-pane" type="button" role="tab" aria-controls="toc-tab-pane" aria-selected="false" tabindex="-1">
+                                    <i class="bi bi-list-ol"></i><span class="d-none d-md-block d-xl-inline ms-xl-1">Contents</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation" data-bs-original-title="Preferences">
+                                <button class="nav-link px-2" id="pref-tab" data-bs-toggle="tab" data-bs-target="#pref-tab-pane" type="button" role="tab" aria-controls="pref-tab-pane" aria-selected="false" tabindex="-1">
+                                    <i class="bi bi-gear"></i><span class="d-none d-md-block d-xl-inline ms-xl-1">Prefs</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content pt-2">
+                            <div class="tab-pane active show" id="docinfo-tab-pane" role="tabpanel" aria-labelledby="docinfo-tab" tabindex="0">
+                                <table class="table table-sm table-borderless">
+                                    
+
+
+
+
+
+
+<tbody class="meta align-top ">
+    <tr>
+        <th scope="row">Document</th>
+        <th scope="row">Document type</th>
+        <td class="edit"></td>
+        <td>
+            
+                <span class="text-success">RFC
+                    
+                    <span class="badge rounded-pill badge-inf">Informational</span>
+                
+                </span>
+                
+                    <br>April 2003
+                
+                <br>
+                
+                    <a class="btn btn-primary btn-sm my-1" href="https://www.rfc-editor.org/errata_search.php?rfc=3514" rel="nofollow" data-bs-original-title="Click to view errata.">
+                        View errata
+                    </a>
+                
+                
+                    <a class="btn btn-sm btn-warning" href="https://www.rfc-editor.org/errata.php#reportnew" target="_blank" data-bs-original-title="Click to report an error in the document.">
+                        Report errata
+                    </a>
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+            
+            
+        </td>
+    </tr>
+    
+        <tr>
+            <td></td>
+            <th scope="row">Select version</th>
+            <td class="edit"></td>
+            <td>
+                
+
+
+
+    <ul class="revision-list pagination pagination-sm text-center flex-wrap my-0">
+        
+            
+        
+        
+            <li class="page-item rfc active">
+                <a class="page-link" href="https://datatracker.ietf.org/doc/html/rfc3514">
+                    RFC 3514
+                </a>
+            </li>
+        
+    </ul>
+
+            </td>
+        </tr>
+        
+    
+    <tr>
+        <td></td>
+        <th scope="row">Author</th>
+        <td class="edit">
+            
+        </td>
+        <td>
+            
+            
+                <span><a href="https://datatracker.ietf.org/person/bellovin@acm.org" data-bs-original-title="Datatracker profile of Steven Bellovin.">Steven Bellovin</a> <a href="mailto:bellovin%40acm.org" aria-label="Compose email to bellovin@acm.org." data-bs-original-title="Compose email to bellovin@acm.org.">
+                <i class="bi bi-envelope"></i></a></span>
+            
+            
+                <br>
+                <a class="btn btn-primary btn-sm mt-1" href="mailto:rfc3514@ietf.org?subject=rfc3514" data-bs-original-title="Send email to the document authors">Email authors</a>
+            
+        </td>
+    </tr>
+    
+    
+    
+    
+    <tr>
+        <td></td>
+        <th scope="row">
+            RFC stream
+        </th>
+        <td class="edit">
+            
+        </td>
+        <td>
+            
+                
+                
+                    
+                        Legacy stream
+                    
+                
+                
+            
+        </td>
+    </tr>
+    
+    <tr>
+        <td></td>
+        <th scope="row">
+            Other formats
+        </th>
+        <td class="edit">
+        </td>
+        <td>
+            
+                
+    <div class="buttonlist">
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/rfc3514.txt">
+            
+                <i class="bi bi-file-text"></i> txt
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/rfc3514.html">
+            
+                <i class="bi bi-file-code"></i> html
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" download="rfc3514.pdf" target="_blank" href="https://www.rfc-editor.org/rfc/pdfrfc/rfc3514.txt.pdf">
+            
+                <i class="bi bi-file-pdf"></i> pdf
+            
+        </a>
+        
+    
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://www.rfc-editor.org/rfc/inline-errata/rfc3514.html">
+            
+                <i class="bi bi-file-diff"></i> w/errata
+            
+        </a>
+        
+    
+        
+        <a class="btn btn-primary btn-sm" target="_blank" href="https://datatracker.ietf.org/doc/rfc3514/bibtex/">
+            
+                <i class="bi bi-file-ruled"></i> bibtex
+            
+        </a>
+        
+    
+</div>
+
+            
+        </td>
+    </tr>
+    
+    
+        
+    
+</tbody>
+                                </table>
+                                <a class="btn btn-sm btn-warning mb-3" target="_blank" href="https://github.com/ietf-tools/datatracker/issues/new/choose">
+                                    Report a datatracker bug
+                                    <i class="bi bi-bug"></i>
+                                </a>
+                            </div>
+                            <div class="tab-pane mb-5" id="toc-tab-pane" role="tabpanel" aria-labelledby="toc-tab" tabindex="0">
+                                <nav class="nav nav-pills flex-column small" id="toc-nav">
+                                <a class="nav-link ps-1 d-flex hyphenate py-0 active" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-1"><div class="pe-1">1.</div><div class="text-break">Introduction</div></a><nav class="nav-pills ps-3 flex-column"><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-2"><div class="pe-1">1.1.</div><div class="text-break">Terminology</div></a></nav><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-3"><div class="pe-1">2.</div><div class="text-break">Syntax</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-4"><div class="pe-1">3.</div><div class="text-break">Setting the Evil Bit</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-5"><div class="pe-1">4.</div><div class="text-break">Processing of the Evil Bit</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-6"><div class="pe-1">5.</div><div class="text-break">Related Work</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-7"><div class="pe-1">6.</div><div class="text-break">IANA Considerations</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-8"><div class="pe-1">7.</div><div class="text-break">Security Considerations</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-9"><div class="pe-1">8.</div><div class="text-break">References</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-10"><div class="pe-1">9.</div><div class="text-break">Author's Address</div></a><a class="nav-link ps-1 d-flex hyphenate py-0" href="https://datatracker.ietf.org/doc/html/rfc3514#autoid-11"><div class="pe-1">10.</div><div class="text-break">Full Copyright Statement</div></a></nav>
+                            </div>
+                            <div class="tab-pane mb-5 small" id="pref-tab-pane" role="tabpanel" aria-labelledby="pref-tab" tabindex="0">
+                                <label class="form-label fw-bold mb-2">Show sidebar by default</label>
+                                <div class="btn-group-vertical btn-group-sm d-flex" role="group">
+                                    <input type="radio" class="btn-check" name="sidebar" id="on-radio">
+                                    <label class="btn btn-outline-primary" for="on-radio">Yes</label>
+                                    <input type="radio" class="btn-check" name="sidebar" id="off-radio">
+                                    <label class="btn btn-outline-primary" for="off-radio">No</label>
+                                </div>
+                                <label class="form-label fw-bold mt-4 mb-2">Tab to show by default</label>
+                                <div class="btn-group-vertical btn-group-sm d-flex" role="group">
+                                    <input type="radio" class="btn-check" name="deftab" id="docinfo-radio">
+                                    <label class="btn btn-outline-primary" for="docinfo-radio">
+                                        <i class="bi bi-info-circle me-1"></i>Info
+                                    </label>
+                                    <input type="radio" class="btn-check" name="deftab" id="toc-radio">
+                                    <label class="btn btn-outline-primary" for="toc-radio">
+                                        <i class="bi bi-list-ol me-1"></i>Contents
+                                    </label>
+                                </div>
+                                <label class="form-label fw-bold mt-4 mb-2">HTMLization configuration</label>
+                                <div class="btn-group-vertical btn-group-sm d-flex" role="group">
+                                    <input type="radio" class="btn-check" name="htmlconf" id="txt-radio">
+                                    <label class="btn btn-outline-primary" for="txt-radio" data-bs-original-title="This is the traditional HTMLization method.">
+                                        <i class="bi bi-badge-sd me-1"></i>HTMLize the plaintext
+                                    </label>
+                                    <input type="radio" class="btn-check" name="htmlconf" id="html-radio">
+                                    <label class="btn btn-outline-primary" for="html-radio" data-bs-original-title="This is the modern HTMLization method.">
+                                        <i class="bi bi-badge-hd me-1"></i>Plaintextify the HTML
+                                    </label>
+                                </div>
+                                <label class="form-label fw-bold mt-4 mb-2" for="ptsize">Maximum font size</label>
+                                <input type="range" class="form-range" min="7" max="16" id="ptsize" oninput="ptdemo.value = ptsize.value">
+                                <label class="form-label fw-bold mt-4 mb-2">Page dependencies</label>
+                                <div class="btn-group-vertical btn-group-sm d-flex" role="group">
+                                    <input type="radio" class="btn-check" name="pagedeps" id="inline-radio">
+                                    <label class="btn btn-outline-primary" for="inline-radio" data-bs-original-title="Generate larger, standalone web pages that do not require network access to render.">
+                                        <i class="bi bi-box me-1"></i>Inline
+                                    </label>
+                                    <input type="radio" class="btn-check" name="pagedeps" id="reference-radio">
+                                    <label class="btn btn-outline-primary" for="reference-radio" data-bs-original-title="Generate regular web pages that require network access to render.">
+                                        <i class="bi bi-link-45deg me-1"></i>Reference
+                                    </label>
+                                </div>
+                                <label class="form-label fw-bold mt-4 mb-2">Citation links</label>
+                                <div class="btn-group-vertical btn-group-sm d-flex" role="group">
+                                    <input type="radio" class="btn-check" name="reflinks" id="refsection-radio">
+                                    <label class="btn btn-outline-primary" for="refsection-radio" data-bs-original-title="Citation links go to the reference section.">
+                                        <i class="bi bi-arrow-clockwise"></i> Go to reference section
+                                    </label>
+                                    <input type="radio" class="btn-check" name="reflinks" id="citation-radio">
+                                    <label class="btn btn-outline-primary" for="citation-radio" data-bs-original-title="Citation links go directly to the cited document.">
+                                        <i class="bi bi-link-45deg me-1"></i>Go to linked document
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+<script type="text/javascript">
+  var _paq = window._paq || [];
+  
+  _paq.push(['disableCookies']);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//analytics.ietf.org/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', 7]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<noscript><p><img src="//analytics.ietf.org/piwik.php?idsite=7" style="border:0;" alt="" /></p></noscript>
+
+    <script>(function(){var js = "window['__CF$cv$params']={r:'7dad5a5659e59c8e',m:'12qk5Br9LOCx3lEbdm1wawmzg9aG27J8qHElAH55X78-1687362056-0-ATQXJbo1ml5w2XGIoAOoV7zYbtNwBuyqH5knRcdwGtl+'};_cpo=document.createElement('script');_cpo.nonce='',_cpo.src='/cdn-cgi/challenge-platform/scripts/invisible.js',document.getElementsByTagName('head')[0].appendChild(_cpo);";var _0xh = document.createElement('iframe');_0xh.height = 1;_0xh.width = 1;_0xh.style.position = 'absolute';_0xh.style.top = 0;_0xh.style.left = 0;_0xh.style.border = 'none';_0xh.style.visibility = 'hidden';document.body.appendChild(_0xh);function handler() {var _0xi = _0xh.contentDocument || _0xh.contentWindow.document;if (_0xi) {var _0xj = _0xi.createElement('script');_0xj.nonce = '';_0xj.innerHTML = js;_0xi.getElementsByTagName('head')[0].appendChild(_0xj);}}if (document.readyState !== 'loading') {handler();} else if (window.addEventListener) {document.addEventListener('DOMContentLoaded', handler);} else {var prev = document.onreadystatechange || function () {};document.onreadystatechange = function (e) {prev(e);if (document.readyState !== 'loading') {document.onreadystatechange = prev;handler();}};}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;" src="./RFC 3514 - The Security Flag in the IPv4 Header_files/saved_resource.html"></iframe>
+</body></html>
