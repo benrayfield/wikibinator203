@@ -3178,6 +3178,10 @@ const Wikibinator203 = (()=>{
 	vm.maxBits = 2**vm.log2OfMaxBits;
 	if(Math.log2(vm.maxBits) != vm.log2OfMaxBits) throw 'Theres roundoff in the max bits per cbt, stored in a double.';
 
+	//If true then (GE ,obName ,fieldName [hello world] (EmptyTreemap GodelLessThan)) converts [hello world] to double even if its not one.
+	//If false then stores [hello world] directly, which means vm.Mut optimization cant be used with that cuz vm.Mut.g is a js {} of string/MutToString to double.
+	vm.forceGEValToDouble = true;
+
 	//with(ops){ //so vm can call its own ops by name, such as (Pair, L, R, S) to implement other ops
 		
 		vm.lastIdA = -1; //high 32 bits
@@ -3640,10 +3644,14 @@ const Wikibinator203 = (()=>{
 				break;case 'number':
 					return vm.wrapDouble(thing);
 				break;case 'Uint8Array':
+					
 					//TODO optimize if its 2**22 bytes (such as a 1024x1024x4 byte graphics) then could store it in half the size
 					//without padding, but would need a different contentType to say theres no padding.
 					//return vm.typeBytes(vm.CbtOfBytes(vm.padBytes(thing)));
-					return vm.CbtOfBytes(vm.padBytes(thing)); //dont use application/octet-stream here, cuz just use cbt by itself.
+					let cbt = vm.CbtOfBytes(vm.padBytes(thing)); //dont use application/octet-stream here, cuz just use cbt by itself.
+					//return cbt;
+					return vm.typeBytes(cbt); //(TypevalB b* ThePaddedBytes)
+				break;case '': //FIXME did i mean to write a nonempty string here?
 				break;default:
 					throw 'TODO use (ops.Typeval contentType thing), ty='+ty;
 			}
@@ -4133,11 +4141,24 @@ const Wikibinator203 = (()=>{
 					//rootM[key.n.R()].d = val.n.d(); //double/float64/num. .n.R() gets x from x$ (aka from (D x)).
 					rootM[keyAsMut].d = val.n.d(); //double/float64/num. .n.R() gets x from x$ (aka from (D x)).
 				}else if(vm.isFullP(key)){
+					//FIXME why is it key.n.R() in isFullD but key directly here?
 					let keyAsMut = rootM.fnToMut(key); //just in the current root mut, 1 level deep.
 					rootM[keyAsMut] = keyAsMut;
 					rootM[keyAsMut].p = val; //fn
 				}else if(vm.isFullBl(key)){
-					throw 'mut[key].p = if val is a TypevalC or TypevalB, such as a wrapper of bytes of double[] or of int[] etc, then copy that typedblob into mut[key].arr.';
+					let jsArray = val.n.typedArrayMutableCopy(); //throws if its not that or not one of the array types it supports or bize is not a multiple of primitive size or its too big
+					console.log('startMut, key='+key+' val='+val+' val converted to jsArray = '+jsArray+' and its length is '+jsArray.length);
+					
+					/*
+					//FIXME why is it key.n.R() in isFullD but key directly here?
+					let keyAsMut = rootM.fnToMut(key); //just in the current root mut, 1 level deep.
+					*/
+					key = key.n.R(); //.n.R() gets x from x@ (aka from (Bl x)).
+					let keyAsMut = rootM.fnToMut(key); //just in the current root mut, 1 level deep.
+
+					rootM[keyAsMut] = keyAsMut;
+					rootM[keyAsMut].arr = jsArray; //Uint8Array, Int32Array, Float32Array, Float64Array, etc. Mutable array. Will copy to immutable (TypevalB ...) in vm.endMut.
+					//throw 'mut[key].arr = if val is a TypevalC or TypevalB, such as a wrapper of bytes of double[] or of int[] etc, then copy that typedblob to array.';
 				}else{
 					 throw 'TODO startMut key='+key+' val='+val;
 				}
@@ -4584,7 +4605,7 @@ const Wikibinator203 = (()=>{
 				let transpileFunc = func.n.getTranspileFuncTheSimpleDirectWay(this.lang); //doesnt check for <...> or {...}. Thats why firstInSList is done in the IF above.
 				if(!transpileFunc){
 					throw 'No transpileFunc for lang='+this.lang+' func='+func+' A transpileFunc can be added if you search for addOp(\''+func.n.opName()+'\' in'+
-						' Wikibinator203VM.js and put it in the langs:{ '+this.lang+': (tr,fn,ty,optionalPrefix)=> ... The tr is a Transpiler. The fn is the func= this error just said. ty='+ty;
+						' Wikibinator203VM.js and put it in the langs:{ '+this.lang+': (tr,fn,ty,optionalPrefix)=> ... The tr is a Transpiler. The fn is the func= this error just said or that with more curried (by L and R) params. ty='+ty;
 				}
 				if(transpileFunc.length != 4){
 					throw 'transpileFunc.length must be 3 (tr,fn,ty,optionalPrefix) but is '+transpileFunc.length;
@@ -4732,11 +4753,20 @@ const Wikibinator203 = (()=>{
 		//or is a copy of the data if its stored as call pairs (that may contain smaller blobs or go all the way down to Bit0 and Bit1.
 		//If theres a fraction of a byte at the end, does not include it. Does not include padding. If its not a cbt, returns empty Uint8Array.
 		//blobFrom and blobTo must always be powOf2 aligned, so no need to check if it starts in the middle of a byte.
-		vm.Node.prototype.bytes = function(){
+		//FIXME add a param (raw, being true or false), or have 2 funcs like this, one for viewing as TypevalC (view as no padding) and one for viewing as TypevalB (view as has padding)?
+		vm.Node.prototype.bytes = function(raw){
 			//TODO cache this, similar to cache_containsBit1 but it would be cache_bytes? Might make it harder to garbcol.
-			let byteLen = this.Bize()>>3;
-			if(this.blob){
-				return this.blob.subarray(this.blobFrom, this.blobTo);
+			if(!this.isCbt()){
+				throw 'Not a cbt/blob: '+this.lam;
+			}
+			let cbtSize = this.cbtSize();
+			let byteLen = raw ? cbtSize : this.Bize()>>3; //FIXME what if its not a multiple of 8 bits?
+			if(cbtSize > 2**30){
+				throw 'Too big to get bytes, cbtSize='+cbtSize;
+			}
+			if(this.blob){	
+				//return this.blob.subarray(this.blobFrom, this.blobTo);
+				return this.blob.subarray(this.blobFrom, this.blobFrom+byteLen); //exclude padding. Padding starts with the last 1 bit (then 0s until next powOf2 number of bits).
 			}else{
 				let ret = new Uint8Array(byteLen);
 				for(let i=0; i<byteLen; i++){
@@ -4744,6 +4774,92 @@ const Wikibinator203 = (()=>{
 				}
 				return ret;
 			}
+		};
+
+		//same as .bytes() but nonbacking and mutable.
+		vm.Node.prototype.bytesMutableCopy = function(raw){
+			//TODO cache this, similar to cache_containsBit1 but it would be cache_bytes? Might make it harder to garbcol.
+			if(!this.isCbt()){
+				throw 'Not a cbt/blob: '+this.lam;
+			}
+			if(this.blob){
+				let cbtSize = this.cbtSize();
+				let byteLen = raw ? cbtSize : this.Bize()>>3; //FIXME what if its not a multiple of 8 bits?
+				if(cbtSize > 2**30){
+					throw 'Too big to get bytes, cbtSize='+cbtSize;
+				}
+				//let byteLen = this.Bize()>>3; //FIXME what if its not a multiple of 8 bits?
+				let ret = new Uint8Array(byteLen);
+				//TODO optimize by using a copy range func in Uint8Array.
+				for(let i=0; i<byteLen; i++) ret[i] = this.blob[this.blobFrom+i];
+				return ret;
+			}else{
+				return this.bytes(raw);
+			}
+		};
+
+		//Returns a Uint8Array, Int32Array, Float32Array, or Float64Array, etc, or throws if is not such an array (such as if this is (Pair S T) or [hello world]).
+		//If this is for example (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) then returns a Uint8Array copy of it.
+		vm.Node.prototype.typedArrayMutableCopy = function(){
+			let bytes;
+			if(!vm.isFullTypeval(this.lam)){
+				throw 'Not a TypevalB or TypevalC: '+this.lam;
+			}
+			//let cbt = this.R();
+			//if(!cbt.isCbt()){
+			//	throw 'Typeval content is not a cbt/blob: '+cbt;
+			//}
+			let cbt = this.R();
+			if(this.o8() == vm.o8OfTypevalB){ //since o8 is copied from L child starting at 8th param of U, cbt.n.o8()==this.o8() if this is a typedBlob
+				bytes = cbt.n.bytesMutableCopy();
+			}else if(this.o8() == vm.o8OfTypevalC){
+				bytes = cbt.n.bytesMutableCopy(true);
+			}else{
+				throw 'Not a TypevalB or TypevalC: '+this.lam;
+			}
+			//let contentType = this.L().n.R(); //Example: d for double or d* for double array or i for int or b for byte or b* for ubyte array.
+			let type = this.L(); //Example: (TypevalB d*) for double array. d* is contentType and could also be image/jpeg etc.
+			if(type == vm.typeBytes){
+				return bytes;
+			}else if(type == vm.typeInts){
+				if(bytes.length&3){
+					throw 'bytes.length='+bytes.length+' is not a multiple of 4 so cant be an Int32Array';
+				}
+				return new Int32Array(bytes.buffer);
+			}else if(type == vm.typeFloats){
+				if(bytes.length&3){
+					throw 'bytes.length='+bytes.length+' is not a multiple of 4 so cant be an Float32Array';
+				}
+				return new Float32Array(bytes.buffer);
+			}else if(type == vm.typeDoubles){
+				if(bytes.length&7){
+					throw 'bytes.length='+bytes.length+' is not a multiple of 8 so cant be an Float64Array';
+				}
+				return new Float64Array(bytes.buffer);
+			}else{
+				throw 'TODO type='+type;
+			}
+		};
+
+		vm.isValidCanvas = function(fn){
+			return vm.isFullCanvas(fn);
+			/*
+			//FIXME also check this stuff, from tree UI...
+			let magnifyHeight = fn.n.llr(4).n.d();
+			let magnifyWidth = fn.n.llr(3).n.d();
+			let dataHeight = fn.n.llr(2).n.d();
+			let dataWidth = fn.n.llr(1).n.d();
+			let bytesCbt = fn.n.R();
+			let bytes = bytesCbt.n.bytes();
+			let useFirstNBytes = dataHeight*dataWidth*4;
+			if(bytes.length < useFirstNBytes){
+				throw bytes.length+'== bytes.length < useFirstNBytes == '+useFirstNBytes+', FIXME this should just not display as canvas, since its a valid fn but need more param checking. make an isValidCanvas func.';
+			}*/
+		}
+
+		//FIXME is this off by about 1? check what cbtHeight means. Is cbtSize 2**cbtHeight? i think so but verify
+		vm.Node.prototype.fitsInBize31 = function(){
+			return !this.isCbt() || (this.cbtHeight() < 32);
 		};
 		
 		//updates this.bize if its -2. -2 means has not computed it yet. -1 means is not a cbt. 0 means is either all 0s or is a 1 then 0s,
@@ -4786,7 +4902,8 @@ const Wikibinator203 = (()=>{
 			return this.bize;
 		};
 		
-		//returns 0 (vm.ops.Bit0 or any non-cbt or is outside this cbt range) or 1 (vm.ops.Bit1).
+		//returns double 0 or 1.
+		//OLD: returns 0 (vm.ops.Bit0 or any non-cbt or is outside this cbt range) or 1 (vm.ops.Bit1).
 		//This is very slow compared to using Node.blob, .blobFrom, and .blobTo directly.
 		vm.Node.prototype.bitAt = function(bitIndex){
 			if(this.blob){ //a Uint8Array.
@@ -4848,10 +4965,79 @@ const Wikibinator203 = (()=>{
 			//FIXME endian?
 			return (this.byteAt(intIndex*4)<<24)|(this.byteAt(intIndex*4+1)<<16)|(this.byteAt(intIndex*4+2)<<8)|this.byteAt(intIndex*4+3);
 		};
+
+		vm.Node.prototype.floatAt = function(floatIndex){
+			throw 'TODO use int bits as float, of this.intAt(floatIndex)';
+		};
 		
 		vm.Node.prototype.doubleAt = function(doubleIndex){
 			//FIXME endian?
 			return vm.twoIntsToDouble(this.intAt(doubleIndex*2),this.intAt(doubleIndex*2+1));
+		};
+
+		//This must be a typedBlob, not a cbt, but containing such a cbt at this.n.R().
+		//throws if this is not a full typedBlob, such as (TypevalB d* thedoublesbytes). If its array of bytes, ints, floats, doubles, etc, returns value at index, cast to double.
+		//if optionalWriteVal then returns a fn forkedited to have that val at the given index, unless its out of range then infloops.
+		//FIXME should this keep TypevalC if it started as a TypevalC? For now 2023-7-24 i'm converting to TypevalB either way, if theres an optionalWriteVal, cuz thats what vm.wrap does.
+		vm.Node.prototype.at = function(index, optionalWriteVal){
+			if(optionalWriteVal === undefined){ //read (cast to) double at index
+				let type = this.L();
+				let cbt = this.R();
+				if(type == vm.typeBytes){
+					return cbt.n.byteAt(index);
+				}else if(type == vm.typeInts){
+					return cbt.n.intAt(index);
+				}else if(type == vm.typeFloats){
+					return cbt.n.floatAt(index);
+				}else if(type == vm.typeDoubles){
+					return cbt.n.doubleAt(index);
+				}else if(type == vm.typeBits){
+					return cbt.bitAt(index) ? 1 : 0;
+				}else if(this.isCbt()){
+					throw 'This must be a typedBlob, not a cbt. this.lam='+this.lam;
+				}else{
+					throw 'TODO type='+type;
+				}
+			}else{
+				let jsArray = this.typedArrayMutableCopy(); //Examples: Float64Array Float32Array Int32Array Uint8Array etc
+				//TODO cast index to int and check its range? Or infloop if its not an integer?
+				jsArray[index] = optionalWriteVal;
+				return vm.wrap(jsArray); //puts it in (TypevalB d*) if its a double array, (TypevalB i*) if its int array, etc.
+			}
+		};
+
+		// typedBlob len, in units of doubles, ints, floats, bytes, or whatever primitive array type. Divides bize by this.
+		//Does not give length for other datastructs than primitive arrays, even if theres a contentType for them, such as json arrays, bson,
+		//or whatever else may be there. Make diff funcs for that at user level (not part of VM). FIXME what if this is a TypevalC (no padding, so doesnt use bize)?
+		//FIXME this cant go up to vm.maxBits and still be a double, unless its always a powOf2 which it usually isnt.
+		vm.Node.prototype.tylen = function(){
+			if(this.cache_tylen === undefined){
+				let type = this.L();
+				let cbt = this.R();
+				if(!cbt.n.fitsInBize31()){
+					throw 'TODO handle bigger blobs, !cbt.n.fitsInBize31() this.lam='+this.lam;
+				}
+				let bize31 = cbt.n.Bize();
+				let ret;
+				//FIXME bize31>>3 drops some digits
+				if(type == vm.typeBytes){ //(TypevalB b* cbt)
+					ret = bize31>>3;
+				}else if(type == vm.typeInts){ //(TypevalB i* cbt)
+					ret = bize31>>5;
+				}else if(type == vm.typeFloats){ //(TypevalB f* cbt)
+					ret = bize31>>5;
+				}else if(type == vm.typeDoubles){ //(TypevalB d* cbt)
+					ret = bize31>>6;
+				}else if(type == vm.typeBits){
+					return cbt.bitAt(index) ? 1 : 0;
+				}else if(this.isCbt()){
+					throw 'This must be a typedBlob, not a cbt. this.lam='+this.lam;
+				}else{
+					throw 'TODO type='+type;
+				}
+				this.cache_tylen = ret;
+			}
+			return this.cache_tylen;
 		};
 		
 		//If this is a cbt (FIXME? even of the wrong size?), then its first 8 bytes as double/float64.
@@ -5099,7 +5285,8 @@ const Wikibinator203 = (()=>{
 			//FIXME adjust for new design of Lambdo and Mutlambdo ops to put funcBody at end of params list,
 			let o8 = this.o8();
 			switch(o8){
-				/*[]/Infcur isnt used as a namespace anymore: case vm.o8OfInfcur:{
+				/* UPDATE: 2023-8-3 bringing [] back as ns/namespace, but still need to check its length is even or odd?
+				[]/Infcur isnt used as a namespace anymore: case vm.o8OfInfcur:{
 					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
 					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
 					throw 'TODO remove this?';
@@ -5116,7 +5303,30 @@ const Wikibinator203 = (()=>{
 						return lambdaOrMutLam.n.p(name); //uses cached this.paramNames()
 					}
 				}break;*/
-				case vm.o8OfLambdo: case vm.o8OfMutlambdo:{
+				case vm.o8OfInfcur:{
+					//2023-8-3 bringing [] back as ns/namespace, but still need to check its length is even or odd?
+					//(b% [a valA b valB c valC]) returns valB, for example. b% is (P b). Searches from end (c then b then a)
+					//and returns first val of that key, even if theres duplicate keys. If list size (after 7th param) is odd
+					//(even if you count those 7), it doesnt care, counts down by 2 from end anyways, and ignores the 8th param after U.
+					let infcurList = this.lam;
+					//caller already does this, so just search for name: let searchName = ops.P(name); //the keys in [a valA b valB c valC] are a% b% c% aka (P a) (P b) (P c), similar to in Lambda and Mutlambda.
+					if(!vm.isFullP(name)){
+						return null; //not found, cuz only (P a) aka a% or (P [hello world]) etc can be keys, such as in [a valA [hello world] valHelloWorld]
+					}
+					let searchListItem = name.n.R(); //get a from a%, or get [hello world] from  (P [hello world]), etc.
+					while(infcurList.n.paramsSoFar() >= 2){
+						let val = infcurList.n.R();
+						infcurList = infcurList.n.L();
+						let key = infcurList.n.R();
+						infcurList = infcurList.n.L();
+						//if(searchName.n.eq(key)){
+						//if(name.n.eq(key)){
+						if(searchListItem.n.eq(key)){
+							return val;
+						}
+					}
+					return null; //not found
+				}break;case vm.o8OfLambdo: case vm.o8OfMutlambdo:{
 					//if(!pNames) pNames = this.paramNames(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
 					if(!pNames) pNames = this.paramNamesWithoutFuncBody(); //[..paramNames.. FuncBody]. Caches it, so it doesnt cost much to call it again (which often happens in o8OfInfcur vs o8OfLambda etc)
 					let curLeft = this.curriesLeft();
@@ -6956,7 +7166,7 @@ const Wikibinator203 = (()=>{
 		Object.freeze(objectThatReturns0ForAllFieldValues);
 		vm.objectThatReturns0ForAllFieldValues = objectThatReturns0ForAllFieldValues;
 		
-		//1 <= i <= 2**30.
+		//1 <= i <= 2**30. FIXME or is it 2**31?
 		vm.roundUpToPowOf2 = i=>{
 			if(i<=1) return 1;
 			let leadingZeros = Math.clz32(i-1);
@@ -7674,6 +7884,8 @@ const Wikibinator203 = (()=>{
 		
 		//vm.o8OfIdentityFunc = 5000; //FIXME thats the wrong number
 
+		//2 params gives a call pair. 3 params gives call pair of first 2, then call pair of that with third param. and so on for more params.
+		//1 param is just that param. 0 params is identityFunc.
 		//(func,param) or more params to curry...
 		//FIXME vararg might be slow. use separate func for vararg cp
 		//FIXME should some of the mask bits (vm.mask_*) in lambda.n.header (an int) be a param here,
@@ -7713,12 +7925,12 @@ const Wikibinator203 = (()=>{
 							if(lambda.n.equalsByLazyDedupOf2ChildNodes(funcNode,paramNode)){
 								return lambda; //found it, reuse that instead of creating another node of same forest shape
 							}
-							lambda = lambda.htNext; //linked list per bucket.
+							lambda = lambda.htNext; //linked list per bucket. Example: vm.eval('(Pair S T)').htNext is either undefined or next in linkedlist
 						}
 						//didnt find that forest shape. create one.
 						this.prepay1Mem();
 						//vm.dedupHashtable[bucket] is null or a vm.HashtableNode first in linkedlist that doesnt contain the node looking for.
-						lambda = vm.lambdize(new this.Node(this,func,param));
+						lambda = vm.lambdize(new vm.Node(vm,func,param));
 						lambda.htNext = vm.dedupHashtable[bucket]; //linked list per bucket.
 						vm.dedupHashtable[bucket] = lambda;
 						return lambda;
@@ -7902,9 +8114,15 @@ const Wikibinator203 = (()=>{
 			console.log('Add op '+name+' o8='+o8+' curriesLeft='+curriesLeft+' description: '+description);
 			return o8;
 		};
-		vm.addOp('Evaling',null,true,0,' opcode 0 (of 0-255). This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be u, and returns what (thefirst thesecond) returns.',
+		let o8OfEvaling = vm.addOp('Evaling',null,true,0,' opcode 0 (of 0-255). This is either never used or only in some implementations. Lambdas cant see it since its not halted. If you want a lazyeval that lambdas can see, thats one of the opcodes (TODO) or derive a lambda of 3 params that calls the first on the second when it gets and ignores the third param which would normally be U, and returns what (thefirst thesecond) returns. Example: λ[func param ignore {func% param%}]',
 			{ty:'unknown', langs:{}});
-		vm.addOp('U',null,true,7,'the universal lambda aka wikibinator203. opcode 1 (of 0-255). There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.',{langs:{}});
+		if(o8OfEvaling != 0){
+			throw 'o8OfEvaling='+o8OfEvaling+' but must be 0';
+		}
+		let o8OfU = vm.addOp('U',null,true,7,'the universal lambda aka wikibinator203. opcode 1 (of 0-255). There are an infinite number of other possible universal lambdas but that would be a different system. They can all emulate eachother, if they are within the turingComplete cardinality (below hypercomputing etc), aka all calculations of finite time and memory, but sometimes an emulator in an emulator... is slow, even with evaler optimizations.',{langs:{}});
+		if(o8OfU != 1){
+			throw 'o8OfU='+o8OfU+' but must be 1';
+		}
 		for(let o8=2; o8<128; o8++){
 			//TODO 'op' + 2 hex digits?
 			let numLeadingZeros = Math.clz32(o8);
@@ -8000,7 +8218,12 @@ const Wikibinator203 = (()=>{
 					//throw 'TODO <Lt x$ y$> etc. call the langs:js (tr,fn,ty) of the inner fn (Lt... in this case) but might need , vs S adjustment first.';
 				}*/
 			}});
-		vm.addOp('ReservedForFutureExpansionASDFASDFASDFJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{ty:'unknown', langs:{}});
+		
+		//vm.addOp('ReservedForFutureExpansionASDFASDFASDFJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{ty:'unknown', langs:{}});
+
+		vm.addOp('CC',null,false,3,'Comment. (CC [this is a comment] x y) -> (x y). You could for example put this around funcBody in lambda or mutlambda, which goes at end of param [] list.',{ty:'key', langs:{}});
+
+
 		vm.addOp('Pair',null,false,3,'the church-pair lambda aka λx.λy.λz.zxy which is the same param/return mapping as Typeval, but use this if you dont necessarily mean a contentType and want to avoid it being displayed as contentType.',{ty:'unknown', langs:{}});
 		vm.o8OfTypevalB = vm.addOp('TypevalB',null,false,3,'TypevalB: TypevalB is for viewing cbt as bitstring (with 100000... padding til next powOf2 size). TypevalC is viewing cbt as cbt (no padding, use whole powOf2 size, such as a double uses 64 bits). The church-pair lambda aka λx.λy.λz.zxy but means for example (TypevalB U BytesOfUtf8String) or (TypevalB (Typeval U BytesOfUtf8String) BytesOfWhateverThatIs), as in https://en.wikipedia.org/wiki/Media_type aka contentType such as "image/jpeg" or (nonstandard contentType) "double[]" etc. Depending on what lambdas are viewing this, might be displayed specific to a contentType, but make sure to keep it sandboxed such as loading a html file in an iframe could crash the browser tab so the best way would be to make the viewer using lambdas. UPDATE: doubles is d* and floats is f*, both of which could use TypevalB or TypevalC. double is d, and float is f, which normally use typevalC but could use a typevalB with padding.',
 			{ty:'unknown', langs:{
@@ -8053,10 +8276,6 @@ const Wikibinator203 = (()=>{
 		vm.addOp('ReservedForFutureExpansionYYYYYJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
 		vm.addOp('ReservedForFutureExpansionXXXXJustSlidingSomeOtherOpcodesOver5555',null,false,1,'TODO',{langs:{}});
 		*/
-
-		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.',{ty:'unknown', langs:{}});
-		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.',{ty:'unknown', langs:{}});
-		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).',{ty:'unknown', langs:{}});
 		
 		/* I wrote code for this, "curriesLeft = 1+rCur; //FuncBody then paramVals." but todo test it.
 		//
@@ -8068,11 +8287,16 @@ const Wikibinator203 = (()=>{
 		/*FIXMEFIXME Lambda has to refer to the 6 param form of it, so funcallcache doesnt reuse the 7 param form of it
 		when params should differ but is reusing that instead.
 		*/
-		
+
+		vm.addOp('GetSalt128',null,false,1,'(getSalt128 ignore)->the cbt128 of salt thats at top of stack aka 3-way-lambda-call of salt128 func and param.',{ty:'unknown', langs:{}});
+		vm.addOp('WithSalt128',null,false,3,'(withSalt128 cbt128 func param)-> (func param) except with that cbt128 pushed onto the salt stack. During that, getSalt128 will get that cbt128.',{ty:'unknown', langs:{}});
+		vm.addOp('WithSalt128TransformedBy',null,false,1,'(withSalt128TransformedBy funcOf128BitsTo128Bits func param)-> same as (withSalt128 (funcOf128BitsTo128Bits (getSalt128 u)) func param).',{ty:'unknown', langs:{}});
+
 		//vm.o8OfOpOneMoreParam = vm.addOp('OpOneMoreParam',true,0,'Ignore See the lambda op. This is how to make it vararg. Ignore (in vm.opInfo[thisOp].curriesLeft cuz vm.opInfo[thisOp].isVararg, or TODO have 2 numbers, a minCurriesLeft and maxCurriesLeft. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e))',{langs:{}});
 		vm.o8OfVarargAx = vm.addOp('VarargAx',null,true,1,'Incomplete.. (VarargAx FuncBody ..params... nextParam) is halted on itself if (FuncBody [(VarargAx FuncBody ...params...) nextParam]) -> U. If -> somethingElse, then returns (R somethingElse). It could form a parameter list can only contain prime numbers. Other calls dont halt. TODO replace [] in that with LamNs or if necessary make an AxNs but i want to keep it to just the 4 if can: Ns LamNs Treemap EmptyTreema, not add a fifth namespace type AxNs if can be avoided. https://twitter.com/wikibinator/status/1649574176238317569 ... OLD writing:.. For defining turing-complete-types. Similar to op Lambda in cleanest mode (no nondeterminism allowed at all, cuz its a proof) except that at each next param, its funcBody is called on the params so far [allParamsExceptLast lastParam] (UPDATE: should that be LamNs instead of []/Infcur (of 2 things)? or a fifth namespace type?) and returns U if thats halted else returns anything except U and takes the R of that to mean returns that. Costs up to infinity time and memory to verify a false claim, but always costs finite time and memory to verify a true claim, since a true claim is just that it returns U when all of those are called. Since its so expensive to verify, anything which needs such verifying has a vm.mask_* bit set in its id as an optimization to detect if it does or does not need such verifying (has made such a claim that things return U). FIXME varargAx has strange behaviors about curriesLeft and verifying it and halted vs evaling. Its 2 params at first but after that it keeps extending it by 1 more param, after verifying the last param and choosing to be halted or eval at each next param. That design might change the number of params to simplify things, so careful in building on this op yet. I set it to 2 params so that after the first 7 params it waits until 9 params to eval, and after that it evals on every next param.',{ty:'unknown', langs:{}});
 
 		vm.addOp('IgnoreThisLambdaWithUParam',null,true,1,'Since Lambda takes 6 params, it needs 2 opcodes of space instead of 1, but this only happens if U is the 7th param param instead of [...].',{ty:'unknown', langs:{}});
+
 		vm.o8OfLambdo = vm.addOp('Lambdo',null,true,1,'Vararg (FIXME number of params said in addOp). See testcases in VM using λ which is the 6 param form of it. Vararg up to about 245 (whats the exact number?) params. (λ [x y z funcBody] valX valY valZ) -> (funcBody (LamNs (λ [x y z funcBody] valX valY) valZ)). funcBody normally contains x% y% z% or whatever the param names are. Can also call itself recursively. OLD: It works like this: {{L Lambdo} (x y) (todo add comment param here...) [+ [* x x] *[y y]] 6 8}->100. {L Lambdo} is written as λ and its opcode is vm.o8OfLambda. The (x y ...) can be any num of params up to around 250 (todo whats the exact number? check vm.max* vars). OLD... Lambda is the 6 param form, waiting for a [...param names...] 7th param. Lambdo is the form with 7 params but that 7th param is (U U) so is just there to mark the opcode but is not used that way (it wont act like a lambda, would act like an Infcur). FIXME number of params depends on list size at param 7 but cant exceed around 250 (whats the exact number?). FIXME this must have an odd o8 cuz the [...] is 7th param which is not U. If it was U it would have to be an even o8. FIXME this will take varsize list??? [(streamGet varName) (streamGet otherVar) ...] and a funcBody (or is funcBody before that param) then that varsize list (up to max around 250-something params (or is it 120-something params?) then call funcBody similaar to described below (except maybe use [allParamsExceptLast lastParam] instead of (pair allParamsExceptLast lastParam)) FIXME TODO the streamGet op should work on that datastruct that funcBody gets as param, so (streamGet otherVar [allParamsExceptLast lastParam])-> val of otherVar in the param list of lambda op. OLD... Takes just funcBody and 1 more param, but using opOneMoreParam (the only vararg op) with a (lambda...) as its param, can have up to (around, TODO) '+vm.maxCurries+' params including that funcBody is 8th param of u. (lambda funcBody ?? a b ??? c d e) -> (funcBody (pair (lambda funcBody ?? a b ??? c d) e)). It might be, Im trying to make it consistent, that funcBody is always param 8 in lambda and varargAx. (opOneMoreParam aVarName aLambda ...moreParams...).',{ty:'unknown', langs:{}});
 		vm.o8OfLambda = vm.o8OfLambdo>>1; //remove last child, so its 6 params and [...param names...] is 7th param.
 		vm.addOp('IgnoreThisMutlambdaWithUParam',null,true,1,'Since Mutlambda takes 6 params, it needs 2 opcodes of space instead of 1, but this only happens if U is the 7th param param instead of [...].',{ty:'unknown', langs:{}});
@@ -8103,12 +8327,20 @@ const Wikibinator203 = (()=>{
 			 throw 'vm.o8OfInfcur=='+vm.o8OfInfcur+' and vm.o8OfRucfni='+vm.o8OfRucfni+' must start with the same 7 bits of o8.';
 		}
 
+		vm.o8OfCanvas = vm.addOp('Canvas',null,false,6,'(Canvas preferredMagnifyY preferredMagnifyX dataHeight dataWidth bytes ignore). ----------- TODO also include dataHeight so can use it as a size to ask for bytes? TODO (Canvas preferredMagnifyY preferredMagnifyX dataWidth bytes ignore)? (Canvas preferredHeight preferredWidth dataHeight dataWidth (Pad bytes)_or_bytes_directly ignore). Example: (Canvas 300 400 150 200 (...the bytes...)) may display as 300 pixels high, 400 pixels wide, magnifying 150x200 to that size. (...the bytes...) should be bize 150*200*32 cuz its an int per pixel in browser canvas. This is the browser layout of color bits, not the java BufferedImage layout for example. Can be converted at runtime to other bit layouts fast enuf. TODO merge TypevalB with TypevalC and create Pad opcode to mean view it as padded (the TypevalB way) as in (Typeval (Pad bytes)) uses only the bits from start to (exclusive) the last 1 bit (or is not a bitstring if its all Bit0s) vs (Typeval bytes) uses those powOf2 number of bits.',{ty:'unknown', langs:{}});
+		//3 canvases of 1 pixel each, for example:
+		//[(Canvas 120 120 1 1 0x00ff00ff80000000) (Canvas 120 120 1 1 0xff0000ff80000000) (Canvas 120 120 1 1 0x0000ffff80000000)]
+		//(Canvas 100 100 2 2 (0xff00ffffffffffff 0x00ffffffffff00ff (0x8000000000000000 0x0000000000000000)))
+		//(Canvas 100 100 1 4 (0xff00fffff66666ff 0x00fffaaaafff00ff (0x8000000000000000 0x0000000000000000)))
+		//(TypevalB b* (0xff00ffffffffffff 0x00ffffffffff00ff (0x8000000000000000 0x0000000000000000)))
+
 
 		vm.addOp('OpByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params o8 opcode in its header. O8 of U is 1. O8 of (U U) is 2. O8 of (U (U U)) is 3. O8 of (U Anything_except_U) is 3. And so on up to 7 params. 6 params has O8 of 64 to 127. O8 of 7 params is 128 to 255.',{ty:'cbt8', langs:{}});
 		
 		vm.addOp('CurleftByte',null,false,1,'returns a cbt8 whose bits are 1 to 255, whatever is params curriesLeft. 1 means it will eval on next param. 2 means it will eval when gets 2 more params. And so on up to 254. 255 means will never eval, just keeps adding more params. 255 is used in Infcur/[] aka a list that adds its param to the list, to forkEdit itself.',{ty:'cbt8', langs:{}});
 		
-		//FIXME need about 5 opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .',{langs:{}});
+		//TODO make space for 8 opcodes to read this and 8 to write it? theres not enuf space. maybe make it part of LimitsMap in Sandbox op? Just leave the MaskByte op here.
+		//FIXME need about 5 (UPDATE: 8) opcodes for this (maybe up to 8 cuz theres 8 mask bits), check vm.mask_* vars and vm.stackStuff for current value of it... vm.addOp('IsClean',null,false,1,'the 2x2 kinds of clean/dirty/etc. exists only on stack. only with both isClean and isAllowSinTanhSqrtRoundoffEtc at once, is it deterministic. todo reverse order aka call it !isDirty instead of isClean? FIXME theres about 5 isclean bits on stack, see mask_ .',{langs:{}});
 		vm.addOp('MaskByte',null,false,1,'returns a cbt8 whose bits are a mask of the 8 vm.mask_*, in params header. This means those wont be able to be reordered without breaking calls of MaskByte.',{ty:'cbt8', langs:{}});
 
 
@@ -8170,13 +8402,20 @@ const Wikibinator203 = (()=>{
 		vm.o8OfGetcbtGo = vm.addOp('GetcbtGo',null,false,2,'Like PGo/% and $/DGo but is @/GetcbtGo. Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]',{ty:'key', langs:{}});
 		*/
 		
-		vm.addOp('ReservedForFutureExpansionASDFAWERFGSDF',null,false,1,'FIXME',{ty:'unknown', langs:{}});
+		//vm.addOp('ReservedForFutureExpansionASDFAWERFGSDF',null,false,1,'FIXME',{ty:'unknown', langs:{}});
+		vm.addOp('Plug',null,false,2,'(Plug nameOfPlug paramOfPlug) -> anything or (S I I (S I I)) depending on mask_allowOther. License says "* Classpath/linking exception. Hook it to whatever you want, but within the space (no proprietary lambdas) is AGPL.", and such plugins are "within the space" since they are forks of the VM that change the behaviors of the universal combinator U (a fork of U), so "GNU AGPL 3 license, plus these extra permissions" applies. You owe source code of such plugins to anyone using it through the network, as usual in GNU AGPL 3. The classpath/linking exception, where GNU AGPL 3 doesnt apply, is lower on the stack than any wikibinator lambda call, such as a proprietary AI that calls lambdas on lambdas to find/create lambdas. As long as its sharing the lambdas by GNU AGPL 3 with anyone using them through the network, and each lambda is recursively a derivative-work of its 2 child lambdas, the lambdas dont depend on that proprietary AI (or whatever external system calling the lambdas) so is not interfering with (as the license says) the "turing-complete and hypercomputing space derived from this universal combinator/lambda or forks of it". Another way to hook in external system is by the Solve* opcodes, and MutableWrapperLambda which is a way of using Solve*, since those, such as digital-signatures or other proof based data structures, dont require the external system which generated them, to verify the proof. Its self contained. (Plug nameOfPlug paramOfPlug) -> anything (if mask_allowOther enabled) else (S I I (S I I)) aka infinite loops. Its only 1 param after nameOfPlug, but u can give it more params like this (λ[varA varB varC (Plug nameOfExamplePlugin)] valA valB valC) or true vararg (checks if each param is the last param by a turing-complete pattern at runtime) using VarargAx, the same as you can do for any other fn/lambda used as a funcBody. (Plug nameOfPlug) is used as a funcBody, and normally pushEvaler is used to optimize (Plug nameOfPlug) andOr optimize λ[varA varB varC (Plug nameOfExamplePlugin)]. The way you put in a Plug is vm.eval("(Plug nameOfPlug)").n.pushEvaler((vm,func,param)=>{...func is (Plug nameOfPlug) and param is paramOfPlug, so return whatever that should return..}); BUT you have to check mask_allowOther and return null if its 0, so the prev evaler (pushEvaler(evaler)) will be used instead, OR you can vm.infloop() or call (if you have the constants S F and U) S(F(U))(F(U))(S(F(U))(F(U))) directly, either way will run out of compute resources and throw. For example, if you get tired of having to vm.eval to get to eval, you could add a plugin to call that from (Plug vmDotEval), BUT that syntax may change as its vm internals, and Im planning to derive an eval from the opcodes instead of make it a plugin. Still, it might help to give access to some of the VM internals through Plug before that long research path.',{ty:'unknown', langs:{}});
 		
 		if(!(vm.o8OfLambdo&1)) throw 'o8 of Lambdo must be odd.';
-		vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'key', langs:{}});
-		vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'num', langs:{}});
-		vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'typedBlob', langs:{}});
+		//vm.addOp('GetVarFn',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc. theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'key', langs:{}});
+		//vm.addOp('GetVarDouble',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'num', langs:{}});
+		//vm.addOp('GetVarDoubles',null,false,2,'OLD, see ObKeyVal ObVal ObCbt etc.theres 4 things in stream [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val ...], 3 of which are vals. FIXME choose 3 prefix chars such as ?x _x /x. Rewrite this comment... so, ddee? would be a syntax for (getnamedparam "ddee").',{ty:'typedBlob', langs:{}});
 		
+		/* Since hypercomputing (which was not finished but design doc is in hyperquasicrystal software) is being moved into ops.Plug,
+		and more opcode space is needed, these opcodes are being removed. Use ops.Plug('hyperRed') Plug('hyperGreen') etc instead,
+		or maybe vm.eval('(Plug [hypercomputeExperiment543454 hyperRed])') etc. Theres alot of ways to do hypercomputing, and many can be explored later.
+		To use ops.Plug, vm.mask_allowOther must be on (which like all the masks, can be turned off lower on the stack,
+		constraints can be tightened higher on stack but not loosened until return to same point on the stack).
+		....
 		//addOp(name,prefix,isStrange,curriesLeft,description)
 		vm.o8OfHypercombinator = vm.addOp('Hyperleaf',null,true,1,'(Hyperleaf. The "hypercompute leaf combinator", just a binary forest data structure that prevents anything but combos of itself from being its params, and limits it to 7 stored params, and in abstract math it has 8 params but its always lazy-eval so the 8th param always infloops. You call it by looking along HypercomputeRedA and HypercomputeRedB edges. Its opcodes include the hypercomputing kinds of: S T F L R ISLEAF PAIR LAZYTHREEWAYCALL_CARDINALITYA_FUNC_PARAM SEMANTICFORDOESNOTHALT SEMANTICFORCALLERDOESNOTHAVEENOUGHCARDINALITYTOLOOKALONGTHATEDGE SEMANTICFORRETURNEDWHATSALONGREDAORBEDGE GETCALLERSCARDINALITYASLINKEDLISTOFTTTTASUNARY and maybe a few other operators, and one very important operator that branches at the first (of 7 or 8 params) param, which is a lambda of 6 params (if first param is the leaf hypercombinator, else first param is anything else).',{ty:'key', langs:{}});
 		//TODO vm.lazyEvalOfDoesPEqualNP = ...; //Call this on Hypercombinator (the hyper leaf) to get hyper_T or hyper_F,
@@ -8185,9 +8424,8 @@ const Wikibinator203 = (()=>{
 		vm.o8OfHypercomputeGreen = vm.addOp('HyperGreen',null,false,1,'This would be the L/GREEN hypercompute edge, which is same as the L op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to the "variant of identityFunc made of hypercompute combinator called on itself various ways"',{ty:'key', langs:{}});
 		vm.o8OfHypercomputeBlue = vm.addOp('HyperBlue',null,false,1,'This would be the R/BLUE hypercompute edge, which is same as the R op in wikibinator203 except if param is the "leaf hypercompute combinator" then "closes the quine loop" a different way by wrapping around to itself, returns the "leaf hypercompute combinator" (as its hyper_R child) in that one case.',{ty:'key', langs:{}});
 		vm.o8OfHypercomputeRedA = vm.addOp('HyperRed',null,true,2,'(HyperRed CardinalityComparator SomeComboOfHyperleafToGetRedEdge). TODO implement this https://raw.githubusercontent.com/benrayfield/hyperquasicrystal/main/hyperquasicrystalRedesign2022-8-10%2B.txt .This would give the RED (doesItHaltAtLowerCardinalityThanCaller) edge in... See https://github.com/benrayfield/hyperquasicrystal for an incomplete similar set of opcodes for hypercomputing. TODO design this wikibinator203 opcode. This is deterministic but in some cases costs pow(infinity,pow(infinity,infinity))... (im not sure how deep of exponents and infinities it will go) time and memory ONCE but after, in abstract math, thats cached, everything costs 1 compute step, so its more like a digital-signature of infinite size, or converges by disproof-by-contradiction, various ways it could be implemented. For example, you could have 2 competing networks, one with the claim that P!=NP and the other with the claim that P=NP, which would both be VarargAx ops of Hypercompute ops, so there will be a wikibinator203 node that claims P=NP and one that claims P!=NP but exactly 1 of those would ever (in abstract math, after infinities) halt.',{ty:'key', langs:{}});
-		/*vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).',{langs:{}});
+		//vm.o8OfHypercomputeRedB = vm.addOp('HypercomputeRedB',null,true,1,'(TODO rename redA and redB to orange and red? or pick all colors of edges together however looks easiest to understand) Similar to HypercomputeRedA except this is one cardinality above infinite cardinality. For example, Collatz Conjecture (that 3*n+1 with dropping the low 0s in base2 thing) takes infinite time and memory to prove is true or to prove is false, by brute-force, so that can be defined (but not necessarily solved) with the most basic use of HypercomputeRedA, one HypercomputeRedA cardinality deep. The question P=?NP asks about all possible lambdas as NP solvers on all possible NP inputs (such as a specific set of 3SAT constraints) and for all possible constant exponents to check does that lambda solve it that fast. So that would be a few (maybe 3? TODO get the exact number) HypercomputeRedA cardinalities deep. If Collatz is 1 deep and P=?NP is around 3 deep, then what if you wrote a loop for cardinalityA from 0 to infinity (never reaches infinity, just keeps going forever), and wanted to know do ANY of those cardinalities contain a certain pattern of thing (call a lambda on each of them, and if that lambda halts it matches, and if that lambda does not halt, it does not match)... You could write such a loop using HypercomputeRedB. HypercomputeRedB does the same thing as HypercomputeRedA except it can see ALL the HypercomputeRedA edges, unlike a specific HypercomputeRedA edge can only see the HypercomputeRedA edges below its own cardinality. All this is still just made of the 2-way-forest of wikibinator203 nodes where all paths lead to U/TheUniversalCombinator, and will infiniteLoop from the hypercompute ops unless vm.stackStuff.isAllowHypercompute (similar to vm.stackStuff.isAllowSinTanhSqrtRoundoffEtc), cuz despite that it is deterministic and ALWAYS halts (its chaitins constant is 1), its still often infinitely expensive to compute exactly so impractical to share across internet cuz they wouldnt be able to verify it in all cases. Think of it more as a data structure that mathematicians can use to claim things, a way to make many parts of existing math books machine-readable, and a way to disprove-by-contradiction P=NP vs P!=NP (disprove either of those) maybe. Theres alot of cardinalities above this, or maybe theres some way to not have "turtles all the way down" and to "close the loop" somehow, but this is all I (Ben F Rayfield) know how to code consistently for now (as of 2022-8).',{langs:{}});
 		*/
-		
 		
 		
 		
@@ -8229,23 +8467,28 @@ const Wikibinator203 = (()=>{
 		vm.addOp('DoAvlBal',null,false,1,'(DoAvlBal (Treemap ...)) -> forkEdited treemap with max difference of AvlHeight between any 2 avl childs (of same Treemap parent) being 1. Avl balance is supposed to be -1, 0, or 1 at each node. Each node is a Treemap or EmptyTreemap. An EmptyTreemap is always balanced.',{ty:'ns', langs:{}});
 		vm.addOp('AvlHeightD',null,false,1,'(AvlHeightD (Treemap_or_EmptyTreemap ...)) -> a double, such as (TypevalC d 0x0000000000000000) aka 0. Since double only does integers up to pow(2,53), this must infinite loop ({I I}{I I}) if avlHeight >= pow(2,53).',{ty:'num', langs:{}});
 		vm.addOp('PutNoBal',null,false,3,'TreemapPutNoBal renamed to PutNoBal. (PutNoBal key val map) -> forkEdited map which has that mapping but may be unbalanced. Caller should DoAvlBal on returned map to get a balanced one, or keep putting and balance after multiple puts. Could TreemapNorm instead of DoAvlBal. Both return balanced treemap (if was valid map to start with). TreemapNorm returns same map regardless of order of puts and balances which created it, aka returns a near-complete-binary-tree with only the deepest row potentially not filled.',{ty:'ns', langs:{}});
-		
-		//renaming TreemapPut to Put.
-		vm.addOp('Put',null,false,3,'(Put key val map) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)',{ty:'ns', langs:{}});
+
+		vm.addOp('Get',null,false,2,'(Get key ns) -> value of key in the ns, such as from a Treemap or Lambda or Ns or LamNs. Most ns can just do (ns key) -> val, but Lambda and Mutlambda dont cuz theyre waiting for a param before using their funcBody.',{ty:'unknown', langs:{}});
+		vm.addOp('GetGo',null,false,2,'(Get GetKey ns) -> (Get (Get ns) ns)',{ty:'unknown', langs:{}});
+		//renaming TreemapPut to Put. Also (TODO verify) generalizing it to ns. Treemap is a kind of ns.
+		vm.addOp('Put',null,false,3,'(Put key val ns_such_as_treemap) -> forkEdited map which has that mapping and is avl balanced as if by DoAvlBal (but may be optimized to do the put and balance together to avoid funcallCaching in those middle steps, as long as it returns the exact same thing aka what it returns must have same globalId (for all possible IdMaker) as if done by DoAvlBal.)',{ty:'ns', langs:{}});
+		vm.addOp('PutGo',null,false,3,'(Put GetKey GetVal ns) -> (Put (GetKey ns) (GetVal ns) ns)',{ty:'ns', langs:{}});
+
+		vm.addOp('Keys',null,false,2,'(Keys ns) -> [keyA keyB keyC...] in whatever order the keys already are in the ns. In a Treemap its depth-first. In Lambda or Mutlambda, its the order in the params list, excluding the last n keys if doesnt have values for those.',{ty:'unknown', langs:{}});
 		
 		vm.addOp('Del',null,false,2,'(Del Key (Treemap ...)) -> forkEdited treemap/emptytreemap with that key/val gone, balanced as if by DoAvlBal after removing it, even if as an optimization thats done at the same time.',{ty:'ns', langs:{}});
-		vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.',{ty:'bit', langs:{}});
-		vm.addOp('GodelLessThan', null, false, 2, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.',{ty:'bit', langs:{}});
+		//replaced by op Has: vm.addOp('TreemapHas',null,false,2,'(TreemapHas key map) -> T or F depending if that key is in the avl treemap.',{ty:'bit', langs:{}});
+		vm.addOp('GodelLessThan', null, false, 2, 'The godel-like-number of a wikibinator203 lambda is 1 for U, 2 for (U U), 3 for (U (U U)), 4 for ((U U) U), 5 for ((U U)(U U)), 6 for (U ((U U)(U U))), (todo verify those numbers), and so on in order of height first, then recursively compare left child (skip this if the 2 left childs equal), then break ties by recursively the right child, which has bigO of max height of its 2 params. (GodelLessThan x y) -> T or F, by forest shape recursively. Optimized to worst case of max height of x and y, other than that triggers generating ids for all things compared. A trueOrFalseComparator. Returns T or F. Compares 2 fns by their godel-like-number. There are 1, 2, 5, 26, 677... fns atOrBelow each height. But in practice this will be implemented as comparing first by height, and to break ties compare recursively in left child, and to break ties compare recursively in right child, which has a bigO of max height of the 2 fns to compare by optimizing for equality and checking equality before recursing. (GodelLessThan U (U U))->T. (GodelLessThan 2.34 5.67)->T cuz nonnegative float64s compare the same way as int64s, but the sign bit puts all the negatives after all the positives. (GodelLessThan GodelLessThan (T GodelLessThan))->T. (GodelLessThan (U (U U)) (U U))->F. Equals could be implemented using 2 calls of this.',{ty:'bit', langs:{}});
 		vm.addOp('ChainLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using second comparator which is normally GodelLessThan. (ChainLessThan FirstComparator SecondComparator x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?',{ty:'bit', langs:{}});
 		vm.addOp('IdThenGodelLessThan', null, false, 4, 'This is used in Treemap and EmptyTreemap. Used for comparing first by a (normally) 256 or 512 bit id of each of 2 params, and breaks ties using GodelLessThan. comparator which is normally GodelLessThan. (IdThenGodelLessThan IdMaker x y) -> T or F. FIXME maybe comparators should be redesigned to have 3 possible return vals: F, IdentityFunc#(F U), and T? or -1 0 or 1 as doubles or ints or bytes?',{ty:'bit', langs:{}});
-		vm.addOp('?', null, false, 3, 'TODO use Bl, P PE D DE instead of the ?* ops. (? x val map) -> map forkEdited to map key (? x) to val.',{ty:'unknown', langs:{}});
-		vm.addOp('?C',null,false,3,'TODO use Bl, P PE D DE instead of the ?* ops. (?C x valAsArray map) -> map forkEdited to map key (?C x) to valAsArray. Im unsure if valAsArray should be a TypevalB, TypevalC, or raw Cbt. Or maybe allow all 3? Technically val can be anything, but this is a semantic to suggest viewing it that way.',{ty:'unknown', langs:{}});
-		vm.addOp('??', null, false, 4, 'TODO use Bl, P PE D DE instead of the ?* ops. (?? x y val map) -> map forkEdited to map key (?? x y) to val.',{ty:'unknown', langs:{}});
+		//vm.addOp('?', null, false, 3, 'TODO use Bl, P PE D DE instead of the ?* ops. (? x val map) -> map forkEdited to map key (? x) to val.',{ty:'unknown', langs:{}});
+		//vm.addOp('?C',null,false,3,'TODO use Bl, P PE D DE instead of the ?* ops. (?C x valAsArray map) -> map forkEdited to map key (?C x) to valAsArray. Im unsure if valAsArray should be a TypevalB, TypevalC, or raw Cbt. Or maybe allow all 3? Technically val can be anything, but this is a semantic to suggest viewing it that way.',{ty:'unknown', langs:{}});
+		//vm.addOp('??', null, false, 4, 'TODO use Bl, P PE D DE instead of the ?* ops. (?? x y val map) -> map forkEdited to map key (?? x y) to val.',{ty:'unknown', langs:{}});
 		vm.addOp('TreemapNorm',null,false,1,'(TreemapNorm map) -> map forkEdited to be nearly completeBinaryTree (still an avl tree).',{ty:'ns', langs:{}});
 		vm.addOp('TreemapVerify',null,false,1,'(TreemapVerify map) -> T or F depending if map is a valid Treemap datastruct. Its always a valid fn, but an example of invalid is if it contains more than 1 unique comparator or is in a wrong sorted order by that comparator. Does NOT verify comparator always halts or sorts consistently (TODO only optimize if comparator is known consistent, which can be proven by it being a forest of nands or forest of ops on int32s or on int16s etc, basically anything that could go in an opencl ndrange kernel or webgl shaders (GLSL) (excluding roundoff, use less bits to handle that) can be proven to halt for all possible pair of params, and ...',{ty:'bit', langs:{}});
 		
 
-		vm.addOp('Sandbox',null,false,1,'(Sandbox LimitsMap Func Param) -> (Func Param) but with vm.stackTime vm.stackMem vm.stackStuff set to the contents of LimitsMap which has keys like time$ mem$ ax$ solve$ etc, which includes all 8 vm.mask_* bits whose values can be either 0 or 1, and time$ and mem$ etc can be any positive integer up to 2**53-1 (or maybe set a lower limit so they can be added easier, maybe 2**48-1 so can add up to 32 of them without overflow. You dont have to include any of those that you dont want to reduce. All VMs must allow all such vars/mapkeys here, but different VMs can ignore some and use others, since its already only used in nondeterministic space (which is defined by vm.mask_stackIsAllowstackTimestackMem). TODO since the 8 mask bits and 128 bits of salt in StackStuff are required by all VMs, choose small names for those, something i wont want to change ever cuz some op (todo make one, call it what?) will get the current LimitsMap, and another op will get just the contents of StackStuff (which is used for dedup of evaling calls (see 3way datastruct that hashes differently than vm.Node hashes)). If caller asks for more than is available, TODO should that vm.infloop() which throws or should it just ignore it? Lets go with vm.infloop() for now.',{ty:'ns', langs:{}});
+		vm.addOp('Sandbox',null,false,1,'(Sandbox LimitsMap Func Param) -> (Func Param) but with vm.stackTime vm.stackMem vm.stackStuff set to the contents of LimitsMap which has keys like time$ mem$ ax$ solve$ etc, which includes all 8 vm.mask_* bits whose values can be either 0 or 1, and time$ and mem$ etc can be any positive integer up to 2**53-1 (or maybe set a lower limit so they can be added easier, maybe 2**48-1 so can add up to 32 of them without overflow. You dont have to include any of those (in LimitsMap) that you dont want to reduce. All VMs must allow all such vars/mapkeys here, but different VMs can ignore some and use others, since its already only used in nondeterministic space (which is defined by vm.mask_stackIsAllowstackTimestackMem). TODO since the 8 mask bits and 128 bits of salt in StackStuff are required by all VMs, choose small names for those, something i wont want to change ever cuz some op (todo make one, call it what?) will get the current LimitsMap, and another op will get just the contents of StackStuff (which is used for dedup of evaling calls (see 3way datastruct that hashes differently than vm.Node hashes)). If caller asks for more than is available, TODO should that vm.infloop() which throws or should it just ignore it? Lets go with vm.infloop() for now.',{ty:'ns', langs:{}});
 
 		vm.addOp('GetSandboxDirt',null,false,1,'(GetSandboxDirt salt) -> a LimitsMap like the one you can give as param in ops.Sandbox, but only the dirty/nondeterministic parts such as stackTime and stackMem, not the clean/deterministic parts like the vm.mask_* bits and current salt128 (which may differ from the salt param here. theres a separate opcode to get salt cuz u need a salt to get this and cuz it will be used so often for nondeterminstic branching). ignores salt (thats just to avoid reusing cache from an earlier call, can be anything)',{ty:'ns', langs:{}});
 		vm.addOp('GetSandboxClean',null,false,1,'(GetSandboxDirt ignore) -> a LimitsMap like the one you can give as param in ops.Sandbox, but only the clean/deterministic parts, not the dirty/nondeterministic parts. See description of GetSandboxDirt, this is the opposite.',{ty:'ns', langs:{}});
@@ -8585,11 +8828,8 @@ const Wikibinator203 = (()=>{
 		*/
 		
 		
-		
-		
-		
 		//vm.addOp('D',null,false,2,'Get double value from map. (D key Map) -> val of (DE key) in that map',{langs:{}});
-		vm.o8OfD = vm.addOp('D',null,false,2,'(D x map) -> (map (D x)). Get (whats normally a) double value from map. (D key Map) -> val of (D key) in that map. The $ in a/b/sum$.',
+		vm.o8OfD = vm.addOp('D',null,false,2,'(D x ns_such_as_treemap) -> (map (D x)). Get (whats normally a) double value from map. (D key Map) -> val of (D key) in that map. The $ in a/b/sum$.',
 			//TODO use tyFunc to have a defaultTy that varies? Depending on what? Should this be key sometimes and num other times?
 			//{ty:'key', langs:{
 			{ty:'num', langs:{
@@ -8792,16 +9032,16 @@ const Wikibinator203 = (()=>{
 		//Or... a single typed put, that takes int param and where it puts it depends on sizeof(type).
 		vm.addOp('PrimSize',null,false,1,'(PrimSize (TypevalC ...)) -> 8..64 etc. (PrimSize of a TypevalB or TypevalC of doubles ints floats uint8s etc) in bits, such as 64 for a double array, 32 for an int array or float array, etc. TODO shorten and decide on which contentTypes will be used for such arrays, such as d for double or d* for doubles... OLD: application/x-IEEE754-doubles for double array. TODO what type should this return? double? cbt8? cbt16? cbt32? (TypevalC d the64bitsofdouble), in which case ty should be num?',{ty:'num', langs:{}});
 		
-		vm.addOp('TGet',null,false,2,'TODO replace with Blie and Bli. Typed primitive array gET. (TGet array index) -> val at that index in the array.',{ty:'unknown', langs:{}});
-		vm.addOp('TPut',null,false,3,'TODO replace with Blie and Bli. Typed primitive array pUT. (TPut array index val) -> forkEdited array. Check (PrimSize array) for the size put in it. If its not a typed array, returns it as is. This will work with vm.Mut optimization without checking which size of array it is.',{ty:'typedBlob', langs:{}});
+		//vm.addOp('TGet',null,false,2,'TODO replace with Blie and Bli. Typed primitive array gET. (TGet array index) -> val at that index in the array.',{ty:'unknown', langs:{}});
+		//vm.addOp('TPut',null,false,3,'TODO replace with Blie and Bli. Typed primitive array pUT. (TPut array index val) -> forkEdited array. Check (PrimSize array) for the size put in it. If its not a typed array, returns it as is. This will work with vm.Mut optimization without checking which size of array it is.',{ty:'typedBlob', langs:{}});
 		
 		/*
 		vm.addOp('ZGet',null,false,2,'(ZGet cbtArray cbt32Index) -> Bit1 or Bit0, at that bit index in the array.',{langs:{}});
 		vm.addOp('ZPut',null,false,3,'(ZPut cbtArray cbt32Index cbt1) -> forkEdited cbtArray with that Bit1 or Bit0 put at the index.',{langs:{}});
 		*/
 		
-		vm.addOp('BGet',null,false,2,'(BGet cbtArray cbt32Index) -> raw byte at that index',{ty:'unknown', langs:{}});
-		vm.addOp('BPut',null,false,3,'(BPut cbtArray cbt32Index cbt8Val) -> forkEdited cbtArray with that raw byte put at the index.',{ty:'typedBlob', langs:{}});
+		//vm.addOp('BGet',null,false,2,'(BGet cbtArray cbt32Index) -> raw byte at that index',{ty:'unknown', langs:{}});
+		//vm.addOp('BPut',null,false,3,'(BPut cbtArray cbt32Index cbt8Val) -> forkEdited cbtArray with that raw byte put at the index.',{ty:'typedBlob', langs:{}});
 		
 		/*
 		vm.addOp('CPut',null,false,2,'(CGet cbtArray cbt32Index) -> raw short/int16/char at that index.',{langs:{}});
@@ -8848,10 +9088,15 @@ const Wikibinator203 = (()=>{
 		
 
 		
-		vm.addOp('KE',null,false,3,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+. (KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.',{ty:'ns', langs:{}});
+		//vm.addOp('KE',null,false,3,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+. (KE Key Val Map) -> forkEdited map with (KE Key) mapped to Val.',{ty:'ns', langs:{}});
 		//vm.addOp('KE',null,false,3,'(KE Map Key Val) -> forkEdited map with (KE Key) mapped to Val.',{langs:{}});
-		vm.addOp('KKE',null,false,4,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+.  (KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.',{ty:'ns', langs:{}});
+		//vm.addOp('KKE',null,false,4,'TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+.  (KE KeyA KeyB Val Map) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.',{ty:'ns', langs:{}});
 		//vm.addOp('KKE',null,false,4,'(KKE Map KeyA KeyB Val) -> forkEdited map with (KKE KeyA KeyB) mapped to Val.',{langs:{}});
+
+		vm.o8OfBl = vm.addOp('NewBl',null,false,2,'(NewBl contentType bize) -> (TypevalB contentType cbtOfAll0sThenPaddedWithA1Then0sTilNextPowOf2). Does not verify the bize is a multiple of contentTypes primitive type such as if its d* thats a double array so should be a multiple of 64 0s before the padding.',{ty:'bl', langs:{}});
+
+		vm.o8OfBl = vm.addOp('BlE',null,false,3,'(BlE NameGetter ValGetter ns) -> forkEdited ns to map (Bl (NameGetter ns)) to (ValGetter ns). In javascript its similar to: x = new Float64Array(55), for example, if NameGetter is ,x and ValGetter makes such a (TypevalB d* bytesofdoublearray). TODO rename this to BlEGo? Or have both?',
+			{ty:'ns', langs:{}});
 		
 		
 		/* TODO replace KE and KKE etc with Du Bl D O OO GoO etc which are being added 2023-3+.
@@ -8876,7 +9121,9 @@ const Wikibinator203 = (()=>{
 					}
 				},
 			}});
-		vm.o8OfBlie = vm.addOp('Bli',null,false,3,'Blob index, of any primitive blob type. (Bli GetBlob GetIndexInBlob ns) -> double/num in that typedBlob in that ns, such as a specific double from a double[447] or a specific double from a byte[32] (TODO is it unsigned in case of byte? Uint8Array? Uint8ClampedArray?). These arrays are for example (TypevalB d bytesOfDoubleArray) for double or (TypevalB b bytesOfByteArray) etc. TypevalC lacks the padding that TypevalB has, in the bytes.',
+		vm.o8OfRawBli = vm.addOp('RawBli',null,false,2,'(RawBli (TypevalB d* thedoublebits) 3) -> double at index 3 (in units of 64 bits, or in units of 8 bits if b* instead of d*, for byte array, etc. Also see RawBlie, and the nonraw forms Bli and Blie.',{ty:'num', langs:{}});
+		vm.o8OfRawBlie = vm.addOp('RawBlie',null,false,3,'(RawBlie (TypevalB d* thedoublebits) 3 4.56) -> forkEdited typedBlob to have that double val at that index, and if the blobs type is not double then its cast. TODO can this change the size of it? what if its just past the end of the array?',{ty:'num', langs:{}});
+		vm.o8OfBli = vm.addOp('Bli',null,false,3,'Blob index, of any primitive blob type. (Bli GetBlob GetIndexInBlob ns) -> double/num in that typedBlob in that ns, such as a specific double from a double[447] or a specific double from a byte[32] (TODO is it unsigned in case of byte? Uint8Array? Uint8ClampedArray?). These arrays are for example (TypevalB d bytesOfDoubleArray) for double or (TypevalB b bytesOfByteArray) etc. TypevalC lacks the padding that TypevalB has, in the bytes.',
 			{ty:'num', langs:{
 				js: (tr,fn,ty,optionalPrefix)=>{
 					let jsList = tr.fnToJsList(fn);
@@ -8890,6 +9137,7 @@ const Wikibinator203 = (()=>{
 					}
 				},
 			}});
+		//(Bli ,(TypevalB b* (0xff00ffffffffffff 0x00ffffffffff00ff (0x8000000000000000 0x0000000000000000))) ,0 U)
 		vm.o8OfBlie = vm.addOp('Blie',null,false,4,'Blob index equals, of any primitive blob type. (Blie GetBlob GetIndexInBlob GetNewVal ns) -> forkEdited ns with the typedBlob (such as a double[447] or byte[32]) forkEdited to have that index in that blob mapped to (GetNewVal ns).',
 			{ty:'ns', langs:{
 				js: (tr,fn,ty,optionalPrefix)=>{
@@ -8905,6 +9153,23 @@ const Wikibinator203 = (()=>{
 					}
 				},
 			}});
+		vm.o8OfTylen = vm.addOp('Tylen',null,false,1,'(Tylen someTypedBlob) -> someTypedBlobs size in units of doubles, floats, ints, bytes, etc, whatever type its an array of. FIXME what should it do if its not such an array? infloop? return 0?',
+			{ty:'num', langs:{
+				js: (tr,fn,ty,optionalPrefix)=>{
+					throw 'TODO if its <...> or somehow using ns (not raw, like RawBli doesnt use ns vs Bli uses ns), then it will be something like stuff.arr.length';
+				},
+			}});
+
+		vm.o8OfG = vm.addOp('G',null,false,3,'(G ob field ns) -> (map (G ob field)). Get (whats normally a) double value from map. The ^ in a/b^c which would be (GoG (OO a b) c) which gets value of (OO a b ns) and uses (G (OO a b ns) field) as key in ns and gets the (normally a double) val and returns it.',
+			{ty:'num', langs:{}});
+
+		//FIXME should it be (GoG GetOb GetField ns) or keep it as (GoG GetOb field ns)?
+		vm.o8OfGGo = vm.addOp('GGo',null,false,3,'(GoG GetOb field ns) -> (G (GetOb ns) field ns). GoG is to G as GoO is to OO.',
+			{ty:'num', langs:{}});
+
+		vm.o8OfGE = vm.addOp('GE',null,false,4,'(GE GetOb GetField GetVal ns) -> TODO. G and GGo are to read as GE is to write (by forkEdit of course). GE is to [G and GGo] as DE is to [D and DGo]. FIXME should there be GGoE and GE, where (GE ob field ns) and (GGoE GetOb GetField ns)? Or just (GE GetOb GetField ns)? Maybe call it RawGE vs GE?',
+			{ty:'ns', langs:{}});
+
 		//vm.o8OfD = vm.addOp('D',null,false,2,'(D a SomeMap) -> (SomeMap (D a)). Normally used with typed double/float64 and often vm.Mut optimization.',{ty:'num', langs:{}});
 		//Remove ops.O. Use OO or DGo or D or DuGo or Du etc, but if its just 1 param then its a literal, not Go/pointer: vm.o8OfO = vm.addOp('O',null,false,2,'(O a SomeMap) -> (SomeMap (O a)). /varName 1 level deep. Normally used with vm.Mut optimization.',{langs:{}});
 		vm.o8OfOO = vm.addOp('OO',null,false,3,'(O varName secondVarName SomeMap) -> (SomeMap (O a)). /varName/secondVarName 2 levels deep. Normally used with vm.Mut optimization.',
@@ -9152,8 +9417,9 @@ const Wikibinator203 = (()=>{
 		
 		
 		//TODO remove 'K?' and 'KK?' ops.
-		vm.addOp('K?',null,false,2,'TODO replace this with P and PE and OO and GoO. TODO rename K? to K, and rename KK? to KK. (K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).',{ty:'unknown', langs:{}});
+		/*vm.addOp('K?',null,false,2,'TODO replace this with P and PE and OO and GoO. TODO rename K? to K, and rename KK? to KK. (K? Key Map) -> val of (KE Key) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KE Key)).',{ty:'unknown', langs:{}});
 		vm.addOp('KK?',null,false,3,'TODO replace this with P and PE and OO and GoO.TODO rename K? to K, and rename KK? to KK. (K? KeyA KeyB Map) -> val of (KE KeyA KeyB) in that map, or U if not found. Since treemap called on key returns val, this just returns (Map (KKE KeyA KeyB)).',{ty:'unknown', langs:{}});
+		*/
 		//vm.addOp('=',null,false,3,'(=[KeyA KeyB KeyC... Val] map) -> forkEdited map with that key/val changed recursively by what other keys are in the map',{langs:{}});
 		/*
 		//
@@ -9194,11 +9460,18 @@ const Wikibinator203 = (()=>{
 		vm.addOp('StackIsAllowAx',null,false,1,'reads a certain bit (stackIsAllowAx) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system',{langs:{}});
 		vm.addOp('IsAllowHypercompute',null,false,1,'reads a certain bit (allowHypercompute) from top of stack. See the few "hyper" opcodes',{langs:{}});
 		vm.addOp('stackAllowReadLocalIds ',null,false,1,'reads a certain bit (stackAllowReadLocalIds) from top of stack, part of the recursively-tightenable-higher-on-stack permissions system. This is a kind of nondeterminism where multiple cbts (such as always cbt128 or always cbt256 etc... not sure how much can standardize the size this early in design of the ops)... can be used as localId... multiple localIds for same binaryForestShape (of fn calls) but for each localId within same run of VM, theres at most 1 binaryForestShape. For example, localId128 in the prototype VM, would be Node.idA .idB .blobFrom and .blobTo, 4 ints.',{langs:{}});
+		*/
 		vm.addOp('IsCbt',null,false,1,'returns T or F, is the param a cbt aka complete binary tree of bit0 and bit1',{langs:{}});
 		vm.addOp('ContainsAxConstraint',null,false,1,'returns t or f, does the param contain anything that implies any lambda call has halted aka may require infinite time and memory (the simplest way, though sometimes it can be done as finite) to verify',{langs:{}});
-		*/
 		
-		vm.addOp('+',null,false,2,'TODO split + and * each into 2 ops, one thats direct and one whose params are [] of vararg to Scall and the next param is a ns, cuz its easier to prove things about it. (+ 2 3)->5. (+[I I *[,5 I]] ,10) -> 70. OLD... (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)',
+		//vm.xt('TODO add ops Iadd Imul Isub Idiv Imod, that take 2 doubles and give a double, but the returned double happens to be (todo choose one) an int32 or uint32 stored 
+		vm.addOp('I+',null,false,2,'(I+ 2.34 10) -> 12. twos-complement int32 add, of float64s', {ty:'num',langs:{}});
+		vm.addOp('I*',null,false,2,'(I* 2.34 10) -> 20. twos-complement int32 multiply, of float64s. In js this is normally implemented using Math.imul', {ty:'num',langs:{}});
+		vm.addOp('Isub',null,false,2,'(I* 2.34 10) -> -8. twos-complement int32 subtract, of float64s', {ty:'num',langs:{}});
+		vm.addOp('Idiv',null,false,2,'(Idiv 32.34 10) -> 3. twos-complement int32 divide, of float64s', {ty:'num',langs:{}});
+		vm.addOp('Imod',null,false,2,'(Imod 32.34 10) -> 2. twos-complement int32 divide, of float64s', {ty:'num',langs:{}});
+		
+		vm.addOp('+',null,false,2,'TODO split + and * each into 2 ops, one thats direct and one whose params are [] of vararg to Scall and the next param is a ns, cuz its easier to prove things about it. (+ 2 3)->5. (+n[I I *n[,5 I]] ,10) -> 70. OLD... (3+2, reverse order to match the reverse in (...) if vararg), of 2 doubles, or +(X Y Z)State -> + of {Z State} {Y State} then {X State} (reverse order cuz thats the order they happen in (...)), for vararg in (...)/infcurList. + of doubles, either their raw bits or the R child (in case its a typeval, but doesnt verify its a typeval, just takes the R if its not a cbt)',
 		{ty:'num', langs:{
 			js: (tr,fn,ty,optionalPrefix)=>{
 				//TODO make Vararg opcode and + * & | etc can be used as (Vararg + [a% b% c%] namespace). So use +n#(Vararg +) so +n[a% b% c%],
@@ -9352,8 +9625,12 @@ const Wikibinator203 = (()=>{
 		vm.addOp('Mod',null,false,2,'double mod double. See + for details on doubles in general.',{ty:'num', langs:{}});
 		//vm.addOp('/',null,false,2,'double divide double. See + for details on doubles in general.',{langs:{}});
 		vm.addOp('Div',null,false,2,'double divide double. See + for details on doubles in general.',{ty:'num', langs:{}});
-		vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.',{ty:'ns', langs:{}});
-		vm.addOp('Mii',null,false,2,'Minus minus. Mii(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.',{ty:'ns', langs:{}});
+		
+		//commentingout ++ and Mii cuz... TODO derive an opEquals func so can call it like (FuncEquals + 1 varname ns), or something like that,
+		//so it can be done for any of the double->double ops, and another for (double,double)->double ops.
+		//vm.addOp('++',null,false,2,'++(a getB getC)State -> next State with value of ?(a getB getC) incremented. ++(a)State -> State with val of a incremented. See + for details on doubles in general.',{ty:'ns', langs:{}});
+		//vm.addOp('Mii',null,false,2,'Minus minus. Mii(a getB getC)State -> next State with value of ?(a getB getC) decremented. --(a)State -> State with val of a decremented. See + for details on doubles in general.',{ty:'ns', langs:{}});
+
 		vm.addOp('**',null,false,2,'[** 2 10]->1024. See + for details on doubles in general.',{ty:'num', langs:{}});
 		vm.addOp('&',null,false,2,'double & double (cast both to int32 first, &, then back to double). See + for details on doubles in general.',
 			{ty:'num', langs:{
@@ -9385,8 +9662,13 @@ const Wikibinator203 = (()=>{
 		//vm.addOp('StreamGet',null,false,2,'FIXME theres 3 vals per key, not just 1. Merge this with GetVarFn GetVarDouble and GetVarDoubles. OLD... Reads a streaming map. Uses an infcur/[...] as a map, thats a stream-appendable (by forkEdit, still immutable) list of key val key val. It does linear search in the simplest implementation but opmut is being replaced by streamGet and streamPut etc which will have a Node.evaler optimization to compile combos of streamGet and streamPut and For While + * / Math.sin Math.exp etc... compile that to javascript code (still cant escape sandbox or cause infinite loops outside the stackTime stackMem etd (gas*) system, and in some cases compile it to GPU (such as using GPU.js or Lazycl). (streamGet keyB [keyB otherVal keyA valA keyB valB keyC valC])->valB, or ->u if there is no valB. [...] means (infcur ...). From the right end, looks left until finds the given key, and returns the val for it, or if reaches infcur before finding the key, then returns u. [...] is variable size. ([...] x)->[... x], so do that twice to append a key and val. Same key can be updated multiple times, statelessly. Equality of keys is by content/forestShape (see equals op). Vals arent checked for equality so you can use lazyDedup such as wrapping a large Float64Array or Float32Array or Int32Array (maybe only of powOf2 size or maybe bize and blobFrom and blobTo var can handle non-powOf2?) in a Node.',{langs:{}});
 		//vm.addOp('StreamPut',null,false,2,'Writes a streaming map. See streamGet. (streamPut keyB someVal [keyA valA keyB valB keyA anotherVal])->[keyA valA keyB valB keyA anotherVal keyB someVal]',{langs:{}});
 		//vm.addOp('StreamPack',null,false,1,'ForkEdits a [...] to only have the last val for each key. You would do this after writing a bunch of key/vals to it, each key written 1 to many times. For example, just a simple loop of a var from 0 to a million would create a [] of size 2 million, but streamPack it during that or at the end and its just size 2. When Evaler optimized it wont even create the [...] in the middle steps. (streamPack [keyA valA keyB valB keyA anotherVal])->[keyB valB keyA anotherVal].',{langs:{}});
+		
+		vm.addOp('GetByteInCbt',null,false,2,'(GetByteInCbt cbtOf32BitBlocks cbt32Index)->cbt8Val',{ty:'cbt8', langs:{}});
+		vm.addOp('PutByteInCbt',null,false,2,'(PutByteInCbt cbtOf8BitBlocks cbt32Index cbt8Val)->cbt8Val',{ty:'cbt', langs:{}});
+		
 		vm.addOp('Get32BitsInCbt',null,false,2,'(Get32BitsInCbt cbtOf32BitBlocks cbt32Index)->cbt32Val',{ty:'cbt32', langs:{}});
 		vm.addOp('Put32BitsInCbt',null,false,3,'(Put32BitsInCbt cbtOf32BitBlocks cbt32Index cbt32Val)->forkEdited_cbtOf32BitBlocks',{ty:'cbt', langs:{}});
+
 		//vm.addOp('put32BitsInBitstring',false,3,'(put32BitsInBitstring cbt32Index cbt32Val bitstringOf32BitBlocks)->forkEdited_bitstringOf32BitBlocks',{langs:{}});
 		vm.addOp('Eq',null,false,2,'Do 2 fns equal by content/forestShape of 2 params. This op could be derived using s, t, l, r, and isLeaf. implementationDetailOfThePrototypeVM(((If a node doesnt contain a blob such as Int32Array (which is just an optimization of bit0 and bit1 ops) then its id64 (Node.idA and Node.idB, together are id64, and blobFrom and blobTo would both be 0 in that case, which is normally id128) is its unique id in that VM. Maybe there will be a range in that id64 to mean blobFrom and blobTo are both 0 aka does not contain a blob.))).',{ty:'bit', langs:{}});
 
@@ -9580,6 +9862,11 @@ const Wikibinator203 = (()=>{
 		//TODO {langs:{js:'',gpujs:'',glsl:'',java:'',python:}});
 		vm.addOp('Foo',null,false,2,'[update: renaming this from Fo To Foo cuz its vararg and harder to optimize with multiple loopbodyparts]. A simple kind of loop that starts by computing its number of cycles (doesnt check it again after each call of loopBody). (Fo [varName_orShouldThisBeGetVarName getUpTo ...loopBodyParts...] map) -> forkEdits map to have varName_orShouldThisBeGetVarName->0 ->1 ->2 up to (getUpTo whatMapStartsAs)-1 then map becomes loopBody(map) where loopBody is _[...loopBodyParts...] aka chain them. See example code in lambda/AugmentedBalls.wikib that uses Fo... Fo[,y .height Fo[,x .width =[,pix +[.i .red] &[,255 +[.x *[.age ,35]]]] =[,pix +[.i .green] &[,255 +[.x *[.y .age]]]] =[,pix +[.i .blue] &[,255 *[,333 /[.x .y]]]] +=[,i ,4] ]]',{ty:'ns', langs:{}});
 
+		vm.addOp('Foch',null,false,2,'For each key and val in a ns (such as in a Treemap, Ns, LamNs, Lambda, Mutlambda, etc). (Foch ns listener) -> (listener keyA valA keyB valB keyC valC...). Its whatever order the keys are in the ns.',
+			{ty:'ns', langs:{}});
+
+		vm.addOp('Recur',null,false,2,'This is how Lambda (and maybe Mutlambda? TODO) call themself recursively. (Recur 0 ns) -> this func with no params. (Recur 3 ns) -> this func with its first 3 params. Called from a funcbody thats called from a LamNs.',
+			{ty:'ns', langs:{}});
 
 		/* TODO another opcode that will be optimized by gpujs combineKernels, like this example from https://github.com/gpujs/gpu.js readme.
 		It will be a call of ops.Lambda and funcBody will be simple combos of <> in <> recursively.
@@ -9645,9 +9932,11 @@ const Wikibinator203 = (()=>{
 		*/
 		vm.addOp('SolveRecog',null,false,1,'(solveRecog x) -> any y where (x y) halts, preferring those that use less compute resources (stackTime stackMem etc) but THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. This is for bit what solveFloat64 is for double/float64. Default implementation will dovetail (even at deterministic level), but thats impractically slow for most things.',{ty:'key', langs:{}});
 		vm.addOp('SolveFloat64',null,false,1,'(solveFloat64 x) -> any y where (x y)->float64 (todo is the float64 the raw 64 bits or is it wrapped in a typeval or a typevalDouble etc?), where the float64 is positive, and the higher the better. Requiring positive makes it able to emulate solveRecog. The higher the better, makes it a goal function. Like solveRecog, THIS IS NONDETERMINISTIC so can only be used while stackIsAllowMutableWrapperLambdaAndSolve is true on stack. Default implementation will dovetail (even at deterministic level), but thats impractically slow for most things.',{ty:'key', langs:{}});
-		vm.addOp('Bize31',null,false,1,'(bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number... its in vm.maxBits TODO use that here and merge duplicate code in what generates these descriptions of bize* opcodes). 2**31 bits is 256mB. TODO return double?',{ty:'unknown', langs:{}});
-		vm.addOp('Bize53',null,false,1,'TODO use 1 of those bits for if its all 0s? (bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general. Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. TODO return double?',{ty:'unknown', langs:{}});
-		vm.addOp('Bize256',null,false,1,'(bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id. Max cbt size is 2**'+vm.log2OfMaxBits+'='+vm.maxBits+' and max bitstring size is 1 bit less (which is a number that wont fit in double, but maxBits itself fits in double cuz its a small enuf powOf2). Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. Bize256 always fits in a 256 bit id of literal 256 bits.',{ty:'unknown', langs:{}});
+
+		vm.addOp('Bize31',null,false,1,'FIXME this should return a double, not a cbt32. (bize31 x) -> cbt32, the low 31 bits of the index of the last (op) bit1, if its a cbt, else 0 if its not a cbt or does not contain any bit1. Bize means bitstring size (in bits). Max bitstring size is around 2^247-1 bits (todo find exact number... its in vm.maxBits TODO use that here and merge duplicate code in what generates these descriptions of bize* opcodes). 2**31 bits is 256mB. TODO return double? .... If its less than 0, then its 1 of the constants vm.BIZE_OF_NOT_A_CBT or vm.BIZE_OF_IS_ALL_ZEROS_CBT or TODO there might be 1 more constant added in case its all 0s and is bigger than fits in a 31 bit size number (see vm.maxBits).',{ty:'unknown', langs:{}});
+		vm.addOp('Bize53',null,false,1,'FIXME this should return a double, not a cbt64. TODO use 1 of those bits for if its all 0s? (bize53 x) -> cbt64, the low 53 (so it can be stored in a double) bits of bize. See bize32 comment for what is bize in general. Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. TODO return double?',{ty:'unknown', langs:{}});
+		vm.addOp('Bize256',null,false,1,'FIXME this should return a (TypevalC int256), not a cbt256? (bize256 x) -> cbt256. See bize31 comment for what is bize in general. This always fits in a 256 bit literal that is its own id. Max cbt size is 2**'+vm.log2OfMaxBits+'='+vm.maxBits+' and max bitstring size is 1 bit less (which is a number that wont fit in double, but maxBits itself fits in double cuz its a small enuf powOf2). Even though only 31 bits of bize are normally stored in ids, cbtHeight (in 8 bits of cur minus some constant) is completely stored so know how big of a cbt it is just from id256. Bize256 always fits in a 256 bit id of literal 256 bits.',{ty:'unknown', langs:{}});
+
 		//vm.addOp('LambdaParamsList',null,false,1,'From any number of curries (such as waiting on 3 more params in this: (Lambda FuncBody [w x y z] 100), or from the (LazyEval (Lambda... allParamsExceptLast) lastParam) if it has all its params which FuncBody is called on), gets the whole [w x y z], or gets [] if its not 1 of those datastructs. [...] is infcur syntax.',{langs:{}});
 		//vm.addOp('LambdaParamsStream',null,false,1,'FIXME this should return a [(Mut...) (Mut...) (Mut...)]. FIXME see comments at top of this js file, about [...] of "[cbtNotNecessarilyDeduped doubleThatIsOrWillBeDeduped fnThatIsOrWillBeDeduped fnNotNecessarilyDeduped fnAsKeyThatIsOrWillBeDeduped]" as snapshot of Mut. Used with (Lambda FuncBody [x y z] valX valY valZ) -> (FuncBody (LazyEval (opLambda FuncBody [x y z] valX valY) valZ)). Returns [x valXLambda valXDoubleRaw valXDoubleArrayRaw y val val val z val val val], in blocks of those 4 things, which is used with Opmut/For/While/etc.',{langs:{}});
 		/*vm.addOp('lambdaParams',null,false,1,'Same as LambdaParamsReverse except is the same order they occur in the Lambda call, and is less efficient cuz has to reverse it. This is normally implemented by calling LambdaParamsReverse then reversing that []/stream.',{langs:{}});
@@ -9673,10 +9962,10 @@ const Wikibinator203 = (()=>{
 			}});
 		vm.addOp('Has',null,false,2,'(Has key namespace) -> T or F',{ty:'bit', langs:{}});
 		vm.addOp('HasMoreThan7Params',null,false,1,'op is known at 7 params, so thats sometimes used as end of a list, especially in an infcur list.',{ty:'bit', langs:{}});
+
 		vm.addOp('EmulateUsingInt32s',null,false,1,'There are some float32 and float64/double opcodes. These are well defined across multiple languages, at least what is most common for rounding behaviors etc (see IEEE754 but thats still a little vague), like a*b or a+b or 1/b or a/b or Math.sin(a) or Math.exp(a))... Use (EmulateUsingInt32s SomeOpcode) to get a definition of it (callable as a lambda the same way) that is always deterministic, made of int AND int, int XOR int, int shiftleft int, int multiply int, etc... the kinds of ops that are found in most hardware, though GPU.js compiling to GLSL shaders can only handle i think int16 or (nondeterministicly) float32, or it might be int24. EmulateUsingInt32s will be how to operate the strictest mode of wikibinator203, which must be completely deterministic so it syncs at the "cellular automata speed of light" in the real world. Even the int32 ops would be derived from S T Pair and other simple lambdas, but TODO should that be returned somewhere (could just derive it at runtime instead of making opcodes for it, since its mostly a math abstraction rarely used literally.',{ty:'key', langs:{}});
 		vm.addOp('EmulateUsingInt16s',null,false,1,'like EmulateUsingInt32s but using int16 ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32.',{ty:'key', langs:{}});
 		vm.addOp('EmulateUsingInt8s',null,false,1,'like EmulateUsingInt32s and EmulateUsingInt16s but using byte ops, in case youre in a glsl optimization (see pushEvaler func) made by GPU.js that can only handle up to int16 or nondeterministicly float32, AND if you want those 16 (or it might go up to int24) bits to multiply or add 2 int8s in etc, or maybe that would work in int16s.',{ty:'key', langs:{}});
-		vm.addOp('CC',null,false,3,'Comment. (CC [this is a comment] x y) -> (x y). You could for example put this around funcBody in lambda or mutlambda, which goes at end of param [] list.',{ty:'key', langs:{}});
 
 		//vm.addOp('Car',null,false,2,'(LisplikeEval -,Car ,-,Cons .x .y== TreemapAsState). Should the inner -...= be prefixed by , ? OLD... -Car -Cons .x .y= TreemapAsState= returns (.x TreemapAsState) aka (TreemapAsState x). FIXME im not sure which should be dynamic and which should be quoted, such as should it be -.car -.cons .x .y= TreemapAsState= ? Or -car -cons x y= TreemapAsState= ? And should it need a separate LisplikeEval func (derive it using lambda opcode?)? FIXME the TreemapAsState must be called by (...). All lisplike funcs will take exactly 2 params: their params as a -...= linkedlist AND TreemapAsState. Could do it as everything is dynamic, so put T/, prefix to quote. (LisplikeEval -,Car -,Cons .x .y== TreemapAsState)',{langs:{}});
 		//vm.addOp('Cdr',null,false,2,'See Car.',{langs:{}});
@@ -9811,11 +10100,15 @@ const Wikibinator203 = (()=>{
 		make sure it fits in 128 opcodes, and todo leave some space for future opcodes in forks of the opensource, but until they're added just infloop if those reservedForFutureOpcodes are called.
 		*/
 		
-		console.log('Theres '+(256-vm.opInfo.length)+' reserved opcodes for future expansion in this Wikibinator203 VM. All Wikibinator203 VMs must have the same set of opcodes, else call it something other than Wikibinator203, so those are expected to be filled in while experimenting with the prototype VM to find what works and is intuitive for Humans.',{langs:{}});
+		console.log('Theres '+(256-vm.opInfo.length)+' reserved opcodes for future expansion at end (excluding any that might be manually written with the word Reserved in their opcode name) in this Wikibinator203 VM. All Wikibinator203 VMs must have the same set of opcodes, else call it something other than Wikibinator203, so those are expected to be filled in while experimenting with the prototype VM to find what works and is intuitive for Humans.',{langs:{}});
 		
 		while(vm.opInfo.length < 256){
 			vm.addOp('Op'+vm.opInfo.length+'ReservedForFutureExpansionAndInfloopsForNow', null, false, 1, 'Given 1 param, evals to (S I I (S I I)) aka the simplest infinite loop, so later if its replaced by another op (is reserved for future expansion) then the old and new code will never have 2 different return values for the same lambda call (except if on the stack the 4 kinds of clean/dirty (stackIsAllowstackTimestackMem stackIsAllowNondetRoundoff stackIsAllowMutableWrapperLambdaAndSolve stackIsAllowAx) allow nondeterminism which if theyre all clean then its completely deterministic and theres never more than 1 unique return value for the same lambda call done again.',{ty:'unknown', langs:{}});
 		}
+
+		vm.countReservedOps = function(){
+			return this.opInfo.map(oi=>oi.name).filter(name=>name.includes('eserved')).length;
+		};
 		
 		//In abstract math, evals to (S I I (S I I)) aka the simplest infinite loop. Infinite loops etc will be caught by the nearest spend call
 		//(limiting time and memory higher on stack than such call, recursively can tighten), so actually just throws instantly.
@@ -9888,7 +10181,7 @@ const Wikibinator203 = (()=>{
 		//until the first call returns, then can start with any StackStuff you and stackTime stackMem etc you want.
 		vm.defaultStackStuff = new vm.StackStuff(0,0,0,0,0); //FIXME start as what? FIXMe reset this before each next call while stack is empty.
 		
-		//FIXME these amounts to refill it to should very, depending on stats and amount of compute resources of caller,
+		//FIXME these amounts to refill it to should vary, depending on stats and amount of compute resources of caller,
 		//but its just a small amount of compute resources to get started with,
 		//or maybe its too much for small tests. Will need to play with these numbers to find what works.
 		vm.refill = function(){
@@ -9903,7 +10196,7 @@ const Wikibinator203 = (()=>{
 			//FIXME this is a way to prevent stackoverflowerrors in the outer system the VM is built in, such as on javascript python java or c++ stack, BUT FIXME what units to measure it in, stackframes? no, cuz they are variable size. ints or bytes or sizeof(pointer)? seems better but might be hard to count those. Figure it out.
 			vm.stackDeep = 100;
 			
-			//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO
+			//QPUs, like any analog hardware, would need to come in as snapshot in param or using mutableWrapperLambda: vm.stackQpuCompile = 1000000; //TODO?
 			vm.stackGpuCompile = 1000000; //TODO. includes GPU, TPU, or any kind of parallel chip or stream processor that can do digital logic.
 			vm.stackCpuCompile = 1000000; //TODO
 			vm.stackNetworkUpload = 1000000; //TODO
@@ -9988,6 +10281,29 @@ const Wikibinator203 = (()=>{
 		//gets the vm.opInfo[...] of this node's opcode. Example: If this node is a call of vm.ops.S, then gets the opInfo for S.
 		vm.Node.prototype.opInfo = function(){
 			return vm.opInfo[this.o8()];
+		};
+
+		//foreach pair of key and val, but as a 2 param func instead of 1 param in ops.Foch, and takes a js func as param thats called as listener.
+		//Calls keyValListener(key,val) where key and val are fns. Returns undefined.
+		vm.Node.prototype.foch = function(keyValListener){
+			if(vm.isFullLamNs(this.lam)){
+				throw 'TODO';
+			}else if(this.isNonemptyTree(this.lam)){
+				throw 'TODO';
+			}else if(vm.isFullNs(this.lam)){
+				throw 'TODO';
+			}else if(this.o8() == vm.o8OfLambda){
+				throw 'TODO';
+			}else if(this.o8() == vm.o8OfMutlambda){
+				throw 'TODO';
+			}
+			//FIXME do all the ns types
+			/*case vm.o8OfTreemap:{
+			throw 'TODO';
+			}break;case vm.o8OfL:{
+			}break;default: //includes EmptyTreemap and anything thats not a ns
+			*/
+			return undefined;
 		};
 		
 		//returns a (vm.Transpiler,fn,ty)=>string func, or undefined if there isnt one.
@@ -10086,6 +10402,8 @@ const Wikibinator203 = (()=>{
 						
 					//StackAllowReadLocalIds used 1 more reserved index.
 					//OLD: ignoring 2 reserved bits in mask vm.mask_reservedForFutureExpansion4 and vm.mask_reservedForFutureExpansion5
+					break;case o.Bize31:
+						ret = vm.wrapDouble(z.n.Bize());
 					break;case o.Bit0:case o.Bit1:
 						ret = vm.ops.Infcur(l)(r); //cbt that exceeds max size
 						//vm.infloop(); //cbt that exceeds max size
@@ -10093,7 +10411,7 @@ const Wikibinator203 = (()=>{
 						ret = vm.bit(z().isCbt());
 					break;case o.ContainsAxConstraint:
 						ret = vm.bit(z().containsAxConstraint());
-					break;case o.Dplusraw:
+					//break;case o.Dplusraw:
 						ret = vm.wrapRaw(y().d()+z().d());
 					//break;
 					
@@ -10300,7 +10618,7 @@ const Wikibinator203 = (()=>{
 					break;case o.Gt:
 						//greaterThan
 						ret = vm.bit(y.n.d()>z.n.d());
-					break;case o.Gte:
+					break;case o.Gte:{
 						//greaterThanOrEqual
 						ret = vm.bit(y.n.d()>=z.n.d());
 					/*break;case o.Da:
@@ -10321,7 +10639,7 @@ const Wikibinator203 = (()=>{
 							ret = U; //incomplete namespace so theres no vars in it.
 						}
 						*/
-					break;case o.Du:{
+					/*break;case o.Du:{
 						//(Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
 						let map = z;
 						let Du_then_key = l;
@@ -10331,15 +10649,72 @@ const Wikibinator203 = (()=>{
 						let map = z;
 						let Bl_then_key = l;
 						ret = map(Bl_then_key);
-					}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:{
+					*/
+					}break;case o.BlE:{
+						//vm.o8OfBl = vm.addOp('BlE',null,false,2,'(BlE NameGetter ValGetter ns) -> forkEdited ns to map (Bl (NameGetter ns)) to (ValGetter ns). In javascript its similar to: x = new Float64Array(55), for example, if NameGetter is ,x and ValGetter makes such a (TypevalB d* bytesofdoublearray).',
+						//{ty:'num', langs:{}};
+						let NameGetter = x;
+						let ValGetter = y;
+						let ns = z;
+						let name = NameGetter(ns);
+						let key = ops.Bl(name);
+						let val = ValGetter(ns);
+						ret = vm.put(key,val,ns);
+					}break;case o.NewBl:{
+						//vm.o8OfBl = vm.addOp('NewBl',null,false,2,'(NewBl contentType bize) -> (TypevalB contentType cbtOfAll0sThenPaddedWithA1Then0sTilNextPowOf2). Does not verify the bize is a multiple of contentTypes primitive type such as if its d* thats a double array so should be a multiple of 64 0s before the padding.',{ty:'bl', langs:{}});
+						let contentType = y;
+						let bize = z.n.d();
+						if((bize&7) || (bize < 0) || Math.floor(bize)!=bize){
+							throw 'TODO bize thats not a multiple of 8 bits, bize='+bize;
+						}
+						if(bize > vm.maxBize){
+							vm.infloop();
+						}
+						if(bize >= (2**31)){
+							throw 'bize='+bize+' is too big to create array but can do it as callpairs. TODO do this by sharing branches of cbts that are all 0s, other than the padding bit so will need log number of such callpairs.';
+						}
+						if((bize == 0) && (vm.minPaddingBits != 8)){
+							throw 'FIXME this code requires at least 1 byte of padding, but vm.minPaddingBits='+vm.minPaddingBits+' Should use ops.Bit1 instead of a byte array in that case.';
+						}
+						let numBytes = bize>>3;
+						let numPaddedBytes = vm.roundUpToPowOf2(numBytes+1); //FIXME that works up to 2**30 or is it 2**31? wont matter either way since in units of bytes so its a few bits smaller.
+						let paddedBytes = new Uint8Array(numPaddedBytes);
+						paddedBytes[numBytes] = 0x80; //the padding. its a 1 then 0s until next powOf2.
+						let cbt = vm.CbtOfBytes(paddedBytes);
+						ret = ops.TypevalB(contentType)(cbt); //as an optimization, dont create the unpadded form. go straight to padded. if had put in unpadded form instead of cbt, would have auto wrapped and padded it. but if put paddedBytes in here, would have padded again.
+
+					}break;case o.O:case o.OO:{
+						ret = z(l);
+					//}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:case o.G:{
+					}break;case o.Bl:case o.D:case o.G:{
+						//FIXME should o.D convert to double if its not already one (by lambda.n.d())? Same question for o.G. Similar for GGo.
+
+						//FIXME remove ops Du and DuGo cuz they were replaced by P and PGo. P is vm.Mut.p in Mut/Jit optimization.
+
 						//nevermind on Getcbt and GetcbtGo, theres already ops.Bl for that. Is there ops.BlGo? TODO
 
 						//vm.o8OfGetcbt = vm.addOp('Getcbt',null,false,2,'Like P/% and $/D but is @/Getcbt Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]',{langs:{}});
 						//vm.o8OfGetcbtGo = vm.addOp('GetcbtGo',null,false,2,'Like PGo/% and $/DGo but is @/GetcbtGo. Wraps typed arrays such as TypevalB of \'D\' and bytes of double[]');
 
 				
+						//FIXME? if ns is a Lambda or Mutlambda, this should return whatever symbol means not found (is it U? thats not a double).
 
-						ret = z(l); //map(allParamsExceptLast)
+						//if(vm.isNsThatTakesKeyParam(l)){
+						//if(true || vm.isNsThatTakesKeyParam(l)){ //FIXME, doing this without "true ||" broke alot of testcases by infloop "Wikibinator203DragAndDropTree.html:1 Uncaught gasErr" 2023-8-3.
+						if(vm.isNsThatTakesKeyParam(z)){
+
+							//Problem might be that o.O and o.OO and o.G are not ns at all, so i'm moving them to their own switch case to just return z(l).
+							//Another problem is should be checking z, not l, in "if(!vm.isNsThatTakesKeyParam(l)){".
+
+							//TODO optimize isNsThatTakesKeyParam by checking o8 and cur and caching the combos that are allowed.
+							//Get header int vm.Node.header, its 2 bytes in that.
+							//TODO optimize by doing them both the else (of this if) way below?
+							ret = z(l); //ns(allParamsExceptLast)
+						}else{
+							//The non-isNsThatTakesKeyParam ns types (Lambda, Mutlambda, Infcur/[]) only have x% blah% etc keys aka (P x) (P blah) (P [hello world]).
+							//Since ops.P is not in these cases, return U to mean not found "}break;case o.Du:case o.Bl:case o.D:case o.O:case o.OO:case o.G:{".
+							ret = U;
+						}
 						
 						/*Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
 						Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
@@ -10347,7 +10722,76 @@ const Wikibinator203 = (()=>{
 						Opcode: (O a SomeMap) -> (SomeMap (O a))
 						Opcode: (OO a b SomeMap) -> (SomeMap (OO a b))
 						*/
+					}break;case o.Tylen:{
+						ret = vm.wrapDouble(z.n.tylen());
+					}break;case o.RawBli:{
+						//vm.o8OfBli = vm.addOp('RawBli',null,false,2,'(RawBli (TypevalB d* thedoublebits) 3) -> double at index 3
+						//(in units of 64 bits, or in units of 8 bits if b* instead of d*, for byte array, etc. Also see RawBlie,
+						//and the nonraw forms Bli and Blie.',{ty:'num', langs:{}});
+						 let typedBlob = y;
+						 let index = z.n.d();
+						 ret = vm.wrapDouble(typedBlob.n.at(index));
+					}break;case o.RawBlie:{
+						//vm.o8OfBlie = vm.addOp('RawBlie',null,false,3,'(RawBlie (TypevalB d* thedoublebits) 3 4.56) ->
+						//forkEdited typedBlob to have that double val at that index, and if the blobs type is not double then its cast.
+						//TODO can this change the size of it? what if its just past the end of the array?',{ty:'num', langs:{}});
+						let typedBlob = x;
+						let index = y.n.d();
+						let val = z.n.d();
+						ret = typedBlob.n.at(index,val);
 					}break;case o.Bli:{
+						//(Bli GetBlobName GetIndexInBlob ns)
+						//OLD: (Bli GetBlob GetIndexInBlob ns)
+						//index depends on size of primitive type of the blob as 1d array, such as bytes vs doubles.
+						let GetBlobName = x;
+						//throw 'Bli and Blie, should GetBlob be get x where (BlGo x) or (Bl x) is mapped to the typedblob?';
+						let GetIndexInBlob = y;
+						let ns = z;
+						let blobName = GetBlobName(ns);
+						let blobKey = ops.Bl(blobName);
+						//let typedBlob = GetBlob(ns); //Example: (TypevalB D ...bytes...) is a double array
+						let typedBlob = blobKey(ns); //Example: (TypevalB D ...bytes...) is a double array
+						let index = GetIndexInBlob(ns).n.d();
+						//let type = typedBlob.n.L();
+						let doubleValFromBlob = typedBlob.n.at(index); //get double from array of byte, int, float, double, etc, cast to double.
+						/*let doubleValFromBlob;
+						if(typedBlob.n.isCbt()){ //not typed, just a blob/cbt. FIXME use it as byte[]? int[]? or what?
+							throw 'TODO its cbt not typedblob';
+						}else{
+							let type = typedBlob.n.L(); //Example: (TypevalB b*) is type prefix of a byte array.
+							let blob = typedBlob.n.R();
+							if(type == vm.typeBytes){
+								doubleValFromBlob = blob.n.byteAt(index);
+								//if(blob.blob){
+								//	doubleValFromBlob = blob.blob[blob.blobFrom+index];
+								//}else{
+								//	throw 'TODO do same thing but without the .blob optimization, using left and right childs recursively. theres byteAt func or something like that.';
+								//}
+							}else if(type == vm.typeInts){
+								doubleValFromBlob = blob.n.intAt(index);
+							}else if(type == vm.typeFloats){
+								doubleValueFromBlob = blob.n.floatAt(index);
+							}else if(type == vm.typeDoubles){
+								doubleValueFromBlob = blob.n.doubleAt(index);
+								//if(blob.blob){
+								//	fixmefixme
+								//	doubleValFromBlob = blob.blob[blob.blobFrom+index];
+								//}else{
+								//	throw 'TODO do same thing but without the .blob optimization, using left and right childs recursively. theres byteAt func or something like that.';
+								//}
+							}else if(type == vm.typeBits){
+								doubleValueFromBlob = blob.bitAt(index) ? 1 : 0;
+							}else{
+								throw 'TODO type='+type;
+							}
+						}*/
+						ret = vm.wrapDouble(doubleValFromBlob); //same as vm.wrap(doubleValFromBlob) but faster.
+						
+						
+						
+						//if(vm.typeBytes
+						
+						
 						/*vm.o8OfBlie = vm.addOp('Bli',null,false,2,'Blob index. (Bli GetBlob GetIndexInBlob ns) -> double/num in that typedBlob in that ns, such as a specific double from a double[447] or a specific double from a byte[32] (TODO is it unsigned in case of byte? Uint8Array? Uint8ClampedArray?). These arrays are for example (TypevalB d bytesOfDoubleArray) for double or (TypevalB b bytesOfByteArray) etc. TypevalC lacks the padding that TypevalB has, in the bytes.',
 							{ty:'num', langs:{
 								js: (tr,fn,ty)=>{
@@ -10361,9 +10805,67 @@ const Wikibinator203 = (()=>{
 								},
 							}});
 						*/
-						throw 'TODO Bli';
+						//throw 'TODO Bli';
 					}break;case o.Blie:{
-						throw 'TODO Blie';
+						//throw 'FIXME how to forkedit ns using GetBlob? how to PutBlob? In mut optimization its vm.Mut.arr, but this is not the optimized way.';
+						//(Blie GetBlobName GetIndexInBlob GetNewVal ns) -> forkEdited ns
+						//OLD: (Blie GetBlob GetIndexInBlob GetNewVal ns) -> forkEdited ns
+						//index depends on size of primitive type of the blob as 1d array, such as bytes vs doubles.
+						let GetBlobName = c;
+						let GetIndexInBlob = x;
+						let GetNewVal = y;
+						let ns = z;
+						let blobName = GetBlobName(ns); //Example: get x from ,x
+						let blobKey = ops.Bl(blobName); //Example: x@
+						//let typedBlob = GetBlob(ns); //Example: (TypevalB d* ...bytes...) is a double array
+						let typedBlob = blobKey(ns); //Example: (TypevalB d* ...bytes...) is a double array
+						let index = GetIndexInBlob(ns).n.d(); //double
+						let newValD = GetNewVal(ns).n.d(); //double. force conversion to double even if its not a double, like vm.Mut/Jit optimization does with Mut.arr
+						//let newValFn = GetNewVal(ns); //normally a double but technically could be anything
+						if(typedBlob.n.isCbt()){ //not typed, just a blob/cbt. FIXME use it as byte[]? int[]? or what?
+							throw 'TODO its cbt not typedblob';
+						}else{
+							let type = typedBlob.n.L();
+							let blob = typedBlob.n.R();
+							//a powOf2 measured just from height. number of bits. Can be bigger than fits in Uint8Array.
+							let cbtSize = blob.n.cbtSize();
+							if(cbtSize > 2**31){
+								throw 'TODO big cbt. cbtSize='+cbtSize;
+							}
+							let bize = blob.n.Bize();
+							if(type == vm.typeBytes){
+								if(bize&7){
+									throw 'TODO handle the case when its not a valid double array. bize='+bize+' is not a multiple of 64';
+								}
+								let bytes = blob.n.bytesMutableCopy(); //Uint8Array
+								bytes[index] = newValD; //cast to ubyte
+								//changing 1 byte in an array then making a new array is very slow,
+								//but TODO vm.Mut optimization (ops.Jit) and ops.Fork will do it much faster.
+								let forkEditedArray = vm.wrap(bytes);
+								ret = vm.put(blobKey,forkEditedArray,ns);
+							}else if(type == vm.typeInts){
+								throw 'TODO';
+							}else if(type == vm.typeFloats){
+								throw 'TODO';
+							}else if(type == vm.typeDoubles){
+								if(bize&63){
+									throw 'TODO handle the case when its not a valid double array. bize='+bize+' is not a multiple of 64';
+								}
+								let bytes = blob.n.bytesMutableCopy(); //Uint8Array
+								let doubles = new Float64Array(bytes.buffer);
+								doubles[index] = newValD;
+								//changing 1 double in an array then making a new array is very slow,
+								//but TODO vm.Mut optimization (ops.Jit) and ops.Fork will do it much faster.
+								let forkEditedArray = vm.wrap(doubles);
+								//throw 'Bli and Blie, should GetBlob be get x where (BlGo x) or (Bl x) is mapped to the typedblob?';
+								//throw 'TODO how to return forkEdited ns containing the forkEditedArray?';
+								ret = vm.put(blobKey,forkEditedArray,ns);
+							}else if(type == vm.typeBits){
+								throw 'TODO';
+							}else{
+								throw 'TODO type='+type;
+							}
+						}
 					}break;case o.GoO:{
 						//Opcode: (GoO go c SomeMap) -> (SomeMap (OO (go SomeMap) c))
 						//Like OO except the first key is a getter, not a literal first key.
@@ -10373,11 +10875,23 @@ const Wikibinator203 = (()=>{
 						let getFirstKey = x;
 						ret = map(vm.ops.OO(getFirstKey(map))(secondKey));
 					}break;case o.DGo:{
+						//FIXME should o.D convert to double if its not already one (by lambda.n.d())? Same question for o.G. Similar for GGo.
+
 						//(DGo x map) -> (map (D (x map))). Example: a/b/sum$ is (DGo a/b/sum) is (DGo (GoO (OO a b) sum)).
 						//Call that on a Treemap and it recurses a/b/sum$ in it to get a val.
 						let map = z;
 						let varGetter = y;
 						ret = map(ops.D(varGetter(map))); //TODO ops.D(varGetter(map))(map)?
+
+					}break;case o.GGo:{
+						//FIXME should o.D convert to double if its not already one (by lambda.n.d())? Same question for o.G. Similar for GGo.
+
+						//vm.o8OfGGo = vm.addOp('GGo',null,false,3,'(GoG GetOb field ns) -> (G (GetOb ns) field ns). GoG is to G as GoO is to OO.',
+						let GetOb = x;
+						let field = y;
+						let ns = z;
+						let ob = GetOb(ns);
+						ret = ops.G(ob)(field)(ns);
 					}break;case o.BlGo:{
 						let ns = z;
 						let varGetter = y;
@@ -10462,7 +10976,7 @@ const Wikibinator203 = (()=>{
 						
 						
 					//}break;case o['OKE']:
-					}break;case o['KKE']:
+					/*}break;case o['KKE']:
 						//vm.addOp('OKE',null,false,4,'(OKE Ob Key Val [...]) -> [... (OKE Ob Key Val)], just appends an ob/key/val triple to the end of the list');
 						throw 'TODO';
 					break;case o['KEC']:
@@ -10487,6 +11001,24 @@ const Wikibinator203 = (()=>{
 						let map = z;
 						ret = vm.put(key,val,map);
 					*/
+					}break;case o.GE:{ //set Double Equal to a val. Counterpart of D. Similar to DuE is counterpart of Du. TODO K and KE are being removed.
+						//TODO merge duplicate code between GE DE PE etc??
+
+						//vm.o8OfGE = vm.addOp('GE',null,false,2,'(GE GetOb GetField GetVal ns) -> TODO. G and GGo are to read as GE is to write (by forkEdit of course). GE is to [G and GGo] as DE is to [D and DGo]. FIXME should there be GGoE and GE, where (GE ob field ns) and (GGoE GetOb GetField ns)? Or just (GE GetOb GetField ns)? Maybe call it RawGE vs GE?',{ty:'ns', langs:{}});
+						let getOb = c; //,obName
+						let getField = x; //,fieldName
+						let getVal = y; //,2.34
+						let ns = z; //Example: (EmptyTreemap GodelLessThan)
+						let ob = getOb(ns);
+						let field = getField(ns);
+						let key = ops.G(ob)(field);
+						let val = getVal(ns);
+						if(vm.forceGEValToDouble){
+							val = vm.wrapDouble(val.n.d());
+						}
+						ret = vm.put(key,val,ns);
+
+						//in vm.Mut optimization, would just set mutOfThatOb.g[field] = val.n.d()
 					}break;case o.DE:{ //set Double Equal to a val. Counterpart of D. Similar to DuE is counterpart of Du. TODO K and KE are being removed.
 						/*OLD...
 
@@ -10782,6 +11314,16 @@ const Wikibinator203 = (()=>{
 						}
 						ret = stream;
 					*/
+					}break;case o.Foch:{
+						//vm.addOp('Foch',null,false,2,'For each key and val in a ns (such as in a Treemap, Ns, LamNs, Lambda, Mutlambda, etc). (Foch ns listener) -> (listener keyA valA keyB valB keyC valC...). Its whatever order the keys are in the ns.',
+						let ns = y;
+						let listener = z;
+						ns.n.foch(function(key,val){
+							listener = listener(key)(val);
+						});
+						ret = listener;
+					}break;case o.Recur:{
+						throw 'TODO';
 					}break;case o.Eq: //by content deeply, but average constant time (big constant) as explained in vm.Node.prototype.eq
 						let bit = y.n.eq(z);
 						console.log('Computing Eq... y='+y+' z='+z+' bit='+bit);
@@ -10891,7 +11433,7 @@ const Wikibinator203 = (()=>{
 						//let paramName = y;
 						let POfParamName = l;
 						let lambdaEtc = z;
-						//ret = lambdaEtc.n.p(paramName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.
+						//ret = lambdaEtc.n.p(paramName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.)
 						ret = lambdaEtc.n.p(POfParamName); //is U if has no such param or is not a Lambda/MutLam/[...]/etc.	
 					//break; case o.Lambda:
 					}break; case o.Lambdo:{
@@ -11218,6 +11760,34 @@ const Wikibinator203 = (()=>{
 		vm.isSameOp = (fn, op)=>(fn.n.o8()===op.n.o8());
 		
 		vm.isNumParams = (fn, numParams)=>(numParams===(fn.n.cur()-7));
+
+		//Ns, Treemap, EmptyTreemap, and LamNs take a key param, like (Treemap ... x) -> value of key x,
+		//unlike the other kinds of ns: Lambda, Mutlambda, Infcur/[], which do other things with their param
+		//but they still work like (x% TheNs) -> val of key x%.
+		//They dont contain things other than (P thing) aka thing%, such as x$ or x@ or [hello world].
+		vm.isNsThatTakesKeyParam = fn=>{
+			switch(fn.n.o8()){
+				case vm.o8OfNs:
+					//TODO optimize by not checking op again
+					return vm.isFullNs(fn);
+				case vm.o8OfTreemap: case vm.o8OfEmptyTreemap:
+					//TODO optimize by not checking op again
+					return fn.n.isTree();
+				case vm.o8OfLamNs:
+					//TODO optimize by not checking op again
+					return vm.isFullLamNs(fn);
+				default:
+					return false;
+			}
+		};
+
+		/*vm.isNsThatDoesntTakeKeyParam = fn=>{
+
+		};
+
+		//TODO optimize isNsThatTakesKeyParam, isNsThatDoesntTakeKeyParam, and isNs by using o8?
+		vm.isNs = fn=>{
+		};*/
 		
 		//is it an (OO a b)
 		vm.isFullOO = fn=>vm.isSameOpAndNumParams(fn,vm.ops.OO,2);
@@ -11273,22 +11843,33 @@ const Wikibinator203 = (()=>{
 
 		vm.isFullBlOrBlGo = fn=>(vm.isFullBl(fn) || vm.isFullBlGo(fn));
 
+		vm.isFullG = fn=>vm.isSameOpAndNumParams(fn,ops.G,2); //Example: picA^width
+
+		vm.isFullGGo = fn=>vm.isSameOpAndNumParams(fn,ops.GGo,2); //Example: things/pics/picA^width
+
+		vm.isFullGOrGGo = fn=>(vm.isFullG(fn) || vm.isFullGGo(fn));
+
 		//varName% gets lambda or mutlambda params which are readonly in LamNs.
 		//vm.isFullDa = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Da,1);
 		vm.isFullP = fn=>vm.isSameOpAndNumParams(fn,vm.ops.P,1);
-
-		//TODO should GoO and PGo be merged?
 
 		vm.isFullPGo = fn=>vm.isSameOpAndNumParams(fn,vm.ops.PGo,1);
 
 		vm.isFullPOrPGo = fn=>(vm.isFullP(fn) || vm.isFullPGo(fn));
 
 
-		vm.isFullLamNs = fn=>vm.isSameOpAndNumParams(fn,vm.ops.LamNs,2);
+		vm.isFullLamNs = fn=>vm.isSameOpAndNumParams(fn,ops.LamNs,2);
 
-		vm.isFullNs = fn=>vm.isSameOpAndNumParams(fn,vm.ops.Ns,2);
+		//ops.Ns
+		vm.isFullNs = fn=>vm.isSameOpAndNumParams(fn,ops.Ns,2);
 
 		vm.isFullT = fn=>vm.isSameOpAndNumParams(fn,ops.T,1);
+
+		vm.isFullTypevalB = fn=>vm.isSameOpAndNumParams(fn,ops.TypevalB,2);
+
+		vm.isFullTypevalC = fn=>vm.isSameOpAndNumParams(fn,ops.TypevalC,2);
+
+		vm.isFullTypeval = fn=>(vm.isFullTypevalB(fn) || vm.isFullTypevalC(fn)); //TODO optimize using that func created around the 2 addOIps of Typeval* that checks if its a typeval at all, cuz their o8s have the same prefix.
 
 
 		//var isCallOfS = fn=>(fn.n.o8()==vm.o8OfS);
@@ -11308,6 +11889,8 @@ const Wikibinator203 = (()=>{
 		//nd theres more than 1 anything_except_U.
 		//var isS0 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===7);
 		vm.isS0 = fn=>(fn.n.o8()==vm.o8OfS && fn.n.cur()===7);
+
+		vm.isFullCanvas = fn=>vm.isSameOpAndNumParams(fn,ops.Canvas,5);
 
 		//(S (S a b) c) -> js:[a b c]. Ends at whatevers not an S2.
 		//(S a b) and (S (S a b) c) are (syty='S2')s, but a is not. Doesnt check b or c cuz it recurses on the left.
@@ -12027,9 +12610,16 @@ const Wikibinator203 = (()=>{
 				}else if(isLastCur && (fnOp==vm.o8OfBl || fnOp==vm.o8OfBlGo)){
 					this.viewToStringRecurse(view.r(), viewing, syty, true);
 					viewing.tokens.push('@');
+				}else if(isLastCur && (fnOp==vm.o8OfG || fnOp==vm.o8OfGGo)){
+					console.log('FIXME??? TODO??? (GGo ,x y) or (G x y) should display as x^y, which differs from the $ @ and % syntax as those go at end like a/b/c$');
+					let viewX = view.l().r();
+					let viewY = view.r();
+					this.viewToStringRecurse(viewX, viewing, syty, true);
+					viewing.tokens.push('^');
+					this.viewToStringRecurse(viewY, viewing, syty, true);
 				}else{
 					switch(syty){
-						case 'GV':{ //<...>
+						case 'GV':{ //<...> //FIXME remove this? Dont remember what GV is.
 							throw 'TODO';
 						//break; case 'start[':
 						}break; case 'IC0':{
@@ -12376,6 +12966,7 @@ const Wikibinator203 = (()=>{
 			}else if(!fn.n.l && fn.n.blob){
 				//is a view of a Uint8Array without childs (they are lazyEvaled)
 				this.syntaxType = 'Blob';
+				//FIXME the type should still be that (or todo change both to 'Bl'?) even if the left and right childs have been evaled so fn.n.l exists.
 			}else if(fn == ops.S){
 				this.syntaxType = 'S0';
 			}else if(fn == ops.Infcur){
@@ -13366,9 +13957,11 @@ const Wikibinator203 = (()=>{
 			//starts and ends with ' or " (todo choose one or both?) is string literal.
 			//Small string with no whitespace that starts with lowercase letter is also string literal,
 			//but theres other rules for that too, todo define those.
+			let startsWithQuote = literalToken[0] == "'" || literalToken[0] == '"';
 			return /*literalToken.endsWith('^') ||*/ literalToken.endsWith('$') || literalToken.endsWith('%') || //Du/^ D/$ Da/% as in vm.ops.Du .D .Da and DuGo DGo (but not DaGo). UPDATE: merge Da with P?
-				literalToken.endsWith('@') ||
-				(literalToken[0] != "'" && literalToken[0] != '"' && literalToken.includes('/'));
+				literalToken.endsWith('@') || (!startsWithQuote && literalToken.includes('/') ||
+				(!startsWithQuote && literalToken.includes('^')) //ops.G or ops.GGo
+			);
 		};
 		
 		vm.ParseTree.prototype.literalTokenToFn = function(literalToken){
@@ -13435,13 +14028,35 @@ const Wikibinator203 = (()=>{
 				if(literalToken.startsWith('/')){
 					throw 'Cant start with /: '+literalToken;
 				}
+
+				let lastG = literalToken.lastIndexOf('^');
+				if(lastG != -1){ //has ^ as in picA^width or things/pics/picA^width , means ops.G or ops.GGo
+					let prefix = literalToken.substring(0,lastG);
+					let suffix = literalToken.substring(lastG+1);
+					if(prefix.length == 0){
+						throw 'starts with ^: '+literalToken;
+					}
+					if(suffix.length == 0){
+						throw 'ends with ^: '+literalToken;
+					}
+					let prefixFn = this.literalTokenToFn(prefix);
+					//FIXME what if suffix is more complex than width such as picA^a/b/c$ (TODO display not as literal, just normal callpairs if so)
+					let suffixFn = this.literalTokenToFn(suffix);
+					//picA is a string in picA^width so should become (G picA width).
+					//pics/picA is not a string, is (OO pics picA) so pics/picA^width should become (GGo pics/picA width).
+					let isGo = !prefixFn.n.isString();
+					let op = isGo ? ops.GGo : ops.G;
+					return op(prefixFn)(suffixFn); //next param is normally a ns, so (GGo pics/picA width TheNs) would get that pic's width.
+				}
+
 				//was: literalToken.containsliteralToken.startsWith('/'), but changing it to exclude the first /, like a/b/sum$ or a$ or a^
 				//OLD: like /a/b/sum$ means (D (GoO (OO a b) sum))
 				//NEW: like a/b/sum$ means (D (GoO (OO a b) sum))
 				let ret = null;
 				let end = '';
 				//if(literalToken.endsWith('$') || literalToken.endsWith('^') || literalToken.endsWith('%')){ //$ does vm.ops.D, and ^ does vm.ops.Du. Da/%.
-				if(literalToken.endsWith('@') || literalToken.endsWith('$') || literalToken.endsWith('%')){ //$ does vm.ops.D, and ^ does vm.ops.Du. Da/%.
+				if(literalToken.endsWith('@') || literalToken.endsWith('$') || literalToken.endsWith('%')){ //$ does vm.ops.D, and ^ does vm.ops.Du (UPDATE: ^ is ops.G and .GGo). Da/%.
+
 					//TODO merge duplicate code between here and that other code that checks for % $ %.
 					end = literalToken[literalToken.length-1];
 					literalToken = literalToken.substring(0,literalToken.length-1);
@@ -13920,7 +14535,7 @@ const Wikibinator203 = (()=>{
 			this.p = undefined; //so its not included in vm.endMut unless something sets it first
 			
 			/*
-			//UPDATE: 2023-5 this is supposed to be replaced by using the keys directly in mut. mutA[mutB][mutC].valNum for example, and can optimize as mutA.shortIdOfMutB.shortIdOfMutC.valNum
+			//UPDATE: 2023-5 this is supposed to be replaced by using the keys directly in mut. mutA[mutB][mutC].d for example, and can optimize as mutA.shortIdOfMutB.shortIdOfMutC.d
 			//
 			//map of Mut to Mut.
 			//this.map = {};
@@ -13951,6 +14566,43 @@ const Wikibinator203 = (()=>{
 			//Stored in [...state...] this would be a TypevalB (bitstring) or TypevalC (cbt). TODO which?
 			//this.valArr = vm.emptyFrozenDoubleArray;
 			this.arr = vm.defaultArrayForMut; //TODO rename .arr to .bl to match ops.Bl ops.Bli ops.Blie?
+
+			/*
+			Planned solution: picA^width etc, see below.
+
+			Also, do I want other changes to Mut while I'm at it? How about a js list of muts, list of fns (instead of just .p), etc? js map {}. js list []. for all of those.
+			mut.d -> double/number.
+			mut.p -> fn
+			mut.arr -> Float64Array or Int32Array or Uint8Array etc.
+			mut[otherMut] -> mut.
+
+			Now that I'm using wikib more (Im trying to generate basic canvas graphics, copying subrects of canvas to other canvas etc), i have more of a feel for how I want Mut to work. But its a hard puzzle, some things will have to be slow so other things can be fast, balance of sacrificing designs etc.
+
+			I want to keep the "mut[otherMut] -> mut" cuz thats important for chaining x/y/z$ etc.
+			I also want  new opcodes and syntax for making the last in such a chain be a $ key. Maybe x/y/$z ? x/y$z (no cuz x/y$ means something else)?
+			Whatever syntax I choose, in that example it would mean go to x/y (aka (OO x y)) and in that get the value of the z key in the js {} of mut to double.
+
+			How should the "js {} of mut to double" be stored in Treemap (after Mut stuff)? An opcode similar to OO and GoO? Vs a value of treemap or Lambda ns etc? Lets go with the "opcode similar to OO and GoO".
+
+			Do I need to loop over them? If so, to do it deterministicly, i'd need to sort the keys, so 
+
+			^ symbol is available. How about x/y^z ?
+			picA^width
+			picA^height
+			I like it. Do that.
+
+			Might also want the js[] list, which will also be a wikib[] list, of Muts, in each mut, so basically map of int to mut in a dense range, but I dont think i need a syntax just for that. Opcodes yes, syntax no.
+
+			.............
+
+			Naming it G cuz that letter is not used yet in single char opcode names. See addOp('G' and addOp('GE' etc.
+			OLD: Naming it f for fields, like {width: 30, height: 20}, and this.arr could be a Uint8Array of this.f.width*this.f.height*4 bytes
+			if its 4 bytes per canvas pixel, or whatever the array and f/fields are used for.
+
+			No strings allowed. If you want strings, put their contents in this.arr. Cuz otherwise its hard to limit memory.
+			*/
+			this.g = vm.newExtraEmptyJsMap();
+			//this.f = vm.newExtraEmptyJsMap();
 			
 		};
 		
@@ -13962,7 +14614,7 @@ const Wikibinator203 = (()=>{
 			return this.p !== undefined;
 		};
 		
-		//This might also be called hasArr. TODO rename mut.arr to mut.bl
+		//This might also be called hasArr. TODO rename mut.arr to mut.bl (arr is array, bl is blob, lazy-evaledoverlappable powOf2 aligned ranges of a Uint8Array.buffer).
 		vm.Mut.prototype.hasBl_hasArr_todoRenameArrToBl = function(){
 			return this.arr !== vm.defaultArrayForMut;
 		};
@@ -14083,6 +14735,21 @@ const Wikibinator203 = (()=>{
 			}
 			jsList.reverse();
 			return jsList;
+		};
+		
+		//exponential size, with just '(' 'U' and ')'.
+		vm.Node.prototype.toStringOnlyParensAndU = function(){
+			if(this.lam === U){
+				return 'U';
+			}else{
+				let l = this.L().n.toStringOnlyParensAndU();
+				let r = this.R().n.toStringOnlyParensAndU();
+				if(l != 'U' || r != 'U'){
+					return '('+l+r+')';
+				}else{
+					return '('+l+' '+r+')';
+				}
+			}
 		};
 		
 		//FIXME use [(ObKeyVal keyA valA) (ObKeyVal keyB valB) ...] instead of [keyA valA keyB valB ...],
@@ -14364,6 +15031,10 @@ const Wikibinator203 = (()=>{
 		
 		//vm.cbt1 to vm.Cbt32 refer to 1-32 bits, not bytes.
 		vm.mustDedupIfAtMostThisManyBytes = 32; //Any wrapper of a Uint8Array this size or smaller must be deduped. Others can be lazy-deduped (which may happen later or never).
+
+		//vm.xt('NewBl 3 make empty byte array, FIXME should the padding be 1 bit long or 1 byte long?', Evv('(NewBl b* 0)'), Evv('(TypevalB b* Bit1)'));
+		vm.minPaddingBits = 1;
+		//vm.minPaddingBits = 8;
 		
 		
 		
@@ -14490,6 +15161,10 @@ const Wikibinator203 = (()=>{
 		
 		console.log('FIXME type application/x-IEEE754-double (UPDATE: its just d now) vs type application/x-IEEE754-doubles (UPDATE: its just d* now) has a problem that one is a raw cbt and the other is a bitstring cbt. Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that if you know the bitstring content you can generate the padding and therefore the rest of the double, so its probably ok.');
 		
+		vm.typeByte = vm.contentTypeCbt('b'); //TypevalB
+		
+		vm.typeInt = vm.contentTypeCbt('i'); //TypevalC
+		
 		//a cbt64 of the double bits, without padding.
 		//The -cbt64 ending means its only the bits before the padding,
 		//and the padding (which may or may not be stored),
@@ -14504,6 +15179,12 @@ const Wikibinator203 = (()=>{
 		vm.typeDouble = vm.contentTypeCbt('d'); //TypevalC
 		//vm.typeFloat = vm.contentType('application/x-IEEE754-float-cbt64');
 		vm.typeFloat = vm.contentTypeCbt('f'); //TypevalC
+		
+		//TODO typeBytes but is it Uint8Array, Int8Array, or Uint8ClampedArray?
+		
+		vm.typeBytes = vm.contentTypeBitstring('b*'); //TypevalB
+		
+		vm.typeInts = vm.contentTypeBitstring('i*'); //TypevalB
 
 		//a bitstring of 0 or more doubles. Bitstring means it has padding (a 1 then 0s until next powOf2 size).
 		//vm.typeDoubles = vm.contentTypeBitstring('application/x-IEEE754-doubles'); //TypevalB
@@ -14803,6 +15484,13 @@ const Wikibinator203 = (()=>{
 		vm.xt = function(name, getX, getY){
 			vm.extraTests.push(new vm.Test(name, getX, getY));
 		};
+
+		vm.xtTodo = function(name){
+			if(!name.startsWith('TODO ')){
+				name = 'TODO '+name; //so can count todos in the "count fails" button.
+			}
+			vm.xt(name, ()=>true, ()=>false);
+		};
 		
 		//TODO fix wikibTostringBugTheOldNamesArentGettingClearedAndAppearInNewCodeThatHasntDefinedThemYet then uncomment the next 2 tests.
 		//vm.extraTests.push(()=>vm.test('Trivial test to make sure the extraTest buttons work, always passes', 1, 1));
@@ -14897,7 +15585,7 @@ const Wikibinator203 = (()=>{
 			()=>vm.eval('[the number of unique binary trees at most height 4 is 677]'));
 		
 		//vm.extraTests.push(()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'});
-		vm.xt('this is a TODO about /a/b/sum$ syntax etc', ()=>{throw 'TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.'}, ()=>'ignore');
+		vm.xtTodo('this is a TODO about /a/b/sum$ syntax etc, TODO test syntaxs like /a/b/sum$ and O OO GoO D Dup Blob ops etc, and replace the KE opcode with combos of that as it occurs in 2 of the other extraTests. i changed things ~2023-3-8 and broke that.');
 		
 		/*Opcode: (Du a SomeMap) -> (SomeMap (Du a)) //get dup fn
 		Opcode: (Bl a SomeMap) -> (SomeMap (Bl a)) //get typed blob
@@ -14956,8 +15644,7 @@ const Wikibinator203 = (()=>{
 		vm.xt('(L a$) is D', ()=>vm.eval('(L a$)'), ()=>ops.D);
 		vm.xt('(R a$) is a', ()=>(vm.eval('(R a$)')+''), ()=>'a');
 
-		vm.xt('This comment in GoO js transpile: //FIXME idOf wont work if fn is an S2 cuz fnToJsList got contents of <...> (or {...} but that would have thrown cuz this optimization doesnt do that (yet? 2023-6-14))',
-			()=>true, ()=>false);
+		vm.xtTodo('This comment in GoO js transpile: //FIXME idOf wont work if fn is an S2 cuz fnToJsList got contents of <...> (or {...} but that would have thrown cuz this optimization doesnt do that (yet? 2023-6-14))');
 		
 		/*
 		//FIXME this tree is deeper on one side than the other, which is expected since 2023-3-13 vm.put uses vm.putNoBal (no avl balancing)
@@ -15277,15 +15964,15 @@ const Wikibinator203 = (()=>{
 			Evv('(λ [x y (CC [this is [a comment] with a function Sqr#<* I#(F U) I> in it] <Sqrt <+ <Sqr (P x)> <Sqr (P y)>>>)] 6 8)'), Evv('10'));
 
 
-		vm.xt("Test new kind of Λ before 2023-4-11. TODO write this test.", ()=>true, ()=>false);
+		vm.xtTodo("Test new kind of Λ before 2023-4-11. TODO write this test.");
 
 		vm.xt("TODO test all these suffixs: $/double ^/dupFn %/readOnlyNormlamOrMutlamParam", ()=>true, ()=>false);
 
 		vm.xt("TODO test PushNs and PopNs and the opcodes that will define vars in inner namespace (of Ns (inner outer)) and which opcodes, such as Fo For automatically define their looping vars in a new innermost namespace (for better js optimize)", ()=>true, ()=>false);
 
-		vm.xt("Choose infcur/[] vs rucfni/-= list for lambda and mutlambda 7th param, considering might want to cache the first or last n things in the list at each next param deeper.", ()=>true, ()=>false);
+		vm.xtTodo("Choose infcur/[] vs rucfni/-= list for lambda and mutlambda 7th param, considering might want to cache the first or last n things in the list at each next param deeper.");
 
-		vm.xt("optimization for local vars in js loops, Fo For PushNs etc.", ()=>true, ()=>false);
+		vm.xtTodo("optimization for local vars in js loops, Fo For PushNs etc.");
 
 		vm.xt("TODO search for comment in VM '//FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params'", ()=>true, ()=>false);
 
@@ -15385,13 +16072,13 @@ const Wikibinator203 = (()=>{
 		
 		vm.xt('TODO when evaler (as in .pushEvaler) generates js code (which may be plain js or also use GPU.js), make it appear in debugger console sources tab like it does in AvmLambda, using # sourceURL= or something like that.', ()=>true, ()=>false);
 
-		vm.xt('search comments for //FIXME in case o.LamNs, add more than just (P a) aka a% here. Theres also a^ a$ a/b/c$, D, DGo, etc.', ()=>true, ()=>false);
+		vm.xtTodo('search comments for //FIXME in case o.LamNs, add more than just (P a) aka a% here. Theres also a^ a$ a/b/c$, D, DGo, etc.');
 
-		vm.xt("TODO consider using js Proxy object to avoid the need for lambda.n.stuff and just do lambda.stuff. I want it to do that if it doesnt slow it down much.", ()=>true, ()=>false);
+		vm.xtTodo("TODO consider using js Proxy object to avoid the need for lambda.n.stuff and just do lambda.stuff. I want it to do that if it doesnt slow it down much.");
 
-		vm.xt("TODO search for comment in VM '//FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params'", ()=>true, ()=>false);
+		vm.xtTodo("TODO search for comment in VM '//FIXME add test case for lambda and mutlambda of max and near max and exceeding max number of params'");
 
-		vm.xt("TODO update vm.opInfo descriptions, created by vm.addOp, of all 128 opcodes", ()=>true, ()=>false);
+		vm.xtTodo("TODO update vm.opInfo descriptions, created by vm.addOp, of all 128 opcodes");
 
 		vm.xt("TODO test cases that use a Fork containing a Fo loop and some IfElses etc, for what will be optimized in GPU.js but to start with just interpreted mode. Also mark where double turns to float32, maybe by another vm.mask_ bit with an opcode, or merge it with the Fork opcode as ForkAndDownToFloat32 i dont like that, make it separate.", ()=>true, ()=>false);
 
@@ -15424,6 +16111,159 @@ const Wikibinator203 = (()=>{
 		
 		vm.xt('TODO for security, in vm.Mut, vm.startMut, vm.endMut, transpile code, rootM, etc, make sure not to leave any fields in Mut, rootM={}, etc, that could be overlapped by node.id() such as __proto__ or arr or p or d as in mut.d mut.p ({}).__proto__ etc. Part of this was fixed in vm.newExtraEmptyJsMap().', ()=>true, ()=>false);
 		
+		//vm.xt('Bli 1 get 0x35 as double 53', Evv('(Bli ,(TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) ,1 U)'), Evv('53'));
+		vm.xt('Bli 1slow get 0x35 as double 53', Evv('(Bli ,arr ,1 (Put arr@ (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) (EmptyTreemap GodelLessThan)))'), Evv('53'));
+		
+		vm.xt('Bli 1jit get 0x35 as double 53+100=0x99', Evv('(Jit (Blie ,arr ,1 <+ ,100 (Bli ,arr ,1)>) (Put arr@ (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) (EmptyTreemap GodelLessThan)))'),
+			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) arr@ (TypevalB b* (0xff990fffffffffff00ff12ffffff00ff 0x80000000000000000000000000000000)) Em)'));
+		
+		vm.xt('Bli 1nojitButSameInputAsJit get 0x35 as double 53+100=0x99', Evv('(λ[x y {x% y%}] (Blie ,arr ,1 <+ ,100 (Bli ,arr ,1)>) (Put arr@ (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) (EmptyTreemap GodelLessThan)))'),
+			Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) arr@ (TypevalB b* (0xff990fffffffffff00ff12ffffff00ff 0x80000000000000000000000000000000)) Em)'));
+		
+		//vm.xt('Bli 2 get 0x12 as double 18', Evv('(Bli ,(TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) ,10 U)'), Evv('18'));
+		vm.xt('Bli 2 get 0x12 as double 18', Evv('(Bli ,arr ,10 (Put arr@ (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) (EmptyTreemap GodelLessThan)))'), Evv('18'));
+
+		vm.xt('RawBli 1 get 0x35 as double 53 and get 0x12 as double 18', Evv('[(TheArray55#(RawBli (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000)))) 1) (TheArray55 10)]'), Evv('[53 18]'));
+
+		vm.xt('RawBlie 1. Warning, lazyDedup settings might have these not equal by === but if you use .eq (equals) it will, so check vm.xt which it uses', Evv('(RawBlie (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff00ff (0x8000000000000000 0x0000000000000000))) 15 5)'),
+			Evv('(TypevalB b* (0xff350fffffffffff 0x00ff12ffffff0005 (0x8000000000000000 0x0000000000000000)))'));
+
+		vm.xt('Tylen 1', Evv('(Tylen (TypevalB b* (0xff350fffffffffff 0x00ff12ffffff0005 (0x3344800000000000 0x0000000000000000))))'), Evv('18'));
+		
+		vm.xt('Tylen 2', Evv('(Tylen (TypevalB i* (0xff350fffffffffff 0x00ff12ffffff0005 (0x3344556680000000 0x0000000000000000))))'), Evv('5'));
+
+		vm.xt('bize31 instead of Tylen 2', Evv('(Bize31 (0xff350fffffffffff 0x00ff12ffffff0005 (0x3344800000000000 0x0000000000000000)))'), Evv('(* 8 18)'));
+		
+		vm.xt('bize31 instead of Tylen 2', Evv('(Bize31 (0xff350fffffffffff 0x00ff12ffffff0005 (0x3344556680000000 0x0000000000000000)))'), Evv('(* 32 5)'));
+
+		vm.xt('bize31 of all 0s', Evv('(Bize31 (0x0000000000000000 0x0000000000000000 (0x0000000000000000 0x0000000000000000)))'), Evv(''+vm.BIZE_OF_IS_ALL_ZEROS_CBT));
+
+		vm.xt('bize31 of not a cbt', Evv('(Bize31 (Pair S T))'), Evv(''+vm.BIZE_OF_NOT_A_CBT));
+
+		vm.xt('TODO optimize by using hash buckets, instead of string key, for FuncallCache (like vm.cp already does), search for: dedupKeyOfFuncallCache', ()=>true, ()=>false);
+
+		vm.xt('BlE to set array, and Bl/@ to get it, in Treemap', Evv('(pix@ (BlE ,pix ,(TypevalB b* 0x11223380) (EmptyTreemap GodelLessThan)))'), Evv('(TypevalB b* 0x11223380)'));
+
+		vm.xt('TODO optimize by wrapping array instead of doing callpairs, when must dedup array cuz vm.mustDedupIfAtMostThisManyBytes, instead of doing it by callpairs. can still use the array as the normed form if know its size, but might be tricky if theres also dedups of its childs recursively from other lambda calls.', ()=>true, ()=>false);
+
+		vm.xt('NewBl 1 make byte array of all 0s', Evv('(NewBl b* 32)'), Evv('(TypevalB b* 0x0000000080000000)'));
+		vm.xt('NewBl 2 make byte array of all 0s', Evv('(NewBl b* 24)'), Evv('(TypevalB b* 0x00000080)'));
+		vm.xt('NewBl 3 make empty byte array, FIXME should the padding be 1 bit long or 1 byte long?', Evv('(NewBl b* 0)'), Evv('(TypevalB b* Bit1)'));
+
+		vm.xt('alloc double[3] of all 0s', Evv('(<NewBl ,d* <* ,64 doubleArrayLen$>> (DE ,doubleArrayLen ,3 (EmptyTreemap GodelLessThan)))'),
+			Evv('(TypevalB d* (0x00000000000000000000000000000000 0x00000000000000008000000000000000))'));
+
+		vm.xt('split big cbt literals', ()=>(vm.eval('0x0023450000000000000000000000000000000000000000008000000000000000')+''),
+			()=>(vm.eval('(0x00234500000000000000000000000000 0x00000000000000008000000000000000)')+''));
+
+		vm.xt('dont merge to big cbt literal', ()=>(vm.eval('(0x00234500000000000000000000000000 0x00000000000000008000000000000000)')+''),
+			()=>(vm.eval('(0x00234500000000000000000000000000 0x00000000000000008000000000000000)')+''))
+
+		vm.xtTodo('TODO find and handle the text: Maybe there should be 2 typeval opcodes, one for raw cbt (thats always a powOf2) and one for bitstring? But, they are interchangible in that');
+
+		vm.xt('simple GE', Evv('(GE ,picA ,width ,30 (EmptyTreemap GodelLessThan))'), Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (G picA width) 30 Em)'));
+
+		vm.xt('vm.forceGEValToDouble is true (cuz GE uses it)', ()=>vm.forceGEValToDouble, ()=>true);
+
+		vm.xt('Assuming vm.forceGEValToDouble is true (tested somewhere else), put a [hello world] val using GE and make sure it puts 0 instead',
+			Evv('(GE ,picA ,width ,[hello world] (EmptyTreemap GodelLessThan))'), Evv('(Tm#(Treemap GodelLessThan) Em#(EmptyTreemap GodelLessThan) (G picA width) 0 Em)'));
+		
+		vm.xt('Test get 2 vars and multiply them using G - simple',
+			Evv('(<* (G picA height) (G picA width)> (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))'),
+			Evv('600'));
+
+		vm.xt('picB^height syntax - simple', ()=>(vm.eval('(G picB height)')+''), ()=>'picB^height');
+
+		vm.xt('picB^height syntax - normal', Evv('picB^height'), Evv('(G picB height)'));
+
+		vm.xt('pics/picB^height syntax', Evv('pics/picB^height'), Evv('(GGo (OO pics picB) height)'));
+		
+		//vm.xt('things/pics/picB^height syntax', Evv('things/pics/picB^height'), Evv('(GGo things/pics/picB height)'));
+		vm.xt('things/pics/picB^height syntax', Evv('things/pics/picB^height'), Evv('(GGo (GoO (OO things pics) picB) height)'));
+		
+		vm.xt('simpler get picA^width before - Test get 2 vars and multiply them using G - the ^ syntax but not deep',
+			Evv('(picA^width (Put (OO id5 picB) picA (Put (OO things pics) id5 (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))))'),
+			Evv('30'));
+		
+		vm.xt('simpler get id5/picB before - Test get 2 vars and multiply them using G - the ^ syntax but not deep',
+			Evv('(id5/picB (Put (OO id5 picB) picA (Put (OO things pics) id5 (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))))'),
+			Evv('picA'));
+
+		vm.xt('simpler get id5/picB^width before - Test get 2 vars and multiply them using G - the ^ syntax but not deep',
+			Evv('(id5/picB^width (Put (OO id5 picB) picA (Put (OO things pics) id5 (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))))'),
+			Evv('30'));
+
+		vm.xt('simpler get things/pics/picB^width before - Test get 2 vars and multiply them using G - the ^ syntax but not deep',
+			Evv('(things/pics/picB^width (Put (OO id5 picB) picA (Put (OO things pics) id5 (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))))'),
+			Evv('30'));
+
+		vm.xt('Test get 2 vars and multiply them using G - the ^ syntax but not deep',
+			Evv('(<* picA^height picA^width> (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))'),
+			Evv('600'));
+
+		vm.xt('Test get 2 vars and multiply them using G - the ^ syntax with deep',
+			Evv('(<* things/pics/picB^height things/pics/picB^width> (Put (OO id5 picB) picA (Put (OO things pics) id5 (Tm#(Treemap GodelLessThan) (Tm Em#(EmptyTreemap GodelLessThan) (G picA height) 20 Em) (G picA width) 30 Em))))'),
+			Evv('600'));
+
+		vm.xtTodo('Search for this text: FIXME should it be (GoG GetOb GetField ns) or keep it as (GoG GetOb field ns)?');
+
+		vm.xt('Foch on Lambda of 3 params with 1 curried a', Evv('(Foch (λ[a b c U] valA) [])'), Evv('[a% valA]'));
+
+		vm.xt('Foch on Lambda of 3 params with 2 curried a b', Evv('(Foch (λ[a b c U] valA valB) [])'), Evv('[a% valA b% valB]'));
+
+		vm.xt('Foch on Lambda of 3 params with 2 curried b a', Evv('(Foch (λ[b a c U] valB valA) [])'), Evv('[b% valB a% valA]'));
+
+		vm.xt('LamNs testing before Foch', Evv('(λ[a b c (F U)] valA valB valC)'), Evv('(LamNs (λ [Abc#[a b c I#(F U)] valA valB) valC)'));
+
+		vm.xt('Foch on Lambda/λ of 3 params with 3 curried using LamNs', Evv('(Foch (LamNs (λ [Abc#[a b c I#(F U)] valA valB) valC) [])'), Evv('[a% valA b% valB c% valC]'));
+
+		vm.xt('Foch on Mutlambda/Λ of 3+1ns params with 3 curried', Evv('(Foch (Λ [Abc#[a b c I#(F U)] valA valB valC) [])'), Evv('[a% valA b% valB c% valC]'));
+		
+		vm.xt('Foch on EmptyTreemap', Evv('(Foch (EmptyTreemap GodelLessThan) [])'), Evv('[]'));
+
+		vm.xt('Foch on treemap of 4 things', Evv('(Foch (Tm#(Treemap GodelLessThan) (Tm (Tm Em#(EmptyTreemap GodelLessThan) id5/picB picA Em) picA^height 20 Em) picA^width 30 (Tm Em things/pics id5 Em)) [])'),
+			Evv('[id5/picB picA picA^height 20 picA^width 30 things/pics id5]'));
+
+		vm.xt('Foch on Ns of LamNs and treemap of 4 things -- fixme did i get the Ns 2 params bakcward?', Evv('(Foch (Ns (LamNs (λ [Abc#[a b c I#(F U)] valA valB) valC) (Tm#(Treemap GodelLessThan) (Tm (Tm Em#(EmptyTreemap GodelLessThan) id5/picB picA Em) picA^height 20 Em) picA^width 30 (Tm Em things/pics id5 Em))) [])'),
+			Evv('[a% valA b% valB c% valC id5/picB picA picA^height 20 picA^width 30 things/pics id5]'));
+
+		vm.xtTodo('TODO what if some keys occur multiple times in different ns childs of the Ns op? What if they occur multiple times in λ[a a b a c (F U)] etc?');
+
+		//2023-8-2+ making [keyA valA keyB valB keyC valC...] be a ns.
+		vm.xt('Infcur/[] list as ns - a%', Evv('(a% [a valA b valB c valC])'), Evv('valA'));
+		vm.xt('Infcur/[] list as ns - c%', Evv('(c% [a valA b valB c valC])'), Evv('valC'));
+		vm.xt('Infcur/[] list as ns - [c% a%]', Evv('(<[] c% a%> [a valA b valB c valC])'), Evv('[valC valA]'));
+		vm.xt('Infcur/[] list as ns - d% not found returns U', Evv('(d% [a valA b valB c valC])'), Evv('U'));
+		vm.xt('Infcur/[] list as ns - d% not found by Has', Evv('(Has d% [a valA b valB c valC])'), Evv('F'));
+		vm.xt('Infcur/[] list as ns - b% found by Has', Evv('(Has b% [a valA b valB c valC])'), Evv('T'));
+		vm.xtTodo('TODO test Foch of Infcur/[] as ns');
+		vm.xt('Infcur/[] list as ns - a$ not found', Evv('(a$ [a valA b valB c valC])'), Evv('U'));
+		vm.xt('Infcur/[] list as ns - a@ not found', Evv('(a@ [a valA b valB c valC])'), Evv('U'));
+		vm.xt('Infcur/[] list Put b valB2', Evv('(Put b valB2 [a valA b valB c valC])'), Evv('[a valA b valB2 c valC]'));
+		vm.xt('Infcur/[] list Put aa valAA', Evv('(Put a valAA [a valA b valB c valC])'), Evv('[a valA b valB2 c valC aa valAA]'));
+		vm.xt('Infcur/[] list as ns with duplicate keys gets last', Evv('(a% [a valA b valB a valA3 c valC])'), Evv('valA3'));
+		vm.xtTodo('Infcur/[] list as ns with wrong number of params. [a valA b valB c] what should this do? is it valB maps to c?');
+
+		vm.xtTodo('if(true || vm.isNsThatTakesKeyParam(l)){ //FIXME, doing this without "true ||" broke alot of testcases by infloop "Wikibinator203DragAndDropTree.html:1 Uncaught gasErr" 2023-8-3.');
+
+		//TODO
+		/*
+		(
+		_[
+		(DE ,height ,2)
+		(DE ,width ,3)
+		(BlE ,pix <NewBl ,b* *n[height$ width$ ,4 ,8]>)
+		(Blie ,pix ,0 ,255)
+		(Blie ,pix ,1 ,255)
+		<Canvas ,10 ,10 height$ width$ <R pix@>>
+		]
+		(EmptyTreemap GodelLessThan)
+		)
+
+		TODO should (Canvas ... data) allow typedBlob as data, or only cbt?
+		*/
+
+		
 		//last vm.xt
 		
 
@@ -15435,14 +16275,14 @@ const Wikibinator203 = (()=>{
 			let idPrefix = 'extraTestBtn_'+randIntSize(1e9)+randIntSize(1e9)+'_';
 			let testAllBtn = '<input type=button onclick="for(let i=0; i<vm.extraTests.length; i++) try{ document.getElementById(\''+idPrefix+'\'+i).click(); }catch(e){}" value="Test ALL"></input>&nbsp;&nbsp;&nbsp;';
 			//background-color: red
-			let countFails = '<input type=button onclick="let countFails = 0; let countPasses = 0; for(let i=0; i<vm.extraTests.length; i++){ let btn = document.getElementById(\''+idPrefix+'\'+i); if(btn.style[\'background-color\'] == \'red\') countFails++; if(btn.style[\'background-color\'] == \'green\') countPasses++; } alert(\'countFails=\'+countFails+\' countPasses=\'+countPasses+\' total=\'+(countFails+countPasses)+\' but u have to click Test ALL or click individual tests first. It counts red buttons.\');" value="Count fails (2023-7-6 it was 34/320)"></input>&nbsp;&nbsp;&nbsp;';
+			let countFails = '<input type=button onclick="let countFails = 0; let countTodos = 0; let countPasses = 0; for(let i=0; i<vm.extraTests.length; i++){ let btn = document.getElementById(\''+idPrefix+'\'+i); if(btn.style[\'background-color\'] == \'orange\') countTodos++; else if(btn.style[\'background-color\'] == \'red\') countFails++; else if(btn.style[\'background-color\'] == \'green\') countPasses++; } alert(\'countFails=\'+countFails+\' countTodos=\'+countTodos+\' countPasses=\'+countPasses+\' total=\'+(countFails+countTodos+countPasses)+\' but u have to click Test ALL or click individual tests first. It counts red buttons.\');" value="Count fails (2023-8-3 it was countFails=20 countTodos=38 countPasses=323 total=381)"></input>&nbsp;&nbsp;&nbsp;';
 			html += testAllBtn;
 			html += countFails;
 			html += '<input type=button onclick="if(!vm) throw \'No vm. TODO get it from Wikibinator203.n.vm or U.n.vm?\'; vm.clearCache()" value="Clear cache (warning, may cause dedup problems)"></input> (advanced and newer tests first (buttons below), and farther below are basic tests)<br>';
 			for(let i=0; i<vm.extraTests.length; i++){
 				let x = vm.extraTests[i];
 				let name = vm.extraTests[i].name;
-				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ console.log(\'Testing vm.extraTests['+i+'] = \'+vm.extraTests['+i+']); vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ this.style.backgroundColor=\'red\'; throw e; }" value="vm.extraTests['+i+'].run(); // '+name+'"></input>';
+				html += '<input id="'+idPrefix+i+'" type=button onclick="try{ console.log(\'Testing vm.extraTests['+i+'] = \'+vm.extraTests['+i+']); vm.extraTests['+i+'].run(); this.style.backgroundColor=\'green\'; }catch(e){ if(this.value.includes(\'].run(); // TODO\') || this.value.includes(\'].run(); // FIXME\')){ this.style.backgroundColor=\'orange\'; console.log(\'Button becomes orange for TODO: \'+this.value); }else{ this.style.backgroundColor=\'red\'; throw e; } }" value="vm.extraTests['+i+'].run(); // '+name+'"></input>';
 				html += '<input type=button onclick="console.log(\'vm.extraTests['+i+'] = \'+vm.extraTests['+i+']);" value="get code" title="display code of this on browser console without evaling it"></input>';
 				html += '<br>\n';
 			}
@@ -15488,7 +16328,7 @@ Listweb as left column, incl incoming mutablewrapperlambda calls. Bottom right a
 		return u; //the universal function
 	//} //end with(ops)	//dont do this cuz with(...) makes things very slow.
 })();
-console.log('Script ended. Todo rewrite this confusing text. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right twice a day, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".\r\n\r\n\r\nThere are '+Wikibinator203.n.vm.extraTests.length+' extra tests in Wikibinator203.n.vm.extraTests, which are either slow or failing or cuz they are likely to fail during coding in the VM and you want the universal function to still be returned to see which test cases pass and which dont individually, (todo rewrite this sentence its confusing) which is why I put them there instead of the few basic tests it runs before VM script ends. Maybe the UI should have a button to run those, then find errors on browser console, where its easier to use them cuz u have a UI.');
+console.log('Script ended. Todo rewrite this confusing text. Wikibinator203 = '+Wikibinator203+' which is the universal combinator/lambda you can build anything with. Nobody owns the lambdas made of combos of calling the universal lambda on itself (such as Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203)))='+Wikibinator203(Wikibinator203)(Wikibinator203(Wikibinator203))+' aka opcode 5 (0 to 255) aka Op101 in base2, and see license for details about that. By design, there are an infinite number of possible variants of https://en.wikipedia.org/wiki/Technological_singularity which Wikibinator203 may generate (or it may do other simpler things) but only as, kind of, lazy-evals. It is by design neutral. It does not tend to do that on its own (but even a broken clock is right twice a day, so whatever may already have execute permission on your computer (including unknown hackers, or some generated lambda may, if you view it as a conversation or as text etc, ask you to give it more permissions, so like they say about email, dont run any files received)...) - may not execute anything ever for any reason, as it has "recursively-tightenable-higher-on-stack permissions system" (search comments in this file or earlier versions of it) whose max level is sandbox (though an opensource fork of it could give execute or higher permissions similarly as long as its stateless, thats probably not a good idea). If a "singularity" is to happen, then it should support https://en.wikipedia.org/wiki/Breakpoint and, as motivation to it or to more generally any user(s), this system should (TODO verify) in practice be able to EFFICIENTLY run a debugger of a debugger of a debugger of a debugger (like a Hypervisor/VMWare/etc inside a Hypervisor/VMWare/etc inside... except those kinds of VMs are far to complex to do efficiently in this system, as this is more of a nanokernel or smaller/simpler), just a few levels deep, as compute is the bottleneck there, but in abstract math can do that to any finite depth, even in the middle of a "optimization to throw sound processing code faster than the speed of sound from one computer to a nearby computer which formal-verifies, compiles, and runs that code in time to hear the sound arrive and think about and respond.".\r\n\r\n\r\nThere are '+Wikibinator203.n.vm.extraTests.length+' extra tests in Wikibinator203.n.vm.extraTests, which are either slow or failing or cuz they are likely to fail during coding in the VM and you want the universal function to still be returned to see which test cases pass and which dont individually, (todo rewrite this sentence its confusing) which is why I put them there instead of the few basic tests it runs before VM script ends. Maybe the UI should have a button to run those, then find errors on browser console, where its easier to use them cuz u have a UI.\r\n\r\n\r\nLicense: Wikibinator203 license: The whole turing-complete and hypercomputing space derived from this universal combinator/lambda or forks of it and other software (prototype by Ben F Rayfield Y2023), including every lambda of this kind called on a lambda to find/create a lambda or which never halts (which the author of is defined as the universal combinator since these are tiny shared math objects), is offered to everyone under opensource GNU AGPL 3 license, plus these extra permissions: * Classpath/linking exception. Hook it to whatever you want, but within the space (no proprietary lambdas) is AGPL. * License is instantly unterminated when you start obeying it. * Free speech absolutism in the evilbit=true namespace in which all possible lambdas are allowed, even viruses etc. (then quotes the GNU AGPL 3 license and quotes classpath exception). Opcode 0 is anything thats not halted. Opcode 1 is the universal combinator. Opcodes 1 to 127 are just currying the first 7 params each being the universal combinator vs anything except universal combinator (1 of the 7 bits in o8 opcode byte, padded with a high 1 bit). Opcodes 128 to 255 are the main opcodes. The 256 opcodes in order are: '+Wikibinator203.n.vm.opInfo.map(oi=>oi.name).join(' ')+'. Theres '+Wikibinator203.n.vm.countReservedOps()+' reserved opcodes for future expansion. You can put them in params of vm.ops.Plug instead and use with vm.mask_allowOther which is an incomplete system and might need more security so you can choose which params of Plug are allowed and which are not similar to you can tighten permissions higher on stack.');
 
 
 

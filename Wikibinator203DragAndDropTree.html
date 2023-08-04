@@ -374,7 +374,7 @@ Hypot#(
 [the hypotenuse of [a right triangle of sides 6 and 8] is (Hypot 6 8) and [that func is Hypot] and [as a 1 param func is (Hypot 6)]]
 {[hello world] {abc def ghi jkl}}
 (U Pair L U U S U)
-(Pair L R)
+[(Pair L R) this is a (Canvas 100 100 2 2 (0xff00ffffffffffff 0x00ffffffffff00ff (0x8000000000000000 0x0000000000000000))) canvas]
 (T (Pair (T L) R))
 2.34
 Em#(EmptyTreemap GodelLessThan)
@@ -1081,7 +1081,8 @@ var sytyToPushChar = (syty,optionalFn)=>{
 	if(optionalFn){
 		//(DGo (GoO (OO a b) sum)) appears as a/b/sum$
 		//if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullDu(optionalFn) || vm.isFullDuGo(optionalFn) || vm.isFullOOOrGoO(optionalFn))){
-		if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullOOOrGoO(optionalFn) || vm.isFullPOrPGo(optionalFn) || vm.isFullBlOrBlGo(optionalFn))){
+		if(options.foldOO && (vm.isFullD(optionalFn) || vm.isFullDGo(optionalFn) || vm.isFullOOOrGoO(optionalFn) ||
+				vm.isFullPOrPGo(optionalFn) || vm.isFullBlOrBlGo(optionalFn) || vm.isFullGOrGGo(optionalFn))){
 			return ''; //(D x) appears as x$. Drop the (, and pop char will be $ if D. ^ if Du. "" if OO or GoO.
 		}
 	}
@@ -1118,7 +1119,10 @@ var weakHtmlEscape = str=>str.replace(/&/g, "&amp;").replace(/</g, "&lt;").repla
 //This puts "/" between a/b and sum in /a/b/sum. Its "" for most stuff.
 var sytyToMidChar = (syty,optionalFn)=>{
 	if(!optionalFn) return '';
-	if(options.foldOO && vm.isFullOOOrGoO(optionalFn)) return '/';
+	if(options.foldOO){
+		if(vm.isFullOOOrGoO(optionalFn)) return '/';
+		if(vm.isFullGOrGGo(optionalFn)) return '^';
+	}
 	return '';
 };
 
@@ -1133,6 +1137,7 @@ var sytyToPopChar = (syty,optionalFn)=>{
 			//if(vm.isFullGetcbtOrGetcbtgo(optionalFn)) return '@';
 			if(vm.isFullBlOrBlGo(optionalFn)) return '@';
 			if(vm.isFullOOOrGoO(optionalFn)) return ''; //dont display ")" as usual cuz is joined by "/" in midfix (of prefix midfix suffix).
+			if(vm.isFullGOrGGo(optionalFn)) return ''; //dont display ")" as usual cuz is joined by "^" in midfix (of prefix midfix suffix).
 		}
 	}
 	return (sytyToPopChar_[syty]!==undefined ? sytyToPopChar_[syty] : 'FIXME_WHAT_POP_CHAR_FOR_SYTY='+syty);
@@ -1183,6 +1188,121 @@ var whatColorShouldDragLineBe = ()=>{
 	//	Dob('popu
 	//}
 	//whatColorShouldDragLineBe
+};
+
+//store 128 bits of locid of this.splate().fn to check if it changed, and if it didnt, and it was an ops.Canvas with 5 params, then doesnt have to update canvas.
+Splat.prototype.rememberLocid = function(optionalFn){
+	let fn = optionalFn || this.splate().fn;
+	this.lastLocid = [fn.n.idA, fn.n.idB, fn.n.blobFrom, fn.n.blobTo];
+};
+
+//returns true if is same fn by locid as the last call of rememberLocid.
+Splat.prototype.compareLocidTo = function(optionalFn){
+	let fn = optionalFn || this.splate().fn;
+	//TODO use bigint such as 324513452345213q4523453452345n for these 128 bits, or string, instead of list of 4 numbers?
+	return this.lastLocid && this.lastLocid[0]==fn.n.idA && this.lastLocid[1]==fn.n.idB && this.lastLocid[2]==fn.n.blobFrom && this.lastLocid[3]==fn.n.blobTo;
+};
+
+Splat.prototype.canvasDelete = function(){
+	//FIXME dont cacheCanvBytes. just check if this.splate().fn changed, or maybe just its 128 bit id to prevent garbcol problems.
+	if(this.dobs.canv){
+		this.dobs.canv.remove();
+		this.dobs.canv = null;
+	}
+	//TODO rememberLocid()?
+	/*if(this.cacheCanvBytes){ //used to check for duplicates, since this array contents should not change
+		this.cacheCanvBytes = null;
+		this.cacheCanvSizes = null;
+	}*/
+};
+
+/*
+//Example for manual testing after right drag then set selSplat:
+//selSplat.canvasDisplay(10,10,2,3,Uint8Array.of(255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255));
+//Nob('canvas',selSplat.dobs.literal);
+//FIXME Nob to create canvas does appear on page but keeps being overwritten when move mouse.
+Splat.prototype.canvasDisplay = function(magnifyHeight, magnifyWidth, dataHeight, dataWidth, bytes){
+	//FIXME use this.cacheCanvasBytes and make this work with canvasDelete and stop it from creating new canvas each time it displays if sizes didnt change andOr just paint again if only bytes changed.
+	if(!this.cacheCanvSizes || this.cacheCanvSizes[0]!=magnifyHeight || this.cacheCanvSizes[1]!=magnifyWidth ||
+			this.cacheCanvSizes[2]!=dataHeight || this.cacheCanvSizes[3]!=dataWidth){
+		//this.canvasDelete();
+		let c = Nob('canvas',this.dobs.literal);
+		attr(c,'height',dataHeight);
+		attr(c,'width',dataWidth);
+		c.style.transform = 'scale('+magnifyWidth+','+magnifyHeight+')';
+		this.cacheCanvSizes = [magnifyHeight, magnifyWidth, dataHeight, dataWidth];
+		this.dobs.canv = c;
+	}
+	if(bytes !== this.cacheCanvBytes){
+		this.cacheCanvBytes = bytes;
+		//FIXME put bytes in
+	}
+};*/
+Splat.prototype.canvasDisplayWithoutCheckingForDuplicateBytes = function(magnifyHeight, magnifyWidth, dataHeight, dataWidth, bytes){
+	console.log('canvasDisplayWithoutCheckingForDuplicateBytes (FIXME this happens too often cuz canvas replaced when move mouse 2023-7-15)');
+	//this.canvasDelete();
+	let c = Nob('canvas',this.dobs.literal);
+	attr(c,'height',dataHeight);
+	attr(c,'width',dataWidth);
+	//TODO? c.style.transform = 'scale('+magnifyWidth+','+magnifyHeight+')';
+	this.cacheCanvSizes = [magnifyHeight, magnifyWidth, dataHeight, dataWidth];
+	this.dobs.canv = c;
+	
+	/*Trying this css that chatgpt said 2023-7-15...
+	<div style="width: 160px; height: 100px; position: relative;">
+		<canvas style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: top left; transform: scale(0.5, 1);"></canvas>
+	</div>
+	*/
+	let h = magnifyHeight*dataHeight;
+	let w = magnifyWidth*dataWidth;
+	this.dobs.literal.style.position = 'relative';
+	this.dobs.literal.style.height = h+'px';
+	this.dobs.literal.style.width = w+'px';
+	this.dobs.canv.style.position = 'absolute';
+	this.dobs.canv.style.top = 0;
+	this.dobs.canv.style.left = 0;
+	this.dobs.canv.style.height = '100%';
+	this.dobs.canv.style.width = '100%';
+	this.dobs.canv.style['transform-origin'] = 'top left';
+	//this.dobs.canv.style.transform = 'scale(0.5, 1)';
+
+	copyBytesIntoCanvas(bytes, c);
+};
+
+var copyBytesIntoCanvas = function(bytes, canvas){
+	let context = canvas.getContext("2d"); //FIXME reuse context for speed? Take it as param?
+	let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+	var pixels = imageData.data;
+	for(let i=0; i<pixels.length; i++){
+		pixels[i] = bytes[i];
+	}
+	context.putImageData(imageData, 0, 0);
+};
+
+//(Canvas 20 20 1 2 0xfff888888888fffffffffffffffffff8)
+//(Canvas 50 80 2 2 (0xfff888888888ffffffff4444aafffff8 0x80000000000000000000000000000000))
+//[[this is a canvas (Canvas 50 50 2 2 (0xfff888888888ffffffff4444aafffff8 0x80000000000000000000000000000000))] blah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah]
+//[[this is a canvas (Canvas 30 30 2 3 (0xfff888888888ffffffff4444aafffff8 0x8abcabc0000000008000000000000000))] blah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah blahblah blah]
+Splat.prototype.canvasDisplayFn = function(fn){
+	this.createDobsIfNotExist();
+	//if(vm.isFullCanvas(fn)){
+	if(vm.isValidCanvas(fn)){
+		//FIXME limits on display size magnifyHeight*dataHeight etc. fn can be anything, but screen size is limited, and it can get very slow if magnify too big.
+		let magnifyHeight = fn.n.llr(4).n.d();
+		let magnifyWidth = fn.n.llr(3).n.d();
+		let dataHeight = fn.n.llr(2).n.d();
+		let dataWidth = fn.n.llr(1).n.d();
+		let bytesCbt = fn.n.R();
+		let bytes = bytesCbt.n.bytes();
+		let useFirstNBytes = dataHeight*dataWidth*4;
+		if(bytes.length < useFirstNBytes){
+			throw bytes.length+'== bytes.length < useFirstNBytes == '+useFirstNBytes+', FIXME this should just not display as canvas, since its a valid fn but need more param checking. make an isValidCanvas func.';
+		}
+		//FIXME check for duplicates using compareLocidTo
+		this.canvasDisplayWithoutCheckingForDuplicateBytes(magnifyHeight, magnifyWidth, dataHeight, dataWidth, bytes);
+	}else{
+		this.canvasDelete();
+	}
 };
 
 Splat.prototype.createDobsIfNotExist = function(){
@@ -1922,7 +2042,6 @@ Splate.prototype.eq = function(splate){
 	return this.bigHash()==splate.bigHash();
 };
 
-
 //forkEdit. You probably should change syty and maybe some other things too if you change fn.
 Splate.prototype.setFn = function(fn){
 	//Many (but not all) fn that are equal match this way, and none that are not equal match this way. See some equals
@@ -2446,10 +2565,19 @@ Split.prototype.estimateWidthIfOneLine = function(){
 			est += this.rightSplit.estimateWidthIfOneLine();
 		}
 		if(splate.isLiteral){
-			let literalString = toLiteralString(splate.fn);
-			est += literalString.length*options.estimatedFontWidth;
-			//let badEstimateOfLiteralWidth = 80;
-			//est += badEstimateOfLiteralWidth;
+			if(splate.isCanvasLiteral()){
+				//let magnifyHeight = splate.fn.n.llr(4).n.d();
+				let magnifyWidth = splate.fn.n.llr(3).n.d();
+				//let dataHeight = splate.fn.n.llr(2).n.d();
+				let dataWidth = splate.fn.n.llr(1).n.d();
+				let estimatedDisplayWidth = magnifyWidth*dataWidth;
+				est += estimatedDisplayWidth;
+			}else{
+				let literalString = toLiteralString(splate.fn);
+				est += literalString.length*options.estimatedFontWidth;
+				//let badEstimateOfLiteralWidth = 80;
+				//est += badEstimateOfLiteralWidth;
+			}
 		}
 		if(splate.isDisplayName){
 			let nameSizeInChars = this.splate.name().length; //FIXME should this lazyeval of name be triggered?
@@ -2716,6 +2844,10 @@ Splat.prototype.isOneLine = function(){
 
 Splat.prototype.isLiteral = function(){
 	return this.split.splate.isLiteral;
+};
+
+Splat.prototype.isCanvasLiteral = function(){
+	return this.split.splate.isCanvasLiteral();
 };
 
 Splat.prototype.isDisplayName = function(){
@@ -3015,6 +3147,13 @@ Splate.prototype.isAttractDropMid = function(){
 Splate.prototype.isAttractDropRight = function(){
 	return !this.isLiteral;
 	//FIXME also check for foldL?
+};
+
+
+//2023-7-15, adding a new kind of literal, ops.Canvas with 5 params, that displays as a html canvas tag.
+//Before, there was only literals that could be displayed as text, such as 2.34 the number or abc the string or 0x1234ffffddddeeee the cbt.
+Splate.prototype.isCanvasLiteral = function(){
+	return this.isLiteral && vm.isValidCanvas(this.fn);
 };
 
 //a Splat and a choice of which of 4 corners on it, or maybe n places along its edges for n possible actions,
@@ -3329,9 +3468,13 @@ Splat.prototype.setSplit = function(split){
 		
 		
 		if(splate.isLiteral){
-			let literal = toLiteralString(splate.fn); //FIXME with max size in chars
-			this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
-			//isShowDropDobs = false;
+			if(splate.isCanvasLiteral()){
+				this.canvasDisplayFn(splate.fn); //adds or reuses a canvas in this.dobs.literal
+			}else{
+				let literal = toLiteralString(splate.fn); //FIXME with max size in chars
+				this.dobs.literal.innerHTML = options.literalPrefix+literal+options.literalSuffix;
+				//isShowDropDobs = false;
+			}
 			
 			//adding this 2022-11-20-1232pEST
 			this.dobs.left.innerHTML = '';
@@ -3846,7 +3989,7 @@ var fnToView = fn=>aViewer.view(fn);
 var fnToSyty = fn=>fnToView(fn).syty();
 
 
-var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8());
+var fnIsLiteral = fn=>(fn.n.isCbt() || fn.n.isDouble() || fn.n.isTypeUtf8() || vm.isValidCanvas(fn));
 
 
 //experimental cuz theres lots of isOpen, which could use alot of screen space with duplicate views of same fn, as fn is a forest.
@@ -3913,6 +4056,10 @@ var newSplitForFn_experimental = function(fn, optionalCallerSyty, optionalCaller
 		//pop char is ^ cuz Du or DuGo
 		//FIXMEFIXME display $ at end
 	*/
+	}else if(options.foldOO && vm.isFullGOrGGo(fn)){ //fn is (G picA width) or (GGo things/pics/picA width), display as picA^width or things/pics/picA^width, for example.
+		isFoldL = false; //false cuz in ((G picA) width) want to display the picA and width, and isFoldLL will avoid displaying the G
+		isFoldLL = true;
+		isDisplayPushAndPopChars = true;
 	}else if(options.foldOO && vm.isFullPOrPGo(fn)){ //fn is (P x), display as x% or (PGo (GoO (OO x y) z)) display as x/y/z% etc.
 		isFoldL = true;
 		isDisplayPushAndPopChars = true;
