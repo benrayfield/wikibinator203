@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8" /> 
+<script>
+
+//Canvas and ByteRect code are opensource MIT licensed
+//(parts from benrayfield's various other projects including https://jsfiddle.net/q687fcrk/1/ and
+//https://github.com/benrayfield/smartblob/blob/master/data/smartblob/WebcamSeesBendableLoopAsGameControllerAjaxToServer.html )
+
+//byte offsets for ByteRect, canvas, etc, in js.
+const RED = 0, GREEN = 1, BLUE = 2, ALPHA = 3;
+var colorDimRed = RED;
+var colorDimGreen = GREEN;
+var colorDimBlue = BLUE;
+var colorDimAlpha = ALPHA;
+
+var FullScreenCanvas = function(parentDom){
+	if(parentDom === undefined) parentDom = document.body;
+	this.dom = document.createElement('canvas');
+	//TODO z order, in front of everything else.
+	//this.dom = document.getElementById('canv'); //FIXME remove this line, use createElement instead.
+	this.context = null;
+	this.imageData = null;
+	this.pixels = null;
+	this.byteRect = null;
+	parentDom.appendChild(this.dom);
+	this.dom.style.position = 'absolute';
+	this.dom.style.left = '0px';
+	this.dom.style.top = '0px';
+	
+	this.resizeCanvas = function(){
+		if(this.dom.width != window.innerWidth) this.dom.width = window.innerWidth;
+		if(this.dom.height != window.innerHeight) this.dom.height = window.innerHeight;
+	}
+	
+	//TODO optimize, if you're not reading from the canvas, maybe can skip parts of this or only call this once?
+	this.beforePaint = function(){
+		if(this.dom == null) throw 'No canvas';
+		this.context = this.dom.getContext('2d');
+		//console.log('this.dom.width = '+this.dom.width);
+		this.imageData = this.context.getImageData(0, 0, this.dom.width, this.dom.height);
+		this.pixels = this.imageData.data;
+		this.byteRect = new ByteRect(this.pixels, this.dom.height, this.dom.width);
+	};
+	
+	//call this after modify byteRect.bytes which contains pixel colors to write to Canvas.
+	this.afterPaint = function(){
+		if(this.dom == null) throw 'No canvas';
+		//this.context.drawImage(this.dom, 0, 0, this.dom.width, this.dom.height);
+		this.context.putImageData(this.imageData, 0, 0);
+	};
+	
+	this.removeFromScreen = function(){
+		this.dom.remove();
+		this.dom = null;
+		this.context = null;
+		this.imageData = null;
+		this.pixels = null;
+		this.byteRect = null;
+	};
+	
+	this.resizeCanvas();
+	this.beforePaint();
+};
+
+//readable and writable pixels as Uint8Array. A canvas is a kind of Uint8Array.
+//Single pixel read and write funcs are slow unless you just do a few places.
+//TODO Write horizontal lines of same color or 2 colors on end interpolating between,
+//and these lines can be derived from triangle which has different color at each corner.
+var ByteRect = function(bytes, height, width){
+	this.bytes = bytes;
+	this.height = height;
+	this.width = width;
+};
+
+//TODO choose [y x] vs [x y z scale] order. Swap y and x in ByteRect params order? aftrans is [x y z scale].
+
+ByteRect.prototype.index = function(y, x, colorDim){
+	return (y*this.width+x)*4+colorDim;
+};
+
+ByteRect.prototype.read = function(y, x, colorDim){
+	return this.bytes[(y*this.width+x)*4+colorDim];
+};
+
+ByteRect.prototype.readSafe = function(y, x, colorDim){
+	return this.bytes[between(0,(y*this.width+x)*4+colorDim,this.bytes.length-1)];
+};
+
+
+ByteRect.prototype.write = function(y, x, colorDim, bright){
+	this.bytes[(y*this.width+x)*4+colorDim] = bright;
+};
+
+ByteRect.prototype.writeSafe = function(y, x, colorDim, bright){
+	this.bytes[between(0,(y*this.width+x)*4+colorDim,this.bytes.length-1)] = bright;
+};
+
+ByteRect.prototype.writeSafeRGBA = function(y, x, redByte, greenByte, blueByte, optionalAlphaByte){
+	if(optionalAlphaByte === undefined) optionalAlphaByte = 255; //visible
+	let index = between(0,(y*this.width+x)*4,this.bytes.length-4);
+	this.bytes[index+RED] = redByte;
+	this.bytes[index+GREEN] = greenByte;
+	this.bytes[index+BLUE] = blueByte;
+	this.bytes[index+ALPHA] = optionalAlphaByte;
+};
+
+ByteRect.prototype.atYXWriteRGB = function(y, x, redByte, greenByte, blueByte){
+	if(x < 0 || this.width <= x || y < 0 || this.height <= y) return;
+	let ind = (y*this.width+x)*4;
+	this.bytes[ind+RED] = redByte;
+	this.bytes[ind+GREEN] = greenByte;
+	this.bytes[ind+BLUE] = blueByte;
+};
+
+ByteRect.prototype.writeHoriz = function(y, fromX, toXExclusive, colorDim, fromBright, toBright){
+	var indexStart = this.index(y, fromX, colorDim);
+	var pixelSiz = toXExclusive-fromX;
+	var siz = pixelSiz*4;
+	var bright = fromBright;
+	var brightAdd = (toBright-fromBright)/pixelSiz;
+	for(var i=0; i<siz; i+=4){
+		bright += brightAdd;
+		this.bytes[indexStart+i] = Math.floor(bright) & 0xff;
+	}
+};
+
+ByteRect.prototype.flipHorizontal = function(){
+	let bytes = this.bytes;
+	for(let y=0; y<this.height; y++){
+		let xMid = Math.floor(this.width/2);
+		let offsetA = y*this.width*4; //first byte index of first pixel in row
+		let offsetB = ((y+1)*this.width-1)*4; //first byte of last pixel in row
+		for(let x=0; x<xMid; x++){
+			for(let colorDim=0; colorDim<4; colorDim++){ //swap 2 pixels as 4 bytes each
+				let temp = bytes[offsetA+colorDim];
+				bytes[offsetA+colorDim] = bytes[offsetB+colorDim];
+				bytes[offsetB+colorDim] = temp;
+			}
+			offsetA += 4;
+			offsetB -= 4;
+		}
+	}
+};
+
+ByteRect.prototype.verifySameSizeAs = function(byteRect){
+	if(!byteRect) throw 'Param ByteRect = '+byteRect;
+	if(this.height != byteRect.height) throw this.height+' == this.height != byteRect.height == '+byteRect.height;
+	if(this.width != byteRect.width) throw this.width+' == this.width != byteRect.width == '+byteRect.width;
+};
+
+ByteRect.prototype.paintLineYXYXRGB = function(fromY, fromX, toY, toX, redByte, greenByte, blueByte){
+	let diffY = toY-fromY;
+	let diffX = toX-fromX;
+	let len = Math.hypot(diffY, diffX);
+	let numPoints = Math.ceil(len*1.5);
+	for(let i=0; i<numPoints; i++){
+		//TODO optimize
+		let y = Math.round(fromY+diffY*i/numPoints);
+		let x = Math.round(fromX+diffX*i/numPoints);
+		this.atYXWriteRGB(y, x, redByte, greenByte, blueByte);
+	}
+};
+
+var canv = null;
+
+var endingCanv = false;
+
+/** utc time in seconds */
+var time = function(){
+	return Date.now()*.001;
+};
+
+var timeStarted = 0;
+
+/** get bellcurve height on a chosen bellcurve thats stretched and moved */
+var bell = function(ave, dev, maxHeight, observe){
+	let diff = (observe-ave)/dev;
+	return Math.exp(-diff*diff);
+};
+
+var sigmoid = function(x){
+	return .5+.5*Math.tanh(x);
+};
+
+//0 to 255
+var backgroundRed = 0;
+var backgroundGreen = 0;
+var backgroundBlue = 0;
+
+
+//age in seconds since transition started. Just paints onto ByteRect
+var doGraphicsDtAgeByterect = function(dt, age, byteRect){
+
+	let bytes = byteRect.bytes;
+	let offset = Math.floor(Math.sin(time()*5*2*Math.PI)*100+100);
+	let w = byteRect.width;
+	let h = byteRect.height;
+	let cx = Math.floor(w/2); //center x
+	let cy = Math.floor(h/2); //center y
+	for(let i=0; i<bytes.length; i+=4){
+		bytes[i+RED] = backgroundRed;
+		bytes[i+GREEN] = backgroundGreen;
+		bytes[i+BLUE] = backgroundBlue;
+		bytes[i+ALPHA] = 255;
+	}
+	let i = 0;
+	for(let y=0; y<h; y++){
+		for(let x=0; x<w; x++){
+			bytes[i+RED] = (x+age*35)&255;
+			bytes[i+GREEN] = (x+y*age)&255;
+			bytes[i+BLUE] = (333*x/y)&255;
+			i += 4;
+		}
+		i += w*4; //row of pixels
+	}
+
+};
+
+var lastTimeOf_doGraphicsDtAgeByterectAndMore = 0;
+
+var doGraphicsDtAgeByterectAndMore = function(){
+	if(canv == null){
+		canv = new FullScreenCanvas();
+	}
+	let now = time();
+	let age = now-timeStarted; //how many seconds ago did this page transition start?
+	let dt = Math.max(0, Math.min(now-lastTimeOf_doGraphicsDtAgeByterectAndMore, .2));
+	lastTimeOf_doGraphicsDtAgeByterectAndMore = now;
+	canv.beforePaint();
+	doGraphicsDtAgeByterect(dt, age, canv.byteRect);
+	canv.afterPaint();
+	setTimeout(doGraphicsDtAgeByterectAndMore, 1);
+};
+
+
+window.onload = ()=>{
+	timeStarted = time();
+	doGraphicsDtAgeByterectAndMore();
+};
+
+</script>
+</head><body>
+You wont see this text if canvas is full screen.
+</body></html>
