@@ -1,0 +1,86 @@
+<	_[
+
+		(Put comment
+			[ the outer lambda returns a Treemap when called on U aka is a lazyeval of a Treemap.
+				todo choose a better comparator than GodelLessThan at the end and the plan is
+				to use a comparator thats first by an idMaker and breaks ties by GodelLessThan.
+				im trying to rewrite augmentedballs as lambdas and make it work with webcam/canvas.
+				todo what should the outer object be? a treemap?
+				thats what calling a _[stuff] on EmptyTreemap does.
+			]
+		)
+
+		(Put simpleGraphicsExample
+			(λ
+				[age height width
+					(CC
+						[the V copies params into Treemap that fo/IfElse/etc uses "V_[...]" does "(V (_ [...]))"]
+						V_[ F[the NewVarsIf opcode does it just 1 level deep unlike NewPtrs[a b c] makes .a.b.c useable]
+							NewVarsIf[numBytes pix red green blue i]
+							(F "//*[vararg... eval each] or (* 2 3) with 2 params or of course <* ,2 ,3>.")
+							(DE ,numBytes *n[height$ width$ ,4])
+							(BarrayE ,pix <NewBytes numBytes$>)
+							(DE ,red ,0)
+							(DE ,green ,0)
+							(DE ,blue ,0)
+							(DE ,blue ,0)
+							(DE i ,0)
+							(Fo y height$
+								(Fo x width%
+									_[	(Dput ,pix +n[i$ red$] <& ,255 +n[x$ *n[age$ ,35]]>)
+										(Dput ,pix +n[i$ green$] <& ,255 +n[x$ *n[y$ age$]]>)
+										(Dput ,pix +n[i$ blue$] <& ,255 *n[,333 <Div x$ y$>]>)
+										F[next pixel .. this is how you write a comment in a loop ifelse etc. (F anything map) returns map]
+										(DPlusEq ,i ,4)
+									]
+								)
+							)
+							F[gets pix then calls it on the Treemap state]
+							pix@
+						]
+					)
+				]
+			)
+		)
+
+		(Put normPixelsAllToSameBrightness 
+			(λ
+				[targetSum U
+					(CC
+						[expects [pix h w] params in state param]
+						V_[ NewVarsIf[len retb sum mul]
+							F[its /h instead of /h$ and is /w instead of /w$ cuz those came in as λ params]
+							(Dput /len *n[/h /w ,4])
+							(F "(DarrayPut .retb <NewDoubles /len$>)")
+							F[should this specify uint8Array vs uint8ClampedArray? or do that in "=b" vs "=B"?]
+							(BarrayPut ,retb <NewBytes /len$>)
+							Foor[,i ,0 /len ,4
+								(F "//fixme, /[] and =[] arent for arrays (such as made by NewDoubles or newBytes).")
+								(F "//	theyre for state (Treemap or vm.Mut optimization of it, also merging λ params with treemap?)")
+								(F "//	use D[getKey getVal] or D[getOb getKey getVal] etc for that. D for doubles. B for bytes.")
+								(F "//=[,sum +[D[,pix +[/i /red]) D[,pix +[/i /green]] D[,pix +[/i /blue]]]]")
+								(F U)
+								(Dput /sum +n[ (B /pix +n[/i$ /red$]) (B /pix +n[/i$ /green$]) (B /pix +n[/i$ /blue$]) ])
+								(Dput /mul Div[/targetSum$ /sum$])
+								F[fixme truncate into byte? wrap into byte? js has uint8Array and uint8ClampedArray]
+								(Fo colorDim ,4
+									Bput[
+										,retb
+										<+ i$ colorDim$>
+										(DE ,pix *n[mul$ +n[i$ colorDim$]])
+									]
+								)
+							]
+							F[return retb from the Treemap]
+							/retb
+							F[the retb means ]
+
+						]
+					)
+				)
+			]
+		)
+
+	]
+	,(EmptyTreemap GodelLessThan)
+>

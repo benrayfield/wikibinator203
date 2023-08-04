@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>GLSL Tool</title>
+  </head>
+  <body>
+	Move mouse over canvas to change mouse.x and mouse.y in GLSL code in textarea<br>
+    <textarea id="vertexCode" rows=8></textarea>
+    <textarea id="glslCode" rows=8></textarea>
+    <textarea id="errorTextarea" rows=8 disabled></textarea>
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <script>
+      const canvas = document.getElementById("canvas");
+      const gl = canvas.getContext("webgl");
+      const vertexCode = document.getElementById("vertexCode");
+      const glslCode = document.getElementById("glslCode");
+      const errorTextarea = document.getElementById("errorTextarea");
+      let program;
+
+      const positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      // mouse tracking
+      let mouseX = 0;
+      let mouseY = 0;
+      canvas.addEventListener("mousemove", (event) => {
+        mouseX = event.offsetX;
+        mouseY = event.offsetY;
+      });
+
+      // createProgram function
+      function createProgram(vertexShaderSource, fragmentShaderSource) {
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, vertexShaderSource);
+        gl.compileShader(vertexShader);
+        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(vertexShader));
+        }
+
+        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragmentShader, fragmentShaderSource);
+        gl.compileShader(fragmentShader);
+        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(fragmentShader));
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(program));
+        }
+
+        return program;
+      }
+
+      // start with mandelbrot
+      vertexCode.value = `attribute vec4 position;
+      varying vec2 coord;
+
+      void main() {
+        coord = position.xy * 0.5 + 0.5;
+        gl_Position = position;
+      }`;
+
+      /*glslCode.value = `precision highp float;
+      uniform vec2 mouse;
+      varying vec2 coord;
+
+      void main() {
+        vec2 c = vec2(coord.x, coord.y);
+        vec2 z = vec2(0.0, 0.0);
+        float i;
+        for (i = 0.0; i < 1000.0; i++) {
+          vec2 v = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+          if (length(v) > 2.0) break;
+          z = v;
+        }
+        gl_FragColor = vec4(i / 1000.0, 0.0, 0.0, 1.0);
+      }`;*/
+	  
+	  /*glslCode.value = `precision highp float;
+      uniform vec2 mouse;
+      varying vec2 coord;
+
+      void main() {
+        vec2 c = vec2(coord.x, coord.y);
+        vec2 z = vec2(0.0, 0.0);
+        float i = 122.0*coord.x;
+        for(int j = 0; j < 1000; j++){
+          vec2 v = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+          if (length(v) > 2.0) break;
+          z = v;
+        }
+        gl_FragColor = vec4(i / 100.0, 0.0, 0.0, 1.0);
+      }`;*/
+	  
+	  /*glslCode.value = `precision highp float;
+      uniform vec2 mouse;
+      varying vec2 coord;
+
+      void main() {
+        vec2 c = vec2(coord.x, coord.y);
+        vec2 z = vec2(0.0, 0.0);
+        float i = -mouse.x*.71+122.0*coord.x+mouse.y;
+        for(int j = 0; j < 1000; j++){
+          vec2 v = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+          if (length(v) > 2.0) break;
+          z = v;
+        }
+        gl_FragColor = vec4(i / 100.0, 0.0, 0.0+mouse.y*mouse.y*.00001, 1.0);
+      }`;*/
+	  
+	  glslCode.value = `precision highp float;
+      uniform vec2 mouse;
+      varying vec2 coord;
+
+      void main() {
+        vec2 c = vec2(coord.x, coord.y);
+        vec2 z = vec2(0.0, 0.0);
+        float i = -mouse.x*.71+1.0*coord.x+.1*mouse.y;
+        for(int j = 0; j < 1000; j++){
+          vec2 v = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+          if (length(v) > 2.0) break;
+          z = v;
+        }
+        gl_FragColor = vec4(z.x / 4.0, mouse.x*.001, 0.0+mouse.y*mouse.y*.000001, 1.0);
+      }`;
+
+      // start with mandelbrot
+      try {
+        program = createProgram(vertexCode.value, glslCode.value);
+        errorTextarea.value = "OK";
+      } catch (error) {
+        errorTextarea.value = error.message;
+      }
+
+      // compile and link shader on textarea change
+      vertexCode.addEventListener("input", updateShader);
+      glslCode.addEventListener("input", updateShader);
+
+      function updateShader() {
+        try {
+          const newProgram = createProgram(vertexCode.value, glslCode.value);
+          program = newProgram;
+          errorTextarea.value = "OK";
+        } catch (error) {
+          errorTextarea.value = error.message;
+        }
+      }
+
+      // render loop
+      function render() {
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        if (program) {
+          gl.useProgram(program);
+
+          // set uniforms
+          const mouseLocation = gl.getUniformLocation(program, "mouse");
+          gl.uniform2f(mouseLocation, mouseX, mouseY);
+
+          // draw rectangle
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          const positionLocation = gl.getAttribLocation(program, "position");
+          gl.enableVertexAttribArray(positionLocation);
+          gl.vertexAttribPointer(
+            positionLocation,
+            2, // 2 components per iteration
+            gl.FLOAT, // the data is 32bit floats
+            false, // don't normalize the data
+            0, // 0 = move forward size * sizeof(type) each iteration to get the next position
+            0 // start at the beginning of the buffer
+          );
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+
+        requestAnimationFrame(render);
+      }
+
+      render();
+    </script>
+	<br>
+	This 6kB html does custom GPU graphics (WebGL GLSL shaders) in browser by moving mouse. Went thru few cycles of fixing bugs with ChatGPT to get this to work. Been using GPU.js which compiles JS to GLSL. Maybe I should use this lower level directly. Try it. https://jsfiddle.net/0phwfem3/ and am putting it in https://github.com/benrayfield/jsutils/tree/master/src along with "chatGPT public domain output license signed by ChatGPT (the bot) 2023-3-8.png" and "chatGPT public domain output license signed by ChatGPT (the bot) 2023-3-8.txt".
+	<br><br><br>
+  </body>
+</html>

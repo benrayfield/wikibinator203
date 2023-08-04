@@ -1,0 +1,19 @@
+SimpleGraphicsExampleB#λ[age height width V_[
+	(DE ,numBits *[height$ width$ ,32])
+	(BlE ,pix <NewBl ,b* numBits$>)
+	(DE ,red ,0)
+	(DE ,green ,1)
+	(DE ,blue ,2)
+	(DE ,alpha ,3)
+	(DE ,i ,0)
+	(Fo y height$
+		(Fo x width$
+			(DE ,pix +[i$ red$] &[,255 +n[x$ *n[age$ ,35]]])
+			(DE ,pix +[i$ green$] &[,255 +n[.x *n[y$ age$]]])
+			(DE ,pix +[i$ blue$] &[,255 *n[,333 <Div x$ y$>]])
+			(CC [next pixel] (DE ,i <+ i$ ,4>))
+		)
+	)
+	(CC [gets pix then calls it on the Treemap state] pix@)
+	F[todo wrap the array returned by pix@ in a Canvas]
+]]

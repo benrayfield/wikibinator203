@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Webcam Example</title>
+</head>
+<body>
+	<video id="videoElement" width="160" height="120" autoplay></video>
+	<canvas id="canvasElement" width="640" height="480"></canvas>
+
+	<script>
+		var video = document.getElementById("videoElement");
+		var canvas = document.getElementById("canvasElement");
+		var context = canvas.getContext("2d");
+		var imageData;
+
+		navigator.mediaDevices.getUserMedia({ video: { width: 160, height: 120 } })
+			.then(function(stream) {
+				video.srcObject = stream;
+			})
+			.catch(function(err) {
+				console.log("Error: " + err);
+			});
+
+		video.addEventListener("play", function() {
+			setInterval(function() {
+				context.drawImage(video, 0, 0, canvas.width, canvas.height);
+				imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+				var pixels = imageData.data;
+
+				for (var i = 0; i < pixels.length; i += 4) {
+					var brightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+					pixels[i] = brightness;
+					pixels[i + 1] = brightness;
+					pixels[i + 2] = brightness;
+				}
+
+				context.putImageData(imageData, 0, 0);
+			}, 1000 / 30);
+		});
+	</script>
+</body>
+</html>
